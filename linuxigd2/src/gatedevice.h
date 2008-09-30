@@ -32,6 +32,7 @@ int NATEnabled;
 char ExternalIPAddress[20];
 int PortMappingNumberOfEntries;
 int PortMappingEnabled;
+char RemoteHost[16];
 
 // Helper routines
 char* GetFirstDocumentItem( IN IXML_Document * doc, const char *item );

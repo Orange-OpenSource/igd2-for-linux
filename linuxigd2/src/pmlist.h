@@ -34,17 +34,17 @@ struct portMap* pmlist_NewNode(int enabled, long int duration, char *remoteHost,
                                            char *externalPort, char *internalPort,
                                            char *protocol, char *internalClient, char *desc);
 
-struct portMap* pmlist_Find(char *externalPort, char *proto, char *internalClient);
+struct portMap* pmlist_Find(char * remoteHost, char *externalPort, char *proto, char *internalClient);
 struct portMap* pmlist_FindByIndex(int index);
-struct portMap* pmlist_FindSpecific(char *externalPort, char *protocol);
+struct portMap* pmlist_FindSpecific(char * remoteHost, char *externalPort, char *protocol);
 int pmlist_IsEmtpy(void);
 int pmlist_Size(void);
 int pmlist_FreeList(void);
 int pmlist_PushBack(struct portMap* item);
 int pmlist_Delete(struct portMap* item);
-int pmlist_AddPortMapping (int enabled, char *protocol,
+int pmlist_AddPortMapping (int enabled, char *protocol, char *remoteHost,
                            char *externalPort, char *internalClient, char *internalPort);
-int pmlist_DeletePortMapping(int enabled, char *protocol,
+int pmlist_DeletePortMapping(int enabled, char *remoteHost, char *protocol,
                              char *externalPort, char *internalClient, char *internalPort);
 
 #endif // _PMLIST_H_
