@@ -6,6 +6,7 @@
 #include <upnp/upnp.h>
 #include <upnp/upnptools.h>
 #include <upnp/TimerThread.h>
+#include <arpa/inet.h>
 #include "globals.h"
 #include "gatedevice.h"
 #include "pmlist.h"
@@ -424,7 +425,8 @@ int AddPortMapping(struct Upnp_Action_Request *ca_event)
     int action_succeeded = 0;
     char resultStr[RESULT_LEN];
 
-    if ( (ext_port = GetFirstDocumentItem(ca_event->ActionRequest, "NewExternalPort") )
+    if ( (remote_host = GetFirstDocumentItem(ca_event->ActionRequest, "NewRemoteHost") )
+            && (ext_port = GetFirstDocumentItem(ca_event->ActionRequest, "NewExternalPort") )
             && (proto = GetFirstDocumentItem(ca_event->ActionRequest, "NewProtocol") )
             && (int_port = GetFirstDocumentItem(ca_event->ActionRequest, "NewInternalPort") )
             && (int_ip = GetFirstDocumentItem(ca_event->ActionRequest, "NewInternalClient") )
@@ -432,18 +434,17 @@ int AddPortMapping(struct Upnp_Action_Request *ca_event)
             && (bool_enabled = GetFirstDocumentItem(ca_event->ActionRequest, "NewEnabled") )
             && (desc = GetFirstDocumentItem(ca_event->ActionRequest, "NewPortMappingDescription") ))
     {
-        remote_host = GetFirstDocumentItem(ca_event->ActionRequest, "NewRemoteHost");
         // If port map with the same External Port, Protocol, and Internal Client exists
         // then, as per spec, we overwrite it (for simplicity, we delete and re-add at end of list)
         // Note: This may cause problems with GetGernericPortMappingEntry if a CP expects the overwritten
         // to be in the same place.
-        if ((ret = pmlist_Find(ext_port, proto, int_ip)) != NULL)
+        if ((ret = pmlist_Find(remote_host, ext_port, proto, int_ip)) != NULL)
         {
             trace(3, "Found port map to already exist.  Replacing");
             pmlist_Delete(ret);
         }
 
-        new = pmlist_NewNode(atoi(bool_enabled), atol(int_duration), "", ext_port, int_port, proto, int_ip, desc);
+        new = pmlist_NewNode(atoi(bool_enabled), atol(int_duration), remote_host, ext_port, int_port, proto, int_ip, desc);
         result = pmlist_PushBack(new);
         if (result==1)
         {
@@ -471,7 +472,7 @@ int AddPortMapping(struct Upnp_Action_Request *ca_event)
     }
     else
     {
-        trace(1, "Failiure in GateDeviceAddPortMapping: Invalid Arguments!");
+        trace(1, "Failure in GateDeviceAddPortMapping: Invalid Arguments!");
         trace(1, "  ExtPort: %s Proto: %s IntPort: %s IntIP: %s Dur: %s Ena: %s Desc: %s",
               ext_port, proto, int_port, int_ip, int_duration, bool_enabled, desc);
         ca_event->ErrCode = 402;
@@ -542,6 +543,7 @@ int GetGenericPortMappingEntry(struct Upnp_Action_Request *ca_event)
 }
 int GetSpecificPortMappingEntry(struct Upnp_Action_Request *ca_event)
 {
+    char *remote_host=NULL;
     char *ext_port=NULL;
     char *proto=NULL;
     char result_param[RESULT_LEN];
@@ -549,36 +551,48 @@ int GetSpecificPortMappingEntry(struct Upnp_Action_Request *ca_event)
     int action_succeeded = 0;
     struct portMap *temp;
 
-    if ((ext_port = GetFirstDocumentItem(ca_event->ActionRequest, "NewExternalPort"))
-            && (proto = GetFirstDocumentItem(ca_event->ActionRequest,"NewProtocol")))
+    if ((remote_host = GetFirstDocumentItem(ca_event->ActionRequest, "NewRemoteHost")) &&
+           (ext_port = GetFirstDocumentItem(ca_event->ActionRequest, "NewExternalPort")) &&
+           (proto = GetFirstDocumentItem(ca_event->ActionRequest,"NewProtocol")))
     {
         if ((strcmp(proto, "TCP") == 0) || (strcmp(proto, "UDP") == 0))
         {
-            temp = pmlist_FindSpecific (ext_port, proto);
-            if (temp)
+            // Check if remote host is empty string or valid IP address
+            if ((strcmp(remote_host, "") == 0) || (inet_addr(remote_host) >= 0))
             {
-                snprintf(result_param, RESULT_LEN, "<NewInternalPort>%s</NewInternalPort><NewInternalClient>%s</NewInternalClient><NewEnabled>%d</NewEnabled><NewPortMappingDescription>%s</NewPortMappingDescription><NewLeaseDuration>%li</NewLeaseDuration>",
-                         temp->m_InternalPort,
-                         temp->m_InternalClient,
-                         temp->m_PortMappingEnabled,
-                         temp->m_PortMappingDescription,
-                         temp->m_PortMappingLeaseDuration);
-                action_succeeded = 1;
+                temp = pmlist_FindSpecific (remote_host, ext_port, proto);
+                if (temp)
+                {
+                    snprintf(result_param, RESULT_LEN, "<NewInternalPort>%s</NewInternalPort><NewInternalClient>%s</NewInternalClient><NewEnabled>%d</NewEnabled><NewPortMappingDescription>%s</NewPortMappingDescription><NewLeaseDuration>%li</NewLeaseDuration>",
+                             temp->m_InternalPort,
+                             temp->m_InternalClient,
+                             temp->m_PortMappingEnabled,
+                             temp->m_PortMappingDescription,
+                             temp->m_PortMappingLeaseDuration);
+                    action_succeeded = 1;
+                }
+                if (action_succeeded)
+                {
+                    ca_event->ErrCode = UPNP_E_SUCCESS;
+                    snprintf(resultStr, RESULT_LEN, "<u:%sResponse xmlns:u=\"%s\">\n%s\n</u:%sResponse>", ca_event->ActionName,
+                             "urn:schemas-upnp-org:service:WANIPConnection:1",result_param, ca_event->ActionName);
+                    ca_event->ActionResult = ixmlParseBuffer(resultStr);
+                }
+                else
+                {
+                    trace(2, "GateDeviceGetSpecificPortMappingEntry: PortMapping Doesn't Exist...");
+                    ca_event->ErrCode = 714;
+                    strcpy(ca_event->ErrStr, "NoSuchEntryInArray");
+                    ca_event->ActionResult = NULL;
+                }
             }
-            if (action_succeeded)
+            else 
             {
-                ca_event->ErrCode = UPNP_E_SUCCESS;
-                snprintf(resultStr, RESULT_LEN, "<u:%sResponse xmlns:u=\"%s\">\n%s\n</u:%sResponse>", ca_event->ActionName,
-                         "urn:schemas-upnp-org:service:WANIPConnection:1",result_param, ca_event->ActionName);
-                ca_event->ActionResult = ixmlParseBuffer(resultStr);
-            }
-            else
-            {
-                trace(2, "GateDeviceGetSpecificPortMappingEntry: PortMapping Doesn't Exist...");
-                ca_event->ErrCode = 714;
-                strcpy(ca_event->ErrStr, "NoSuchEntryInArray");
-                ca_event->ActionResult = NULL;
-            }
+                trace(1, "Failure in GateDeviceDeletePortMapping: Invalid NewRemoteHost=%s\n",remote_host);
+                ca_event->ErrCode = 402;
+                strcpy(ca_event->ErrStr, "Invalid Args");
+                ca_event->ActionResult = NULL;                
+            }                
         }
         else
         {
@@ -590,7 +604,7 @@ int GetSpecificPortMappingEntry(struct Upnp_Action_Request *ca_event)
     }
     else
     {
-        trace(1, "Failure in GateDeviceGetSpecificPortMappingEntry: Invalid Args");
+        trace(1, "Failure in GateDeviceGetSpecificPortMappingEntry: Invalid Args %s", remote_host);
         ca_event->ErrCode = 402;
         strcpy(ca_event->ErrStr, "Invalid Args");
         ca_event->ActionResult = NULL;
@@ -629,6 +643,7 @@ int GetExternalIPAddress(struct Upnp_Action_Request *ca_event)
 
 int DeletePortMapping(struct Upnp_Action_Request *ca_event)
 {
+    char *remote_host=NULL;
     char *ext_port=NULL;
     char *proto=NULL;
     int result=0;
@@ -638,30 +653,42 @@ int DeletePortMapping(struct Upnp_Action_Request *ca_event)
     int action_succeeded = 0;
     struct portMap *temp;
 
-    if (((ext_port = GetFirstDocumentItem(ca_event->ActionRequest, "NewExternalPort")) &&
-            (proto = GetFirstDocumentItem(ca_event->ActionRequest, "NewProtocol"))))
+    if ((remote_host = GetFirstDocumentItem(ca_event->ActionRequest, "NewRemoteHost")) &&
+            (ext_port = GetFirstDocumentItem(ca_event->ActionRequest, "NewExternalPort")) &&
+            (proto = GetFirstDocumentItem(ca_event->ActionRequest, "NewProtocol")))
     {
 
         if ((strcmp(proto, "TCP") == 0) || (strcmp(proto, "UDP") == 0))
         {
-            if ((temp = pmlist_FindSpecific(ext_port, proto)))
-                result = pmlist_Delete(temp);
-
-            if (result==1)
+            // Check if remote host is empty string or valid IP address
+            if ((strcmp(remote_host, "") == 0) || (inet_addr(remote_host) >= 0))
             {
-                trace(2, "DeletePortMap: Proto:%s Port:%s\n",proto, ext_port);
-                sprintf(num,"%d",pmlist_Size());
-                UpnpAddToPropertySet(&propSet,"PortMappingNumberOfEntries", num);
-                UpnpNotifyExt(deviceHandle, ca_event->DevUDN,ca_event->ServiceID,propSet);
-                ixmlDocument_free(propSet);
-                action_succeeded = 1;
+                if ((temp = pmlist_FindSpecific(remote_host, ext_port, proto)))
+                    result = pmlist_Delete(temp);
+    
+                if (result==1)
+                {
+                    trace(2, "DeletePortMap: Remote Host: %s Proto:%s Port:%s\n", remote_host, proto, ext_port);
+                    sprintf(num,"%d",pmlist_Size());
+                    UpnpAddToPropertySet(&propSet,"PortMappingNumberOfEntries", num);
+                    UpnpNotifyExt(deviceHandle, ca_event->DevUDN,ca_event->ServiceID,propSet);
+                    ixmlDocument_free(propSet);
+                    action_succeeded = 1;
+                }
+                else
+                {
+                    trace(1, "Failure in GateDeviceDeletePortMapping: DeletePortMap: Remote Host:%s Proto:%s Port:%s\n",remote_host, proto, ext_port);
+                    ca_event->ErrCode = 714;
+                    strcpy(ca_event->ErrStr, "NoSuchEntryInArray");
+                    ca_event->ActionResult = NULL;
+                }
             }
-            else
+            else 
             {
-                trace(1, "Failure in GateDeviceDeletePortMapping: DeletePortMap: Proto:%s Port:%s\n",proto, ext_port);
-                ca_event->ErrCode = 714;
-                strcpy(ca_event->ErrStr, "NoSuchEntryInArray");
-                ca_event->ActionResult = NULL;
+                trace(1, "Failure in GateDeviceDeletePortMapping: Invalid NewRemoteHost=%s\n",remote_host);
+                ca_event->ErrCode = 402;
+                strcpy(ca_event->ErrStr, "Invalid Args");
+                ca_event->ActionResult = NULL;                
             }
         }
         else
@@ -674,7 +701,7 @@ int DeletePortMapping(struct Upnp_Action_Request *ca_event)
     }
     else
     {
-        trace(1, "Failiure in GateDeviceDeletePortMapping: Invalid Arguments!");
+        trace(1, "Failure in GateDeviceDeletePortMapping: Invalid Arguments!");
         ca_event->ErrCode = 402;
         strcpy(ca_event->ErrStr, "Invalid Args");
         ca_event->ActionResult = NULL;
@@ -702,12 +729,14 @@ char* GetFirstDocumentItem( IN IXML_Document * doc,
     IXML_Node *textNode = NULL;
     IXML_Node *tmpNode = NULL;
 
+    //fprintf(stderr,"%s\n",ixmlPrintDocument(doc)); //DEBUG
+
     char *ret = NULL;
 
     nodeList = ixmlDocument_getElementsByTagName( doc, ( char * )item );
 
     if ( nodeList )
-    {
+    {    
         if ( ( tmpNode = ixmlNodeList_item( nodeList, 0 ) ) )
         {
             textNode = ixmlNode_getFirstChild( tmpNode );
@@ -715,6 +744,9 @@ char* GetFirstDocumentItem( IN IXML_Document * doc,
             {
                 ret = strdup( ixmlNode_getNodeValue( textNode ) );
             }
+            // if desired node exist, but textNode is NULL, then value of node propably is ""
+            else
+                ret = strdup("");
         }
     }
 
