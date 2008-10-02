@@ -50,7 +50,7 @@ struct portMap* pmlist_Find(char * remoteHost, char *externalPort, char *proto, 
 
     do
     {
-        if ( (strcmp(temp->m_RemoteHost, remoteHost) == 0) &&
+        if ( ((strcmp(temp->m_RemoteHost, remoteHost) == 0) || (strcmp(remoteHost, "") == 0)) &&
                 (strcmp(temp->m_ExternalPort, externalPort) == 0) &&
                 (strcmp(temp->m_PortMappingProtocol, proto) == 0) &&
                 (strcmp(temp->m_InternalClient, internalClient) == 0) )
@@ -97,7 +97,35 @@ struct portMap* pmlist_FindSpecific(char * remoteHost, char *externalPort, char 
 
     do
     {
-        if ( (strcmp(temp->m_RemoteHost, remoteHost) == 0) &&
+        if ( ((strcmp(temp->m_RemoteHost, remoteHost) == 0) || (strcmp(remoteHost, "") == 0)) &&
+                (strcmp(temp->m_ExternalPort, externalPort) == 0) &&
+                (strcmp(temp->m_PortMappingProtocol, protocol) == 0))
+            return temp;
+        else
+            temp = temp->next;
+    }
+    while (temp != NULL);
+
+    return NULL;
+}
+
+/**
+ * Find next specific portmap from or after given index
+ */
+struct portMap* pmlist_FindSpecificAfterIndex(char * remoteHost, char *externalPort, char *protocol, int index)
+{
+    struct portMap* temp;
+
+    if ((index >= pmlist_Size()) || (index < 0))
+        return NULL;
+
+    temp = pmlist_FindByIndex(index);
+    if (temp == NULL)
+        return NULL;
+        
+    do
+    {
+        if ( ((strcmp(temp->m_RemoteHost, remoteHost) == 0) || (strcmp(remoteHost, "") == 0)) &&
                 (strcmp(temp->m_ExternalPort, externalPort) == 0) &&
                 (strcmp(temp->m_PortMappingProtocol, protocol) == 0))
             return temp;
@@ -192,6 +220,55 @@ int pmlist_Delete(struct portMap* item)
     int action_succeeded = 0;
 
     temp = pmlist_Find(item->m_RemoteHost, item->m_ExternalPort, item->m_PortMappingProtocol, item->m_InternalClient);
+    if (temp) // We found the item to delete
+    {
+        CancelMappingExpiration(temp->expirationEventId);
+        pmlist_DeletePortMapping(item->m_PortMappingEnabled, item->m_RemoteHost, item->m_PortMappingProtocol, 
+                                 item->m_ExternalPort, item->m_InternalClient, item->m_InternalPort);
+        if (temp == pmlist_Head) // We are the head of the list
+        {
+            if (temp->next == NULL) // We're the only node in the list
+            {
+                pmlist_Head = pmlist_Tail = pmlist_Current = NULL;
+                free (temp);
+                action_succeeded = 1;
+            }
+            else // we have a next, so change head to point to it
+            {
+                pmlist_Head = temp->next;
+                pmlist_Head->prev = NULL;
+                free (temp);
+                action_succeeded = 1;
+            }
+        }
+        else if (temp == pmlist_Tail) // We are the Tail, but not the Head so we have prev
+        {
+            pmlist_Tail = pmlist_Tail->prev;
+            free (pmlist_Tail->next);
+            pmlist_Tail->next = NULL;
+            action_succeeded = 1;
+        }
+        else // We exist and we are between two nodes
+        {
+            temp->prev->next = temp->next;
+            temp->next->prev = temp->prev;
+            pmlist_Current = temp->next; // We put current to the right after a extraction
+            free (temp);
+            action_succeeded = 1;
+        }
+    }
+    else  // We're deleting something that's not there, so return 0
+        action_succeeded = 0;
+
+    return action_succeeded;
+}
+
+int pmlist_DeleteIndex(struct portMap* item, int index)
+{
+    struct portMap *temp;
+    int action_succeeded = 0;
+
+    temp = pmlist_FindByIndex(index);
     if (temp) // We found the item to delete
     {
         CancelMappingExpiration(temp->expirationEventId);

@@ -741,43 +741,57 @@ int DeletePortMappingRange(struct Upnp_Action_Request *ca_event)
     IXML_Document *propSet= NULL;
     int action_succeeded = 0;
     struct portMap *temp;
+    int authorized = 0;
+    int managed = 0;
+    int index = 0;
+    
+    //TODO: check here if authorized
+    //now we are
+    authorized = 1;
 
     if ((start_port = GetFirstDocumentItem(ca_event->ActionRequest, "NewStartPort")) &&
             (end_port = GetFirstDocumentItem(ca_event->ActionRequest, "NewEndPort")) &&
             (proto = GetFirstDocumentItem(ca_event->ActionRequest, "NewProtocol")) &&
             (bool_manage = GetFirstDocumentItem(ca_event->ActionRequest, "Manage")))
-    {
-
-
-//TODO: Check if authorized access, check Manage, check if internal client IP == CP IP
-        
+    {       
         if ((strcmp(proto, "TCP") == 0) || (strcmp(proto, "UDP") == 0))
         {
+            managed = atoi(bool_manage);
             start = atoi(start_port);
             end = atoi(end_port);
-            
+    
             //loop ports from start to end
             for (ext_port = start; ext_port <= end; ext_port++)
             {
                 snprintf(del_port,str_len,"%d",ext_port);
-                if ((temp = pmlist_FindSpecific("", del_port, proto)))
-                    result = pmlist_Delete(temp);
-    
-                if (result==1)
-                {
-                    trace(2, "DeletePortMappingRange: StartPort:%s EndPort:%s Proto:%s Manage:%s (DelPort:%s)\n", start_port, end_port, proto, bool_manage, del_port);
-                    snprintf(num,str_len,"%d",pmlist_Size());
-                    UpnpAddToPropertySet(&propSet,"PortMappingNumberOfEntries", num);
-                    UpnpNotifyExt(deviceHandle, ca_event->DevUDN,ca_event->ServiceID,propSet);
+                index = 0;
+                // remove all instances with externalPort
+                do {
+                    //use index for searching because loop would end up into infinite loop if deleting wasn't allowed and FindSpecific would offer allways the same item
+                    temp = pmlist_FindSpecificAfterIndex("", del_port, proto, index);
                     
-                    action_succeeded = 1;
-                }
-                result = 0;
+                    if (temp && ((authorized && managed) || (FALSE))) //TODO: instead of FALSE add this: internalClient == CP's IP
+                        result = pmlist_DeleteIndex(temp, index);     // Should error message 730 ActionNotPermitted be send? In which case?
+                    else 
+                        index++;
+                    
+                    if (result==1)
+                    {
+                        trace(2, "DeletePortMappingRange: StartPort:%s EndPort:%s Proto:%s Manage:%s (DelPort:%s)\n", start_port, end_port, proto, bool_manage, del_port);
+                        snprintf(num,str_len,"%d",pmlist_Size());
+                        UpnpAddToPropertySet(&propSet,"PortMappingNumberOfEntries", num);
+                        UpnpNotifyExt(deviceHandle, ca_event->DevUDN,ca_event->ServiceID,propSet);
+                        
+                        action_succeeded = 1;
+                    }
+                    
+                    result = 0;
+                } while (temp != NULL);
             }
             
             if (!action_succeeded)
             {
-                trace(1, "Failure in GateDeviceDeletePortMappingRange: DeletePortMappingRange: StartPort:%s EndPort:%s Proto:%s Manage:%s\n", start_port,end_port,proto,bool_manage);
+                trace(1, "Failure in GateDeviceDeletePortMappingRange: DeletePortMappingRange: StartPort:%s EndPort:%s Proto:%s Manage:%s NoSuchEntryInArray!\n", start_port,end_port,proto,bool_manage);
                 ca_event->ErrCode = 714;
                 strcpy(ca_event->ErrStr, "NoSuchEntryInArray");
                 ca_event->ActionResult = NULL;
