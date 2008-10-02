@@ -145,6 +145,8 @@ int HandleActionRequest(struct Upnp_Action_Request *ca_event)
                 result = DeletePortMapping(ca_event);
             else if (strcmp(ca_event->ActionName,"GetStatusInfo") == 0)
                 result = GetStatusInfo(ca_event);
+            else if (strcmp(ca_event->ActionName,"DeletePortMappingRange") == 0)
+                result = DeletePortMappingRange(ca_event);
 
             // Intentionally Non-Implemented Functions -- To be added later
             /*else if (strcmp(ca_event->ActionName,"RequestTermination") == 0)
@@ -715,8 +717,101 @@ int DeletePortMapping(struct Upnp_Action_Request *ca_event)
         ca_event->ActionResult = ixmlParseBuffer(resultStr);
     }
 
+    if (remote_host) free(remote_host);
     if (ext_port) free(ext_port);
     if (proto) free(proto);
+
+    return(ca_event->ErrCode);
+}
+
+int DeletePortMappingRange(struct Upnp_Action_Request *ca_event)
+{
+    char *start_port=NULL;
+    char *end_port=NULL;
+    char *proto=NULL;
+    char *bool_manage=NULL;
+    int start=0;
+    int end=0;
+    int ext_port=0;
+    int result=0;
+    int str_len = 6;
+    char del_port[str_len];
+    char num[str_len];
+    char resultStr[RESULT_LEN];
+    IXML_Document *propSet= NULL;
+    int action_succeeded = 0;
+    struct portMap *temp;
+
+    if ((start_port = GetFirstDocumentItem(ca_event->ActionRequest, "NewStartPort")) &&
+            (end_port = GetFirstDocumentItem(ca_event->ActionRequest, "NewEndPort")) &&
+            (proto = GetFirstDocumentItem(ca_event->ActionRequest, "NewProtocol")) &&
+            (bool_manage = GetFirstDocumentItem(ca_event->ActionRequest, "Manage")))
+    {
+
+
+//TODO: Check if authorized access, check Manage, check if internal client IP == CP IP
+        
+        if ((strcmp(proto, "TCP") == 0) || (strcmp(proto, "UDP") == 0))
+        {
+            start = atoi(start_port);
+            end = atoi(end_port);
+            
+            //loop ports from start to end
+            for (ext_port = start; ext_port <= end; ext_port++)
+            {
+                snprintf(del_port,str_len,"%d",ext_port);
+                if ((temp = pmlist_FindSpecific("", del_port, proto)))
+                    result = pmlist_Delete(temp);
+    
+                if (result==1)
+                {
+                    trace(2, "DeletePortMappingRange: StartPort:%s EndPort:%s Proto:%s Manage:%s (DelPort:%s)\n", start_port, end_port, proto, bool_manage, del_port);
+                    snprintf(num,str_len,"%d",pmlist_Size());
+                    UpnpAddToPropertySet(&propSet,"PortMappingNumberOfEntries", num);
+                    UpnpNotifyExt(deviceHandle, ca_event->DevUDN,ca_event->ServiceID,propSet);
+                    
+                    action_succeeded = 1;
+                }
+                result = 0;
+            }
+            
+            if (!action_succeeded)
+            {
+                trace(1, "Failure in GateDeviceDeletePortMappingRange: DeletePortMappingRange: StartPort:%s EndPort:%s Proto:%s Manage:%s\n", start_port,end_port,proto,bool_manage);
+                ca_event->ErrCode = 714;
+                strcpy(ca_event->ErrStr, "NoSuchEntryInArray");
+                ca_event->ActionResult = NULL;
+            }
+        }
+        else
+        {
+            trace(1, "Failure in GateDeviceDeletePortMappingRange: Invalid NewProtocol=%s\n",proto);
+            ca_event->ErrCode = 402;
+            strcpy(ca_event->ErrStr, "Invalid Args");
+            ca_event->ActionResult = NULL;
+        }
+    }
+    else
+    {
+        trace(1, "Failure in GateDeviceDeletePortMappingRange: Invalid Arguments!");
+        ca_event->ErrCode = 402;
+        strcpy(ca_event->ErrStr, "Invalid Args");
+        ca_event->ActionResult = NULL;
+    }
+
+    if (action_succeeded)
+    {
+        ca_event->ErrCode = UPNP_E_SUCCESS;
+        snprintf(resultStr, RESULT_LEN, "<u:%sResponse xmlns:u=\"%s\">\n%s\n</u:%sResponse>",
+                 ca_event->ActionName, "urn:schemas-upnp-org:service:WANIPConnection:1", "", ca_event->ActionName);
+        ca_event->ActionResult = ixmlParseBuffer(resultStr);
+    }
+
+    if (propSet) ixmlDocument_free(propSet);    
+    if (start_port) free(start_port);
+    if (end_port) free(end_port);
+    if (proto) free(proto);
+    if (bool_manage) free(bool_manage);
 
     return(ca_event->ErrCode);
 }

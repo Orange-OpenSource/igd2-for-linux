@@ -61,6 +61,7 @@ int GetGenericPortMappingEntry(struct Upnp_Action_Request *ca_event);
 int GetSpecificPortMappingEntry(struct Upnp_Action_Request *ca_event);
 int GetExternalIPAddress(struct Upnp_Action_Request *ca_event);
 int DeletePortMapping(struct Upnp_Action_Request *ca_event);
+int DeletePortMappingRange(struct Upnp_Action_Request *ca_event);
 
 // Definitions for mapping expiration timer thread
 #define THREAD_IDLE_TIME 5000
