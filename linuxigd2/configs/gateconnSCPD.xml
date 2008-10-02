@@ -325,7 +325,7 @@
                 <argument>
                     <name>Manage</name>
                     <direction>in</direction>
-                    <relatedStateVariable>A_ARG_Manage</relatedStateVariable>
+                    <relatedStateVariable>A_ARG_TYPE_Manage</relatedStateVariable>
                 </argument>
             </argumentList>
         </action>
@@ -345,7 +345,7 @@
                 <argument>
                     <name>Manage</name>
                     <direction>in</direction>
-                    <relatedStateVariable>A_ARG_Manage</relatedStateVariable>
+                    <relatedStateVariable>A_ARG_TYPE_Manage</relatedStateVariable>
                 </argument>
                 <argument>
                     <name>NewNumberOfPorts</name>
@@ -355,7 +355,7 @@
                 <argument>
                     <name>PortListing</name>
                     <direction>Out</direction>
-                    <relatedStateVariable>A_ARG_PortListing</relatedStateVariable>
+                    <relatedStateVariable>A_ARG_TYPE_PortListing</relatedStateVariable>
                 </argument>
             </argumentList>
         </action>
@@ -534,11 +534,11 @@
             <dataType>CSV(ui2,ui2,string,string,string)</dataType>
         </stateVariable>
         <stateVariable sendEvents="No">
-            <name>A_ARG_Manage</name>
+            <name>A_ARG_TYPE_Manage</name>
             <dataType>boolean</dataType>
         </stateVariable>
         <stateVariable sendEvents="No">
-            <name>A_ARG_PortListing</name>
+            <name>A_ARG_TYPE_PortListing</name>
             <dataType>CSV({RemoteHost,ExternalPort,PortmappingProtocol,InternalPort,InternalClient,PormappingEnabled,PortMappingDescription,LeaseDuration})</dataType>
         </stateVariable>
         <!--
