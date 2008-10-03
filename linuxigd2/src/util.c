@@ -53,6 +53,13 @@ int GetIpAddressStr(char *address, char *ifname)
     return succeeded;
 }
 
+// check if IP of control point is same as ICAddress
+// return 0 if not, something else if match
+int ControlPointIP_equals_InternalClientIP(char *ICAddress)
+{
+    return 0;   
+}
+
 void trace(int debuglevel, const char *format, ...)
 {
     va_list ap;

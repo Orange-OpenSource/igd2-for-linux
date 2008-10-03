@@ -751,6 +751,7 @@ int DeletePortMappingRange(struct Upnp_Action_Request *ca_event)
     int authorized = 0;
     int managed = 0;
     int index = 0;
+    int foundPortmapCount = 0;
     
     //TODO: check here if authorized
     //now we are
@@ -775,15 +776,18 @@ int DeletePortMappingRange(struct Upnp_Action_Request *ca_event)
                 // remove all instances with externalPort
                 do {
                     temp = pmlist_FindSpecificAfterIndex("", del_port, proto, index);
-                    
-                    if (temp && ((authorized && managed) || (FALSE))) //TODO: instead of FALSE add this: internalClient == CP's IP
+                    if (temp)
                     {
-                        result = pmlist_DeleteIndex(temp, index);     // Should error message 730 ActionNotPermitted be send? In which case?
-                        SystemUpdateID++;
-                        asprintf(&ChangedPortMapping,"%s,%s,%s,%s,%s",start_port,end_port,proto,temp->m_InternalClient,temp->m_RemoteHost);
+                        foundPortmapCount++;
+                        if ((authorized && managed) || ControlPointIP_equals_InternalClientIP(temp->m_InternalClient))
+                        {
+                            result = pmlist_DeleteIndex(temp, index);
+                            SystemUpdateID++;
+                            asprintf(&ChangedPortMapping,"%s,%s,%s,%s,%s",start_port,end_port,proto,temp->m_InternalClient,temp->m_RemoteHost);
+                        }
+                        else 
+                            index++;
                     }
-                    else 
-                        index++;
                 } while (temp != NULL);
             }
             
@@ -802,7 +806,14 @@ int DeletePortMappingRange(struct Upnp_Action_Request *ca_event)
                 action_succeeded = 1;
             }
             
-            if (!action_succeeded)
+            if (foundPortmapCount > 0)
+            {
+                trace(1, "Failure in GateDeviceDeletePortMappingRange: DeletePortMappingRange: StartPort:%s EndPort:%s Proto:%s Manage:%s ActionNotPermitted!\n", start_port,end_port,proto,bool_manage);
+                ca_event->ErrCode = 730;
+                strcpy(ca_event->ErrStr, "ActionNotPermitted");
+                ca_event->ActionResult = NULL;                
+            }
+            else
             {
                 trace(1, "Failure in GateDeviceDeletePortMappingRange: DeletePortMappingRange: StartPort:%s EndPort:%s Proto:%s Manage:%s NoSuchEntryInArray!\n", start_port,end_port,proto,bool_manage);
                 ca_event->ErrCode = 714;

@@ -3,6 +3,8 @@
 
 int get_sockfd(void);
 int GetIpAddressStr(char *address, char *ifname);
+int ControlPointIP_equals_InternalClientIP(char *ICAddress);
+
 void trace(int debuglevel, const char *format, ...);
 
 #endif //_UTIL_H_
