@@ -63,6 +63,7 @@ int StateTableInit(char *descDocUrl)
     // Initialize our linked list of port mappings.
     pmlist_Head = pmlist_Current = NULL;
     PortMappingNumberOfEntries = 0;
+    SystemUpdateID = 0;
 
     return (ret);
 }
@@ -426,6 +427,7 @@ int AddPortMapping(struct Upnp_Action_Request *ca_event)
     IXML_Document *propSet = NULL;
     int action_succeeded = 0;
     char resultStr[RESULT_LEN];
+    char *tmp;
 
     if ( (remote_host = GetFirstDocumentItem(ca_event->ActionRequest, "NewRemoteHost") )
             && (ext_port = GetFirstDocumentItem(ca_event->ActionRequest, "NewExternalPort") )
@@ -454,6 +456,8 @@ int AddPortMapping(struct Upnp_Action_Request *ca_event)
             sprintf(num, "%d", pmlist_Size());
             trace(3, "PortMappingNumberOfEntries: %d", pmlist_Size());
             UpnpAddToPropertySet(&propSet, "PortMappingNumberOfEntries", num);
+            asprintf(&tmp,"%ld",++SystemUpdateID);
+            UpnpAddToPropertySet(&propSet,"SystemUpdateID", tmp);
             UpnpNotifyExt(deviceHandle, ca_event->DevUDN, ca_event->ServiceID, propSet);
             ixmlDocument_free(propSet);
             trace(2, "AddPortMap: DevUDN: %s ServiceID: %s RemoteHost: %s Prot: %s ExtPort: %s Int: %s.%s",
@@ -654,6 +658,7 @@ int DeletePortMapping(struct Upnp_Action_Request *ca_event)
     IXML_Document *propSet= NULL;
     int action_succeeded = 0;
     struct portMap *temp;
+    char *tmp;
 
     if ((remote_host = GetFirstDocumentItem(ca_event->ActionRequest, "NewRemoteHost")) &&
             (ext_port = GetFirstDocumentItem(ca_event->ActionRequest, "NewExternalPort")) &&
@@ -673,6 +678,8 @@ int DeletePortMapping(struct Upnp_Action_Request *ca_event)
                     trace(2, "DeletePortMap: Remote Host: %s Proto:%s Port:%s\n", remote_host, proto, ext_port);
                     sprintf(num,"%d",pmlist_Size());
                     UpnpAddToPropertySet(&propSet,"PortMappingNumberOfEntries", num);
+                    asprintf(&tmp,"%ld",++SystemUpdateID);
+                    UpnpAddToPropertySet(&propSet,"SystemUpdateID", tmp);
                     UpnpNotifyExt(deviceHandle, ca_event->DevUDN,ca_event->ServiceID,propSet);
                     ixmlDocument_free(propSet);
                     action_succeeded = 1;
@@ -736,7 +743,7 @@ int DeletePortMappingRange(struct Upnp_Action_Request *ca_event)
     int result=0;
     int str_len = 6;
     char del_port[str_len];
-    char num[str_len];
+    char *tmp;
     char resultStr[RESULT_LEN];
     IXML_Document *propSet= NULL;
     int action_succeeded = 0;
@@ -767,26 +774,32 @@ int DeletePortMappingRange(struct Upnp_Action_Request *ca_event)
                 index = 0;
                 // remove all instances with externalPort
                 do {
-                    //use index for searching because loop would end up into infinite loop if deleting wasn't allowed and FindSpecific would offer allways the same item
                     temp = pmlist_FindSpecificAfterIndex("", del_port, proto, index);
                     
                     if (temp && ((authorized && managed) || (FALSE))) //TODO: instead of FALSE add this: internalClient == CP's IP
+                    {
                         result = pmlist_DeleteIndex(temp, index);     // Should error message 730 ActionNotPermitted be send? In which case?
+                        SystemUpdateID++;
+                        asprintf(&ChangedPortMapping,"%s,%s,%s,%s,%s",start_port,end_port,proto,temp->m_InternalClient,temp->m_RemoteHost);
+                    }
                     else 
                         index++;
-                    
-                    if (result==1)
-                    {
-                        trace(2, "DeletePortMappingRange: StartPort:%s EndPort:%s Proto:%s Manage:%s (DelPort:%s)\n", start_port, end_port, proto, bool_manage, del_port);
-                        snprintf(num,str_len,"%d",pmlist_Size());
-                        UpnpAddToPropertySet(&propSet,"PortMappingNumberOfEntries", num);
-                        UpnpNotifyExt(deviceHandle, ca_event->DevUDN,ca_event->ServiceID,propSet);
-                        
-                        action_succeeded = 1;
-                    }
-                    
-                    result = 0;
                 } while (temp != NULL);
+            }
+            
+            // maximum 5 events per second (from specification), that is why we send only one event after deleting all
+            if (result==1)
+            {
+                trace(2, "DeletePortMappingRange: StartPort:%s EndPort:%s Proto:%s Manage:%s\n", start_port, end_port, proto, bool_manage);
+              
+                asprintf(&tmp,"%d",pmlist_Size());
+                UpnpAddToPropertySet(&propSet,"PortMappingNumberOfEntries", tmp);
+                asprintf(&tmp,"%ld",SystemUpdateID);
+                UpnpAddToPropertySet(&propSet,"SystemUpdateID", tmp);
+                UpnpAddToPropertySet(&propSet,"ChangedPortMapping", ChangedPortMapping);
+                                
+                UpnpNotifyExt(deviceHandle, ca_event->DevUDN,ca_event->ServiceID,propSet);
+                action_succeeded = 1;
             }
             
             if (!action_succeeded)
