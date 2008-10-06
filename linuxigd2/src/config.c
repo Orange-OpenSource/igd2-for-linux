@@ -39,6 +39,10 @@ int getConfigOptionDuration(long int *duration,char line[], regmatch_t *submatch
         *p++ = '\0';
         dur = atol(num)*3600 + atol(p)*60;
     }
+    
+    if (dur > MAXIMUM_DURATION) 
+        dur = MAXIMUM_DURATION;
+    
     if (absolute_time)
         dur *= -1;
     *duration = dur;

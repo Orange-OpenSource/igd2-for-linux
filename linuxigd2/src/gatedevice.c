@@ -518,7 +518,15 @@ int GetGenericPortMappingEntry(struct Upnp_Action_Request *ca_event)
         temp = pmlist_FindByIndex(atoi(mapindex));
         if (temp)
         {
-            snprintf(result_param, RESULT_LEN, "<NewRemoteHost>%s</NewRemoteHost><NewExternalPort>%s</NewExternalPort><NewProtocol>%s</NewProtocol><NewInternalPort>%s</NewInternalPort><NewInternalClient>%s</NewInternalClient><NewEnabled>%d</NewEnabled><NewPortMappingDescription>%s</NewPortMappingDescription><NewLeaseDuration>%li</NewLeaseDuration>", temp->m_RemoteHost, temp->m_ExternalPort, temp->m_PortMappingProtocol, temp->m_InternalPort, temp->m_InternalClient, temp->m_PortMappingEnabled, temp->m_PortMappingDescription, temp->m_PortMappingLeaseDuration);
+            snprintf(result_param, RESULT_LEN, "<NewRemoteHost>%s</NewRemoteHost><NewExternalPort>%s</NewExternalPort><NewProtocol>%s</NewProtocol><NewInternalPort>%s</NewInternalPort><NewInternalClient>%s</NewInternalClient><NewEnabled>%d</NewEnabled><NewPortMappingDescription>%s</NewPortMappingDescription><NewLeaseDuration>%li</NewLeaseDuration>", 
+                                                temp->m_RemoteHost, 
+                                                temp->m_ExternalPort, 
+                                                temp->m_PortMappingProtocol, 
+                                                temp->m_InternalPort, 
+                                                temp->m_InternalClient, 
+                                                temp->m_PortMappingEnabled, 
+                                                temp->m_PortMappingDescription,
+                                                (temp->expirationTime-time(NULL))); 
             action_succeeded = 1;
         }
         if (action_succeeded)
@@ -574,7 +582,7 @@ int GetSpecificPortMappingEntry(struct Upnp_Action_Request *ca_event)
                              temp->m_InternalClient,
                              temp->m_PortMappingEnabled,
                              temp->m_PortMappingDescription,
-                             temp->m_PortMappingLeaseDuration);
+                             (temp->expirationTime-time(NULL)));
                     action_succeeded = 1;
                 }
                 if (action_succeeded)
@@ -806,14 +814,14 @@ int DeletePortMappingRange(struct Upnp_Action_Request *ca_event)
                 action_succeeded = 1;
             }
             
-            if (foundPortmapCount > 0)
+            if (foundPortmapCount > 0 && !action_succeeded)
             {
                 trace(1, "Failure in GateDeviceDeletePortMappingRange: DeletePortMappingRange: StartPort:%s EndPort:%s Proto:%s Manage:%s ActionNotPermitted!\n", start_port,end_port,proto,bool_manage);
                 ca_event->ErrCode = 730;
                 strcpy(ca_event->ErrStr, "ActionNotPermitted");
                 ca_event->ActionResult = NULL;                
             }
-            else
+            else if (!action_succeeded)
             {
                 trace(1, "Failure in GateDeviceDeletePortMappingRange: DeletePortMappingRange: StartPort:%s EndPort:%s Proto:%s Manage:%s NoSuchEntryInArray!\n", start_port,end_port,proto,bool_manage);
                 ca_event->ErrCode = 714;
@@ -961,16 +969,22 @@ int ScheduleMappingExpiration(struct portMap *mapping, char *DevUDN, char *Servi
     expiration_event *event;
     time_t curtime = time(NULL);
 
-    if (mapping->m_PortMappingLeaseDuration > 0)
+    // set expiration time for portmapping
+    if (mapping->m_PortMappingLeaseDuration == 0 || mapping->m_PortMappingLeaseDuration > MAXIMUM_DURATION)
+    {
+        mapping->m_PortMappingLeaseDuration = MAXIMUM_DURATION;
+        mapping->expirationTime = curtime + mapping->m_PortMappingLeaseDuration;
+    }
+    else if (mapping->m_PortMappingLeaseDuration > 0)
     {
         mapping->expirationTime = curtime + mapping->m_PortMappingLeaseDuration;
     }
-    else
+    else // mapping->m_PortMappingLeaseDuration < 0
     {
         //client did not provide a duration, so use the default duration
-        if (g_vars.duration==0)
+        if (g_vars.duration==0 || g_vars.duration>MAXIMUM_DURATION)
         {
-            return 1; //no default duration set
+            mapping->expirationTime = curtime+MAXIMUM_DURATION;
         }
         else if (g_vars.duration>0)
         {
@@ -986,6 +1000,8 @@ int ScheduleMappingExpiration(struct portMap *mapping, char *DevUDN, char *Servi
             long int diff = expclock-curclock;
             if (diff<60) //if exptime is in less than a minute (or in the past), schedule it in 24 hours instead
                 diff += 24*60*60;
+            if (diff > MAXIMUM_DURATION) 
+                diff = MAXIMUM_DURATION;      
             mapping->expirationTime = curtime+diff;
         }
     }
