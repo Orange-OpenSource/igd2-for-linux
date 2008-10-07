@@ -1093,7 +1093,7 @@ void DeleteAllPortMappings(void)
 
     ithread_mutex_unlock(&DevMutex);
 }
-<<<<<<< .mine
+
 
 /*
   AddAnyPortMapping
