@@ -25,11 +25,11 @@ endif
 all: upnpd
 
 upnpd: $(FILES)
-	$(CC) $(CFLAGS) $^ $(LIBS) -o $(BIN)$@
+	$(CC) $(CFLAGS) $^ $(LIBS) `pkg-config --libs glib-2.0` -o $(BIN)$@
 	@echo "make $@ finished on `date`"
 
 %.o:	src/%.c
-	$(CC) $(CFLAGS) $(INCLUDES) -D_GNU_SOURCE -c $< -o $@
+	$(CC) $(CFLAGS) $(INCLUDES) `pkg-config --cflags glib-2.0` -D_GNU_SOURCE -c $< -o $@
 
 clean:
 	rm -f *.o $(BIN)upnpd
