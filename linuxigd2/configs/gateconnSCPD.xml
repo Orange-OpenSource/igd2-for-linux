@@ -544,7 +544,7 @@
         </stateVariable>
         <stateVariable sendEvents="No">
             <name>A_ARG_TYPE_PortListing</name>
-            <dataType>CSV({RemoteHost,ExternalPort,PortmappingProtocol,InternalPort,InternalClient,PormappingEnabled,PortMappingDescription,LeaseDuration})</dataType>
+            <dataType>CSV(string,string,string,string,string,ui2,string,ui4)</dataType>
         </stateVariable>
         <!--
             Declarations for other state variables added by UPnP vendor
