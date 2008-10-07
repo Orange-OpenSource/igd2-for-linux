@@ -65,6 +65,8 @@ int GetSpecificPortMappingEntry(struct Upnp_Action_Request *ca_event);
 int GetExternalIPAddress(struct Upnp_Action_Request *ca_event);
 int DeletePortMapping(struct Upnp_Action_Request *ca_event);
 int DeletePortMappingRange(struct Upnp_Action_Request *ca_event);
+int RetrieveListOfPortmappings(struct Upnp_Action_Request *ca_event);
+int AuthorizeControlPoint(struct Upnp_Action_Request *ca_event);
 
 // Definitions for mapping expiration timer thread
 #define THREAD_IDLE_TIME 5000
@@ -77,5 +79,8 @@ int ExpirationTimerThreadShutdown(void);
 int ScheduleMappingExpiration(struct portMap *mapping, char *DevUDN, char *ServiceID);
 int CancelMappingExpiration(int eventId);
 void DeleteAllPortMappings(void);
+
+// Definition for authorizing control point
+#define CONTROL_POINT_AUTHORIZED    0
 
 #endif //_GATEDEVICE_H

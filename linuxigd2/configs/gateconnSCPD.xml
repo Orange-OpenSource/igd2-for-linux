@@ -343,6 +343,11 @@
                     <relatedStateVariable>ExternalPort</relatedStateVariable>
                 </argument>
                 <argument>
+                    <name>NewProtocol</name>
+                    <direction>in</direction>
+                    <relatedStateVariable>PortMappingProtocol</relatedStateVariable>
+                </argument>
+                <argument>
                     <name>Manage</name>
                     <direction>in</direction>
                     <relatedStateVariable>A_ARG_TYPE_Manage</relatedStateVariable>

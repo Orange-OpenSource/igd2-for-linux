@@ -19,6 +19,11 @@ static ThreadPool gExpirationThreadPool;
 // MUTEX for locking shared state variables whenver they are changed
 static ithread_mutex_t DevMutex = PTHREAD_MUTEX_INITIALIZER;
 
+// XML string definitions
+static const char xml_portmapEntry[] = "<p:PortmapEntry NewRemoteHost=\"%s\" NewExternalPort=\"%s\" NewProtocol=\"%s\" NewInternalPort=\"%s\" NewInternalClient=\"%s\" NewEnabled=\"%d\" NewDescription=\"%s\" NewLeaseTime=\"%ld\"></p:PortmapEntry>\n";
+static const char xml_portmapListingHeader[] = "<p:PortMappingList xmlns:p=\"http://www.upnp.org/schemas/GWPortMappingList.xsd\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:schemaLocation=\"http://www.upnp.org/schemas/GWPortMappingList.xsd GwPortMappingList-V0.5.xsd\">\n";
+static const char xml_portmapListingFooter[] = "</p:PortMappingList>";
+
 // Main event handler for callbacks from the SDK.  Determine type of event
 // and dispatch to the appropriate handler (Note: Get Var Request deprecated
 int EventHandler(Upnp_EventType EventType, void *Event, void *Cookie)
@@ -148,6 +153,8 @@ int HandleActionRequest(struct Upnp_Action_Request *ca_event)
                 result = GetStatusInfo(ca_event);
             else if (strcmp(ca_event->ActionName,"DeletePortMappingRange") == 0)
                 result = DeletePortMappingRange(ca_event);
+            else if (strcmp(ca_event->ActionName,"RetrieveListOfPortmappings") == 0)
+                result = RetrieveListOfPortmappings(ca_event);
 
             // Intentionally Non-Implemented Functions -- To be added later
             /*else if (strcmp(ca_event->ActionName,"RequestTermination") == 0)
@@ -438,6 +445,13 @@ int AddPortMapping(struct Upnp_Action_Request *ca_event)
             && (bool_enabled = GetFirstDocumentItem(ca_event->ActionRequest, "NewEnabled") )
             && (desc = GetFirstDocumentItem(ca_event->ActionRequest, "NewPortMappingDescription") ))
     {
+
+        // If ext_port is <1024 control point needs to be authorized
+        if (atoi(ext_port) < 1024 && AuthorizeControlPoint(ca_event) != CONTROL_POINT_AUTHORIZED)
+        {
+            return ca_event->ErrCode;
+        }
+
         // If port map with the same External Port, Protocol, and Internal Client exists
         // then, as per spec, we overwrite it (for simplicity, we delete and re-add at end of list)
         // Note: This may cause problems with GetGernericPortMappingEntry if a CP expects the overwritten
@@ -518,15 +532,15 @@ int GetGenericPortMappingEntry(struct Upnp_Action_Request *ca_event)
         temp = pmlist_FindByIndex(atoi(mapindex));
         if (temp)
         {
-            snprintf(result_param, RESULT_LEN, "<NewRemoteHost>%s</NewRemoteHost><NewExternalPort>%s</NewExternalPort><NewProtocol>%s</NewProtocol><NewInternalPort>%s</NewInternalPort><NewInternalClient>%s</NewInternalClient><NewEnabled>%d</NewEnabled><NewPortMappingDescription>%s</NewPortMappingDescription><NewLeaseDuration>%li</NewLeaseDuration>", 
-                                                temp->m_RemoteHost, 
-                                                temp->m_ExternalPort, 
-                                                temp->m_PortMappingProtocol, 
-                                                temp->m_InternalPort, 
-                                                temp->m_InternalClient, 
-                                                temp->m_PortMappingEnabled, 
+            snprintf(result_param, RESULT_LEN, "<NewRemoteHost>%s</NewRemoteHost><NewExternalPort>%s</NewExternalPort><NewProtocol>%s</NewProtocol><NewInternalPort>%s</NewInternalPort><NewInternalClient>%s</NewInternalClient><NewEnabled>%d</NewEnabled><NewPortMappingDescription>%s</NewPortMappingDescription><NewLeaseDuration>%li</NewLeaseDuration>",
+                                                temp->m_RemoteHost,
+                                                temp->m_ExternalPort,
+                                                temp->m_PortMappingProtocol,
+                                                temp->m_InternalPort,
+                                                temp->m_InternalClient,
+                                                temp->m_PortMappingEnabled,
                                                 temp->m_PortMappingDescription,
-                                                (temp->expirationTime-time(NULL))); 
+                                                (temp->expirationTime-time(NULL)));
             action_succeeded = 1;
         }
         if (action_succeeded)
@@ -600,13 +614,13 @@ int GetSpecificPortMappingEntry(struct Upnp_Action_Request *ca_event)
                     ca_event->ActionResult = NULL;
                 }
             }
-            else 
+            else
             {
                 trace(1, "Failure in GateDeviceDeletePortMapping: Invalid NewRemoteHost=%s\n",remote_host);
                 ca_event->ErrCode = 402;
                 strcpy(ca_event->ErrStr, "Invalid Args");
-                ca_event->ActionResult = NULL;                
-            }                
+                ca_event->ActionResult = NULL;
+            }
         }
         else
         {
@@ -680,7 +694,7 @@ int DeletePortMapping(struct Upnp_Action_Request *ca_event)
             {
                 if ((temp = pmlist_FindSpecific(remote_host, ext_port, proto)))
                     result = pmlist_Delete(temp);
-    
+
                 if (result==1)
                 {
                     trace(2, "DeletePortMap: Remote Host: %s Proto:%s Port:%s\n", remote_host, proto, ext_port);
@@ -700,12 +714,12 @@ int DeletePortMapping(struct Upnp_Action_Request *ca_event)
                     ca_event->ActionResult = NULL;
                 }
             }
-            else 
+            else
             {
                 trace(1, "Failure in GateDeviceDeletePortMapping: Invalid NewRemoteHost=%s\n",remote_host);
                 ca_event->ErrCode = 402;
                 strcpy(ca_event->ErrStr, "Invalid Args");
-                ca_event->ActionResult = NULL;                
+                ca_event->ActionResult = NULL;
             }
         }
         else
@@ -760,7 +774,7 @@ int DeletePortMappingRange(struct Upnp_Action_Request *ca_event)
     int managed = 0;
     int index = 0;
     int foundPortmapCount = 0;
-    
+
     //TODO: check here if authorized
     //now we are
     authorized = 1;
@@ -769,13 +783,13 @@ int DeletePortMappingRange(struct Upnp_Action_Request *ca_event)
             (end_port = GetFirstDocumentItem(ca_event->ActionRequest, "NewEndPort")) &&
             (proto = GetFirstDocumentItem(ca_event->ActionRequest, "NewProtocol")) &&
             (bool_manage = GetFirstDocumentItem(ca_event->ActionRequest, "Manage")))
-    {       
+    {
         if ((strcmp(proto, "TCP") == 0) || (strcmp(proto, "UDP") == 0))
         {
             managed = atoi(bool_manage);
             start = atoi(start_port);
             end = atoi(end_port);
-    
+
             //loop ports from start to end
             for (ext_port = start; ext_port <= end; ext_port++)
             {
@@ -793,33 +807,33 @@ int DeletePortMappingRange(struct Upnp_Action_Request *ca_event)
                             SystemUpdateID++;
                             asprintf(&ChangedPortMapping,"%s,%s,%s,%s,%s",start_port,end_port,proto,temp->m_InternalClient,temp->m_RemoteHost);
                         }
-                        else 
+                        else
                             index++;
                     }
                 } while (temp != NULL);
             }
-            
+
             // maximum 5 events per second (from specification), that is why we send only one event after deleting all
             if (result==1)
             {
                 trace(2, "DeletePortMappingRange: StartPort:%s EndPort:%s Proto:%s Manage:%s\n", start_port, end_port, proto, bool_manage);
-              
+
                 asprintf(&tmp,"%d",pmlist_Size());
                 UpnpAddToPropertySet(&propSet,"PortMappingNumberOfEntries", tmp);
                 asprintf(&tmp,"%ld",SystemUpdateID);
                 UpnpAddToPropertySet(&propSet,"SystemUpdateID", tmp);
                 UpnpAddToPropertySet(&propSet,"ChangedPortMapping", ChangedPortMapping);
-                                
+
                 UpnpNotifyExt(deviceHandle, ca_event->DevUDN,ca_event->ServiceID,propSet);
                 action_succeeded = 1;
             }
-            
+
             if (foundPortmapCount > 0 && !action_succeeded)
             {
                 trace(1, "Failure in GateDeviceDeletePortMappingRange: DeletePortMappingRange: StartPort:%s EndPort:%s Proto:%s Manage:%s ActionNotPermitted!\n", start_port,end_port,proto,bool_manage);
                 ca_event->ErrCode = 730;
                 strcpy(ca_event->ErrStr, "ActionNotPermitted");
-                ca_event->ActionResult = NULL;                
+                ca_event->ActionResult = NULL;
             }
             else if (!action_succeeded)
             {
@@ -853,7 +867,7 @@ int DeletePortMappingRange(struct Upnp_Action_Request *ca_event)
         ca_event->ActionResult = ixmlParseBuffer(resultStr);
     }
 
-    if (propSet) ixmlDocument_free(propSet);    
+    if (propSet) ixmlDocument_free(propSet);
     if (start_port) free(start_port);
     if (end_port) free(end_port);
     if (proto) free(proto);
@@ -877,7 +891,7 @@ char* GetFirstDocumentItem( IN IXML_Document * doc,
     nodeList = ixmlDocument_getElementsByTagName( doc, ( char * )item );
 
     if ( nodeList )
-    {    
+    {
         if ( ( tmpNode = ixmlNodeList_item( nodeList, 0 ) ) )
         {
             textNode = ixmlNode_getFirstChild( tmpNode );
@@ -1000,8 +1014,8 @@ int ScheduleMappingExpiration(struct portMap *mapping, char *DevUDN, char *Servi
             long int diff = expclock-curclock;
             if (diff<60) //if exptime is in less than a minute (or in the past), schedule it in 24 hours instead
                 diff += 24*60*60;
-            if (diff > MAXIMUM_DURATION) 
-                diff = MAXIMUM_DURATION;      
+            if (diff > MAXIMUM_DURATION)
+                diff = MAXIMUM_DURATION;
             mapping->expirationTime = curtime+diff;
         }
     }
@@ -1068,4 +1082,96 @@ void DeleteAllPortMappings(void)
           gateUDN, "urn:upnp-org:serviceId:WANIPConn1", "0");
 
     ithread_mutex_unlock(&DevMutex);
+}
+
+int RetrieveListOfPortmappings(struct Upnp_Action_Request *ca_event)
+{
+    char *start_port = NULL;
+    char *end_port = NULL;
+    char *manage = NULL;
+    char *proto = NULL;
+    char *number_of_ports = NULL;
+    char cp_ip[INET_ADDRSTRLEN] = "";
+    char result_str[RESULT_LEN] = "";
+    char port_mappings[RESULT_LEN] = "";
+
+    int start, end;
+    int max_entries;
+    int action_succeeded = 0;
+    struct portMap *pm = NULL;
+
+    if ( (start_port = GetFirstDocumentItem(ca_event->ActionRequest, "NewStartPort") )
+            && (end_port = GetFirstDocumentItem(ca_event->ActionRequest, "NewEndPort") )
+            && (manage = GetFirstDocumentItem(ca_event->ActionRequest, "Manage") )
+            && (number_of_ports = GetFirstDocumentItem(ca_event->ActionRequest, "NewNumberOfPorts") )
+            && (proto = GetFirstDocumentItem(ca_event->ActionRequest, "NewProtocol") ))
+    {
+        start = atoi(start_port);
+        end = atoi(end_port);
+        max_entries = atoi(number_of_ports);
+        if(max_entries == 0)
+            max_entries = INT_MAX;
+
+        // If manage is not true or CP is not authorized, list only CP's port mappings
+        if ( !resolveBoolean(manage) || !AuthorizeControlPoint(ca_event) == CONTROL_POINT_AUTHORIZED )
+            inet_ntop(AF_INET, &ca_event->CtrlPtIPAddr, cp_ip, INET_ADDRSTRLEN);
+
+        trace(1, "IP: %s", cp_ip);
+
+        // Loop through port mappings until we run out or max_entries reaches 0
+        while( (pm = pmlist_FindRangeAfter(start, end, proto, cp_ip, pm)) != NULL && max_entries--)
+        {
+            snprintf(result_str, RESULT_LEN, xml_portmapEntry,
+                     pm->m_RemoteHost, pm->m_ExternalPort, pm->m_PortMappingProtocol,
+                     pm->m_InternalPort, pm->m_InternalClient, pm->m_PortMappingEnabled,
+                     pm->m_PortMappingDescription, pm->m_PortMappingLeaseDuration);
+
+            strncat(port_mappings, result_str, RESULT_LEN - strlen(port_mappings));
+            action_succeeded = 1;
+        }
+
+        if (action_succeeded)
+        {
+            ca_event->ErrCode = UPNP_E_SUCCESS;
+            strncpy(result_str, xml_portmapListingHeader, RESULT_LEN);
+            strncat(result_str, port_mappings, RESULT_LEN - strlen(result_str));
+            strncat(result_str, xml_portmapListingFooter, RESULT_LEN - strlen(result_str));
+            ca_event->ActionResult = ixmlParseBuffer(result_str);
+        }
+        else
+        {
+            trace(2, "RetrieveListOfPortmappings: Portmapping does not exist");
+            ca_event->ErrCode = 714;
+            strcpy(ca_event->ErrStr, "NoSuchEntryInArray");
+            ca_event->ActionResult = NULL;
+        }
+    }
+    else
+    {
+        trace(1, "RetrieveListOfPortmappings: Invalid Arguments\n\tStartPort: %s EndPort: %s Proto: %s NumberOfPorts: %s Manage: %s",
+              start_port, end_port, proto, number_of_ports, manage);
+        ca_event->ErrCode = 402;
+        strcpy(ca_event->ErrStr, "Invalid Args");
+        ca_event->ActionResult = NULL;
+    }
+
+    if(strlen(result_str) > RESULT_LEN - 2)
+    {
+        trace(1, "RetrieveListOfPortmappings: result_str is full, increase RESULT_LEN");
+    }
+
+    if(start_port) free(start_port);
+    if(end_port) free(end_port);
+    if(proto) free(proto);
+    if(manage) free(manage);
+    if(number_of_ports) free(number_of_ports);
+
+    return ca_event->ErrCode;
+}
+
+// Checks if control point is authorized
+// NOT YET IMPLEMENTED
+int AuthorizeControlPoint(struct Upnp_Action_Request *ca_event)
+{
+    return CONTROL_POINT_AUTHORIZED;
 }
