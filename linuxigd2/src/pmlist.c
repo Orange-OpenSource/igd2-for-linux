@@ -138,6 +138,32 @@ struct portMap* pmlist_FindSpecificAfterIndex(char * remoteHost, char *externalP
 }
 
 /**
+ * Search for next free external_port
+ */
+int pmlist_FindNextFreePort(char *protocol)
+{
+    // Iteratively search for free port...
+    // lousy implementation....
+    int i;
+    int freePort = -1;
+    char portBuf[5];
+
+    struct portMap* temp;
+
+    for (i = 1024; i < 9999; i++) 
+    {   
+	sprintf(portBuf, "%d", i);
+	temp = pmlist_FindSpecific("", portBuf, protocol);
+        if (temp == NULL) {
+	   freePort = i;
+	   break;
+	}
+    }
+
+    return freePort;	
+}
+
+/**
  * Find next port mapping in port range. If remote_host is not empty, returns only rules matching host.
  */
 struct portMap* pmlist_FindRangeAfter(int start_port, int end_port, char *protocol, char *internal_client, struct portMap *pm)
