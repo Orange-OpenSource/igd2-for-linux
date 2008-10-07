@@ -65,6 +65,7 @@ int GetSpecificPortMappingEntry(struct Upnp_Action_Request *ca_event);
 int GetExternalIPAddress(struct Upnp_Action_Request *ca_event);
 int DeletePortMapping(struct Upnp_Action_Request *ca_event);
 int DeletePortMappingRange(struct Upnp_Action_Request *ca_event);
+int AddAnyPortMapping(struct Upnp_Action_Request *ca_event);
 int RetrieveListOfPortmappings(struct Upnp_Action_Request *ca_event);
 int AuthorizeControlPoint(struct Upnp_Action_Request *ca_event);
 
@@ -79,6 +80,10 @@ int ExpirationTimerThreadShutdown(void);
 int ScheduleMappingExpiration(struct portMap *mapping, char *DevUDN, char *ServiceID);
 int CancelMappingExpiration(int eventId);
 void DeleteAllPortMappings(void);
+
+int AddNewPortMapping(struct Upnp_Action_Request *ca_event, char* new_enabled, int leaseDuration, 
+                     char* new_remote_host, char* new_external_port, char* new_internal_port, 
+                     char* new_protocol, char* new_internal_client, char* new_port_mapping_description);
 
 // Definition for authorizing control point
 #define CONTROL_POINT_AUTHORIZED    0

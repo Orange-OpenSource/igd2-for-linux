@@ -8,6 +8,7 @@
 #include <netinet/in.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
+#include <upnp/upnp.h>
 #include "globals.h"
 
 
@@ -71,6 +72,25 @@ void trace(int debuglevel, const char *format, ...)
     va_end(ap);
 }
 
+// check if parameter has a wild card
+int checkForWildCard(const char *str) 
+{
+    int retVal = 0;
+
+    if (strchr(str, '*') != NULL)
+	retVal = 1;
+
+    return retVal;
+}
+
+// add error data to event structure
+void addErrorData(struct Upnp_Action_Request *ca_event, int errorCode, char* message) 
+{ 
+    ca_event->ErrCode = errorCode;
+    strcpy(ca_event->ErrStr, message);
+    ca_event->ActionResult = NULL;
+}
+
 /*
  * Returns true if value is "yes", "true" or "1".
  * TODO: uppercase yes/true?
@@ -86,3 +106,4 @@ int resolveBoolean(char *value)
 
     return 0;
 }
+
