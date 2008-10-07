@@ -154,13 +154,10 @@ int HandleActionRequest(struct Upnp_Action_Request *ca_event)
                 result = GetStatusInfo(ca_event);
             else if (strcmp(ca_event->ActionName,"DeletePortMappingRange") == 0)
                 result = DeletePortMappingRange(ca_event);
-<<<<<<< .mine
-	    else if (strcmp(ca_event->ActionName,"AddAnyPortMapping") == 0)
-	        result = AddAnyPortMapping(ca_event);
-=======
+    	    else if (strcmp(ca_event->ActionName,"AddAnyPortMapping") == 0)
+    	        result = AddAnyPortMapping(ca_event);
             else if (strcmp(ca_event->ActionName,"RetrieveListOfPortmappings") == 0)
                 result = RetrieveListOfPortmappings(ca_event);
->>>>>>> .r11
 
             // Intentionally Non-Implemented Functions -- To be added later
             /*else if (strcmp(ca_event->ActionName,"RequestTermination") == 0)
@@ -451,17 +448,12 @@ int AddPortMapping(struct Upnp_Action_Request *ca_event)
             && (bool_enabled = GetFirstDocumentItem(ca_event->ActionRequest, "NewEnabled") )
             && (desc = GetFirstDocumentItem(ca_event->ActionRequest, "NewPortMappingDescription") ))
     {
-<<<<<<< .mine
-
-=======
-
         // If ext_port is <1024 control point needs to be authorized
         if (atoi(ext_port) < 1024 && AuthorizeControlPoint(ca_event) != CONTROL_POINT_AUTHORIZED)
         {
             return ca_event->ErrCode;
         }
 
->>>>>>> .r11
         // If port map with the same External Port, Protocol, and Internal Client exists
         // then, as per spec, we overwrite it (for simplicity, we delete and re-add at end of list)
         // Note: This may cause problems with GetGernericPortMappingEntry if a CP expects the overwritten
