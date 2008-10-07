@@ -36,6 +36,7 @@ struct portMap* pmlist_NewNode(int enabled, long int duration, char *remoteHost,
 
 struct portMap* pmlist_Find(char * remoteHost, char *externalPort, char *proto, char *internalClient);
 struct portMap* pmlist_FindByIndex(int index);
+struct portMap* pmlist_FindRangeAfter(int, int, char *, char *, struct portMap*);
 struct portMap* pmlist_FindSpecific(char * remoteHost, char *externalPort, char *protocol);
 struct portMap* pmlist_FindSpecificAfterIndex(char * remoteHost, char *externalPort, char *protocol, int index);
 int pmlist_IsEmtpy(void);

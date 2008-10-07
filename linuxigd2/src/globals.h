@@ -6,7 +6,7 @@
 #define CHAIN_NAME_LEN 32
 #define BITRATE_LEN 32
 #define PATH_LEN 64
-#define RESULT_LEN 512
+#define RESULT_LEN 2048
 #define NUM_LEN 32
 
 #ifndef min
@@ -42,6 +42,7 @@ struct GLOBALS
 typedef struct GLOBALS* globals_p;
 typedef struct GLOBALS globals;
 extern globals g_vars;
+
 
 #define CONF_FILE "/etc/upnpd.conf"
 #define MAX_CONFIG_LINE 256

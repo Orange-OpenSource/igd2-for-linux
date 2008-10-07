@@ -7,4 +7,6 @@ int ControlPointIP_equals_InternalClientIP(char *ICAddress);
 
 void trace(int debuglevel, const char *format, ...);
 
+int resolveBoolean(char *);
+
 #endif //_UTIL_H_

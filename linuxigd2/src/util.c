@@ -57,7 +57,7 @@ int GetIpAddressStr(char *address, char *ifname)
 // return 0 if not, something else if match
 int ControlPointIP_equals_InternalClientIP(char *ICAddress)
 {
-    return 0;   
+    return 0;
 }
 
 void trace(int debuglevel, const char *format, ...)
@@ -69,4 +69,20 @@ void trace(int debuglevel, const char *format, ...)
         vsyslog(LOG_DEBUG,format,ap);
     }
     va_end(ap);
+}
+
+/*
+ * Returns true if value is "yes", "true" or "1".
+ * TODO: uppercase yes/true?
+ */
+int resolveBoolean(char *value)
+{
+    if ( strcmp(value, "yes") == 0 ||
+         strcmp(value, "true") == 0 ||
+         strcmp(value, "1") == 0 )
+    {
+        return 1;
+    }
+
+    return 0;
 }
