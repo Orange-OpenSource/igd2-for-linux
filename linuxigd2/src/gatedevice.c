@@ -7,6 +7,7 @@
 #include <upnp/upnptools.h>
 #include <upnp/TimerThread.h>
 #include <arpa/inet.h>
+#include <glib.h>
 #include "globals.h"
 #include "gatedevice.h"
 #include "pmlist.h"
@@ -1084,6 +1085,9 @@ void DeleteAllPortMappings(void)
     ithread_mutex_unlock(&DevMutex);
 }
 
+/**
+ * Action: Retrieves a list of all port mappings.
+ */
 int RetrieveListOfPortmappings(struct Upnp_Action_Request *ca_event)
 {
     char *start_port = NULL;
@@ -1092,13 +1096,15 @@ int RetrieveListOfPortmappings(struct Upnp_Action_Request *ca_event)
     char *proto = NULL;
     char *number_of_ports = NULL;
     char cp_ip[INET_ADDRSTRLEN] = "";
-    char result_str[RESULT_LEN] = "";
-    char port_mappings[RESULT_LEN] = "";
+
+    GString *result_str;
 
     int start, end;
     int max_entries;
     int action_succeeded = 0;
     struct portMap *pm = NULL;
+
+    result_str = g_string_new("");
 
     if ( (start_port = GetFirstDocumentItem(ca_event->ActionRequest, "NewStartPort") )
             && (end_port = GetFirstDocumentItem(ca_event->ActionRequest, "NewEndPort") )
@@ -1116,27 +1122,24 @@ int RetrieveListOfPortmappings(struct Upnp_Action_Request *ca_event)
         if ( !resolveBoolean(manage) || !AuthorizeControlPoint(ca_event) == CONTROL_POINT_AUTHORIZED )
             inet_ntop(AF_INET, &ca_event->CtrlPtIPAddr, cp_ip, INET_ADDRSTRLEN);
 
-        trace(1, "IP: %s", cp_ip);
+        // Write XML header
+        result_str = g_string_new(xml_portmapListingHeader);
 
         // Loop through port mappings until we run out or max_entries reaches 0
         while( (pm = pmlist_FindRangeAfter(start, end, proto, cp_ip, pm)) != NULL && max_entries--)
         {
-            snprintf(result_str, RESULT_LEN, xml_portmapEntry,
-                     pm->m_RemoteHost, pm->m_ExternalPort, pm->m_PortMappingProtocol,
-                     pm->m_InternalPort, pm->m_InternalClient, pm->m_PortMappingEnabled,
-                     pm->m_PortMappingDescription, pm->m_PortMappingLeaseDuration);
-
-            strncat(port_mappings, result_str, RESULT_LEN - strlen(port_mappings));
+            g_string_append_printf(result_str, xml_portmapEntry,
+                                   pm->m_RemoteHost, pm->m_ExternalPort, pm->m_PortMappingProtocol,
+                                   pm->m_InternalPort, pm->m_InternalClient, pm->m_PortMappingEnabled,
+                                   pm->m_PortMappingDescription, pm->m_PortMappingLeaseDuration);
             action_succeeded = 1;
         }
 
         if (action_succeeded)
         {
             ca_event->ErrCode = UPNP_E_SUCCESS;
-            strncpy(result_str, xml_portmapListingHeader, RESULT_LEN);
-            strncat(result_str, port_mappings, RESULT_LEN - strlen(result_str));
-            strncat(result_str, xml_portmapListingFooter, RESULT_LEN - strlen(result_str));
-            ca_event->ActionResult = ixmlParseBuffer(result_str);
+            g_string_append_printf(result_str, "%s", xml_portmapListingFooter);
+            ca_event->ActionResult = ixmlParseBuffer(result_str->str);
         }
         else
         {
@@ -1155,16 +1158,13 @@ int RetrieveListOfPortmappings(struct Upnp_Action_Request *ca_event)
         ca_event->ActionResult = NULL;
     }
 
-    if(strlen(result_str) > RESULT_LEN - 2)
-    {
-        trace(1, "RetrieveListOfPortmappings: result_str is full, increase RESULT_LEN");
-    }
-
     if(start_port) free(start_port);
     if(end_port) free(end_port);
     if(proto) free(proto);
     if(manage) free(manage);
     if(number_of_ports) free(number_of_ports);
+
+    g_string_free(result_str, TRUE);
 
     return ca_event->ErrCode;
 }
