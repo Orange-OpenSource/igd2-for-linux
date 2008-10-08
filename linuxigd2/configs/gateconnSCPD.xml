@@ -358,7 +358,7 @@
                     <relatedStateVariable>ExternalPort</relatedStateVariable>
                 </argument>
                 <argument>
-                    <name>PortListing</name>
+                    <name>PortMappingList</name>
                     <direction>Out</direction>
                     <relatedStateVariable>A_ARG_TYPE_PortListing</relatedStateVariable>
                 </argument>
