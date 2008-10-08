@@ -22,8 +22,8 @@ static ithread_mutex_t DevMutex = PTHREAD_MUTEX_INITIALIZER;
 
 // XML string definitions
 static const char xml_portmapEntry[] = "<p:PortmapEntry NewRemoteHost=\"%s\" NewExternalPort=\"%s\" NewProtocol=\"%s\" NewInternalPort=\"%s\" NewInternalClient=\"%s\" NewEnabled=\"%d\" NewDescription=\"%s\" NewLeaseTime=\"%ld\"></p:PortmapEntry>\n";
-static const char xml_portmapListingHeader[] = "<p:PortMappingList xmlns:p=\"http://www.upnp.org/schemas/GWPortMappingList.xsd\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:schemaLocation=\"http://www.upnp.org/schemas/GWPortMappingList.xsd GwPortMappingList-V0.5.xsd\">\n";
-static const char xml_portmapListingFooter[] = "</p:PortMappingList>";
+static const char xml_portmapListingHeader[] = "<u:%sResponse xmlns:u=\"urn:schemas-upnp-org:service:WANIPConnection:1\"><p:PortMappingList xmlns:p=\"http://www.upnp.org/schemas/GWPortMappingList.xsd\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:schemaLocation=\"http://www.upnp.org/schemas/GWPortMappingList.xsd GwPortMappingList-V0.5.xsd\">\n";
+static const char xml_portmapListingFooter[] = "</p:PortMappingList></u:%sResponse>";
 
 // Main event handler for callbacks from the SDK.  Determine type of event
 // and dispatch to the appropriate handler (Note: Get Var Request deprecated
@@ -866,7 +866,7 @@ int DeletePortMappingRange(struct Upnp_Action_Request *ca_event)
         ca_event->ErrCode = UPNP_E_SUCCESS;
         snprintf(resultStr, RESULT_LEN, "<u:%sResponse xmlns:u=\"%s\">\n%s\n</u:%sResponse>",
                  ca_event->ActionName, "urn:schemas-upnp-org:service:WANIPConnection:1", "", ca_event->ActionName);
-        ca_event->ActionResult = ixmlParseBuffer(resultStr); 
+        ca_event->ActionResult = ixmlParseBuffer(resultStr);
     }
 
     if (propSet) ixmlDocument_free(propSet);
@@ -1095,7 +1095,7 @@ void DeleteAllPortMappings(void)
 int AddAnyPortMapping
 (struct Upnp_Action_Request *ca_event)
 {
- 
+
     char *new_remote_host=NULL;
     char *new_external_port=NULL;
     char *new_protocol=NULL;
@@ -1104,7 +1104,7 @@ int AddAnyPortMapping
     char *new_enabled=NULL;
     char *new_port_mapping_description=NULL;
     char *new_lease_duration=NULL;
- 
+
     long leaseDuration = 0;
     int next_free_port = 0;
 
@@ -1113,7 +1113,7 @@ int AddAnyPortMapping
     int result = 0;
     char resultStr[RESULT_LEN];
     char freePort[5];
- 
+
 
     if ( (new_remote_host = GetFirstDocumentItem(ca_event->ActionRequest, "NewRemoteHost") )
             && (new_external_port = GetFirstDocumentItem(ca_event->ActionRequest, "NewExternalPort") )
@@ -1130,7 +1130,7 @@ int AddAnyPortMapping
 		addErrorData(ca_event, 715, "WildCardNotPermittedInSrcIp");
                 result = 715;
 	}
-	
+
 	if (checkForWildCard(new_external_port)) {
 		trace(1, "Wild cards not permitted in external_port:%s", new_external_port);
 		addErrorData(ca_event, 718, "WildCardNotPermittedInExtPort");
@@ -1138,7 +1138,7 @@ int AddAnyPortMapping
 	}
 
 	// check that internal port == external port
-	if (atoi(new_external_port) != atoi(new_internal_port)) 
+	if (atoi(new_external_port) != atoi(new_internal_port))
 	{
 		trace(1, "Internal and External port values must be the same. external_port:%s, internal_port:%s",
 		      new_external_port, new_internal_port);
@@ -1147,56 +1147,56 @@ int AddAnyPortMapping
         }
 
 	leaseDuration = atol(new_lease_duration);
-	
+
 	// TODO: SecurityChecks here...
 
 	// Parameters OK... proceed with adding port map
-	if (result == 0) 
+	if (result == 0)
         {
         	// If port map with the same External Port, Protocol, and Internal Client exists
        	 	// then get next free port map
         	if ((ret = pmlist_Find(new_remote_host, new_external_port, new_protocol, new_internal_client)) != NULL)
-        	{	
+        	{
 			// Find searches free external port...
-			// TODO: free port mapping search 
+			// TODO: free port mapping search
             		trace(3, "Found port map to already exist.  Finding next free");
             		next_free_port = pmlist_FindNextFreePort(new_protocol);
-	            		
+
 			if (next_free_port > 0)
 	    		{
 				trace(3, "Found free port:%d", next_free_port);
 				sprintf(freePort, "%d", next_free_port);
-                		result = AddNewPortMapping(ca_event, new_enabled, leaseDuration, new_remote_host, 
-						          freePort, new_internal_port, new_protocol, 
+                		result = AddNewPortMapping(ca_event, new_enabled, leaseDuration, new_remote_host,
+						          freePort, new_internal_port, new_protocol,
                                 		          new_internal_client, new_port_mapping_description);
-            		} 
+            		}
             		else {
 				result = 718; /* no free port found... use ConflictInMappingEntry error code */
-            		} 
+            		}
         	}
        		else {
 			// Otherwise just add the port map
-          		result = AddNewPortMapping(ca_event, new_enabled, leaseDuration, new_remote_host, 
-					          new_external_port, new_internal_port, new_protocol, 
+          		result = AddNewPortMapping(ca_event, new_enabled, leaseDuration, new_remote_host,
+					          new_external_port, new_internal_port, new_protocol,
                         	                  new_internal_client, new_port_mapping_description);
- 
+
         	}
 	}
-        
+
 	if (result==718)
         {
                 trace(1,"Failure in GateDeviceAddAnyPortMapping: RemoteHost: %s Protocol:%s ExternalPort: %s InternalClient: %s.%s\n",
                       new_remote_host, new_protocol, new_external_port, new_internal_client, new_internal_port);
 
 		addErrorData(ca_event, 718, "ConflictInMappingEntry");
-		              
+
          }
 
-    } 
+    }
     else {
         trace(1, "Failure in GateDeviceAddAnyPortMapping: Invalid Arguments!");
         trace(1, "  RemoteHost: %s ExternalPort: %s Protocol: %s InternalClient: %s Enabled: %s PortMappingDesc: %s LeaseDuration: %s",
-              new_remote_host, new_external_port, new_protocol, new_internal_client, new_enabled, 
+              new_remote_host, new_external_port, new_protocol, new_internal_client, new_enabled,
 	      new_port_mapping_description, new_lease_duration);
 	addErrorData(ca_event, 402, "Invalid Args");
     }
@@ -1207,9 +1207,9 @@ int AddAnyPortMapping
         if (next_free_port == 0) next_free_port = atoi(new_external_port);
 
 	snprintf(resultStr, RESULT_LEN, "<u:%sResponse xmlns:u=\"%s\">\n%s%d%s\n</u:%sResponse>",
-                 ca_event->ActionName, "urn:schemas-upnp-org:service:WANIPConnection:1", "<ReservedPort>", 
+                 ca_event->ActionName, "urn:schemas-upnp-org:service:WANIPConnection:1", "<ReservedPort>",
 		 next_free_port, "</ReservedPort>", ca_event->ActionName);
-        	
+
 	ca_event->ActionResult = ixmlParseBuffer(resultStr);
     }
 
@@ -1224,9 +1224,9 @@ int AddAnyPortMapping
     return(ca_event->ErrCode);
 }
 
-int AddNewPortMapping(struct Upnp_Action_Request *ca_event, char* new_enabled, int leaseDuration, 
-                     char* new_remote_host, char* new_external_port, char* new_internal_port, 
-                     char* new_protocol, char* new_internal_client, char* new_port_mapping_description) 
+int AddNewPortMapping(struct Upnp_Action_Request *ca_event, char* new_enabled, int leaseDuration,
+                     char* new_remote_host, char* new_external_port, char* new_internal_port,
+                     char* new_protocol, char* new_internal_client, char* new_port_mapping_description)
 {
     int result;
     char num[5]; // Maximum number of port mapping entries 9999
@@ -1234,10 +1234,10 @@ int AddNewPortMapping(struct Upnp_Action_Request *ca_event, char* new_enabled, i
     struct portMap *new;
     char *tmp;
 
-    new = pmlist_NewNode(atoi(new_enabled), leaseDuration, new_remote_host, 
-		          new_external_port, new_internal_port, new_protocol, 
+    new = pmlist_NewNode(atoi(new_enabled), leaseDuration, new_remote_host,
+		          new_external_port, new_internal_port, new_protocol,
                           new_internal_client, new_port_mapping_description);
-        	
+
     result = pmlist_PushBack(new);
 
     if (result==1)
@@ -1251,9 +1251,9 @@ int AddNewPortMapping(struct Upnp_Action_Request *ca_event, char* new_enabled, i
         UpnpNotifyExt(deviceHandle, ca_event->DevUDN, ca_event->ServiceID, propSet);
         ixmlDocument_free(propSet);
         trace(2, "AddAnyPortMapping: DevUDN: %s ServiceID: %s RemoteHost: %s Protocol: %s ExternalPort: %s InternalClient: %s.%s",
-                  			ca_event->DevUDN,ca_event->ServiceID,new_remote_host, new_protocol, new_external_port, 
+                  			ca_event->DevUDN,ca_event->ServiceID,new_remote_host, new_protocol, new_external_port,
 				        new_internal_client, new_internal_port);
-  
+
     }
 
     return result;
@@ -1297,7 +1297,7 @@ int RetrieveListOfPortmappings(struct Upnp_Action_Request *ca_event)
             inet_ntop(AF_INET, &ca_event->CtrlPtIPAddr, cp_ip, INET_ADDRSTRLEN);
 
         // Write XML header
-        result_str = g_string_new(xml_portmapListingHeader);
+        g_string_printf(result_str, xml_portmapListingHeader, ca_event->ActionName);
 
         // Loop through port mappings until we run out or max_entries reaches 0
         while( (pm = pmlist_FindRangeAfter(start, end, proto, cp_ip, pm)) != NULL && max_entries--)
@@ -1312,7 +1312,7 @@ int RetrieveListOfPortmappings(struct Upnp_Action_Request *ca_event)
         if (action_succeeded)
         {
             ca_event->ErrCode = UPNP_E_SUCCESS;
-            g_string_append_printf(result_str, "%s", xml_portmapListingFooter);
+            g_string_append_printf(result_str, xml_portmapListingFooter, ca_event->ActionName);
             ca_event->ActionResult = ixmlParseBuffer(result_str->str);
         }
         else
