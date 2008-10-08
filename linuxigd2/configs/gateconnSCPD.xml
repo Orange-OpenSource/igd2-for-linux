@@ -365,7 +365,7 @@
             </argumentList>
         </action>
         <action>
-            <name>AddAnyPortmapping</name>
+            <name>AddAnyPortMapping</name>
             <argumentList>
                 <argument>
                     <name>NewRemoteHost</name>
