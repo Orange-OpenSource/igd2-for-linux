@@ -56,9 +56,28 @@ int GetIpAddressStr(char *address, char *ifname)
 
 // check if IP of control point is same as ICAddress
 // return 0 if not, something else if match
-int ControlPointIP_equals_InternalClientIP(char *ICAddress)
+int ControlPointIP_equals_InternalClientIP(char *ICAddress, struct in_addr *in_ad)
 {
-    return 0;
+    char cpAddress[INET_ADDRSTRLEN];
+    int result;
+    int succeeded = 0;
+
+    inet_ntop(AF_INET, in_ad, cpAddress, INET_ADDRSTRLEN);
+
+    result = strcmp(ICAddress, cpAddress);
+
+    // Check the compare result InternalClient IP address is same than Control Point
+    if (result == 0)
+    {
+        succeeded = 1;
+    }
+    else
+    {
+        syslog(LOG_ERR, "CP and InternalClient IP addresees won't match:  %s %s", ICAddress, cpAddress);
+        succeeded = 0;
+    }
+
+    return succeeded;
 }
 
 void trace(int debuglevel, const char *format, ...)

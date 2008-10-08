@@ -803,7 +803,7 @@ int DeletePortMappingRange(struct Upnp_Action_Request *ca_event)
                     if (temp)
                     {
                         foundPortmapCount++;
-                        if ((authorized && managed) || ControlPointIP_equals_InternalClientIP(temp->m_InternalClient))
+                        if ((authorized && managed) || ControlPointIP_equals_InternalClientIP(temp->m_InternalClient, &ca_event->CtrlPtIPAddr))
                         {
                             result = pmlist_DeleteIndex(temp, index);
                             SystemUpdateID++;
