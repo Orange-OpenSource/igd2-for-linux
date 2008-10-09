@@ -12,6 +12,10 @@ char retrieve_port_list_request_xml[] = "<?xml version=\"1.0\"?>\n<u:RetrieveLis
 char retrieve_port_list_inv_args_xml[] = "<?xml version=\"1.0\"?>\n<u:RetrieveListOfPortmappings xmlns:u=\"urn:schemas-upnp-org:service:WANIPConnection:1\">\n<NewEndPort>100</NewEndPort>\n<NewNumberOfPorts>0</NewNumberOfPorts>\n<NewProtocol>TCP</NewProtocol>\n<NewStartPort>10</NewStartPort>\n</u:RetrieveListOfPortmappings>";
 char retrieve_port_list_no_results_xml[] = "<?xml version=\"1.0\"?>\n<u:RetrieveListOfPortmappings xmlns:u=\"urn:schemas-upnp-org:service:WANIPConnection:1\">\n<NewEndPort>10</NewEndPort>\n<NewNumberOfPorts>0</NewNumberOfPorts>\n<NewProtocol>TCP</NewProtocol>\n<NewStartPort>10</NewStartPort>\n<Manage>1</Manage>\n</u:RetrieveListOfPortmappings>";
 
+char get_specific_portmapping_entry_request_xml[] = "<?xml version=\"1.0\"?>\n<u:GetSpecificPortMappingEntry xmlns:u=\"urn:schemas-upnp-org:service:WANIPConnection:1\">\n<NewRemoteHost>130.234.180.200</NewRemoteHost>\n<NewExternalPort>21</NewExternalPort>\n<NewProtocol>TCP</NewProtocol>\n</u:GetSpecificPortMappingEntry>";
+char get_specific_portmapping_entry_inv_args_xml[] = "<?xml version=\"1.0\"?>\n<u:GetSpecificPortMappingEntry xmlns:u=\"urn:schemas-upnp-org:service:WANIPConnection:1\">\n<NewRemoteHost>130.234.180.200</NewRemoteHost>\n<NewExternalPort>21</NewExternalPort>\n<NewProtocol>HTTP</NewProtocol>\n</u:GetSpecificPortMappingEntry>";
+char get_specific_portmapping_entry_no_such_entry_xml[] = "<?xml version=\"1.0\"?>\n<u:GetSpecificPortMappingEntry xmlns:u=\"urn:schemas-upnp-org:service:WANIPConnection:1\">\n<NewRemoteHost>130.234.180.200</NewRemoteHost>\n<NewExternalPort>21</NewExternalPort>\n<NewProtocol>UDP</NewProtocol>\n</u:GetSpecificPortMappingEntry>";
+
 int InitTestSuite(void)
 {
     struct portMap *pm;
@@ -48,6 +52,23 @@ void Test_RetrieveListOfPortMappings(void)
     CU_ASSERT(RetrieveListOfPortmappings(&event) == 714);
 }
 
+void Test_GetSpecificPortMappingEntry(void)
+{
+    struct Upnp_Action_Request event;
+
+    // Ok
+    event.ActionRequest = ixmlParseBuffer(get_specific_portmapping_entry_request_xml);
+    CU_ASSERT(GetSpecificPortMappingEntry(&event) == 0);
+    
+    // Invalid args
+    event.ActionRequest = ixmlParseBuffer(get_specific_portmapping_entry_inv_args_xml);
+    CU_ASSERT(GetSpecificPortMappingEntry(&event) == 402);
+    
+    // No such entry
+    event.ActionRequest = ixmlParseBuffer(get_specific_portmapping_entry_no_such_entry_xml);
+    CU_ASSERT(GetSpecificPortMappingEntry(&event) == 714);
+}
+
 int main(int argc, char** argv)
 {
     CU_pSuite pSuite = NULL;
@@ -72,7 +93,8 @@ int main(int argc, char** argv)
     }
 
     /* add the tests to the suite */
-    if ((NULL == CU_add_test(pSuite, "test of RetrieveListOfPortMappings()", Test_RetrieveListOfPortMappings)))
+    if ((NULL == CU_add_test(pSuite, "test of RetrieveListOfPortMappings()", Test_RetrieveListOfPortMappings)) ||
+        (NULL == CU_add_test(pSuite, "test of GetSpecificPortMappingEntry()", Test_GetSpecificPortMappingEntry)))
     {
         CU_cleanup_registry();
         return CU_get_error();
