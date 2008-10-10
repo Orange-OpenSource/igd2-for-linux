@@ -588,7 +588,7 @@ int GetSpecificPortMappingEntry(struct Upnp_Action_Request *ca_event)
         if ((strcmp(proto, "TCP") == 0) || (strcmp(proto, "UDP") == 0))
         {
             // Check if remote host is empty string or valid IP address
-            if ((strcmp(remote_host, "") == 0) || (inet_addr(remote_host) >= 0))
+            if ((strcmp(remote_host, "") == 0) || (inet_addr(remote_host) != -1))
             {
                 temp = pmlist_FindSpecific (remote_host, ext_port, proto);
                 if (temp)
@@ -692,7 +692,7 @@ int DeletePortMapping(struct Upnp_Action_Request *ca_event)
         if ((strcmp(proto, "TCP") == 0) || (strcmp(proto, "UDP") == 0))
         {
             // Check if remote host is empty string or valid IP address
-            if ((strcmp(remote_host, "") == 0) || (inet_addr(remote_host) >= 0))
+            if ((strcmp(remote_host, "") == 0) || (inet_addr(remote_host) != -1))
             {
                 if ((temp = pmlist_FindSpecific(remote_host, ext_port, proto)))
                     result = pmlist_Delete(temp);
