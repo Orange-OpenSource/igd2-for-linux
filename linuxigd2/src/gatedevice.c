@@ -997,7 +997,7 @@ int ScheduleMappingExpiration(struct portMap *mapping, char *DevUDN, char *Servi
     }
     else // mapping->m_PortMappingLeaseDuration < 0
     {
-        //client did not provide a duration, so use the default duration
+       //client did not provide a duration, so use the default duration
         if (g_vars.duration==0 || g_vars.duration>MAXIMUM_DURATION)
         {
             mapping->expirationTime = curtime+MAXIMUM_DURATION;
@@ -1021,13 +1021,14 @@ int ScheduleMappingExpiration(struct portMap *mapping, char *DevUDN, char *Servi
             mapping->expirationTime = curtime+diff;
         }
     }
-
     event = ( expiration_event * ) malloc( sizeof( expiration_event ) );
     if ( event == NULL )
     {
         return 0;
     }
+
     event->mapping = mapping;
+
     if (strlen(DevUDN) < sizeof(event->DevUDN)) strcpy(event->DevUDN, DevUDN);
     else strcpy(event->DevUDN, "");
     if (strlen(ServiceID) < sizeof(event->ServiceID)) strcpy(event->ServiceID, ServiceID);
@@ -1035,6 +1036,7 @@ int ScheduleMappingExpiration(struct portMap *mapping, char *DevUDN, char *Servi
 
     TPJobInit( &job, ( start_routine ) ExpireMapping, event );
     TPJobSetFreeFunction( &job, ( free_routine ) free_expiration_event );
+
     if ( ( retVal = TimerThreadSchedule( &gExpirationTimerThread,
                                          mapping->expirationTime,
                                          ABS_SEC, &job, SHORT_TERM,
@@ -1045,6 +1047,7 @@ int ScheduleMappingExpiration(struct portMap *mapping, char *DevUDN, char *Servi
         mapping->expirationEventId = -1;
         return 0;
     }
+
     mapping->expirationEventId = event->eventId;
 
     trace(3,"ScheduleMappingExpiration: DevUDN: %s ServiceID: %s Proto: %s ExtPort: %s Int: %s.%s at: %s eventId: %d",event->DevUDN,event->ServiceID,mapping->m_PortMappingProtocol, mapping->m_ExternalPort, mapping->m_InternalClient, mapping->m_InternalPort, ctime(&(mapping->expirationTime)), event->eventId);
@@ -1124,19 +1127,18 @@ int AddAnyPortMapping
             && (new_port_mapping_description = GetFirstDocumentItem(ca_event->ActionRequest, "NewPortMappingDescription") )
             && (new_lease_duration = GetFirstDocumentItem(ca_event->ActionRequest, "NewLeaseDuration") ) )
     {
+
 	// Check RemoteHost and ExternalPort parameters
   	if (checkForWildCard(new_remote_host)) {
 		trace(1, "Wild cards not permitted in remote_host:%s", new_remote_host);
 		addErrorData(ca_event, 715, "WildCardNotPermittedInSrcIp");
                 result = 715;
-	}
-
+	} else
 	if (checkForWildCard(new_external_port)) {
 		trace(1, "Wild cards not permitted in external_port:%s", new_external_port);
-		addErrorData(ca_event, 718, "WildCardNotPermittedInExtPort");
-                result = 718;
-	}
-
+		addErrorData(ca_event, 716, "WildCardNotPermittedInExtPort");
+                result = 716;
+	} else
 	// check that internal port == external port
 	if (atoi(new_external_port) != atoi(new_internal_port))
 	{
@@ -1145,7 +1147,7 @@ int AddAnyPortMapping
 		addErrorData(ca_event, 724, "SamePortValueRequired");
 		result = 724;
         }
-
+	
 	leaseDuration = atol(new_lease_duration);
 
 	// TODO: SecurityChecks here...
@@ -1175,6 +1177,7 @@ int AddAnyPortMapping
             		}
         	}
        		else {
+	
 			// Otherwise just add the port map
           		result = AddNewPortMapping(ca_event, new_enabled, leaseDuration, new_remote_host,
 					          new_external_port, new_internal_port, new_protocol,
@@ -1208,8 +1211,7 @@ int AddAnyPortMapping
 
 	snprintf(resultStr, RESULT_LEN, "<u:%sResponse xmlns:u=\"%s\">\n%s%d%s\n</u:%sResponse>",
                  ca_event->ActionName, "urn:schemas-upnp-org:service:WANIPConnection:1", "<ReservedPort>",
-		 next_free_port, "</ReservedPort>", ca_event->ActionName);
-
+		 next_free_port, "</ReservedPort>", ca_event->ActionName); 
 	ca_event->ActionResult = ixmlParseBuffer(resultStr);
     }
 
@@ -1249,6 +1251,7 @@ int AddNewPortMapping(struct Upnp_Action_Request *ca_event, char* new_enabled, i
         asprintf(&tmp,"%ld",++SystemUpdateID);
         UpnpAddToPropertySet(&propSet,"SystemUpdateID", tmp);
         UpnpNotifyExt(deviceHandle, ca_event->DevUDN, ca_event->ServiceID, propSet);
+
         ixmlDocument_free(propSet);
         trace(2, "AddAnyPortMapping: DevUDN: %s ServiceID: %s RemoteHost: %s Protocol: %s ExternalPort: %s InternalClient: %s.%s",
                   			ca_event->DevUDN,ca_event->ServiceID,new_remote_host, new_protocol, new_external_port,
