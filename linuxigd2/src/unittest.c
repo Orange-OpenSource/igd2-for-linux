@@ -11,11 +11,6 @@
 // Global variables
 globals g_vars;
 
-
-char get_specific_portmapping_entry_request_xml[] = "<?xml version=\"1.0\"?>\n<u:GetSpecificPortMappingEntry xmlns:u=\"urn:schemas-upnp-org:service:WANIPConnection:1\">\n<NewRemoteHost>130.234.180.200</NewRemoteHost>\n<NewExternalPort>21</NewExternalPort>\n<NewProtocol>TCP</NewProtocol>\n</u:GetSpecificPortMappingEntry>";
-char get_specific_portmapping_entry_inv_args_xml[] = "<?xml version=\"1.0\"?>\n<u:GetSpecificPortMappingEntry xmlns:u=\"urn:schemas-upnp-org:service:WANIPConnection:1\">\n<NewRemoteHost>130.234.180.200</NewRemoteHost>\n<NewExternalPort>21</NewExternalPort>\n<NewProtocol>HTTP</NewProtocol>\n</u:GetSpecificPortMappingEntry>";
-char get_specific_portmapping_entry_no_such_entry_xml[] = "<?xml version=\"1.0\"?>\n<u:GetSpecificPortMappingEntry xmlns:u=\"urn:schemas-upnp-org:service:WANIPConnection:1\">\n<NewRemoteHost>130.234.180.200</NewRemoteHost>\n<NewExternalPort>21</NewExternalPort>\n<NewProtocol>UDP</NewProtocol>\n</u:GetSpecificPortMappingEntry>";
-
 int InitTestSuite(void)
 {
     struct portMap *pm;
@@ -83,6 +78,9 @@ void Test_AddAnyPortMapping(void)
 void Test_RetrieveListOfPortMappings(void)
 {
     struct Upnp_Action_Request event;
+    strcpy(event.DevUDN,"uuid:75802409-bccb-40e7-8e6c-fa095ecce13e");
+    strcpy(event.ServiceID,"urn:upnp-org:serviceId:WANIPConn1");
+    strcpy(event.ActionName,"RetrieveListOfPortmappings");
 
     // Ok
     event.ActionRequest = ixmlParseBuffer(retrieve_port_list_request_xml);
@@ -100,6 +98,9 @@ void Test_RetrieveListOfPortMappings(void)
 void Test_GetSpecificPortMappingEntry(void)
 {
     struct Upnp_Action_Request event;
+    strcpy(event.DevUDN,"uuid:75802409-bccb-40e7-8e6c-fa095ecce13e");
+    strcpy(event.ServiceID,"urn:upnp-org:serviceId:WANIPConn1");
+    strcpy(event.ActionName,"GetSpecificPortMappingEntry");
 
     // Ok
     event.ActionRequest = ixmlParseBuffer(get_specific_portmapping_entry_request_xml);
@@ -112,6 +113,55 @@ void Test_GetSpecificPortMappingEntry(void)
     // No such entry
     event.ActionRequest = ixmlParseBuffer(get_specific_portmapping_entry_no_such_entry_xml);
     CU_ASSERT(GetSpecificPortMappingEntry(&event) == 714);
+}
+
+void Test_AddPortMapping(void)
+{
+    struct Upnp_Action_Request event;
+    strcpy(event.DevUDN,"uuid:75802409-bccb-40e7-8e6c-fa095ecce13e");
+    strcpy(event.ServiceID,"urn:upnp-org:serviceId:WANIPConn1");
+    strcpy(event.ActionName,"AddPortMapping");
+
+    // Add with remotehost
+    event.ActionRequest = ixmlParseBuffer(add_portmapping_request_xml);
+    CU_ASSERT(AddPortMapping(&event) == 0);
+    
+    // Add with wildcarded remotehost
+    event.ActionRequest = ixmlParseBuffer(add_portmapping_request_wildcard_remotehost_xml);
+    CU_ASSERT(AddPortMapping(&event) == 0);
+    
+    // Invalid args
+    event.ActionRequest = ixmlParseBuffer(add_portmapping_request_missing_parameter_xml);
+    CU_ASSERT(AddPortMapping(&event) == 402);
+}
+
+// Assumes that Test_AddPortMapping succesfully executed befor this
+void Test_DeletePortMapping(void)
+{
+    struct Upnp_Action_Request event;
+    strcpy(event.DevUDN,"uuid:75802409-bccb-40e7-8e6c-fa095ecce13e");
+    strcpy(event.ServiceID,"urn:upnp-org:serviceId:WANIPConn1");
+    strcpy(event.ActionName,"DeletePortMapping");
+
+    // Delete with remotehost
+    event.ActionRequest = ixmlParseBuffer(delete_portmapping_request_xml);
+    CU_ASSERT(DeletePortMapping(&event) == 0);
+    
+    // Delete with wildcarded remotehost
+    event.ActionRequest = ixmlParseBuffer(delete_portmapping_request_wildcard_remotehost_xml);
+    CU_ASSERT(DeletePortMapping(&event) == 0);
+    
+    // Invalid args
+    event.ActionRequest = ixmlParseBuffer(delete_portmapping_request_missing_parameter_xml);
+    CU_ASSERT(DeletePortMapping(&event) == 402);
+    
+    // Try to delete non-existent portmapping
+    event.ActionRequest = ixmlParseBuffer(delete_portmapping_request_xml);
+    CU_ASSERT(DeletePortMapping(&event) == 714);
+
+    // Try to delete with invalid IP address as remotehost
+    event.ActionRequest = ixmlParseBuffer(delete_portmapping_request_invalid_IP_xml);
+    CU_ASSERT(DeletePortMapping(&event) == 402);   
 }
 
 int main(int argc, char** argv)
@@ -139,7 +189,9 @@ int main(int argc, char** argv)
 
     /* add the tests to the suite */
     if ((NULL == CU_add_test(pSuite, "test of RetrieveListOfPortMappings()", Test_RetrieveListOfPortMappings)) ||
-        (NULL == CU_add_test(pSuite, "test of GetSpecificPortMappingEntry()", Test_GetSpecificPortMappingEntry)))
+        (NULL == CU_add_test(pSuite, "test of GetSpecificPortMappingEntry()", Test_GetSpecificPortMappingEntry)) ||
+        (NULL == CU_add_test(pSuite, "test of AddPortMapping()", Test_AddPortMapping)) ||
+        (NULL == CU_add_test(pSuite, "test of DeletePortMapping()", Test_DeletePortMapping)))
     {
         CU_cleanup_registry();
         return CU_get_error();
