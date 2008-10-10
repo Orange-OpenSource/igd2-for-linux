@@ -437,7 +437,7 @@ int AddPortMapping(struct Upnp_Action_Request *ca_event)
     IXML_Document *propSet = NULL;
     int action_succeeded = 0;
     char resultStr[RESULT_LEN];
-    char *tmp;
+    char tmp[11];
 
     if ( (remote_host = GetFirstDocumentItem(ca_event->ActionRequest, "NewRemoteHost") )
             && (ext_port = GetFirstDocumentItem(ca_event->ActionRequest, "NewExternalPort") )
@@ -472,7 +472,7 @@ int AddPortMapping(struct Upnp_Action_Request *ca_event)
             sprintf(num, "%d", pmlist_Size());
             trace(3, "PortMappingNumberOfEntries: %d", pmlist_Size());
             UpnpAddToPropertySet(&propSet, "PortMappingNumberOfEntries", num);
-            asprintf(&tmp,"%ld",++SystemUpdateID);
+            snprintf(tmp,11,"%ld",++SystemUpdateID);
             UpnpAddToPropertySet(&propSet,"SystemUpdateID", tmp);
             UpnpNotifyExt(deviceHandle, ca_event->DevUDN, ca_event->ServiceID, propSet);
             ixmlDocument_free(propSet);
@@ -682,7 +682,7 @@ int DeletePortMapping(struct Upnp_Action_Request *ca_event)
     IXML_Document *propSet= NULL;
     int action_succeeded = 0;
     struct portMap *temp;
-    char *tmp;
+    char tmp[11];
 
     if ((remote_host = GetFirstDocumentItem(ca_event->ActionRequest, "NewRemoteHost")) &&
             (ext_port = GetFirstDocumentItem(ca_event->ActionRequest, "NewExternalPort")) &&
@@ -702,7 +702,7 @@ int DeletePortMapping(struct Upnp_Action_Request *ca_event)
                     trace(2, "DeletePortMap: Remote Host: %s Proto:%s Port:%s\n", remote_host, proto, ext_port);
                     sprintf(num,"%d",pmlist_Size());
                     UpnpAddToPropertySet(&propSet,"PortMappingNumberOfEntries", num);
-                    asprintf(&tmp,"%ld",++SystemUpdateID);
+                    snprintf(tmp,11,"%ld",++SystemUpdateID);
                     UpnpAddToPropertySet(&propSet,"SystemUpdateID", tmp);
                     UpnpNotifyExt(deviceHandle, ca_event->DevUDN,ca_event->ServiceID,propSet);
                     ixmlDocument_free(propSet);
@@ -767,7 +767,7 @@ int DeletePortMappingRange(struct Upnp_Action_Request *ca_event)
     int result=0;
     int str_len = 6;
     char del_port[str_len];
-    char *tmp;
+    char tmp[11];
     char resultStr[RESULT_LEN];
     IXML_Document *propSet= NULL;
     int action_succeeded = 0;
@@ -777,9 +777,9 @@ int DeletePortMappingRange(struct Upnp_Action_Request *ca_event)
     int index = 0;
     int foundPortmapCount = 0;
 
-    //TODO: check here if authorized
-    //now we are
-    authorized = 1;
+    //chec if authorized
+    if (AuthorizeControlPoint(ca_event) == CONTROL_POINT_AUTHORIZED)
+        authorized = 1;
 
     if ((start_port = GetFirstDocumentItem(ca_event->ActionRequest, "NewStartPort")) &&
             (end_port = GetFirstDocumentItem(ca_event->ActionRequest, "NewEndPort")) &&
@@ -788,7 +788,7 @@ int DeletePortMappingRange(struct Upnp_Action_Request *ca_event)
     {
         if ((strcmp(proto, "TCP") == 0) || (strcmp(proto, "UDP") == 0))
         {
-            managed = atoi(bool_manage);
+            managed = resolveBoolean(bool_manage);
             start = atoi(start_port);
             end = atoi(end_port);
 
@@ -807,7 +807,7 @@ int DeletePortMappingRange(struct Upnp_Action_Request *ca_event)
                         {
                             result = pmlist_DeleteIndex(temp, index);
                             SystemUpdateID++;
-                            asprintf(&ChangedPortMapping,"%s,%s,%s,%s,%s",start_port,end_port,proto,temp->m_InternalClient,temp->m_RemoteHost);
+                            snprintf(ChangedPortMapping,100,"%s,%s,%s,%s,%s",start_port,end_port,proto,temp->m_InternalClient,temp->m_RemoteHost);
                         }
                         else
                             index++;
@@ -820,9 +820,9 @@ int DeletePortMappingRange(struct Upnp_Action_Request *ca_event)
             {
                 trace(2, "DeletePortMappingRange: StartPort:%s EndPort:%s Proto:%s Manage:%s\n", start_port, end_port, proto, bool_manage);
 
-                asprintf(&tmp,"%d",pmlist_Size());
+                snprintf(tmp,11,"%d",pmlist_Size());
                 UpnpAddToPropertySet(&propSet,"PortMappingNumberOfEntries", tmp);
-                asprintf(&tmp,"%ld",SystemUpdateID);
+                snprintf(tmp,11,"%ld",SystemUpdateID);
                 UpnpAddToPropertySet(&propSet,"SystemUpdateID", tmp);
                 UpnpAddToPropertySet(&propSet,"ChangedPortMapping", ChangedPortMapping);
 

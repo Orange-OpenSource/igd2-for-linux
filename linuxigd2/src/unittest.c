@@ -135,13 +135,15 @@ void Test_AddPortMapping(void)
     CU_ASSERT(AddPortMapping(&event) == 402);
 }
 
-// Assumes that Test_AddPortMapping succesfully executed befor this
 void Test_DeletePortMapping(void)
 {
     struct Upnp_Action_Request event;
     strcpy(event.DevUDN,"uuid:75802409-bccb-40e7-8e6c-fa095ecce13e");
     strcpy(event.ServiceID,"urn:upnp-org:serviceId:WANIPConn1");
     strcpy(event.ActionName,"DeletePortMapping");
+
+    // add required portmappings
+    Test_AddPortMapping();
 
     // Delete with remotehost
     event.ActionRequest = ixmlParseBuffer(delete_portmapping_request_xml);
@@ -162,6 +164,33 @@ void Test_DeletePortMapping(void)
     // Try to delete with invalid IP address as remotehost
     event.ActionRequest = ixmlParseBuffer(delete_portmapping_request_invalid_IP_xml);
     CU_ASSERT(DeletePortMapping(&event) == 402);   
+}
+
+void Test_DeletePortMappingRange(void)
+{
+    struct Upnp_Action_Request event;
+    strcpy(event.DevUDN,"uuid:75802409-bccb-40e7-8e6c-fa095ecce13e");
+    strcpy(event.ServiceID,"urn:upnp-org:serviceId:WANIPConn1");
+    strcpy(event.ActionName,"DeletePortMappingRange");
+
+    // add required portmappings
+    Test_AddPortMapping();
+    
+    // Missing argument
+    event.ActionRequest = ixmlParseBuffer(delete_portmapping_range_request_missing_parameter_xml);
+    CU_ASSERT(DeletePortMappingRange(&event) == 402);
+    
+    // Invalid protocol
+    event.ActionRequest = ixmlParseBuffer(delete_portmapping_range_request_invalid_protocol_xml);
+    CU_ASSERT(DeletePortMappingRange(&event) == 402);
+
+    // Delete range
+    event.ActionRequest = ixmlParseBuffer(delete_portmapping_range_request_xml);
+    CU_ASSERT(DeletePortMappingRange(&event) == 0);
+    
+    // Try to delete non-existent portmappings
+    event.ActionRequest = ixmlParseBuffer(delete_portmapping_range_request_xml);
+    CU_ASSERT(DeletePortMappingRange(&event) == 714); 
 }
 
 int main(int argc, char** argv)
@@ -191,7 +220,8 @@ int main(int argc, char** argv)
     if ((NULL == CU_add_test(pSuite, "test of RetrieveListOfPortMappings()", Test_RetrieveListOfPortMappings)) ||
         (NULL == CU_add_test(pSuite, "test of GetSpecificPortMappingEntry()", Test_GetSpecificPortMappingEntry)) ||
         (NULL == CU_add_test(pSuite, "test of AddPortMapping()", Test_AddPortMapping)) ||
-        (NULL == CU_add_test(pSuite, "test of DeletePortMapping()", Test_DeletePortMapping)))
+        (NULL == CU_add_test(pSuite, "test of DeletePortMapping()", Test_DeletePortMapping)) ||
+        (NULL == CU_add_test(pSuite, "test of DeletePortMappingRange()", Test_DeletePortMappingRange)))
     {
         CU_cleanup_registry();
         return CU_get_error();

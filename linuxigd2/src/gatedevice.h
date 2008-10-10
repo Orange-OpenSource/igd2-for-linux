@@ -34,7 +34,7 @@ int PortMappingNumberOfEntries;
 int PortMappingEnabled;
 char RemoteHost[16];
 long int SystemUpdateID;
-char *ChangedPortMapping;
+char ChangedPortMapping[100];
 
 
 // Helper routines
