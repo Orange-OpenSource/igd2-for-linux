@@ -37,3 +37,8 @@ char delete_portmapping_request_wildcard_remotehost_xml[] = "<?xml version=\"1.0
 char delete_portmapping_request_missing_parameter_xml[] = "<?xml version=\"1.0\"?>\n<u:DeletePortMapping xmlns:u=\"urn:schemas-upnp-org:service:WANIPConnection:1\">\n<NewExternalPort>2000</NewExternalPort>\n<NewProtocol>TCP</NewProtocol>\n</u:DeletePortMapping>";
 char delete_portmapping_request_invalid_IP_xml[] = "<?xml version=\"1.0\"?>\n<u:DeletePortMapping xmlns:u=\"urn:schemas-upnp-org:service:WANIPConnection:1\">\n<NewRemoteHost>Not an IP</NewRemoteHost>\n<NewExternalPort>2000</NewExternalPort>\n<NewProtocol>TCP</NewProtocol>\n</u:DeletePortMapping>";
 
+// DeletePortMappingRange
+// SOAP requests
+char delete_portmapping_range_request_xml[] = "<?xml version=\"1.0\"?>\n<u:DeletePortMappingRange xmlns:u=\"urn:schemas-upnp-org:service:WANIPConnection:1\">\n<NewStartPort>1990</NewStartPort>\n<NewEndPort>2000</NewEndPort>\n<NewProtocol>TCP</NewProtocol>\n<Manage>1</Manage>\n</u:DeletePortMappingRange>";
+char delete_portmapping_range_request_invalid_protocol_xml[] = "<?xml version=\"1.0\"?>\n<u:DeletePortMappingRange xmlns:u=\"urn:schemas-upnp-org:service:WANIPConnection:1\">\n<NewStartPort>2000</NewStartPort>\n<NewEndPort>2005</NewEndPort>\n<NewProtocol>FTP</NewProtocol>\n<Manage>1</Manage>\n</u:DeletePortMappingRange>";
+char delete_portmapping_range_request_missing_parameter_xml[] = "<?xml version=\"1.0\"?>\n<u:DeletePortMappingRange xmlns:u=\"urn:schemas-upnp-org:service:WANIPConnection:1\">\n<NewEndPort>2000</NewEndPort>\n<NewProtocol>TCP</NewProtocol>\n<Manage>1</Manage>\n</u:DeletePortMappingRange>";
