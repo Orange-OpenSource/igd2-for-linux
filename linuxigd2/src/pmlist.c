@@ -47,10 +47,9 @@ struct portMap* pmlist_Find(char * remoteHost, char *externalPort, char *proto, 
     temp = pmlist_Head;
     if (temp == NULL)
         return NULL;
-
     do
     {
-        if ( ((strcmp(temp->m_RemoteHost, remoteHost) == 0) || (strcmp(remoteHost, "") == 0)) &&
+        if ( ((strcmp(temp->m_RemoteHost, remoteHost) == 0) || (strcmp(remoteHost, "") == 0) || (strcmp(temp->m_RemoteHost, "") == 0)) &&
                 (strcmp(temp->m_ExternalPort, externalPort) == 0) &&
                 (strcmp(temp->m_PortMappingProtocol, proto) == 0) &&
                 (strcmp(temp->m_InternalClient, internalClient) == 0) )

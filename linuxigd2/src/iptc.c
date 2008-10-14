@@ -4,30 +4,17 @@
 #include <errno.h>
 #include <netdb.h>
 #include <string.h>
-#include <iptables.h>
-#include <libiptc/libiptc.h>
-#include <linux/netfilter_ipv4/ip_nat.h>
 #include <arpa/inet.h> /* inet_addr */
 #include "globals.h"
 #include "util.h"
 #include "iptc.h"
 
-struct ipt_natinfo
-{
-    struct ipt_entry_target t;
-    struct ip_nat_multi_range mr;
-};
-
-struct ipt_entry_match *get_tcp_match(const char *sports, const char *dports, unsigned int *nfcache);
-struct ipt_entry_match *get_udp_match(const char *sports, const char *dports, unsigned int *nfcache);
-struct ipt_entry_target *get_dnat_target(const char *input, unsigned int *nfcache);
-
-static u_int16_t parse_port(const char *port);
+static u_int16_t ipt_parse_port(const char *port);
 static void parse_ports(const char *portstring, u_int16_t *ports);
-static int service_to_port(const char *name);
+static int ipt_service_to_port(const char *name);
 
-static void parse_range(const char *input, struct ip_nat_range *range);
-static struct ipt_natinfo *append_range(struct ipt_natinfo *info, const struct ip_nat_range *range);
+static void parse_range(const char *input, struct nf_nat_range *range);
+static struct ipt_natinfo *append_range(struct ipt_natinfo *info, const struct nf_nat_range *range);
 
 static int matchcmp(const struct ipt_entry_match *match, const char *srcports, const char *destports);
 
@@ -203,8 +190,8 @@ void iptc_delete_rule(const char *table,
         if (dnat_to && strcmp(target, "DNAT") == 0)
         {
             struct ipt_entry_target *t;
-            struct ip_nat_multi_range *mr;
-            struct ip_nat_range *r, range;
+            struct nf_nat_multi_range_compat *mr;
+            struct nf_nat_range *r, range;
 
             t = (void *) e+e->target_offset;
             mr = (void *) &t->data;
@@ -345,7 +332,7 @@ struct ipt_entry_target *
 {
     struct ipt_entry_target *target;
     struct ipt_natinfo *info;
-    struct ip_nat_range range;
+    struct nf_nat_range range;
 
     char *buffer;
     size_t size;
@@ -354,7 +341,7 @@ struct ipt_entry_target *
     *nfcache |= NFC_UNKNOWN;
 
     buffer = strdup(input);
-    size = IPT_ALIGN(sizeof(*target)) + IPT_ALIGN(sizeof(struct ip_nat_multi_range));
+    size = IPT_ALIGN(sizeof(*target)) + IPT_ALIGN(sizeof(struct nf_nat_multi_range_compat));
     target = calloc(1, size);
     target->u.target_size = size;
     strncpy(target->u.user.name, "DNAT", IPT_FUNCTION_MAXNAMELEN);
@@ -369,12 +356,11 @@ struct ipt_entry_target *
 
 /* Copied and modified from libipt_tcp.c and libipt_udp.c */
 
-static u_int16_t
-parse_port(const char *port)
+static u_int16_t ipt_parse_port(const char *port)
 {
     unsigned int portnum;
 
-    if ((portnum = service_to_port(port)) != -1)
+    if ((portnum = ipt_service_to_port(port)) != -1)
     {
         return (u_int16_t)portnum;
     }
@@ -392,20 +378,19 @@ parse_ports(const char *portstring, u_int16_t *ports)
 
     buffer = strdup(portstring);
     if ((cp = strchr(buffer, ':')) == NULL)
-        ports[0] = ports[1] = parse_port(buffer);
+        ports[0] = ports[1] = ipt_parse_port(buffer);
     else
     {
         *cp = '\0';
         cp++;
 
-        ports[0] = buffer[0] ? parse_port(buffer) : 0;
-        ports[1] = cp[0] ? parse_port(cp) : 0xFFFF;
+        ports[0] = buffer[0] ? ipt_parse_port(buffer) : 0;
+        ports[1] = cp[0] ? ipt_parse_port(cp) : 0xFFFF;
     }
     free(buffer);
 }
 
-static int
-service_to_port(const char *name)
+static int ipt_service_to_port(const char *name)
 {
     struct servent *service;
 
@@ -421,7 +406,7 @@ service_to_port(const char *name)
 /* Copied and modified from libipt_DNAT.c */
 
 static void
-parse_range(const char *input, struct ip_nat_range *range)
+parse_range(const char *input, struct nf_nat_range *range)
 {
     char *colon, *dash, *buffer;
     in_addr_t ip;
@@ -485,11 +470,11 @@ parse_range(const char *input, struct ip_nat_range *range)
 
 
 static struct ipt_natinfo *
-            append_range(struct ipt_natinfo *info, const struct ip_nat_range *range)
+            append_range(struct ipt_natinfo *info, const struct nf_nat_range *range)
 {
     unsigned int size;
 
-    /* One ip_nat_range already included in ip_nat_multi_range */
+    /* One nf_nat_range already included in nf_nat_multi_range_compat */
     size = IPT_ALIGN(sizeof(*info) + info->mr.rangesize * sizeof(*range));
 
     info = realloc(info, size);
