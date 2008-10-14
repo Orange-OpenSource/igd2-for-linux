@@ -17,7 +17,7 @@ INCLUDES += -I$(LIBIPTC_PREFIX)/include
 endif
 
 LIBS += -liptc
-INCLUDES += -DHAVE_LIBIPTC
+INCLUDES += -I/usr/src/linux-headers-$(shell uname -r)/include -DHAVE_LIBIPTC
 FILES += iptc.o
 endif
 
