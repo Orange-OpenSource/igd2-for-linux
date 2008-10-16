@@ -44,6 +44,7 @@ install: upnpd
 	install configs/gatedesc.xml /etc/linuxigd
 	install configs/gateconnSCPD.xml  /etc/linuxigd
 	install configs/gateicfgSCPD.xml /etc/linuxigd
+	install configs/gateEthlcfgSCPD.xml /etc/linuxigd
 	install configs/dummy.xml /etc/linuxigd
 	install $(BIN)upnpd $(PREFIX)/sbin
 	install doc/upnpd.8 $(PREFIX)/share/man/man8

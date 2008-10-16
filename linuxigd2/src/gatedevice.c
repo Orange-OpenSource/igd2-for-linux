@@ -16,6 +16,7 @@
 //Definitions for mapping expiration timer thread
 static TimerThread gExpirationTimerThread;
 static ThreadPool gExpirationThreadPool;
+static ThreadPoolJob gEventUpdateJob;
 
 // MUTEX for locking shared state variables whenver they are changed
 static ithread_mutex_t DevMutex = PTHREAD_MUTEX_INITIALIZER;
@@ -70,6 +71,7 @@ int StateTableInit(char *descDocUrl)
     pmlist_Head = pmlist_Current = NULL;
     PortMappingNumberOfEntries = 0;
     SystemUpdateID = 0;
+    strcpy(EthernetLinkStatus,"Unavailable");
 
     return (ret);
 }
@@ -101,6 +103,15 @@ int HandleSubscriptionRequest(struct Upnp_Subscription_Request *sr_event)
             UpnpAddToPropertySet(&propSet, "ConnectionStatus","Connected");
             UpnpAddToPropertySet(&propSet, "ExternalIPAddress", ExternalIPAddress);
             UpnpAddToPropertySet(&propSet, "PortMappingNumberOfEntries","0");
+            UpnpAcceptSubscriptionExt(deviceHandle, sr_event->UDN, sr_event->ServiceId,
+                                      propSet, sr_event->Sid);
+            ixmlDocument_free(propSet);
+        }
+        else if (strcmp(sr_event->ServiceId, "urn:upnp-org:serviceId:WANEthLinkC1") == 0)
+        {
+            trace(3, "Recieved request to subscribe to WANEthLinkC1");
+            setEthernetLinkStatus(EthernetLinkStatus, g_vars.extInterfaceName);
+            UpnpAddToPropertySet(&propSet, "EthernetLinkStatus", EthernetLinkStatus);
             UpnpAcceptSubscriptionExt(deviceHandle, sr_event->UDN, sr_event->ServiceId,
                                       propSet, sr_event->Sid);
             ixmlDocument_free(propSet);
@@ -190,6 +201,16 @@ int HandleActionRequest(struct Upnp_Action_Request *ca_event)
                 result = GetTotal(ca_event, STATS_RX_PACKETS);
             else if (strcmp(ca_event->ActionName,"GetCommonLinkProperties") == 0)
                 result = GetCommonLinkProperties(ca_event);
+            else
+            {
+                trace(1, "Invalid Action Request : %s",ca_event->ActionName);
+                result = InvalidAction(ca_event);
+            }
+        }
+        else if (strcmp(ca_event->ServiceID,"urn:upnp-org:serviceId:WANEthLinkC1") == 0)
+        {
+            if (strcmp(ca_event->ActionName,"GetEthernetLinkStatus") == 0)
+                result = GetEthernetLinkStatus(ca_event);
             else
             {
                 trace(1, "Invalid Action Request : %s",ca_event->ActionName);
@@ -934,6 +955,8 @@ int ExpirationTimerThreadInit(void)
         return retVal;
     }
 
+    createEventUpdateTimer();
+
     return 0;
 }
 
@@ -942,12 +965,61 @@ int ExpirationTimerThreadShutdown(void)
     return TimerThreadShutdown(&gExpirationTimerThread);
 }
 
-
 void free_expiration_event(expiration_event *event)
 {
     if (event->mapping!=NULL)
         event->mapping->expirationEventId = -1;
     free(event);
+}
+
+/**
+ * This timer is used to check periodically if values of some state variables have changed.
+ * If some has chandeg then event is sent to control points which has subscribed those events.
+ */
+int createEventUpdateTimer(void)
+{
+    expiration_event *event;
+    event = ( expiration_event * ) malloc( sizeof( expiration_event ) );
+    if ( event == NULL )
+    {
+        return 0;
+    }
+ 
+    // Add event update job
+    TPJobInit( &gEventUpdateJob, ( start_routine ) UpdateEvents, event );
+    TimerThreadSchedule( &gExpirationTimerThread,
+                            EVENT_UPDATE_INTERVAL,
+                            REL_SEC, &gEventUpdateJob, SHORT_TERM,
+                            &( event->eventId ) );     
+    return  event->eventId;            
+}
+
+/**
+ * Send event for control point that state variable has changed
+ */
+void UpdateEvents(void *input)
+{
+    IXML_Document *propSet = NULL;  
+    char prevStatus[12];
+    
+    trace(3, "Update Events");
+    
+    ithread_mutex_lock(&DevMutex);  
+    strcpy(prevStatus,EthernetLinkStatus);
+    setEthernetLinkStatus(EthernetLinkStatus, g_vars.extInterfaceName);
+    
+    // has status changed?
+    if (strcmp(prevStatus,EthernetLinkStatus) != 0)
+    {
+        UpnpAddToPropertySet(&propSet, "EthernetLinkStatus", EthernetLinkStatus);
+        UpnpNotifyExt(deviceHandle, gateUDN, "urn:upnp-org:serviceId:WANEthLinkC1", propSet); // assume all devices have same UDN
+    
+        trace(3, "EthernetLinkStatus changed: From %s to %s",prevStatus,EthernetLinkStatus);
+    }
+    ithread_mutex_unlock(&DevMutex);
+    
+    // create update event again
+    createEventUpdateTimer();
 }
 
 void ExpireMapping(void *input)
@@ -1344,6 +1416,39 @@ int RetrieveListOfPortmappings(struct Upnp_Action_Request *ca_event)
     g_string_free(result_str, TRUE);
 
     return ca_event->ErrCode;
+}
+
+/**
+ * WANEthernetLinkConfig Service
+ *  GetEthernetLinkStatus Action
+ */
+int GetEthernetLinkStatus (struct Upnp_Action_Request *ca_event)
+{
+    char resultStr[RESULT_LEN];
+    IXML_Document *result;
+
+
+    setEthernetLinkStatus(EthernetLinkStatus, g_vars.extInterfaceName);
+        
+    snprintf(resultStr, RESULT_LEN,
+             "<u:GetEthernetLinkStatusResponse xmlns:u=\"urn:schemas-upnp-org:service:WANEthernetLinkConfig:1\">\n"
+             "<NewEthernetLinkStatus>%s</NewEthernetLinkStatus>\n"
+             "</u:GetEthernetLinkStatusResponse>",EthernetLinkStatus);
+
+    // Create a IXML_Document from resultStr and return with ca_event
+    if ((result = ixmlParseBuffer(resultStr)) != NULL)
+    {
+        ca_event->ActionResult = result;
+        ca_event->ErrCode = UPNP_E_SUCCESS;
+    }
+    else
+    {
+        trace(1, "Error parsing Response to GetEthernetLinkStatus: %s", resultStr);
+        ca_event->ActionResult = NULL;
+        ca_event->ErrCode = 501;
+    }
+
+    return(ca_event->ErrCode);
 }
 
 // Checks if control point is authorized
