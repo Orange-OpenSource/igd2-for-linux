@@ -36,6 +36,8 @@ char RemoteHost[16];
 long int SystemUpdateID;
 char ChangedPortMapping[100];
 
+char EthernetLinkStatus[12];
+
 
 // Helper routines
 char* GetFirstDocumentItem( IN IXML_Document * doc, const char *item );
@@ -69,17 +71,25 @@ int AddAnyPortMapping(struct Upnp_Action_Request *ca_event);
 int RetrieveListOfPortmappings(struct Upnp_Action_Request *ca_event);
 int AuthorizeControlPoint(struct Upnp_Action_Request *ca_event);
 
+// WANEthernetLinkConfig Actions
+int GetEthernetLinkStatus (struct Upnp_Action_Request *ca_event);
+
 // Definitions for mapping expiration timer thread
 #define THREAD_IDLE_TIME 5000
 #define JOBS_PER_THREAD 10
 #define MIN_THREADS 2
 #define MAX_THREADS 12
+// How often check if update events should be sent
+#define EVENT_UPDATE_INTERVAL 5
 
 int ExpirationTimerThreadInit(void);
 int ExpirationTimerThreadShutdown(void);
 int ScheduleMappingExpiration(struct portMap *mapping, char *DevUDN, char *ServiceID);
 int CancelMappingExpiration(int eventId);
 void DeleteAllPortMappings(void);
+
+int createEventUpdateTimer(void);
+void UpdateEvents(void *input);
 
 int AddNewPortMapping(struct Upnp_Action_Request *ca_event, char* new_enabled, int leaseDuration, 
                      char* new_remote_host, char* new_external_port, char* new_internal_port, 

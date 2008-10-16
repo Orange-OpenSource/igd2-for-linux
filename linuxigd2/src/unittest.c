@@ -1,6 +1,7 @@
 #include <CUnit/Basic.h>
 #include <CUnit/Automated.h>
 #include <upnp/ixml.h>
+#include <upnp/TimerThread.h>
 #include <string.h>
 
 #include "gatedevice.h"
@@ -23,7 +24,7 @@ int InitTestSuite(void)
     pmlist_PushBack(pm);
 
     ExpirationTimerThreadInit();
-
+    
     return 0;
 }
 
@@ -183,14 +184,34 @@ void Test_DeletePortMappingRange(void)
     // Invalid protocol
     event.ActionRequest = ixmlParseBuffer(delete_portmapping_range_request_invalid_protocol_xml);
     CU_ASSERT(DeletePortMappingRange(&event) == 402);
-
+    
     // Delete range
     event.ActionRequest = ixmlParseBuffer(delete_portmapping_range_request_xml);
     CU_ASSERT(DeletePortMappingRange(&event) == 0);
-    
+
     // Try to delete non-existent portmappings
     event.ActionRequest = ixmlParseBuffer(delete_portmapping_range_request_xml);
     CU_ASSERT(DeletePortMappingRange(&event) == 714); 
+}
+
+void Test_GetEthernetLinkStatus(void)
+{
+    struct Upnp_Action_Request event;
+    strcpy(event.DevUDN,"uuid:75802409-bccb-40e7-8e6c-fa095ecce13e");
+    strcpy(event.ServiceID,"urn:upnp-org:serviceId:WANEthLinkC1");
+    strcpy(event.ActionName,"GetEthernetLinkStatus");
+  
+    event.ActionRequest = ixmlParseBuffer(get_ethernet_link_status_request_xml);
+    
+    // Up
+    strcpy(g_vars.extInterfaceName,"eth0");
+    CU_ASSERT(GetEthernetLinkStatus(&event) == 0);
+    CU_ASSERT(strcmp(EthernetLinkStatus,"Up") == 0);
+    
+    // Down
+    strcpy(g_vars.extInterfaceName,"eth7");
+    CU_ASSERT(GetEthernetLinkStatus(&event) == 0);
+    CU_ASSERT(strcmp(EthernetLinkStatus,"Down") == 0);
 }
 
 int main(int argc, char** argv)
@@ -217,17 +238,20 @@ int main(int argc, char** argv)
     }
 
     /* add the tests to the suite */
+    // WANIPConn1 tests
     if ((NULL == CU_add_test(pSuite, "test of RetrieveListOfPortMappings()", Test_RetrieveListOfPortMappings)) ||
         (NULL == CU_add_test(pSuite, "test of GetSpecificPortMappingEntry()", Test_GetSpecificPortMappingEntry)) ||
         (NULL == CU_add_test(pSuite, "test of AddPortMapping()", Test_AddPortMapping)) ||
         (NULL == CU_add_test(pSuite, "test of DeletePortMapping()", Test_DeletePortMapping)) ||
-        (NULL == CU_add_test(pSuite, "test of DeletePortMappingRange()", Test_DeletePortMappingRange)))
+        (NULL == CU_add_test(pSuite, "test of DeletePortMappingRange()", Test_DeletePortMappingRange)) ||
+        (NULL == CU_add_test(pSuite, "test of AddAnyPortMapping()", Test_AddAnyPortMapping)))
     {
         CU_cleanup_registry();
         return CU_get_error();
     }
-
-    if ((NULL == CU_add_test(pSuite, "test of AddAnyPortMapping()", Test_AddAnyPortMapping)))
+    
+    // WANEthLinkC1 tests
+    if ((NULL == CU_add_test(pSuite, "test of GetEthernetLinkStatus()", Test_GetEthernetLinkStatus)))
     {
         CU_cleanup_registry();
         return CU_get_error();

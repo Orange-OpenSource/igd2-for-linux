@@ -42,3 +42,7 @@ char delete_portmapping_request_invalid_IP_xml[] = "<?xml version=\"1.0\"?>\n<u:
 char delete_portmapping_range_request_xml[] = "<?xml version=\"1.0\"?>\n<u:DeletePortMappingRange xmlns:u=\"urn:schemas-upnp-org:service:WANIPConnection:1\">\n<NewStartPort>1990</NewStartPort>\n<NewEndPort>2000</NewEndPort>\n<NewProtocol>TCP</NewProtocol>\n<Manage>1</Manage>\n</u:DeletePortMappingRange>";
 char delete_portmapping_range_request_invalid_protocol_xml[] = "<?xml version=\"1.0\"?>\n<u:DeletePortMappingRange xmlns:u=\"urn:schemas-upnp-org:service:WANIPConnection:1\">\n<NewStartPort>2000</NewStartPort>\n<NewEndPort>2005</NewEndPort>\n<NewProtocol>FTP</NewProtocol>\n<Manage>1</Manage>\n</u:DeletePortMappingRange>";
 char delete_portmapping_range_request_missing_parameter_xml[] = "<?xml version=\"1.0\"?>\n<u:DeletePortMappingRange xmlns:u=\"urn:schemas-upnp-org:service:WANIPConnection:1\">\n<NewEndPort>2000</NewEndPort>\n<NewProtocol>TCP</NewProtocol>\n<Manage>1</Manage>\n</u:DeletePortMappingRange>";
+
+// GetEthernetLinkStatus
+// SOAP requests
+char get_ethernet_link_status_request_xml[] = "<?xml version=\"1.0\"?>\n<u:GetEthernetLinkStatus xmlns:u=\"urn:schemas-upnp-org:service:WANEthernetLinkConfig:1\">\n</u:GetEthernetLinkStatus>";

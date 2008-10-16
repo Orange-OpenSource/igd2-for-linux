@@ -126,3 +126,31 @@ int resolveBoolean(char *value)
     return 0;
 }
 
+/**
+ * Resolve up/down status of given network interface and insert it into given string.
+ */
+int setEthernetLinkStatus(char *ethLinkStatus, char *iface)
+{   
+    FILE *fp;
+    char str[60];
+    
+    // check from dev_mcast if interface is up (up if listed in file)
+    // This could be done "finer" with reading registers from socket. Check from ifconfig.c or mii-tool.c. Do if nothing better to do.
+    if((fp = fopen("/proc/net/dev_mcast", "r"))==NULL) {
+        syslog(LOG_ERR, "Cannot open /proc/file/dev_mcast");
+        return 1;
+    }
+    
+    while(!feof(fp)) {
+        if(fgets(str,60,fp) && strstr(str,iface)) 
+        {
+            strcpy(ethLinkStatus,"Up");
+            fclose(fp);
+            return 0;
+        }
+    }
+    
+    fclose(fp);
+    strcpy(ethLinkStatus,"Down");
+    return 1;
+}
