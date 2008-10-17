@@ -222,6 +222,8 @@ int main (int argc, char** argv)
     UpnpUnRegisterRootDevice(deviceHandle);
     UpnpFinish();
 
+    freeConfig(&g_vars);
+
     // Exit normally
     return (0);
 }

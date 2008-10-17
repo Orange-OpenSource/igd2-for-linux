@@ -51,6 +51,14 @@ int getConfigOptionDuration(long int *duration,char line[], regmatch_t *submatch
     return 0;
 }
 
+char *defaultValue(char *value, int length)
+{
+    char *str = malloc(length);
+    strncpy(str, value, length);
+
+    return str;
+}
+
 int parseConfigFile(globals_p vars)
 {
     GKeyFile *file;
@@ -79,12 +87,12 @@ int parseConfigFile(globals_p vars)
     if (g_key_file_has_key(file, "upnpd", "forward_chain_name", &error))
         vars->forwardChainName = g_key_file_get_string(file, "upnpd", "forward_chain_name", &error);
     else
-        snprintf(vars->forwardChainName, CHAIN_NAME_LEN, IPTABLES_DEFAULT_FORWARD_CHAIN);
+        vars->forwardChainName = defaultValue(IPTABLES_DEFAULT_FORWARD_CHAIN, CHAIN_NAME_LEN);
 
     if (g_key_file_has_key(file, "upnpd", "prerouting_chain_name", &error))
         vars->preroutingChainName = g_key_file_get_string(file, "upnpd", "prerouting_chain_name", &error);
     else
-        snprintf(vars->preroutingChainName, CHAIN_NAME_LEN, IPTABLES_DEFAULT_PREROUTING_CHAIN);
+        vars->preroutingChainName = defaultValue(IPTABLES_DEFAULT_PREROUTING_CHAIN, CHAIN_NAME_LEN);
 
     if (g_key_file_has_key(file, "upnpd", "create_forward_rules", &error))
         vars->createForwardRules = resolveBoolean(g_key_file_get_string(file, "upnpd", "create_forward_rules", &error));
@@ -99,12 +107,12 @@ int parseConfigFile(globals_p vars)
     if (g_key_file_has_key(file, "upnpd", "upstream_bitrate", &error))
         vars->upstreamBitrate = g_key_file_get_string(file, "upnpd", "upstream_bitrate", &error);
     else
-        snprintf(vars->upstreamBitrate, BITRATE_LEN, DEFAULT_UPSTREAM_BITRATE);
+        vars->upstreamBitrate = defaultValue(DEFAULT_UPSTREAM_BITRATE, BITRATE_LEN);
 
     if (g_key_file_has_key(file, "upnpd", "downstream_bitrate", &error))
         vars->downstreamBitrate = g_key_file_get_string(file, "upnpd", "downstream_bitrate", &error);
     else
-        snprintf(vars->downstreamBitrate, BITRATE_LEN, DEFAULT_DOWNSTREAM_BITRATE);
+        vars->downstreamBitrate = defaultValue(DEFAULT_DOWNSTREAM_BITRATE, BITRATE_LEN);
 
     if (g_key_file_has_key(file, "upnpd", "duration", &error))
         vars->duration = g_key_file_get_integer(file, "upnpd", "duration", &error);
@@ -114,12 +122,12 @@ int parseConfigFile(globals_p vars)
     if (g_key_file_has_key(file, "upnpd", "description_document_name", &error))
         vars->descDocName = g_key_file_get_string(file, "upnpd", "description_document_name", &error);
     else
-        snprintf(vars->downstreamBitrate, BITRATE_LEN, DESC_DOC_DEFAULT);
+        vars->descDocName = defaultValue(DESC_DOC_DEFAULT, PATH_LEN);
 
     if (g_key_file_has_key(file, "upnpd", "xml_document_path", &error))
         vars->xmlPath = g_key_file_get_string(file, "upnpd", "xml_document_path", &error);
     else
-        snprintf(vars->downstreamBitrate, BITRATE_LEN, XML_PATH_DEFAULT);
+        vars->xmlPath = defaultValue(XML_PATH_DEFAULT, PATH_LEN);
 
     if (g_key_file_has_key(file, "upnpd", "listenport", &error))
         vars->listenport = g_key_file_get_integer(file, "upnpd", "listenport", &error);
@@ -129,12 +137,31 @@ int parseConfigFile(globals_p vars)
     if (g_key_file_has_key(file, "upnpd", "dnsmasq_script", &error))
         vars->dnsmasqCmd = g_key_file_get_string(file, "upnpd", "dnsmasq_script", &error);
     else
-        snprintf(vars->dnsmasqCmd, BITRATE_LEN, DNSMASQ_CMD_DEFAULT);
+        vars->dnsmasqCmd = defaultValue(DNSMASQ_CMD_DEFAULT, PATH_LEN);
 
     if (g_key_file_has_key(file, "upnpd", "uci_command", &error))
         vars->uciCmd = g_key_file_get_string(file, "upnpd", "uci_command", &error);
     else
-        snprintf(vars->uciCmd, BITRATE_LEN, UCI_CMD_DEFAULT);
+        vars->uciCmd = defaultValue(UCI_CMD_DEFAULT, PATH_LEN);
+
+    if (g_key_file_has_key(file, "upnpd", "resolv_conf", &error))
+        vars->resolvConf = g_key_file_get_string(file, "upnpd", "resolv_conf", &error);
+    else
+        vars->resolvConf = defaultValue(RESOLV_CONF_DEFAULT, PATH_LEN);
 
     return 0;
+}
+
+void freeConfig(globals_p vars)
+{
+    free(vars->iptables);
+    free(vars->upstreamBitrate);
+    free(vars->downstreamBitrate);
+    free(vars->forwardChainName);
+    free(vars->preroutingChainName);
+    free(vars->descDocName);
+    free(vars->xmlPath);
+    free(vars->dnsmasqCmd);
+    free(vars->uciCmd);
+    free(vars->resolvConf);
 }
