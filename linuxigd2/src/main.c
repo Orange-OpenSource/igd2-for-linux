@@ -15,6 +15,7 @@
 #include "gatedevice.h"
 #include "util.h"
 #include "pmlist.h"
+#include "lanhostconfig.h"
 
 // Global variables
 globals g_vars;
@@ -34,7 +35,11 @@ int main (int argc, char** argv)
         exit(0);
     }
 
-    parseConfigFile(&g_vars);
+    if(parseConfigFile(&g_vars))
+    {
+        perror("Error parsing config file");
+        exit(0);
+    }
 
     // check for '-f' option
     if (strcmp(argv[arg], "-f") == 0)
@@ -169,6 +174,9 @@ int main (int argc, char** argv)
     // Initialize the state variable table.
     StateTableInit(descDocUrl);
 
+    // Initialize lanhostconfig module
+    InitLanHostConfig();
+
     // Record the startup time, for uptime
     startup_time = time(NULL);
 
@@ -207,6 +215,9 @@ int main (int argc, char** argv)
     // Cleanup UPnP SDK and free memory
     DeleteAllPortMappings();
     ExpirationTimerThreadShutdown();
+
+    // Cleanup lanhostconfig module
+    FreeLanHostConfig();
 
     UpnpUnRegisterRootDevice(deviceHandle);
     UpnpFinish();

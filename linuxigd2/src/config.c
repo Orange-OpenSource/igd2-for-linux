@@ -3,7 +3,9 @@
 #include <string.h>
 #include <regex.h>
 #include <sys/stat.h>
+#include <glib.h>
 #include "globals.h"
+#include "util.h"
 
 #define NMATCH 3
 
@@ -39,10 +41,10 @@ int getConfigOptionDuration(long int *duration,char line[], regmatch_t *submatch
         *p++ = '\0';
         dur = atol(num)*3600 + atol(p)*60;
     }
-    
-    if (dur > MAXIMUM_DURATION) 
+
+    if (dur > MAXIMUM_DURATION)
         dur = MAXIMUM_DURATION;
-    
+
     if (absolute_time)
         dur *= -1;
     *duration = dur;
@@ -51,186 +53,88 @@ int getConfigOptionDuration(long int *duration,char line[], regmatch_t *submatch
 
 int parseConfigFile(globals_p vars)
 {
-    FILE *conf_file;
-    regmatch_t submatch[NMATCH]; // Stores the regex submatch start and end index
+    GKeyFile *file;
+    GError *error = NULL;
 
-    regex_t re_comment;
-    regex_t re_empty_row;
-    regex_t re_iptables_location;
-    regex_t re_debug_mode;
-    regex_t re_create_forward_rules;
-    regex_t re_forward_rules_append;
-    regex_t re_forward_chain_name;
-    regex_t re_prerouting_chain_name;
-    regex_t re_upstream_bitrate;
-    regex_t re_downstream_bitrate;
-    regex_t re_duration;
-    regex_t re_desc_doc;
-    regex_t re_xml_path;
-    regex_t re_listenport;
-
-    // Make sure all vars are 0 or \0 terminated
-    vars->debug = 0;
-    vars->createForwardRules = 0;
-    vars->forwardRulesAppend = 0;
-    strcpy(vars->iptables,"");
-    strcpy(vars->forwardChainName,"");
-    strcpy(vars->preroutingChainName,"");
-    strcpy(vars->upstreamBitrate,"");
-    strcpy(vars->downstreamBitrate,"");
-    vars->duration = DEFAULT_DURATION;
-    strcpy(vars->descDocName,"");
-    strcpy(vars->xmlPath,"");
-    vars->listenport = 0;
-
-    // Regexp to match a comment line
-    regcomp(&re_comment,"^[[:blank:]]*#",0);
-    regcomp(&re_empty_row,"^[[:blank:]]*\r?\n$",REG_EXTENDED);
-
-    // Regexps to match configuration file settings
-    regcomp(&re_iptables_location,"iptables_location[[:blank:]]*=[[:blank:]]*\"([^\"]+)\"",REG_EXTENDED);
-    regcomp(&re_debug_mode,"debug_mode[[:blank:]]*=[[:blank:]]*([[:digit:]])",REG_EXTENDED);
-    regcomp(&re_forward_chain_name,"forward_chain_name[[:blank:]]*=[[:blank:]]*([[:alpha:]_-]+)",REG_EXTENDED);
-    regcomp(&re_prerouting_chain_name,"prerouting_chain_name[[:blank:]]*=[[:blank:]]([[:alpha:]_-]+)",REG_EXTENDED);
-    regcomp(&re_create_forward_rules,"create_forward_rules[[:blank:]]*=[[:blank:]]*(yes|no)",REG_EXTENDED);
-    regcomp(&re_forward_rules_append,"forward_rules_append[[:blank:]]*=[[:blank:]]*(yes|no)",REG_EXTENDED);
-    regcomp(&re_upstream_bitrate,"upstream_bitrate[[:blank:]]*=[[:blank:]]*([[:digit:]]+)",REG_EXTENDED);
-    regcomp(&re_downstream_bitrate,"downstream_bitrate[[:blank:]]*=[[:blank:]]*([[:digit:]]+)",REG_EXTENDED);
-    regcomp(&re_duration,"duration[[:blank:]]*=[[:blank:]]*(@?)([[:digit:]]+|[[:digit:]]{2,}:[[:digit:]]{2})",REG_EXTENDED);
-    regcomp(&re_desc_doc,"description_document_name[[:blank:]]*=[[:blank:]]*([[:alpha:].]{1,20})",REG_EXTENDED);
-    regcomp(&re_xml_path,"xml_document_path[[:blank:]]*=[[:blank:]]*([[:alpha:]_/.]{1,50})",REG_EXTENDED);
-    regcomp(&re_listenport,"listenport[[:blank:]]*=[[:blank:]]*([[:digit:]]+)",REG_EXTENDED);
-
-    if ((conf_file=fopen(CONF_FILE,"r")) != NULL)
+    file = g_key_file_new();
+    if (!g_key_file_load_from_file(file, CONF_FILE, 0, &error))
     {
-        char line[MAX_CONFIG_LINE];
-        // Walk through the config file line by line
-        while (fgets(line,MAX_CONFIG_LINE,conf_file) != NULL)
-        {
-            // Check if a comment line or an empty one
-            if ( (0 != regexec(&re_comment,line,0,NULL,0)  )  &&
-                    (0 != regexec(&re_empty_row,line,0,NULL,0))  )
-            {
-                // Chec if iptables_location
-                if (regexec(&re_iptables_location,line,NMATCH,submatch,0) == 0)
-                {
-                    getConfigOptionArgument(vars->iptables, PATH_LEN, line, submatch);
-                }
-                // Check if create_forward_rules
-                else if (regexec(&re_create_forward_rules,line,NMATCH,submatch,0) == 0)
-                {
-                    char tmp[4];
-                    getConfigOptionArgument(tmp,sizeof(tmp),line,submatch);
-                    vars->createForwardRules = strcmp(tmp,"yes")==0 ? 1 : 0;
-                }
-                // Check if forward_rules_append
-                else if (regexec(&re_forward_rules_append,line,NMATCH,submatch,0) == 0)
-                {
-                    char tmp[4];
-                    getConfigOptionArgument(tmp,sizeof(tmp),line,submatch);
-                    vars->forwardRulesAppend = strcmp(tmp,"yes")==0 ? 1 : 0;
-                }
-                // Check forward_chain_name
-                else if (regexec(&re_forward_chain_name,line,NMATCH,submatch,0) == 0)
-                {
-                    getConfigOptionArgument(vars->forwardChainName, CHAIN_NAME_LEN, line, submatch);
-                }
-                else if (regexec(&re_debug_mode,line,NMATCH,submatch,0) == 0)
-                {
-                    char tmp[2];
-                    getConfigOptionArgument(tmp,sizeof(tmp),line,submatch);
-                    vars->debug = atoi(tmp);
-                }
-                else if (regexec(&re_prerouting_chain_name,line,NMATCH,submatch,0) == 0)
-                {
-                    getConfigOptionArgument(vars->preroutingChainName, CHAIN_NAME_LEN, line, submatch);
-                }
-                else if (regexec(&re_upstream_bitrate,line,NMATCH,submatch,0) == 0)
-                {
-                    getConfigOptionArgument(vars->upstreamBitrate, BITRATE_LEN, line, submatch);
-                }
-                else if (regexec(&re_downstream_bitrate,line,NMATCH,submatch,0) == 0)
-                {
-                    getConfigOptionArgument(vars->downstreamBitrate, BITRATE_LEN, line, submatch);
-                }
-                else if (regexec(&re_duration,line,NMATCH,submatch,0) == 0)
-                {
-                    getConfigOptionDuration(&vars->duration,line,submatch);
-                }
-                else if (regexec(&re_desc_doc,line,NMATCH,submatch,0) == 0)
-                {
-                    getConfigOptionArgument(vars->descDocName, PATH_LEN, line, submatch);
-                }
-                else if (regexec(&re_xml_path,line,NMATCH,submatch,0) == 0)
-                {
-                    getConfigOptionArgument(vars->xmlPath, PATH_LEN, line, submatch);
-                }
-                else if (regexec(&re_listenport,line,NMATCH,submatch,0) == 0)
-                {
-                    char tmp[6];
-                    getConfigOptionArgument(tmp,sizeof(tmp),line,submatch);
-                    vars->listenport = atoi(tmp);
-                }
-                else
-                {
-                    // We end up here if ther is an unknown config directive
-                    printf("Unknown config line: %s",line);
-                }
-            }
-        }
-        fclose(conf_file);
-    }
-    regfree(&re_comment);
-    regfree(&re_empty_row);
-    regfree(&re_iptables_location);
-    regfree(&re_debug_mode);
-    regfree(&re_create_forward_rules);
-    regfree(&re_forward_rules_append);
-    regfree(&re_forward_chain_name);
-    regfree(&re_prerouting_chain_name);
-    regfree(&re_upstream_bitrate);
-    regfree(&re_downstream_bitrate);
-    regfree(&re_duration);
-    regfree(&re_desc_doc);
-    regfree(&re_xml_path);
-    regfree(&re_listenport);
-    // Set default values for options not found in config file
-    if (strnlen(vars->forwardChainName, CHAIN_NAME_LEN) == 0)
-    {
-        // No forward chain name was set in conf file, set it to default
-        snprintf(vars->forwardChainName, CHAIN_NAME_LEN, IPTABLES_DEFAULT_FORWARD_CHAIN);
-    }
-    if (strnlen(vars->preroutingChainName, CHAIN_NAME_LEN) == 0)
-    {
-        // No prerouting chain name was set in conf file, set it to default
-        snprintf(vars->preroutingChainName, CHAIN_NAME_LEN, IPTABLES_DEFAULT_PREROUTING_CHAIN);
-    }
-    if (strnlen(vars->upstreamBitrate, BITRATE_LEN) == 0)
-    {
-        // No upstream_bitrate was found in the conf file, set it to default
-        snprintf(vars->upstreamBitrate, BITRATE_LEN, DEFAULT_UPSTREAM_BITRATE);
-    }
-    if (strnlen(vars->downstreamBitrate, BITRATE_LEN) == 0)
-    {
-        // No downstream bitrate was found in the conf file, set it to default
-        snprintf(vars->downstreamBitrate, BITRATE_LEN, DEFAULT_DOWNSTREAM_BITRATE);
-    }
-    if (strnlen(vars->descDocName, PATH_LEN) == 0)
-    {
-        snprintf(vars->descDocName, PATH_LEN, DESC_DOC_DEFAULT);
-    }
-    if (strnlen(vars->xmlPath, PATH_LEN) == 0)
-    {
-        snprintf(vars->xmlPath, PATH_LEN, XML_PATH_DEFAULT);
-    }
-    if (strnlen(vars->iptables, PATH_LEN) == 0)
-    {
-        // Can't find the iptables executable, return -1 to
-        // indicate en error
+        fprintf(stderr, "Can't open config file \"%s\": %s", CONF_FILE, error->message);
         return -1;
     }
+
+    if (g_key_file_has_key(file, "upnpd", "iptables_location", &error))
+        vars->iptables = g_key_file_get_string(file, "upnpd", "iptables_location", &error);
     else
     {
-        return 0;
+        fprintf(stderr, "No config file value for iptables location.");
+        return -1;
     }
+
+    if (g_key_file_has_key(file, "upnpd", "debug_mode", &error))
+        vars->debug = g_key_file_get_integer(file, "upnpd", "debug_mode", &error);
+    else
+        vars->debug = 0;
+
+    if (g_key_file_has_key(file, "upnpd", "forward_chain_name", &error))
+        vars->forwardChainName = g_key_file_get_string(file, "upnpd", "forward_chain_name", &error);
+    else
+        snprintf(vars->forwardChainName, CHAIN_NAME_LEN, IPTABLES_DEFAULT_FORWARD_CHAIN);
+
+    if (g_key_file_has_key(file, "upnpd", "prerouting_chain_name", &error))
+        vars->preroutingChainName = g_key_file_get_string(file, "upnpd", "prerouting_chain_name", &error);
+    else
+        snprintf(vars->preroutingChainName, CHAIN_NAME_LEN, IPTABLES_DEFAULT_PREROUTING_CHAIN);
+
+    if (g_key_file_has_key(file, "upnpd", "create_forward_rules", &error))
+        vars->createForwardRules = resolveBoolean(g_key_file_get_string(file, "upnpd", "create_forward_rules", &error));
+    else
+        vars->createForwardRules = 0;
+
+    if (g_key_file_has_key(file, "upnpd", "forward_rules_append", &error))
+        vars->forwardRulesAppend = resolveBoolean(g_key_file_get_string(file, "upnpd", "forward_rules_append", &error));
+    else
+        vars->forwardRulesAppend = 0;
+
+    if (g_key_file_has_key(file, "upnpd", "upstream_bitrate", &error))
+        vars->upstreamBitrate = g_key_file_get_string(file, "upnpd", "upstream_bitrate", &error);
+    else
+        snprintf(vars->upstreamBitrate, BITRATE_LEN, DEFAULT_UPSTREAM_BITRATE);
+
+    if (g_key_file_has_key(file, "upnpd", "downstream_bitrate", &error))
+        vars->downstreamBitrate = g_key_file_get_string(file, "upnpd", "downstream_bitrate", &error);
+    else
+        snprintf(vars->downstreamBitrate, BITRATE_LEN, DEFAULT_DOWNSTREAM_BITRATE);
+
+    if (g_key_file_has_key(file, "upnpd", "duration", &error))
+        vars->duration = g_key_file_get_integer(file, "upnpd", "duration", &error);
+    else
+        vars->duration = DEFAULT_DURATION;
+
+    if (g_key_file_has_key(file, "upnpd", "description_document_name", &error))
+        vars->descDocName = g_key_file_get_string(file, "upnpd", "description_document_name", &error);
+    else
+        snprintf(vars->downstreamBitrate, BITRATE_LEN, DESC_DOC_DEFAULT);
+
+    if (g_key_file_has_key(file, "upnpd", "xml_document_path", &error))
+        vars->xmlPath = g_key_file_get_string(file, "upnpd", "xml_document_path", &error);
+    else
+        snprintf(vars->downstreamBitrate, BITRATE_LEN, XML_PATH_DEFAULT);
+
+    if (g_key_file_has_key(file, "upnpd", "listenport", &error))
+        vars->listenport = g_key_file_get_integer(file, "upnpd", "listenport", &error);
+    else
+        vars->listenport = LISTENPORT_DEFAULT;
+
+    if (g_key_file_has_key(file, "upnpd", "dnsmasq_script", &error))
+        vars->dnsmasqCmd = g_key_file_get_string(file, "upnpd", "dnsmasq_script", &error);
+    else
+        snprintf(vars->dnsmasqCmd, BITRATE_LEN, DNSMASQ_CMD_DEFAULT);
+
+    if (g_key_file_has_key(file, "upnpd", "uci_command", &error))
+        vars->uciCmd = g_key_file_get_string(file, "upnpd", "uci_command", &error);
+    else
+        snprintf(vars->uciCmd, BITRATE_LEN, UCI_CMD_DEFAULT);
+
+    return 0;
 }

@@ -79,6 +79,13 @@
                                 <eventSubURL>/upnp/control/WANEthLinkC1</eventSubURL>
                                 <SCPDURL>/gateEthlcfgSCPD.xml</SCPDURL>
                             </service>
+                            <service>
+                                <serviceType>urn:schemas-upnp-org:service:LANHostConfigManagement:1</serviceType>
+                                <serviceId>urn:upnp-org:serviceId:LANHostConfig1</serviceId>
+                                <controlURL>/upnp/control/LANHostConfig1</controlURL>
+                                <eventSubURL>/upnp/control/LANHostConfig1</eventSubURL>
+                                <SCPDURL>/lanhostconfigSCPD.xml</SCPDURL>
+                            </service>
 						</serviceList>
 					</device>
 				</deviceList>

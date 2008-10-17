@@ -2,6 +2,7 @@
 #define _UTIL_H_
 
 #include <upnp/upnp.h>
+#include <glib.h>
 
 int get_sockfd(void);
 int GetIpAddressStr(char *address, char *ifname);
@@ -12,5 +13,9 @@ void trace(int debuglevel, const char *format, ...);
 int setEthernetLinkStatus(char *ethLinStatus, char *iface);
 
 int resolveBoolean(char *);
+
+char* GetFirstDocumentItem( IN IXML_Document * doc, const char *item );
+
+void ParseResponse(struct Upnp_Action_Request *ca_event, GString *result);
 
 #endif //_UTIL_H_

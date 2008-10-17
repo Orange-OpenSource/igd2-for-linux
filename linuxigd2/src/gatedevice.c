@@ -12,6 +12,7 @@
 #include "gatedevice.h"
 #include "pmlist.h"
 #include "util.h"
+#include "lanhostconfig.h"
 
 //Definitions for mapping expiration timer thread
 static TimerThread gExpirationTimerThread;
@@ -103,6 +104,15 @@ int HandleSubscriptionRequest(struct Upnp_Subscription_Request *sr_event)
             UpnpAddToPropertySet(&propSet, "ConnectionStatus","Connected");
             UpnpAddToPropertySet(&propSet, "ExternalIPAddress", ExternalIPAddress);
             UpnpAddToPropertySet(&propSet, "PortMappingNumberOfEntries","0");
+            UpnpAcceptSubscriptionExt(deviceHandle, sr_event->UDN, sr_event->ServiceId,
+                                      propSet, sr_event->Sid);
+            ixmlDocument_free(propSet);
+        }
+        // LAN Host Config Management Notifications
+        else if (strcmp(sr_event->ServiceId, "urn:upnp-org:serviceId:LANHostConfig1") == 0)
+        {
+            trace(3, "Received request to subscribe to LANHostConfig1");
+            // No state variable requires eventing, is next step needed?
             UpnpAcceptSubscriptionExt(deviceHandle, sr_event->UDN, sr_event->ServiceId,
                                       propSet, sr_event->Sid);
             ixmlDocument_free(propSet);
@@ -204,6 +214,52 @@ int HandleActionRequest(struct Upnp_Action_Request *ca_event)
             else
             {
                 trace(1, "Invalid Action Request : %s",ca_event->ActionName);
+                result = InvalidAction(ca_event);
+            }
+        }
+        else if (strcmp(ca_event->ServiceID,"urn:upnp-org:serviceId:LANHostConfig1") == 0)
+        {
+            if (strcmp(ca_event->ActionName,"SetDHCPServerConfigurable") == 0)
+                result = SetDHCPServerConfigurable(ca_event);
+            else if (strcmp(ca_event->ActionName,"GetDHCPServerConfigurable") == 0)
+                result = GetDHCPServerConfigurable(ca_event);
+            else if (strcmp(ca_event->ActionName,"SetDHCPRelay") == 0)
+                result = SetDHCPRelay(ca_event);
+            else if (strcmp(ca_event->ActionName,"GetDHCPRelay") == 0)
+                result = GetDHCPRelay(ca_event);
+            else if (strcmp(ca_event->ActionName,"SetSubnetMask") == 0)
+                result = SetSubnetMask(ca_event);
+            else if (strcmp(ca_event->ActionName,"GetSubnetMask") == 0)
+                result = GetSubnetMask(ca_event);
+            else if (strcmp(ca_event->ActionName,"SetIPRouter") == 0)
+                result = SetIPRouter(ca_event);
+            else if (strcmp(ca_event->ActionName,"DeleteIPRouter") == 0)
+                result = DeleteIPRouter(ca_event);
+            else if (strcmp(ca_event->ActionName,"GetIPRoutersList") == 0)
+                result = GetIPRoutersList(ca_event);
+            else if (strcmp(ca_event->ActionName,"SetDomainName") == 0)
+                result = SetDomainName(ca_event);
+            else if (strcmp(ca_event->ActionName,"GetDomainName") == 0)
+                result = GetDomainName(ca_event);
+            else if (strcmp(ca_event->ActionName,"SetAddressRange") == 0)
+                result = SetAddressRange(ca_event);
+            else if (strcmp(ca_event->ActionName,"GetAddressRange") == 0)
+                result = GetAddressRange(ca_event);
+            else if (strcmp(ca_event->ActionName,"SetReservedAddress") == 0)
+                result = SetReservedAddress(ca_event);
+            else if (strcmp(ca_event->ActionName,"DeleteReservedAddress") == 0)
+                result = DeleteReservedAddress(ca_event);
+            else if (strcmp(ca_event->ActionName,"GetReservedAddresses") == 0)
+                result = GetReservedAddresses(ca_event);
+            else if (strcmp(ca_event->ActionName,"SetDNSServer") == 0)
+                result = SetDNSServer(ca_event);
+            else if (strcmp(ca_event->ActionName,"DeleteDNSServer") == 0)
+                result = DeleteDNSServer(ca_event);
+            else if (strcmp(ca_event->ActionName,"GetDNSServers") == 0)
+                result = GetDNSServers(ca_event);
+            else
+            {
+                trace(1, "Action not supported: %s",ca_event->ActionName);
                 result = InvalidAction(ca_event);
             }
         }
@@ -899,39 +955,6 @@ int DeletePortMappingRange(struct Upnp_Action_Request *ca_event)
     return(ca_event->ErrCode);
 }
 
-// From sampleutil.c included with libupnp
-char* GetFirstDocumentItem( IN IXML_Document * doc,
-                            IN const char *item )
-{
-    IXML_NodeList *nodeList = NULL;
-    IXML_Node *textNode = NULL;
-    IXML_Node *tmpNode = NULL;
-
-    //fprintf(stderr,"%s\n",ixmlPrintDocument(doc)); //DEBUG
-
-    char *ret = NULL;
-
-    nodeList = ixmlDocument_getElementsByTagName( doc, ( char * )item );
-
-    if ( nodeList )
-    {
-        if ( ( tmpNode = ixmlNodeList_item( nodeList, 0 ) ) )
-        {
-            textNode = ixmlNode_getFirstChild( tmpNode );
-            if (textNode != NULL)
-            {
-                ret = strdup( ixmlNode_getNodeValue( textNode ) );
-            }
-            // if desired node exist, but textNode is NULL, then value of node propably is ""
-            else
-                ret = strdup("");
-        }
-    }
-
-    if ( nodeList )
-        ixmlNodeList_free( nodeList );
-    return ret;
-}
 
 int ExpirationTimerThreadInit(void)
 {
@@ -984,14 +1007,14 @@ int createEventUpdateTimer(void)
     {
         return 0;
     }
- 
+
     // Add event update job
     TPJobInit( &gEventUpdateJob, ( start_routine ) UpdateEvents, event );
     TimerThreadSchedule( &gExpirationTimerThread,
                             EVENT_UPDATE_INTERVAL,
                             REL_SEC, &gEventUpdateJob, SHORT_TERM,
-                            &( event->eventId ) );     
-    return  event->eventId;            
+                            &( event->eventId ) );
+    return  event->eventId;
 }
 
 /**
@@ -999,25 +1022,25 @@ int createEventUpdateTimer(void)
  */
 void UpdateEvents(void *input)
 {
-    IXML_Document *propSet = NULL;  
+    IXML_Document *propSet = NULL;
     char prevStatus[12];
-    
+
     trace(3, "Update Events");
-    
-    ithread_mutex_lock(&DevMutex);  
+
+    ithread_mutex_lock(&DevMutex);
     strcpy(prevStatus,EthernetLinkStatus);
     setEthernetLinkStatus(EthernetLinkStatus, g_vars.extInterfaceName);
-    
+
     // has status changed?
     if (strcmp(prevStatus,EthernetLinkStatus) != 0)
     {
         UpnpAddToPropertySet(&propSet, "EthernetLinkStatus", EthernetLinkStatus);
         UpnpNotifyExt(deviceHandle, gateUDN, "urn:upnp-org:serviceId:WANEthLinkC1", propSet); // assume all devices have same UDN
-    
+
         trace(3, "EthernetLinkStatus changed: From %s to %s",prevStatus,EthernetLinkStatus);
     }
     ithread_mutex_unlock(&DevMutex);
-    
+
     // create update event again
     createEventUpdateTimer();
 }
@@ -1219,7 +1242,7 @@ int AddAnyPortMapping
 		addErrorData(ca_event, 724, "SamePortValueRequired");
 		result = 724;
         }
-	
+
 	leaseDuration = atol(new_lease_duration);
 
 	// TODO: SecurityChecks here...
@@ -1249,7 +1272,7 @@ int AddAnyPortMapping
             		}
         	}
        		else {
-	
+
 			// Otherwise just add the port map
           		result = AddNewPortMapping(ca_event, new_enabled, leaseDuration, new_remote_host,
 					          new_external_port, new_internal_port, new_protocol,
@@ -1283,7 +1306,7 @@ int AddAnyPortMapping
 
 	snprintf(resultStr, RESULT_LEN, "<u:%sResponse xmlns:u=\"%s\">\n%s%d%s\n</u:%sResponse>",
                  ca_event->ActionName, "urn:schemas-upnp-org:service:WANIPConnection:1", "<ReservedPort>",
-		 next_free_port, "</ReservedPort>", ca_event->ActionName); 
+		 next_free_port, "</ReservedPort>", ca_event->ActionName);
 	ca_event->ActionResult = ixmlParseBuffer(resultStr);
     }
 
@@ -1429,7 +1452,7 @@ int GetEthernetLinkStatus (struct Upnp_Action_Request *ca_event)
 
 
     setEthernetLinkStatus(EthernetLinkStatus, g_vars.extInterfaceName);
-        
+
     snprintf(resultStr, RESULT_LEN,
              "<u:GetEthernetLinkStatusResponse xmlns:u=\"urn:schemas-upnp-org:service:WANEthernetLinkConfig:1\">\n"
              "<NewEthernetLinkStatus>%s</NewEthernetLinkStatus>\n"
