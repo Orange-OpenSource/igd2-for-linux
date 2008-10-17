@@ -9,48 +9,6 @@
 
 #define NMATCH 3
 
-int getConfigOptionArgument(char var[],int varlen, char line[], regmatch_t *submatch)
-{
-    /* limit buffer operations to varlen - 1 */
-    int match_length = min(submatch[1].rm_eo-submatch[1].rm_so, varlen - 1);
-
-    strncpy(var,&line[submatch[1].rm_so],match_length);
-    // Make sure var[] is null terminated
-    var[match_length] = '\0';
-    return 0;
-}
-
-int getConfigOptionDuration(long int *duration,char line[], regmatch_t *submatch)
-{
-    long int dur;
-    int absolute_time = submatch[1].rm_eo-submatch[1].rm_so; // >0 if @ was present
-    char num[NUM_LEN];
-    char *p;
-
-    /* limit buffer operations to NUM_LEN - 1 */
-    unsigned int len = min(submatch[2].rm_eo-submatch[2].rm_so, NUM_LEN - 1);
-
-    strncpy(num, &line[submatch[2].rm_so], len);
-    num[len] = '\0';
-    if ((p=index(num,':'))==NULL)
-    {
-        dur = atol(num);
-    }
-    else
-    {
-        *p++ = '\0';
-        dur = atol(num)*3600 + atol(p)*60;
-    }
-
-    if (dur > MAXIMUM_DURATION)
-        dur = MAXIMUM_DURATION;
-
-    if (absolute_time)
-        dur *= -1;
-    *duration = dur;
-    return 0;
-}
-
 char *defaultValue(char *value, int length)
 {
     char *str = malloc(length);

@@ -1,9 +1,13 @@
 #include <glib.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <regex.h>
+
 #include "lanhostconfig.h"
 #include "globals.h"
 #include "util.h"
+
+#define SUB_MATCH 2
 
 struct LanHostConfig
 {
@@ -60,9 +64,9 @@ int GetDHCPServerConfigurable(struct Upnp_Action_Request *ca_event)
     ca_event->ErrCode = UPNP_E_SUCCESS;
 
     result_str = g_string_new("");
-    g_string_printf(result_str, "<u:GetDHCPServerConfigurable xmlns:u=\"urn:schemas-upnp-org:service:LANHostConfigManagement:1\">\n"
+    g_string_printf(result_str, "<u:GetDHCPServerConfigurableResponse xmlns:u=\"urn:schemas-upnp-org:service:LANHostConfigManagement:1\">\n"
              "<NewDHCPServerConfigurable>%d</NewDHCPServerConfigurable>\n"
-             "</u:GetDHCPServerConfigurable>", (lanHostConfig.DHCPServerConfigurable ? 1 : 0));
+             "</u:GetDHCPServerConfigurableResponse>", (lanHostConfig.DHCPServerConfigurable ? 1 : 0));
 
     ParseResponse(ca_event, result_str);
 
@@ -113,9 +117,9 @@ int GetSubnetMask(struct Upnp_Action_Request *ca_event)
     // get result
     fgets(subnet_mask, 48, cmd);
 
-    g_string_printf(result_str, "<u:%s xmlns:u=\"urn:schemas-upnp-org:service:LANHostConfigManagement:1\">\n"
+    g_string_printf(result_str, "<u:%sResponse xmlns:u=\"urn:schemas-upnp-org:service:LANHostConfigManagement:1\">\n"
              "<NewSubnetMask>%s</NewSubnetMask>\n"
-             "</u:%s>", ca_event->ActionName, subnet_mask, ca_event->ActionName);
+             "</u:%sResponse>", ca_event->ActionName, subnet_mask, ca_event->ActionName);
     ParseResponse(ca_event, result_str);
 
     pclose(cmd);
@@ -186,6 +190,49 @@ int DeleteDNSServer(struct Upnp_Action_Request *ca_event)
 
 int GetDNSServers(struct Upnp_Action_Request *ca_event)
 {
+    FILE *file;
+    GString *result_str;
+    GString *dns_servers;
+    char line[MAX_CONFIG_LINE];
+    char dns[16];
+    regex_t nameserver;
+    regmatch_t submatch[SUB_MATCH];
+
+    result_str = g_string_new("");
+    dns_servers = g_string_new("");
+    regcomp(&nameserver, "nameserver[[:blank:]]*([[:digit:]]{1,3}[.][[:digit:]]{1,3}[.][[:digit:]]{1,3}[.][[:digit:]]{1,3})", REG_EXTENDED);
+
+    file = fopen(g_vars.resolvConf, "r");
+    if(file == NULL)
+    {
+        trace(1, "Failed to open resolv.conf at: %s.", g_vars.resolvConf);
+        addErrorData(ca_event, 501, "Action Failed");
+        return ca_event->ErrCode;
+    }
+
+    while(fgets(line, MAX_CONFIG_LINE, file) != NULL)
+    {
+        if(regexec(&nameserver, line, SUB_MATCH, submatch, 0) == 0)
+        {
+            // nameserver found, get it and add to list
+            if (strlen(dns_servers->str) > 0)
+                g_string_append(dns_servers, ",");
+            strncpy(dns, &line[submatch[1].rm_so], min(submatch[1].rm_eo-submatch[1].rm_so, 16));
+            dns[min(submatch[1].rm_eo-submatch[1].rm_so, 16)] = 0;
+            g_string_append_printf(dns_servers, "%s", dns);
+        }
+    }
+
+    g_string_printf(result_str, "<u:%sResponse xmlns:u=\"urn:schemas-upnp-org:service:LANHostConfigManagement:1\">\n"
+             "<NewDNSServers>%s</NewDNSServers>\n"
+             "</u:%sResponse>", ca_event->ActionName, dns_servers->str, ca_event->ActionName);
+    ParseResponse(ca_event, result_str);
+
+    g_string_free(result_str, TRUE);
+    g_string_free(dns_servers, TRUE);
+    regfree(&nameserver);
+    fclose(file);
+
     return 0;
 }
 
