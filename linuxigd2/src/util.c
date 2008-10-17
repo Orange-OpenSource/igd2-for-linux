@@ -9,6 +9,7 @@
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <upnp/upnp.h>
+#include <glib.h>
 #include "globals.h"
 
 
@@ -92,7 +93,7 @@ void trace(int debuglevel, const char *format, ...)
 }
 
 // check if parameter has a wild card
-int checkForWildCard(const char *str) 
+int checkForWildCard(const char *str)
 {
     int retVal = 0;
 
@@ -103,8 +104,8 @@ int checkForWildCard(const char *str)
 }
 
 // add error data to event structure
-void addErrorData(struct Upnp_Action_Request *ca_event, int errorCode, char* message) 
-{ 
+void addErrorData(struct Upnp_Action_Request *ca_event, int errorCode, char* message)
+{
     ca_event->ErrCode = errorCode;
     strcpy(ca_event->ErrStr, message);
     ca_event->ActionResult = NULL;
@@ -126,30 +127,81 @@ int resolveBoolean(char *value)
     return 0;
 }
 
+// From sampleutil.c included with libupnp
+char* GetFirstDocumentItem( IN IXML_Document * doc,
+                            IN const char *item )
+{
+    IXML_NodeList *nodeList = NULL;
+    IXML_Node *textNode = NULL;
+    IXML_Node *tmpNode = NULL;
+
+    //fprintf(stderr,"%s\n",ixmlPrintDocument(doc)); //DEBUG
+
+    char *ret = NULL;
+
+    nodeList = ixmlDocument_getElementsByTagName( doc, ( char * )item );
+
+    if ( nodeList )
+    {
+        if ( ( tmpNode = ixmlNodeList_item( nodeList, 0 ) ) )
+        {
+            textNode = ixmlNode_getFirstChild( tmpNode );
+            if (textNode != NULL)
+            {
+                ret = strdup( ixmlNode_getNodeValue( textNode ) );
+            }
+            // if desired node exist, but textNode is NULL, then value of node propably is ""
+            else
+                ret = strdup("");
+        }
+    }
+
+    if ( nodeList )
+        ixmlNodeList_free( nodeList );
+    return ret;
+}
+
+void ParseResponse(struct Upnp_Action_Request *ca_event, GString *result_str)
+{
+    IXML_Document *result = NULL;
+
+    if ((result = ixmlParseBuffer(result_str->str)) != NULL)
+    {
+        ca_event->ActionResult = result;
+        ca_event->ErrCode = UPNP_E_SUCCESS;
+    }
+    else
+    {
+        trace(1, "Error parsing response to %s: %s", ca_event->ActionName, result_str);
+        ca_event->ActionResult = NULL;
+        ca_event->ErrCode = 402;
+    }
+}
+
 /**
  * Resolve up/down status of given network interface and insert it into given string.
  */
 int setEthernetLinkStatus(char *ethLinkStatus, char *iface)
-{   
+{
     FILE *fp;
     char str[60];
-    
+
     // check from dev_mcast if interface is up (up if listed in file)
     // This could be done "finer" with reading registers from socket. Check from ifconfig.c or mii-tool.c. Do if nothing better to do.
     if((fp = fopen("/proc/net/dev_mcast", "r"))==NULL) {
         syslog(LOG_ERR, "Cannot open /proc/file/dev_mcast");
         return 1;
     }
-    
+
     while(!feof(fp)) {
-        if(fgets(str,60,fp) && strstr(str,iface)) 
+        if(fgets(str,60,fp) && strstr(str,iface))
         {
             strcpy(ethLinkStatus,"Up");
             fclose(fp);
             return 0;
         }
     }
-    
+
     fclose(fp);
     strcpy(ethLinkStatus,"Down");
     return 1;

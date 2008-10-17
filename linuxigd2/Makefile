@@ -5,7 +5,7 @@ LIBUPNP_PREFIX=/usr
 CC=gcc
 INCLUDES= -I$(LIBUPNP_PREFIX)/include -I../include
 LIBS= -lpthread -lupnp -lixml -lthreadutil -L$(LIBUPNP_PREFIX)/lib -L../libs
-FILES= gatedevice.o pmlist.o util.o config.o
+FILES= gatedevice.o pmlist.o util.o config.o lanhostconfig.o
 BIN=bin/
 
 CFLAGS += -Wall -g -O2
@@ -44,6 +44,7 @@ install: upnpd
 	install configs/gatedesc.xml /etc/linuxigd
 	install configs/gateconnSCPD.xml  /etc/linuxigd
 	install configs/gateicfgSCPD.xml /etc/linuxigd
+	install configs/lanhostconfigSCPD.xml /etc/linuxigd
 	install configs/gateEthlcfgSCPD.xml /etc/linuxigd
 	install configs/dummy.xml /etc/linuxigd
 	install $(BIN)upnpd $(PREFIX)/sbin

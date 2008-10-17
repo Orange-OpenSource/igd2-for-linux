@@ -38,10 +38,6 @@ char ChangedPortMapping[100];
 
 char EthernetLinkStatus[12];
 
-
-// Helper routines
-char* GetFirstDocumentItem( IN IXML_Document * doc, const char *item );
-
 // Linked list for portmapping entries
 struct portMap *pmlist_Head;
 struct portMap *pmlist_Current;
@@ -87,13 +83,13 @@ int ExpirationTimerThreadShutdown(void);
 int ScheduleMappingExpiration(struct portMap *mapping, char *DevUDN, char *ServiceID);
 int CancelMappingExpiration(int eventId);
 void DeleteAllPortMappings(void);
+int AddNewPortMapping(struct Upnp_Action_Request *ca_event, char* new_enabled, int leaseDuration,
+                     char* new_remote_host, char* new_external_port, char* new_internal_port,
+                     char* new_protocol, char* new_internal_client, char* new_port_mapping_description);
 
 int createEventUpdateTimer(void);
 void UpdateEvents(void *input);
 
-int AddNewPortMapping(struct Upnp_Action_Request *ca_event, char* new_enabled, int leaseDuration, 
-                     char* new_remote_host, char* new_external_port, char* new_internal_port, 
-                     char* new_protocol, char* new_internal_client, char* new_port_mapping_description);
 
 // Definition for authorizing control point
 #define CONTROL_POINT_AUTHORIZED    0
