@@ -65,6 +65,6 @@ extern globals g_vars;
 #define LISTENPORT_DEFAULT 0
 #define DNSMASQ_CMD_DEFAULT "/etc/init.d/dnsmasq"
 #define UCI_CMD_DEFAULT "/sbin/uci"
-#define RESOLV_CONF_DEFAULT "/etc/resolf.conf_2"
+#define RESOLV_CONF_DEFAULT "/etc/resolv.conf"
 
 #endif // _GLOBALS_H_
