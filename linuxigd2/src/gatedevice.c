@@ -65,8 +65,12 @@ int StateTableInit(char *descDocUrl)
     }
 
     // Get the UDN from the description document, then free the DescDoc's memory
-    gateUDN = GetFirstDocumentItem(ixmlDescDoc, "UDN");
+    gateUDN = GetDocumentItem(ixmlDescDoc, "UDN", 0);
+    wanUDN = GetDocumentItem(ixmlDescDoc, "UDN", 1);
+    wanConnectionUDN = GetDocumentItem(ixmlDescDoc, "UDN", 2);
     ixmlDocument_free(ixmlDescDoc);
+    
+    trace(3, "UDN's: %s\n%s\n%s\n",gateUDN,wanUDN,wanConnectionUDN);
 
     // Initialize our linked list of port mappings.
     pmlist_Head = pmlist_Current = NULL;
@@ -84,19 +88,22 @@ int HandleSubscriptionRequest(struct Upnp_Subscription_Request *sr_event)
 
     ithread_mutex_lock(&DevMutex);
 
-    if (strcmp(sr_event->UDN, gateUDN) == 0)
+    if (strcmp(sr_event->UDN, wanUDN) == 0)
     {
         // WAN Common Interface Config Device Notifications
         if (strcmp(sr_event->ServiceId, "urn:upnp-org:serviceId:WANCommonIFC1") == 0)
         {
-            trace(3, "Recieved request to subscribe to WANCommonIFC1");
+            trace(3, "Received request to subscribe to WANCommonIFC1");
             UpnpAddToPropertySet(&propSet, "PhysicalLinkStatus", "Up");
             UpnpAcceptSubscriptionExt(deviceHandle, sr_event->UDN, sr_event->ServiceId,
                                       propSet, sr_event->Sid);
             ixmlDocument_free(propSet);
         }
+    }
+    else if (strcmp(sr_event->UDN, wanConnectionUDN) == 0)
+    {
         // WAN IP Connection Device Notifications
-        else if (strcmp(sr_event->ServiceId, "urn:upnp-org:serviceId:WANIPConn1") == 0)
+        if (strcmp(sr_event->ServiceId, "urn:upnp-org:serviceId:WANIPConn1") == 0)
         {
             GetIpAddressStr(ExternalIPAddress, g_vars.extInterfaceName);
             trace(3, "Received request to subscribe to WANIPConn1");
@@ -119,7 +126,7 @@ int HandleSubscriptionRequest(struct Upnp_Subscription_Request *sr_event)
         }
         else if (strcmp(sr_event->ServiceId, "urn:upnp-org:serviceId:WANEthLinkC1") == 0)
         {
-            trace(3, "Recieved request to subscribe to WANEthLinkC1");
+            trace(3, "Received request to subscribe to WANEthLinkC1");
             setEthernetLinkStatus(EthernetLinkStatus, g_vars.extInterfaceName);
             UpnpAddToPropertySet(&propSet, "EthernetLinkStatus", EthernetLinkStatus);
             UpnpAcceptSubscriptionExt(deviceHandle, sr_event->UDN, sr_event->ServiceId,
@@ -146,7 +153,29 @@ int HandleActionRequest(struct Upnp_Action_Request *ca_event)
 
     ithread_mutex_lock(&DevMutex);
 
-    if (strcmp(ca_event->DevUDN, gateUDN) == 0)
+
+    if (strcmp(ca_event->DevUDN, wanUDN) == 0)
+    {
+        if (strcmp(ca_event->ServiceID,"urn:upnp-org:serviceId:WANCommonIFC1") == 0)
+        {
+            if (strcmp(ca_event->ActionName,"GetTotalBytesSent") == 0)
+                result = GetTotal(ca_event, STATS_TX_BYTES);
+            else if (strcmp(ca_event->ActionName,"GetTotalBytesReceived") == 0)
+                result = GetTotal(ca_event, STATS_RX_BYTES);
+            else if (strcmp(ca_event->ActionName,"GetTotalPacketsSent") == 0)
+                result = GetTotal(ca_event, STATS_TX_PACKETS);
+            else if (strcmp(ca_event->ActionName,"GetTotalPacketsReceived") == 0)
+                result = GetTotal(ca_event, STATS_RX_PACKETS);
+            else if (strcmp(ca_event->ActionName,"GetCommonLinkProperties") == 0)
+                result = GetCommonLinkProperties(ca_event);
+            else
+            {
+                trace(1, "Invalid Action Request : %s",ca_event->ActionName);
+                result = InvalidAction(ca_event);
+            }
+        }
+    }
+    else if (strcmp(ca_event->DevUDN, wanConnectionUDN) == 0)
     {
         // Common debugging info, hopefully gets removed soon.
         trace(3, "ActionName = %s", ca_event->ActionName);
@@ -198,24 +227,6 @@ int HandleActionRequest(struct Upnp_Action_Request *ca_event)
             else if (strcmp(ca_event->ActionName,"GetWarnDisconnectDelay") == 0)
             	result = GetWarnDisconnectDelay(ca_event);*/
             else result = InvalidAction(ca_event);
-        }
-        else if (strcmp(ca_event->ServiceID,"urn:upnp-org:serviceId:WANCommonIFC1") == 0)
-        {
-            if (strcmp(ca_event->ActionName,"GetTotalBytesSent") == 0)
-                result = GetTotal(ca_event, STATS_TX_BYTES);
-            else if (strcmp(ca_event->ActionName,"GetTotalBytesReceived") == 0)
-                result = GetTotal(ca_event, STATS_RX_BYTES);
-            else if (strcmp(ca_event->ActionName,"GetTotalPacketsSent") == 0)
-                result = GetTotal(ca_event, STATS_TX_PACKETS);
-            else if (strcmp(ca_event->ActionName,"GetTotalPacketsReceived") == 0)
-                result = GetTotal(ca_event, STATS_RX_PACKETS);
-            else if (strcmp(ca_event->ActionName,"GetCommonLinkProperties") == 0)
-                result = GetCommonLinkProperties(ca_event);
-            else
-            {
-                trace(1, "Invalid Action Request : %s",ca_event->ActionName);
-                result = InvalidAction(ca_event);
-            }
         }
         else if (strcmp(ca_event->ServiceID,"urn:upnp-org:serviceId:LANHostConfig1") == 0)
         {
@@ -1035,7 +1046,7 @@ void UpdateEvents(void *input)
     if (strcmp(prevStatus,EthernetLinkStatus) != 0)
     {
         UpnpAddToPropertySet(&propSet, "EthernetLinkStatus", EthernetLinkStatus);
-        UpnpNotifyExt(deviceHandle, gateUDN, "urn:upnp-org:serviceId:WANEthLinkC1", propSet); // assume all devices have same UDN
+        UpnpNotifyExt(deviceHandle, wanConnectionUDN, "urn:upnp-org:serviceId:WANEthLinkC1", propSet);
 
         trace(3, "EthernetLinkStatus changed: From %s to %s",prevStatus,EthernetLinkStatus);
     }
@@ -1176,10 +1187,10 @@ void DeleteAllPortMappings(void)
     pmlist_FreeList();
 
     UpnpAddToPropertySet(&propSet, "PortMappingNumberOfEntries", "0");
-    UpnpNotifyExt(deviceHandle, gateUDN, "urn:upnp-org:serviceId:WANIPConn1", propSet);
+    UpnpNotifyExt(deviceHandle, wanConnectionUDN, "urn:upnp-org:serviceId:WANIPConn1", propSet);
     ixmlDocument_free(propSet);
     trace(2, "DeleteAllPortMappings: UpnpNotifyExt(deviceHandle,%s,%s,propSet)\n  PortMappingNumberOfEntries: %s",
-          gateUDN, "urn:upnp-org:serviceId:WANIPConn1", "0");
+          wanConnectionUDN, "urn:upnp-org:serviceId:WANIPConn1", "0");
 
     ithread_mutex_unlock(&DevMutex);
 }

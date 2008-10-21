@@ -7,6 +7,7 @@
 #include "gatedevice.h"
 #include "pmlist.h"
 #include "globals.h"
+#include "util.h"
 #include "unittest.h"
 
 // Global variables

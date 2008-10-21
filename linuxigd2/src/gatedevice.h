@@ -16,6 +16,8 @@ typedef enum
 // IGD Device Globals
 UpnpDevice_Handle deviceHandle;
 char *gateUDN;
+char *wanUDN;
+char *wanConnectionUDN;
 long int startup_time;
 
 // State Variables

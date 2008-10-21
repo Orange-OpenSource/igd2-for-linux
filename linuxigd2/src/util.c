@@ -127,9 +127,25 @@ int resolveBoolean(char *value)
     return 0;
 }
 
-// From sampleutil.c included with libupnp
-char* GetFirstDocumentItem( IN IXML_Document * doc,
-                            IN const char *item )
+void ParseResponse(struct Upnp_Action_Request *ca_event, GString *result_str)
+{
+    IXML_Document *result = NULL;
+
+    if ((result = ixmlParseBuffer(result_str->str)) != NULL)
+    {
+        ca_event->ActionResult = result;
+        ca_event->ErrCode = UPNP_E_SUCCESS;
+    }
+    else
+    {
+        trace(1, "Error parsing response to %s: %s", ca_event->ActionName, result_str);
+        ca_event->ActionResult = NULL;
+        ca_event->ErrCode = 402;
+    }
+}
+
+// get document item which is at position index in nodelist (all nodes with name item)
+char* GetDocumentItem(IXML_Document * doc, const char *item, int index)
 {
     IXML_NodeList *nodeList = NULL;
     IXML_Node *textNode = NULL;
@@ -143,7 +159,7 @@ char* GetFirstDocumentItem( IN IXML_Document * doc,
 
     if ( nodeList )
     {
-        if ( ( tmpNode = ixmlNodeList_item( nodeList, 0 ) ) )
+        if ( ( tmpNode = ixmlNodeList_item( nodeList, index ) ) )
         {
             textNode = ixmlNode_getFirstChild( tmpNode );
             if (textNode != NULL)
@@ -161,21 +177,11 @@ char* GetFirstDocumentItem( IN IXML_Document * doc,
     return ret;
 }
 
-void ParseResponse(struct Upnp_Action_Request *ca_event, GString *result_str)
+// From sampleutil.c included with libupnp
+char* GetFirstDocumentItem( IN IXML_Document * doc,
+                            IN const char *item )
 {
-    IXML_Document *result = NULL;
-
-    if ((result = ixmlParseBuffer(result_str->str)) != NULL)
-    {
-        ca_event->ActionResult = result;
-        ca_event->ErrCode = UPNP_E_SUCCESS;
-    }
-    else
-    {
-        trace(1, "Error parsing response to %s: %s", ca_event->ActionName, result_str);
-        ca_event->ActionResult = NULL;
-        ca_event->ErrCode = 402;
-    }
+    return GetDocumentItem(doc,item,0);
 }
 
 /**
