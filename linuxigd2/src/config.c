@@ -107,6 +107,11 @@ int parseConfigFile(globals_p vars)
     else
         vars->resolvConf = defaultValue(RESOLV_CONF_DEFAULT, PATH_LEN);
 
+    if (g_key_file_has_key(file, "upnpd", "event_update_interval", &error))
+        vars->eventUpdateInterval = g_key_file_get_integer(file, "upnpd", "event_update_interval", &error);
+    else
+        vars->eventUpdateInterval = DEFAULT_EVENT_UPDATE_INTERVAL;
+
     return 0;
 }
 

@@ -44,6 +44,9 @@ struct GLOBALS
     char *uciCmd;
     // resolv.conf location
     char *resolvConf;
+    
+    // Event update thread checking interval
+    int eventUpdateInterval; 
 };
 
 typedef struct GLOBALS* globals_p;
@@ -66,5 +69,7 @@ extern globals g_vars;
 #define DNSMASQ_CMD_DEFAULT "/etc/init.d/dnsmasq"
 #define UCI_CMD_DEFAULT "/sbin/uci"
 #define RESOLV_CONF_DEFAULT "/etc/resolv.conf"
+// How often check if update events should be sent
+#define DEFAULT_EVENT_UPDATE_INTERVAL 60
 
 #endif // _GLOBALS_H_
