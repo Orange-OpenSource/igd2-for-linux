@@ -40,7 +40,7 @@
 				<modelNumber>1.00</modelNumber>
 				<modelURL>http://linux-igd.sourceforge.net</modelURL>
 				<serialNumber>1.00</serialNumber>
-				<UDN>uuid:75802409-bccb-40e7-8e6c-fa095ecce13e</UDN>
+				<UDN>uuid:75802409-bccb-40e7-8e6c-fa095ecce13f</UDN>
 				<UPC>Linux IGD</UPC>
 				<serviceList>
 					<service>
@@ -62,7 +62,7 @@
 						<modelNumber>0.95</modelNumber>
 						<modelURL>http://linux-igd.sourceforge.net</modelURL>
 						<serialNumber>0.95</serialNumber>
-						<UDN>uuid:75802409-bccb-40e7-8e6c-fa095ecce13e</UDN>
+						<UDN>uuid:75802409-bccb-40e7-8e6c-fa095ecce140</UDN>
 						<UPC>Linux IGD</UPC>
 						<serviceList>
 							<service>
