@@ -189,7 +189,7 @@ int setEthernetLinkStatus(char *ethLinkStatus, char *iface)
     // check from dev_mcast if interface is up (up if listed in file)
     // This could be done "finer" with reading registers from socket. Check from ifconfig.c or mii-tool.c. Do if nothing better to do.
     if((fp = fopen("/proc/net/dev_mcast", "r"))==NULL) {
-        syslog(LOG_ERR, "Cannot open /proc/file/dev_mcast");
+        syslog(LOG_ERR, "Cannot open /proc/net/dev_mcast");
         return 1;
     }
 

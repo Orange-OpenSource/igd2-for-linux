@@ -1011,7 +1011,7 @@ int createEventUpdateTimer(void)
     // Add event update job
     TPJobInit( &gEventUpdateJob, ( start_routine ) UpdateEvents, event );
     TimerThreadSchedule( &gExpirationTimerThread,
-                            EVENT_UPDATE_INTERVAL,
+                            g_vars.eventUpdateInterval,
                             REL_SEC, &gEventUpdateJob, SHORT_TERM,
                             &( event->eventId ) );
     return  event->eventId;

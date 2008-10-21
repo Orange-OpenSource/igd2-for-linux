@@ -75,8 +75,7 @@ int GetEthernetLinkStatus (struct Upnp_Action_Request *ca_event);
 #define JOBS_PER_THREAD 10
 #define MIN_THREADS 2
 #define MAX_THREADS 12
-// How often check if update events should be sent
-#define EVENT_UPDATE_INTERVAL 5
+
 
 int ExpirationTimerThreadInit(void);
 int ExpirationTimerThreadShutdown(void);
