@@ -9,6 +9,8 @@
 #include "globals.h"
 #include "util.h"
 #include "unittest.h"
+#include "util.h"       // HSa added
+#include <arpa/inet.h>  // HSa added
 
 // Global variables
 globals g_vars;
@@ -25,7 +27,7 @@ int InitTestSuite(void)
     pmlist_PushBack(pm);
 
     ExpirationTimerThreadInit();
-    
+
     return 0;
 }
 
@@ -44,9 +46,9 @@ void Test_AddAnyPortMapping(void)
     strcpy(event.DevUDN,"00:22132:24324");
     strcpy(event.ServiceID,"99");
 
-    // Add new port mapping 	
+    // Add new port mapping
     event.ActionRequest = ixmlParseBuffer(add_any_port_mapping_ok_xml);
- 
+
     CU_ASSERT(AddAnyPortMapping(&event) == 0);
     port = GetFirstDocumentItem(event.ActionResult, "ReservedPort");
     CU_ASSERT(strcmp(port, "100") == 0);
@@ -76,7 +78,7 @@ void Test_AddAnyPortMapping(void)
     event.ActionRequest = ixmlParseBuffer(add_any_port_mapping_missing_parameter_xml);
     CU_ASSERT(AddAnyPortMapping(&event) == 402);
 }
-    
+
 void Test_RetrieveListOfPortMappings(void)
 {
     struct Upnp_Action_Request event;
@@ -107,11 +109,11 @@ void Test_GetSpecificPortMappingEntry(void)
     // Ok
     event.ActionRequest = ixmlParseBuffer(get_specific_portmapping_entry_request_xml);
     CU_ASSERT(GetSpecificPortMappingEntry(&event) == 0);
-    
+
     // Invalid args
     event.ActionRequest = ixmlParseBuffer(get_specific_portmapping_entry_inv_args_xml);
     CU_ASSERT(GetSpecificPortMappingEntry(&event) == 402);
-    
+
     // No such entry
     event.ActionRequest = ixmlParseBuffer(get_specific_portmapping_entry_no_such_entry_xml);
     CU_ASSERT(GetSpecificPortMappingEntry(&event) == 714);
@@ -127,11 +129,11 @@ void Test_AddPortMapping(void)
     // Add with remotehost
     event.ActionRequest = ixmlParseBuffer(add_portmapping_request_xml);
     CU_ASSERT(AddPortMapping(&event) == 0);
-    
+
     // Add with wildcarded remotehost
     event.ActionRequest = ixmlParseBuffer(add_portmapping_request_wildcard_remotehost_xml);
     CU_ASSERT(AddPortMapping(&event) == 0);
-    
+
     // Invalid args
     event.ActionRequest = ixmlParseBuffer(add_portmapping_request_missing_parameter_xml);
     CU_ASSERT(AddPortMapping(&event) == 402);
@@ -150,22 +152,22 @@ void Test_DeletePortMapping(void)
     // Delete with remotehost
     event.ActionRequest = ixmlParseBuffer(delete_portmapping_request_xml);
     CU_ASSERT(DeletePortMapping(&event) == 0);
-    
+
     // Delete with wildcarded remotehost
     event.ActionRequest = ixmlParseBuffer(delete_portmapping_request_wildcard_remotehost_xml);
     CU_ASSERT(DeletePortMapping(&event) == 0);
-    
+
     // Invalid args
     event.ActionRequest = ixmlParseBuffer(delete_portmapping_request_missing_parameter_xml);
     CU_ASSERT(DeletePortMapping(&event) == 402);
-    
+
     // Try to delete non-existent portmapping
     event.ActionRequest = ixmlParseBuffer(delete_portmapping_request_xml);
     CU_ASSERT(DeletePortMapping(&event) == 714);
 
     // Try to delete with invalid IP address as remotehost
     event.ActionRequest = ixmlParseBuffer(delete_portmapping_request_invalid_IP_xml);
-    CU_ASSERT(DeletePortMapping(&event) == 402);   
+    CU_ASSERT(DeletePortMapping(&event) == 402);
 }
 
 void Test_DeletePortMappingRange(void)
@@ -177,22 +179,44 @@ void Test_DeletePortMappingRange(void)
 
     // add required portmappings
     Test_AddPortMapping();
-    
+
     // Missing argument
     event.ActionRequest = ixmlParseBuffer(delete_portmapping_range_request_missing_parameter_xml);
     CU_ASSERT(DeletePortMappingRange(&event) == 402);
-    
+
     // Invalid protocol
     event.ActionRequest = ixmlParseBuffer(delete_portmapping_range_request_invalid_protocol_xml);
     CU_ASSERT(DeletePortMappingRange(&event) == 402);
-    
+
     // Delete range
     event.ActionRequest = ixmlParseBuffer(delete_portmapping_range_request_xml);
     CU_ASSERT(DeletePortMappingRange(&event) == 0);
 
     // Try to delete non-existent portmappings
     event.ActionRequest = ixmlParseBuffer(delete_portmapping_range_request_xml);
-    CU_ASSERT(DeletePortMappingRange(&event) == 714); 
+    CU_ASSERT(DeletePortMappingRange(&event) == 714);
+}
+
+void Test_ControlPointIP_equals_InternalClientIP(void)
+{
+    struct in_addr cpIP;
+    int TestResult;
+    char ICAddress[INET_ADDRSTRLEN];
+
+    strcpy(ICAddress,"255.255.255.255"); // InternalClient test IP
+
+    // Control point IP same as InternalClient
+    inet_pton(AF_INET,"255.255.255.255", &cpIP);
+    TestResult = ControlPointIP_equals_InternalClientIP(ICAddress, &cpIP);
+    // Check the compare result InternalClient IP address is same than Control Point
+    CU_ASSERT(TestResult == 1);
+
+    // Control point IP is different than InternalClient
+    inet_pton(AF_INET,"255.255.255.250", &cpIP);
+    TestResult = ControlPointIP_equals_InternalClientIP(ICAddress, &cpIP);
+    // Check the result that InternalClient IP address is NOT same as Control Point
+    CU_ASSERT(TestResult == 0);
+
 }
 
 void Test_GetEthernetLinkStatus(void)
@@ -201,14 +225,14 @@ void Test_GetEthernetLinkStatus(void)
     strcpy(event.DevUDN,"uuid:75802409-bccb-40e7-8e6c-fa095ecce13e");
     strcpy(event.ServiceID,"urn:upnp-org:serviceId:WANEthLinkC1");
     strcpy(event.ActionName,"GetEthernetLinkStatus");
-  
+
     event.ActionRequest = ixmlParseBuffer(get_ethernet_link_status_request_xml);
-    
+
     // Up
     strcpy(g_vars.extInterfaceName,"eth0");
     CU_ASSERT(GetEthernetLinkStatus(&event) == 0);
     CU_ASSERT(strcmp(EthernetLinkStatus,"Up") == 0);
-    
+
     // Down
     strcpy(g_vars.extInterfaceName,"eth7");
     CU_ASSERT(GetEthernetLinkStatus(&event) == 0);
@@ -245,12 +269,13 @@ int main(int argc, char** argv)
         (NULL == CU_add_test(pSuite, "test of AddPortMapping()", Test_AddPortMapping)) ||
         (NULL == CU_add_test(pSuite, "test of DeletePortMapping()", Test_DeletePortMapping)) ||
         (NULL == CU_add_test(pSuite, "test of DeletePortMappingRange()", Test_DeletePortMappingRange)) ||
+        (NULL == CU_add_test(pSuite, "test of Test_ControlPointIP_equals_InternalClientIP()", Test_ControlPointIP_equals_InternalClientIP)) ||
         (NULL == CU_add_test(pSuite, "test of AddAnyPortMapping()", Test_AddAnyPortMapping)))
     {
         CU_cleanup_registry();
         return CU_get_error();
     }
-    
+
     // WANEthLinkC1 tests
     if ((NULL == CU_add_test(pSuite, "test of GetEthernetLinkStatus()", Test_GetEthernetLinkStatus)))
     {
