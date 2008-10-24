@@ -72,6 +72,13 @@ int StateTableInit(char *descDocUrl)
 
     trace(3, "UDN's: %s\n%s\n%s\n",gateUDN,wanUDN,wanConnectionUDN);
 
+    if (gateUDN == NULL || wanUDN == NULL || wanConnectionUDN == NULL)
+    {
+        syslog(LOG_ERR, "Failed to get device UDN's from description document.  Exiting ...");
+        UpnpFinish();
+        exit(1);
+    }
+
     // Initialize our linked list of port mappings.
     pmlist_Head = pmlist_Current = NULL;
     PortMappingNumberOfEntries = 0;
