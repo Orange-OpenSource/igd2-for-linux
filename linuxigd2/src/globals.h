@@ -9,6 +9,9 @@
 #define RESULT_LEN 512
 #define NUM_LEN 32
 
+#define SUB_MATCH 2
+#define DNS_MAX_LENGTH 16
+
 #ifndef min
 #define min(a,b) ((a) < (b) ? (a) : (b))
 #endif
@@ -40,13 +43,17 @@ struct GLOBALS
 
     // dnsmasq start / stop script
     char *dnsmasqCmd;
+    // dhcrelay command
+    char *dhcrelayCmd;
+    // dhcrelay server
+    char *dhcrelayServer;
     // uci command
     char *uciCmd;
     // resolv.conf location
     char *resolvConf;
-    
+
     // Event update thread checking interval
-    int eventUpdateInterval; 
+    int eventUpdateInterval;
 };
 
 typedef struct GLOBALS* globals_p;
@@ -67,8 +74,10 @@ extern globals g_vars;
 #define XML_PATH_DEFAULT "/etc/linuxigd"
 #define LISTENPORT_DEFAULT 0
 #define DNSMASQ_CMD_DEFAULT "/etc/init.d/dnsmasq"
+#define DHCRELAY_CMD_DEFAULT "dhcrelay"
 #define UCI_CMD_DEFAULT "/sbin/uci"
 #define RESOLV_CONF_DEFAULT "/etc/resolv.conf"
+#define RESOLV_CONF_TMP "/tmp/resolv.conf.IGDv2"
 // How often check if update events should be sent
 #define DEFAULT_EVENT_UPDATE_INTERVAL 60
 

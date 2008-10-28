@@ -112,6 +112,16 @@ int parseConfigFile(globals_p vars)
     else
         vars->eventUpdateInterval = DEFAULT_EVENT_UPDATE_INTERVAL;
 
+    if (g_key_file_has_key(file, "upnpd", "dhcrelay_script", &error))
+        vars->dhcrelayCmd = g_key_file_get_string(file, "upnpd", "dhcrelay_script", &error);
+    else
+        vars->dhcrelayCmd = DHCRELAY_CMD_DEFAULT;
+
+    if (g_key_file_has_key(file, "upnpd", "dhcrelay_server", &error))
+        vars->dhcrelayServer = g_key_file_get_string(file, "upnpd", "dhcrelay_server", &error);
+    else
+        vars->dhcrelayServer = NULL;
+
     return 0;
 }
 
@@ -125,6 +135,9 @@ void freeConfig(globals_p vars)
     free(vars->descDocName);
     free(vars->xmlPath);
     free(vars->dnsmasqCmd);
+    free(vars->dhcrelayCmd);
     free(vars->uciCmd);
     free(vars->resolvConf);
+
+    if(vars->dhcrelayServer) free(vars->dhcrelayServer);
 }
