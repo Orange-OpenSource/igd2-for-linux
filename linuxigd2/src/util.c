@@ -127,11 +127,11 @@ int resolveBoolean(char *value)
     return 0;
 }
 
-void ParseResponse(struct Upnp_Action_Request *ca_event, GString *result_str)
+void ParseXMLResponse(struct Upnp_Action_Request *ca_event, const char *result_str)
 {
     IXML_Document *result = NULL;
 
-    if ((result = ixmlParseBuffer(result_str->str)) != NULL)
+    if ((result = ixmlParseBuffer(result_str)) != NULL)
     {
         ca_event->ActionResult = result;
         ca_event->ErrCode = UPNP_E_SUCCESS;

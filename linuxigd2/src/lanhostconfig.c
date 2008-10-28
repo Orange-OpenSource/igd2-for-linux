@@ -1,18 +1,145 @@
 #include <glib.h>
+#include <glib/gstdio.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <regex.h>
+#include <sys/wait.h>
 
 #include "lanhostconfig.h"
 #include "globals.h"
 #include "util.h"
 
-#define SUB_MATCH 2
+#define SERVICE_START "start"
+#define SERVICE_STOP "stop"
 
 struct LanHostConfig
 {
     gboolean DHCPServerConfigurable;
+    gboolean dhcrelay;
 } lanHostConfig;
+
+/**
+ * Runs given command with given parameters.
+ * Forks the process and returns status returned by other process.
+ */
+int RunCommand(char *cmd, char **parm)
+{
+    pid_t pid;
+    int status;
+
+    if ((pid = fork()) == -1)
+        return 1;
+    else if (pid == 0)
+        execvp(cmd, parm);
+    else
+        wait(&status);
+
+    return status;
+}
+
+/**
+ * Runs "uci commit".
+ * Commits all changes made by uci commands.
+ */
+void UciCommit()
+{
+    // TODO: uci commit
+    char *args[] = { g_vars.uciCmd, "commit", NULL };
+    RunCommand(g_vars.uciCmd, args);
+}
+
+/**
+ * Runs dnsmasq start/stop script based on parameters.
+ */
+void DnsmasqCommand(char *cmd)
+{
+    // TODO: restart dnsmasq server
+    char *args[] = { g_vars.dnsmasqCmd, cmd, NULL };
+    RunCommand(g_vars.dnsmasqCmd, args);
+}
+
+/**
+ * Restarts dnsmasq service.
+ */
+void DnsmasqRestart()
+{
+    DnsmasqCommand(SERVICE_STOP);
+    DnsmasqCommand(SERVICE_START);
+}
+
+/**
+ * Starts dhcrelay daemon. Server parameter is taken from conf-file.
+ */
+void DhcrelayStart()
+{
+    if (g_vars.dhcrelayServer == NULL)
+        // can't start dhcrelay without server
+        return;
+
+    char *args[] = { g_vars.dhcrelayCmd, g_vars.dhcrelayServer, NULL };
+    RunCommand(g_vars.dhcrelayCmd, args);
+}
+
+/**
+ * Stops dhcrelay daemon.
+ */
+void DhcrelayStop()
+{
+    char *args[] = { "killall", g_vars.dhcrelayCmd, NULL };
+    RunCommand("killall", args);
+}
+
+/**
+ * Checks if dhcp server is set to configurable.
+ * Returns 0 if it is, upnp error code otherwise.
+ */
+int CheckDHCPServerConfigurable(struct Upnp_Action_Request *ca_event)
+{
+    if (lanHostConfig.DHCPServerConfigurable == FALSE)
+    {
+        trace(1, "%s: DHCPServerConfigurable is false.", ca_event->ActionName);
+        addErrorData(ca_event, 501, "Action Failed");
+        return ca_event->ErrCode;
+    }
+
+    return 0;
+}
+
+/**
+ * Set Upnp error 402: Invalid Arguments as return value
+ */
+void InvalidArgs(struct Upnp_Action_Request *ca_event)
+{
+    trace(2, "%s: Invalid Args", ca_event->ActionName);
+    ca_event->ErrCode = 402;
+    strcpy(ca_event->ErrStr, "Invalid Args");
+    ca_event->ActionResult = NULL;
+}
+
+/**
+ * Form and parse upnp action result xml.
+ */
+void ParseResult(struct Upnp_Action_Request *ca_event, const char *str, ...)
+{
+    char result[RESULT_LEN];
+    char parameters[RESULT_LEN];
+    va_list arg;
+
+    // write all parameters into one string
+    va_start(arg, str);
+    snprintf(parameters, RESULT_LEN, str, arg);
+    va_end(arg);
+
+    // and form final xml
+    snprintf(result, RESULT_LEN, "<u:%sResponse xmlns:u=\"%s\">\n%s\n</u:%sResponse>",
+             ca_event->ActionName,
+             "urn:schemas-upnp-org:service:LANHostConfigManagement:1",
+             parameters,
+             ca_event->ActionName);
+
+    ParseXMLResponse(ca_event, result);
+}
 
 int SetDHCPServerConfigurable(struct Upnp_Action_Request *ca_event)
 {
@@ -37,19 +164,11 @@ int SetDHCPServerConfigurable(struct Upnp_Action_Request *ca_event)
         else
         {
             lanHostConfig.DHCPServerConfigurable = config;
-            ca_event->ErrCode = UPNP_E_SUCCESS;
-            g_string_printf(result_str, "<u:%sResponse xmlns:u=\"%s\">\n%s\n</u:%sResponse>",
-                            ca_event->ActionName, "urn:schemas-upnp-org:service:LANHostConfigManagement:1", "", ca_event->ActionName);
-            ca_event->ActionResult = ixmlParseBuffer(result_str->str);
+            ParseResult(ca_event, "");
         }
     }
     else
-    {
-        trace(1, "Failure in SetDHCPServerConfigurable: Invalid Args");
-        ca_event->ErrCode = 402;
-        strcpy(ca_event->ErrStr, "Invalid Args");
-        ca_event->ActionResult = NULL;
-    }
+        InvalidArgs(ca_event);
 
     if (configurable) free(configurable);
     g_string_free(result_str, TRUE);
@@ -59,52 +178,90 @@ int SetDHCPServerConfigurable(struct Upnp_Action_Request *ca_event)
 
 int GetDHCPServerConfigurable(struct Upnp_Action_Request *ca_event)
 {
-    GString *result_str;
-
-    ca_event->ErrCode = UPNP_E_SUCCESS;
-
-    result_str = g_string_new("");
-    g_string_printf(result_str, "<u:GetDHCPServerConfigurableResponse xmlns:u=\"urn:schemas-upnp-org:service:LANHostConfigManagement:1\">\n"
-                    "<NewDHCPServerConfigurable>%d</NewDHCPServerConfigurable>\n"
-                    "</u:GetDHCPServerConfigurableResponse>", (lanHostConfig.DHCPServerConfigurable ? 1 : 0));
-
-    ParseResponse(ca_event, result_str);
-
-    g_string_free(result_str, TRUE);
+    ParseResult(ca_event, "<NewDHCPServerConfigurable>%d</NewDHCPServerConfigurable>\n", (lanHostConfig.DHCPServerConfigurable ? 1 : 0));
 
     return ca_event->ErrCode;
 }
 
 int SetDHCPRelay(struct Upnp_Action_Request *ca_event)
 {
-    return 0;
+    char *dhcrelay;
+    int b_dhcrelay;
+
+    if (CheckDHCPServerConfigurable(ca_event))
+        return ca_event->ErrCode;
+
+    if ((dhcrelay = GetFirstDocumentItem(ca_event->ActionRequest, "NewDHCPRelay")))
+    {
+        b_dhcrelay = resolveBoolean(dhcrelay);
+
+        if (b_dhcrelay != lanHostConfig.dhcrelay)
+        {
+            // TODO: check return value if these functions
+            if (b_dhcrelay)
+            {
+                DnsmasqCommand(SERVICE_STOP);
+                DhcrelayStart();
+            }
+            else
+            {
+                DhcrelayStop();
+                DnsmasqCommand(SERVICE_START);
+            }
+
+            lanHostConfig.dhcrelay = b_dhcrelay;
+        }
+    }
+    else
+        InvalidArgs(ca_event);
+
+    if (ca_event->ErrCode == 0)
+        ParseResult(ca_event, "");
+
+    if (dhcrelay) free(dhcrelay);
+
+    return ca_event->ErrCode;
 }
 
 int GetDHCPRelay(struct Upnp_Action_Request *ca_event)
 {
-    return 0;
+    ParseResult(ca_event, "<NewDHCPRelay>%d</NewDHCPRelay>\n", (lanHostConfig.dhcrelay ? 1 : 0));
+
+    return ca_event->ErrCode;
 }
 
 int SetSubnetMask(struct Upnp_Action_Request *ca_event)
 {
+    char *subnet_mask;
+    char command[40];
+    char *args[] = { g_vars.uciCmd, "get", NULL, NULL };
 
-    return 0;
+    if (CheckDHCPServerConfigurable(ca_event))
+        return ca_event->ErrCode;
+
+    if ((subnet_mask = GetFirstDocumentItem(ca_event->ActionRequest, "NewSubnetMask")))
+    {
+        // TODO: check that new netmask is valid
+        snprintf(command, 40, "network.lan.netmask=%s", subnet_mask);
+        RunCommand(g_vars.uciCmd, args);
+        UciCommit();
+    }
+    else
+        InvalidArgs(ca_event);
+
+    if (ca_event->ErrCode == 0)
+        ParseResult(ca_event, "");
+
+    return ca_event->ErrCode;
 }
 
 int GetSubnetMask(struct Upnp_Action_Request *ca_event)
 {
-    GString *result_str;
     FILE *cmd;
     char subnet_mask[48];
 
-    result_str = g_string_new("");
-
-    if (lanHostConfig.DHCPServerConfigurable == FALSE)
-    {
-        trace(1, "GetSubnetMask: DHCPServerConfigurable is false.");
-        addErrorData(ca_event, 501, "Action Failed");
+    if (CheckDHCPServerConfigurable(ca_event))
         return ca_event->ErrCode;
-    }
 
     // try to run uci command
     cmd = popen("uci get network.lan.netmask", "r");
@@ -116,18 +273,14 @@ int GetSubnetMask(struct Upnp_Action_Request *ca_event)
     }
 
     // get result
+    // TODO: add error checking, if uci returns something else than the subnet mask
     fgets(subnet_mask, 48, cmd);
 
-    g_string_printf(result_str, "<u:%sResponse xmlns:u=\"urn:schemas-upnp-org:service:LANHostConfigManagement:1\">\n"
-                    "<NewSubnetMask>%s</NewSubnetMask>\n"
-                    "</u:%sResponse>", ca_event->ActionName, subnet_mask, ca_event->ActionName);
-    ParseResponse(ca_event, result_str);
+    ParseResult(ca_event, "<NewSubnetMask>%s</NewSubnetMask>\n", subnet_mask);
 
     pclose(cmd);
 
-    g_string_free(result_str, TRUE);
-
-    return 0;
+    return ca_event->ErrCode;
 }
 
 int SetIPRouter(struct Upnp_Action_Request *ca_event)
@@ -147,19 +300,12 @@ int GetIPRoutersList(struct Upnp_Action_Request *ca_event)
 
 int SetDomainName(struct Upnp_Action_Request *ca_event)
 {
-    GString *result_str;
     FILE *cmd = NULL;
     char *domainName;
     char setDname[60];
 
-    if (lanHostConfig.DHCPServerConfigurable == FALSE)
-    {
-        trace(1, "SetDomainName: DHCPServerConfigurable is false.");
-        addErrorData(ca_event, 501, "Action Failed");
+    if (CheckDHCPServerConfigurable(ca_event))
         return ca_event->ErrCode;
-    }
-
-    result_str = g_string_new("");
 
     if ( (domainName = GetFirstDocumentItem(ca_event->ActionRequest, "NewDomainName") ) )
     {
@@ -173,43 +319,26 @@ int SetDomainName(struct Upnp_Action_Request *ca_event)
             return ca_event->ErrCode;
         }
 
-        // TODO: to call uci commit function
+        UciCommit();
 
-        ca_event->ErrCode = UPNP_E_SUCCESS;
-        g_string_printf(result_str, "<u:%sResponse xmlns:u=\"%s\">\n%s\n</u:%sResponse>",
-                        ca_event->ActionName, "urn:schemas-upnp-org:service:LANHostConfigManagement:1", "", ca_event->ActionName);
-        ca_event->ActionResult = ixmlParseBuffer(result_str->str);
-
+        ParseResult(ca_event, "");
     }
     else
-    {
-        trace(1, "Failure in SetDomainName: Invalid Args");
-        ca_event->ErrCode = 402;
-        strcpy(ca_event->ErrStr, "Invalid Args");
-        ca_event->ActionResult = NULL;
-    }
+        InvalidArgs(ca_event);
 
-    if(cmd)pclose(cmd);
+    if (cmd)pclose(cmd);
     if (domainName) free(domainName);
-    g_string_free(result_str, TRUE);
 
     return ca_event->ErrCode;
 }
 
 int GetDomainName(struct Upnp_Action_Request *ca_event)
 {
-    GString *result_str;
     FILE *cmd;
     char domain_name[40];
 
-    result_str = g_string_new("");
-
-    if (lanHostConfig.DHCPServerConfigurable == FALSE)
-    {
-        trace(1, "GetDomainName: DHCPServerConfigurable is false.");
-        addErrorData(ca_event, 501, "Action Failed");
+    if (CheckDHCPServerConfigurable(ca_event))
         return ca_event->ErrCode;
-    }
 
     // try to run uci command
     cmd = popen("uci get dchp.@dnsmasq[0].domain", "r");
@@ -223,63 +352,491 @@ int GetDomainName(struct Upnp_Action_Request *ca_event)
     // get result
     fgets(domain_name, 40, cmd);
 
-    g_string_printf(result_str, "<u:%sResponse xmlns:u=\"urn:schemas-upnp-org:service:LANHostConfigManagement:1\">\n"
-                    "<NewDomainName>%s</NewDomainName>\n"
-                    "</u:%sResponse>", ca_event->ActionName, domain_name, ca_event->ActionName);
-    ParseResponse(ca_event, result_str);
+    ParseResult(ca_event, "<NewDomainName>%s</NewDomainName>\n", domain_name);
 
     pclose(cmd);
-    g_string_free(result_str, TRUE);
 
     return ca_event->ErrCode;
 }
 
 int SetAddressRange(struct Upnp_Action_Request *ca_event)
 {
-    return 0;
+    char *parmList[] = { g_vars.uciCmd, "set", "dhcp.lan.start", NULL, NULL };
+    char *start, *limit;
+
+    if (CheckDHCPServerConfigurable(ca_event))
+        return ca_event->ErrCode;
+
+    if ( (start = GetFirstDocumentItem(ca_event->ActionRequest, "NewMinAddress")) &&
+            (limit = GetFirstDocumentItem(ca_event->ActionRequest, "NewMaxAddress")))
+    {
+        // TODO: check that values are sane
+        parmList[2] = start;
+        RunCommand(g_vars.uciCmd, parmList);
+        parmList[1] = "dhcp.lan.limit";
+        parmList[2] = limit;
+        RunCommand(g_vars.uciCmd, parmList);
+        parmList[1] = "commit";
+        parmList[2] = NULL;
+        RunCommand(g_vars.uciCmd, parmList);
+    }
+    else
+        InvalidArgs(ca_event);
+
+    if (ca_event->ErrCode == 0)
+        ParseResult(ca_event, "");
+
+    return ca_event->ErrCode;
 }
 
 int GetAddressRange(struct Upnp_Action_Request *ca_event)
 {
-    return 0;
+    FILE *cmd = NULL, *cmd_2 = NULL;
+    char start[12] = {0}, limit[12] = {0};
+
+    if (CheckDHCPServerConfigurable(ca_event))
+        return ca_event->ErrCode;
+
+    // try to run uci commands
+    cmd = popen("uci get dhcp.lan.start", "r");
+    cmd_2 = popen("uci get dhcp.lan.limit", "r");
+    if (cmd == NULL || cmd_2 == NULL)
+    {
+        trace(1, "GetAddressRange: uci command failed.");
+        addErrorData(ca_event, 501, "Action Failed");
+    }
+    else
+    {
+        // get result
+        // TODO: add error checking, if uci returns something invalid
+        fgets(start, 12, cmd);
+        fgets(limit, 12, cmd_2);
+    }
+
+    if (ca_event->ErrCode == 0)
+        ParseResult(ca_event, "<NewMinAddress>%s</NewMinAddress>\n<NewMaxAddress>%s</NewMaxAddress>\n", start, limit);
+
+    if (cmd) pclose(cmd);
+    if (cmd_2) pclose(cmd_2);
+
+    return ca_event->ErrCode;
 }
 
 int SetReservedAddress(struct Upnp_Action_Request *ca_event)
 {
-    return 0;
+    GString *command;
+    FILE *cmd;
+    char line[MAX_CONFIG_LINE];
+    char *all_addr, *addr;
+    char *add_args[] = { g_vars.uciCmd, "-q", "add", "dhcp", "host", NULL };
+    char *set_args[] = { g_vars.uciCmd, "-q", "set", NULL, NULL };
+    int i=0;
+
+    if (CheckDHCPServerConfigurable(ca_event))
+        return ca_event->ErrCode;
+
+    if ( (all_addr = GetFirstDocumentItem(ca_event->ActionRequest, "NewReservedAddresses")) == NULL)
+    {
+        InvalidArgs(ca_event);
+        return ca_event->ErrCode;
+    }
+
+    command = g_string_new("");
+
+    // delete all hosts
+    while (i < 2048)
+    {
+        g_string_printf(command, "uci -q get dhcp.@host[0]");
+        cmd = popen(command->str, "r");
+        if (cmd == NULL)
+        {
+            trace(1, "SetReservedAddress: Error running command: '%s'", command);
+            addErrorData(ca_event, 501, "Action Failed");
+            break;
+        }
+        // if nothing is returned, we have removed all hosts
+        if (fgets(line, MAX_CONFIG_LINE, cmd) == NULL)
+            break;
+
+        fclose(cmd);
+        g_string_printf(command, "uci -q delete dhcp.@host[0]");
+        cmd = popen(command->str, "r");
+        if (cmd == NULL)
+        {
+            trace(1, "SetReservedAddress: Error running command: '%s'", command);
+            addErrorData(ca_event, 501, "Action Failed");
+            break;
+        }
+        fclose(cmd);
+
+        i++;
+    }
+
+    // if deleting was successful then add new hosts
+    if (ca_event->ErrCode == 0)
+    {
+        addr = strtok(all_addr, ",");
+        while (addr != NULL)
+        {
+            // add new host
+            RunCommand(g_vars.uciCmd, add_args);
+
+            // set host values
+            set_args[2] = "dhcp.@host[-1].name=IGDv2";
+            RunCommand(g_vars.uciCmd, set_args);
+            set_args[2] = "dhcp.@host[-1].mac=00:00:00:00:00:00";
+            RunCommand(g_vars.uciCmd, set_args);
+            g_string_printf(command, "dhcp.@host[-1].ip=%s", addr);
+            set_args[2] = command->str;
+            RunCommand(g_vars.uciCmd, set_args);
+
+            strtok(NULL, ",");
+        }
+    }
+
+    if (ca_event->ErrCode == 0)
+        ParseResult(ca_event, "");
+
+    g_string_free(command, TRUE);
+    if (all_addr) free(all_addr);
+
+    return ca_event->ErrCode;
+
 }
 
 int DeleteReservedAddress(struct Upnp_Action_Request *ca_event)
 {
-    return 0;
+    GString *command;
+    char *del_addr;
+    FILE *cmd;
+    char line[MAX_CONFIG_LINE];
+    int i = 0;
+    gboolean deleted = FALSE;
+
+    if (CheckDHCPServerConfigurable(ca_event))
+        return ca_event->ErrCode;
+
+    if ( (del_addr = GetFirstDocumentItem(ca_event->ActionRequest, "NewReservedAddresses")) == NULL)
+    {
+        InvalidArgs(ca_event);
+        return ca_event->ErrCode;
+    }
+
+    command = g_string_new("");
+
+    // added 2048 as precaution, if under some conditions uci returns always something
+    // if that is reached, give internal error
+    while (i < 2048)
+    {
+        g_string_printf(command, "uci -q get dhcp.@host[%d].ip", i);
+        cmd = popen(command->str, "r");
+        if (cmd == NULL)
+        {
+            trace(1, "DeleteReservedAddress: Error running command: '%s'", command);
+            addErrorData(ca_event, 501, "Action Failed");
+            break;
+        }
+        if (fgets(line, MAX_CONFIG_LINE, cmd) == NULL)
+        {
+            // returned nothing, no more hosts defined
+            break;
+        }
+
+        if (strncmp(line, del_addr, MAX_CONFIG_LINE) == 0)
+        {
+            g_string_printf(command, "uci -q delete dhcp.@host[%d]", i);
+            cmd = popen(command->str, "r");
+            if (cmd == NULL)
+            {
+                trace(1, "DeleteReservedAddress: Error running command: '%s'", command);
+                addErrorData(ca_event, 501, "Action Failed");
+            }
+            else
+            {
+                // entry successfully deleted
+                deleted = TRUE;
+                UciCommit();
+                DnsmasqRestart();
+            }
+
+            break;
+        }
+
+        fclose(cmd);
+        i++;
+    }
+    if (i == 2048)
+    {
+        trace(1, "DeleteReservedAddress: Internal error in function.");
+        addErrorData(ca_event, 501, "Action Failed");
+    }
+
+    if (deleted == FALSE)
+    {
+        trace(2, "DeleteReservedAddress: Can't find address to delete: '%s'.", del_addr);
+        addErrorData(ca_event, 702, "ValueSpecifiedIsInvalid");
+    }
+
+    if (ca_event->ErrCode == 0)
+        ParseResult(ca_event, "");
+
+    if (cmd) fclose(cmd);
+    g_string_free(command, TRUE);
+    if (del_addr) free(del_addr);
+
+    return ca_event->ErrCode;
 }
 
 int GetReservedAddresses(struct Upnp_Action_Request *ca_event)
 {
-    return 0;
+    GString *addresses, *command;
+    FILE *cmd;
+    char line[MAX_CONFIG_LINE];
+    int i = 0;
+
+    if (CheckDHCPServerConfigurable(ca_event))
+        return ca_event->ErrCode;
+
+    addresses = g_string_new("");
+    command = g_string_new("");
+
+    // added 2048 as precaution, if under some conditions uci returns always something
+    // if that is reached, give internal error
+    while (i < 2048)
+    {
+        g_string_printf(command, "uci -q get dhcp.@host[%d].ip", i);
+        cmd = popen(command->str, "r");
+        if (cmd == NULL)
+        {
+            trace(1, "GetReservedAddresses: Error running command: '%s'", command);
+            addErrorData(ca_event, 501, "Action Failed");
+            break;
+        }
+        if (fgets(line, MAX_CONFIG_LINE, cmd) == NULL)
+        {
+            // returned nothing, no more hosts defined
+            break;
+        }
+
+        if (strlen(addresses->str) > 0)
+            g_string_append(addresses, ",");
+        g_string_append_printf(addresses, "%s", line);
+
+        fclose(cmd);
+        i++;
+    }
+    if (i == 2048)
+    {
+        trace(1, "GetReservedAddresses: Internal error in function.");
+        addErrorData(ca_event, 501, "Action Failed");
+    }
+
+    if (ca_event->ErrCode == 0)
+        ParseResult(ca_event, "<NewReservedAddresses>%s</NewReservedAddresses>\n", addresses->str);
+
+    if (cmd) fclose(cmd);
+    g_string_free(addresses, TRUE);
+    g_string_free(command, TRUE);
+
+    return ca_event->ErrCode;
 }
 
 int SetDNSServer(struct Upnp_Action_Request *ca_event)
 {
-    return 0;
+    FILE *file = NULL, *new_file = NULL;
+    char line[MAX_CONFIG_LINE];
+    char *dns = NULL;
+    char *dns_list = NULL;
+    regex_t nameserver;
+    regmatch_t submatch[SUB_MATCH];
+
+    if (CheckDHCPServerConfigurable(ca_event))
+        return ca_event->ErrCode;
+
+    // TODO: seems to accept for example 192.168.0.0.0 ?
+    regcomp(&nameserver, "nameserver[[:blank:]]*([[:digit:]]{1,3}[.][[:digit:]]{1,3}[.][[:digit:]]{1,3}[.][[:digit:]]{1,3})", REG_EXTENDED);
+    ca_event->ErrCode = 0;
+
+    if (g_file_test(g_vars.resolvConf, G_FILE_TEST_IS_SYMLINK))
+    {
+        trace(1, "SetDNSServer: resolv.conf is a symlink, '%s'.", g_vars.resolvConf);
+        addErrorData(ca_event, 501, "Action Failed");
+    }
+    else if ((dns_list = GetFirstDocumentItem(ca_event->ActionRequest, "NewDNSServers")))
+    {
+        // open resolv.conf for reading
+        file = fopen(g_vars.resolvConf, "r");
+        // and temporary file for writing
+        new_file = fopen(RESOLV_CONF_TMP, "w");
+        if (file == NULL || new_file == NULL)
+        {
+            if (file == NULL)
+                trace(1, "Failed to open resolv.conf at: %s.", g_vars.resolvConf);
+            if (new_file == NULL)
+                trace(1, "Failed to open temp resolv.conf: %s.", RESOLV_CONF_TMP);
+
+            addErrorData(ca_event, 501, "Action Failed");
+        }
+        else
+        {
+            while (fgets(line, MAX_CONFIG_LINE, file) != NULL)
+            {
+                if (regexec(&nameserver, line, SUB_MATCH, submatch, 0) == 0)
+                    continue;
+
+                // line isn't a nameserver, adding it to the temp file
+                fputs(line, new_file);
+            }
+
+            // add all new nameservers
+            dns = strtok(dns_list, ",");
+            while (dns != NULL)
+            {
+                sprintf(line, "nameserver %s\n", dns);
+                // check that resulted line syntax is correct
+                if (regexec(&nameserver, line, SUB_MATCH, submatch, 0) == 0)
+                {
+                    fputs(line, new_file);
+                }
+                else
+                {
+                    InvalidArgs(ca_event);
+                    break;
+                }
+                dns = strtok(NULL, ",");
+            }
+
+            if (ca_event->ErrCode == 0)
+            {
+                // operation was successful
+                // replace the real file with our temp file
+                if (g_remove(g_vars.resolvConf))
+                {
+                    trace(1, "SetDNSServer: removing resolv.conf failed: '%s'.", g_vars.resolvConf);
+                    addErrorData(ca_event, 501, "Action Failed");
+                }
+                if (g_rename(RESOLV_CONF_TMP, g_vars.resolvConf))
+                {
+                    trace(1, "SetDNSServer: renaming resolv.conf failed, old: '%s' new '%s'.", RESOLV_CONF_TMP, g_vars.resolvConf);
+                    addErrorData(ca_event, 501, "Action Failed");
+                }
+            }
+        }
+    }
+    else
+        InvalidArgs(ca_event);
+
+    if (ca_event->ErrCode == 0)
+        ParseResult(ca_event, "");
+
+    regfree(&nameserver);
+    if (file) fclose(file);
+    if (new_file) fclose(new_file);
+    if (dns_list) free(dns_list);
+
+    return ca_event->ErrCode;
 }
 
 int DeleteDNSServer(struct Upnp_Action_Request *ca_event)
 {
-    return 0;
+    FILE *file = NULL, *new_file = NULL;
+    char line[MAX_CONFIG_LINE];
+    char dns[DNS_MAX_LENGTH];
+    char *dns_to_delete = NULL;
+    regex_t nameserver;
+    regmatch_t submatch[SUB_MATCH];
+    int dns_found = 0;
+
+    if (CheckDHCPServerConfigurable(ca_event))
+        return ca_event->ErrCode;
+
+    regcomp(&nameserver, "nameserver[[:blank:]]*([[:digit:]]{1,3}[.][[:digit:]]{1,3}[.][[:digit:]]{1,3}[.][[:digit:]]{1,3})", REG_EXTENDED);
+    ca_event->ErrCode = 0;
+
+    if (g_file_test(g_vars.resolvConf, G_FILE_TEST_IS_SYMLINK))
+    {
+        trace(1, "DeleteDNSServer: resolv.conf is a symlink, '%s'.", g_vars.resolvConf);
+        addErrorData(ca_event, 501, "Action Failed");
+    }
+    else if ((dns_to_delete = GetFirstDocumentItem(ca_event->ActionRequest, "NewDNSServers")))
+    {
+        file = fopen(g_vars.resolvConf, "r");
+        new_file = fopen(RESOLV_CONF_TMP, "w");
+        if (file == NULL || new_file == NULL)
+        {
+            if (file == NULL)
+                trace(1, "Failed to open resolv.conf at: %s.", g_vars.resolvConf);
+            if (new_file == NULL)
+                trace(1, "Failed to open temp resolv.conf: %s.", RESOLV_CONF_TMP);
+
+            addErrorData(ca_event, 501, "Action Failed");
+        }
+        else
+        {
+            while (fgets(line, MAX_CONFIG_LINE, file) != NULL)
+            {
+                if (regexec(&nameserver, line, SUB_MATCH, submatch, 0) == 0)
+                {
+                    // nameserver found, get it
+                    strncpy(dns, &line[submatch[1].rm_so], min(submatch[1].rm_eo-submatch[1].rm_so, DNS_MAX_LENGTH));
+                    dns[min(submatch[1].rm_eo-submatch[1].rm_so, DNS_MAX_LENGTH-1)] = 0;
+
+                    // if this one needs to be deleted, then continue while loop
+                    if (strncmp(dns, dns_to_delete, DNS_MAX_LENGTH) == 0)
+                    {
+                        dns_found = 1;
+                        continue;
+                    }
+                }
+                // line isn't a nameserver or not the nameserver we want to delete, adding it to the temp file
+                fputs(line, new_file);
+            }
+
+            if (dns_found)
+            {
+                // operation was successful
+                // replace the real file with our temp file
+                if (g_remove(g_vars.resolvConf))
+                {
+                    trace(1, "DeleteDNSServer: removing resolv.conf failed: '%s'.", g_vars.resolvConf);
+                    addErrorData(ca_event, 501, "Action Failed");
+                }
+                if (g_rename(RESOLV_CONF_TMP, g_vars.resolvConf))
+                {
+                    trace(1, "DeleteDNSServer: renaming resolv.conf failed, old: '%s' new '%s'.", RESOLV_CONF_TMP, g_vars.resolvConf);
+                    addErrorData(ca_event, 501, "Action Failed");
+                }
+            }
+            else
+            {
+                trace(2, "DeleteDNSServer: dns server not found: '%s'.", dns_to_delete);
+                addErrorData(ca_event, 702, "ValueSpecifiedIsInvalid");
+            }
+        }
+    }
+    else
+        InvalidArgs(ca_event);
+
+    if (ca_event->ErrCode == 0)
+        ParseResult(ca_event, "");
+
+    regfree(&nameserver);
+    if (file) fclose(file);
+    if (new_file) fclose(new_file);
+    if (dns_to_delete) free(dns_to_delete);
+
+    return ca_event->ErrCode;
 }
 
 int GetDNSServers(struct Upnp_Action_Request *ca_event)
 {
     FILE *file;
-    GString *result_str;
     GString *dns_servers;
     char line[MAX_CONFIG_LINE];
-    char dns[16];
+    char dns[DNS_MAX_LENGTH];
     regex_t nameserver;
     regmatch_t submatch[SUB_MATCH];
 
-    result_str = g_string_new("");
     dns_servers = g_string_new("");
     regcomp(&nameserver, "nameserver[[:blank:]]*([[:digit:]]{1,3}[.][[:digit:]]{1,3}[.][[:digit:]]{1,3}[.][[:digit:]]{1,3})", REG_EXTENDED);
 
@@ -298,28 +855,29 @@ int GetDNSServers(struct Upnp_Action_Request *ca_event)
             // nameserver found, get it and add to list
             if (strlen(dns_servers->str) > 0)
                 g_string_append(dns_servers, ",");
-            strncpy(dns, &line[submatch[1].rm_so], min(submatch[1].rm_eo-submatch[1].rm_so, 16));
-            dns[min(submatch[1].rm_eo-submatch[1].rm_so, 16)] = 0;
+            strncpy(dns, &line[submatch[1].rm_so], min(submatch[1].rm_eo-submatch[1].rm_so, DNS_MAX_LENGTH));
+            dns[min(submatch[1].rm_eo-submatch[1].rm_so, DNS_MAX_LENGTH-1)] = 0;
             g_string_append_printf(dns_servers, "%s", dns);
         }
     }
 
-    g_string_printf(result_str, "<u:%sResponse xmlns:u=\"urn:schemas-upnp-org:service:LANHostConfigManagement:1\">\n"
-                    "<NewDNSServers>%s</NewDNSServers>\n"
-                    "</u:%sResponse>", ca_event->ActionName, dns_servers->str, ca_event->ActionName);
-    ParseResponse(ca_event, result_str);
+    ParseResult(ca_event, "<NewDNSServers>%s</NewDNSServers>\n", dns_servers->str);
 
-    g_string_free(result_str, TRUE);
     g_string_free(dns_servers, TRUE);
     regfree(&nameserver);
     fclose(file);
 
-    return 0;
+    return ca_event->ErrCode;
 }
 
+/**
+ * Checks that all required programs are present.
+ */
 int InitLanHostConfig()
 {
     lanHostConfig.DHCPServerConfigurable = TRUE;
+    lanHostConfig.dhcrelay = FALSE;
+
     // check that dnsmasq exists
     if (!g_file_test(g_vars.dnsmasqCmd, G_FILE_TEST_EXISTS))
     {
@@ -338,6 +896,9 @@ int InitLanHostConfig()
     return 0;
 }
 
+/**
+ * Free reserved memory.
+ */
 void FreeLanHostConfig()
 {
 

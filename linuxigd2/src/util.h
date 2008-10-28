@@ -17,6 +17,6 @@ int resolveBoolean(char *);
 char* GetFirstDocumentItem( IN IXML_Document * doc, const char *item );
 char* GetDocumentItem(IXML_Document * doc, const char *item, int index);
 
-void ParseResponse(struct Upnp_Action_Request *ca_event, GString *result);
+void ParseXMLResponse(struct Upnp_Action_Request *ca_event, const char *result);
 
 #endif //_UTIL_H_
