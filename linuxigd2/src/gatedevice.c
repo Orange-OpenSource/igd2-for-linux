@@ -569,6 +569,8 @@ int AddPortMapping(struct Upnp_Action_Request *ca_event)
             UpnpAddToPropertySet(&propSet, "PortMappingNumberOfEntries", num);
             snprintf(tmp,11,"%ld",++SystemUpdateID);
             UpnpAddToPropertySet(&propSet,"SystemUpdateID", tmp);
+            snprintf(ChangedPortMapping,100,"%s,%s,%s,%s,%s",ext_port,ext_port,proto,int_ip,remote_host);
+            UpnpAddToPropertySet(&propSet,"ChangedPortMapping", ChangedPortMapping);
             UpnpNotifyExt(deviceHandle, ca_event->DevUDN, ca_event->ServiceID, propSet);
             ixmlDocument_free(propSet);
             trace(2, "AddPortMap: DevUDN: %s ServiceID: %s RemoteHost: %s Prot: %s ExtPort: %s Int: %s.%s",
@@ -789,7 +791,8 @@ int DeletePortMapping(struct Upnp_Action_Request *ca_event)
             // Check if remote host is empty string or valid IP address
             if ((strcmp(remote_host, "") == 0) || (inet_addr(remote_host) != -1))
             {
-                if ((temp = pmlist_FindSpecific(remote_host, ext_port, proto)))
+                temp = pmlist_FindSpecific(remote_host, ext_port, proto);
+                if (temp)
                     result = pmlist_Delete(temp);
 
                 if (result==1)
@@ -799,6 +802,8 @@ int DeletePortMapping(struct Upnp_Action_Request *ca_event)
                     UpnpAddToPropertySet(&propSet,"PortMappingNumberOfEntries", num);
                     snprintf(tmp,11,"%ld",++SystemUpdateID);
                     UpnpAddToPropertySet(&propSet,"SystemUpdateID", tmp);
+                    snprintf(ChangedPortMapping,100,"%s,%s,%s,%s,%s",ext_port,ext_port,proto,temp->m_InternalClient,remote_host);
+                    UpnpAddToPropertySet(&propSet,"ChangedPortMapping", ChangedPortMapping);
                     UpnpNotifyExt(deviceHandle, ca_event->DevUDN,ca_event->ServiceID,propSet);
                     ixmlDocument_free(propSet);
                     action_succeeded = 1;
@@ -919,6 +924,7 @@ int DeletePortMappingRange(struct Upnp_Action_Request *ca_event)
                 UpnpAddToPropertySet(&propSet,"PortMappingNumberOfEntries", tmp);
                 snprintf(tmp,11,"%ld",SystemUpdateID);
                 UpnpAddToPropertySet(&propSet,"SystemUpdateID", tmp);
+                
                 UpnpAddToPropertySet(&propSet,"ChangedPortMapping", ChangedPortMapping);
 
                 UpnpNotifyExt(deviceHandle, ca_event->DevUDN,ca_event->ServiceID,propSet);
@@ -1041,11 +1047,27 @@ int createEventUpdateTimer(void)
 void UpdateEvents(void *input)
 {
     IXML_Document *propSet = NULL;
-    char prevStatus[12];
 
     trace(3, "Update Events");
 
     ithread_mutex_lock(&DevMutex);
+    
+    EthernetLinkStatusEventing(propSet);
+    ExternalIPAddressEventing(propSet);
+          
+    ithread_mutex_unlock(&DevMutex);
+
+    if (propSet) ixmlDocument_free(propSet);
+    
+    // create update event again
+    createEventUpdateTimer();
+}
+
+// return 0 if no change
+int EthernetLinkStatusEventing(IXML_Document *propSet)
+{
+    char prevStatus[12];
+    
     strcpy(prevStatus,EthernetLinkStatus);
     setEthernetLinkStatus(EthernetLinkStatus, g_vars.extInterfaceName);
 
@@ -1054,13 +1076,31 @@ void UpdateEvents(void *input)
     {
         UpnpAddToPropertySet(&propSet, "EthernetLinkStatus", EthernetLinkStatus);
         UpnpNotifyExt(deviceHandle, wanConnectionUDN, "urn:upnp-org:serviceId:WANEthLinkC1", propSet);
-
-        trace(3, "EthernetLinkStatus changed: From %s to %s",prevStatus,EthernetLinkStatus);
+        trace(2, "EthernetLinkStatus changed: From %s to %s",prevStatus,EthernetLinkStatus);
+        propSet = NULL;
+        return 1;
     }
-    ithread_mutex_unlock(&DevMutex);
+    return 0;
+}
 
-    // create update event again
-    createEventUpdateTimer();
+// return 0 if no change
+int ExternalIPAddressEventing(IXML_Document *propSet)
+{
+    char prevStatus[IP_ADDRESS_LENGTH];
+    
+    strcpy(prevStatus,ExternalIPAddress);
+    GetIpAddressStr(ExternalIPAddress, g_vars.extInterfaceName);
+
+    // has status changed?
+    if (strcmp(prevStatus,ExternalIPAddress) != 0)
+    {
+        UpnpAddToPropertySet(&propSet, "ExternalIPAddress", ExternalIPAddress);
+        UpnpNotifyExt(deviceHandle, wanConnectionUDN, "urn:upnp-org:serviceId:WANIPConn1", propSet);
+        trace(2, "ExternalIPAddress changed: From %s to %s",prevStatus,ExternalIPAddress);
+        propSet = NULL;        
+        return 1;
+    }
+    return 0;
 }
 
 void ExpireMapping(void *input)
@@ -1068,6 +1108,7 @@ void ExpireMapping(void *input)
     char num[5]; // Maximum number of port mapping entries 9999
     IXML_Document *propSet = NULL;
     expiration_event *event = ( expiration_event * ) input;
+    char tmp[11];
 
     ithread_mutex_lock(&DevMutex);
 
@@ -1081,6 +1122,12 @@ void ExpireMapping(void *input)
 
     sprintf(num, "%d", pmlist_Size());
     UpnpAddToPropertySet(&propSet, "PortMappingNumberOfEntries", num);
+    snprintf(tmp,11,"%ld",++SystemUpdateID);
+    UpnpAddToPropertySet(&propSet,"SystemUpdateID", tmp);
+    snprintf(ChangedPortMapping,100,"%s,%s,%s,%s,%s",event->mapping->m_ExternalPort,
+                event->mapping->m_ExternalPort,event->mapping->m_PortMappingProtocol,
+                event->mapping->m_InternalClient,event->mapping->m_RemoteHost);
+    UpnpAddToPropertySet(&propSet,"ChangedPortMapping", ChangedPortMapping);
     UpnpNotifyExt(deviceHandle, event->DevUDN, event->ServiceID, propSet);
     ixmlDocument_free(propSet);
     trace(3, "ExpireMapping: UpnpNotifyExt(deviceHandle,%s,%s,propSet)\n  PortMappingNumberOfEntries: %s",
@@ -1188,12 +1235,15 @@ int CancelMappingExpiration(int expirationEventId)
 void DeleteAllPortMappings(void)
 {
     IXML_Document *propSet = NULL;
+    char tmp[11];
 
     ithread_mutex_lock(&DevMutex);
 
     pmlist_FreeList();
 
     UpnpAddToPropertySet(&propSet, "PortMappingNumberOfEntries", "0");
+    snprintf(tmp,11,"%ld",++SystemUpdateID);
+    UpnpAddToPropertySet(&propSet,"SystemUpdateID", tmp);
     UpnpNotifyExt(deviceHandle, wanConnectionUDN, "urn:upnp-org:serviceId:WANIPConn1", propSet);
     ixmlDocument_free(propSet);
     trace(2, "DeleteAllPortMappings: UpnpNotifyExt(deviceHandle,%s,%s,propSet)\n  PortMappingNumberOfEntries: %s",
@@ -1347,7 +1397,7 @@ int AddNewPortMapping(struct Upnp_Action_Request *ca_event, char* new_enabled, i
     char num[5]; // Maximum number of port mapping entries 9999
     IXML_Document *propSet = NULL;
     struct portMap *new;
-    char *tmp;
+    char tmp[11];
 
     new = pmlist_NewNode(atoi(new_enabled), leaseDuration, new_remote_host,
 		          new_external_port, new_internal_port, new_protocol,
@@ -1361,7 +1411,9 @@ int AddNewPortMapping(struct Upnp_Action_Request *ca_event, char* new_enabled, i
         sprintf(num, "%d", pmlist_Size());
         trace(3, "PortMappingNumberOfEntries: %d", pmlist_Size());
         UpnpAddToPropertySet(&propSet, "PortMappingNumberOfEntries", num);
-        asprintf(&tmp,"%ld",++SystemUpdateID);
+        snprintf(tmp,11,"%ld",++SystemUpdateID);
+        snprintf(ChangedPortMapping,100,"%s,%s,%s,%s,%s",new_external_port,new_external_port,new_protocol,new_internal_client,new_remote_host);
+        UpnpAddToPropertySet(&propSet,"ChangedPortMapping", ChangedPortMapping);
         UpnpAddToPropertySet(&propSet,"SystemUpdateID", tmp);
         UpnpNotifyExt(deviceHandle, ca_event->DevUDN, ca_event->ServiceID, propSet);
 
