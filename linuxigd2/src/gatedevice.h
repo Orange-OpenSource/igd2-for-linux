@@ -13,8 +13,6 @@ typedef enum
     STATS_LIMIT
 } stats_t;
 
-#define IP_ADDRESS_LENGTH 20
-
 // IGD Device Globals
 UpnpDevice_Handle deviceHandle;
 char *gateUDN;
@@ -33,7 +31,7 @@ long int IdleDisconnectTime;
 long int WarnDisconnectDelay;
 int RSIPAvailable;
 int NATEnabled;
-char ExternalIPAddress[IP_ADDRESS_LENGTH];
+char ExternalIPAddress[INET6_ADDRSTRLEN];
 int PortMappingNumberOfEntries;
 int PortMappingEnabled;
 char RemoteHost[16];
@@ -94,6 +92,7 @@ int createEventUpdateTimer(void);
 void UpdateEvents(void *input);
 int EthernetLinkStatusEventing(IXML_Document *propSet);
 int ExternalIPAddressEventing(IXML_Document *propSet);
+int ConnectionStatusEventing(IXML_Document *propSet);
 
 
 // Definition for authorizing control point

@@ -55,6 +55,20 @@ int GetIpAddressStr(char *address, char *ifname)
     return succeeded;
 }
 
+// if interface has IP, status id connected. Else disconnected
+int GetConnectionStatus(char *conStatus, char *ifname)
+{
+    char tmp[INET_ADDRSTRLEN];
+    int status = GetIpAddressStr(tmp, ifname);
+    
+    if (status == 1)
+        strcpy(conStatus,"Connected");
+    else
+        strcpy(conStatus,"Disconnected");
+   
+    return status;
+}
+
 // check if IP of control point is same as ICAddress
 // return 0 if not, something else if match
 int ControlPointIP_equals_InternalClientIP(char *ICAddress, struct in_addr *in_ad)
