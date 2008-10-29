@@ -84,7 +84,8 @@ int StateTableInit(char *descDocUrl)
     PortMappingNumberOfEntries = 0;
     SystemUpdateID = 0;
     strcpy(EthernetLinkStatus,"Unavailable");
-
+    GetConnectionStatus(ConnectionStatus, g_vars.extInterfaceName);
+    
     return (ret);
 }
 
@@ -381,15 +382,16 @@ int SetConnectionType(struct Upnp_Action_Request *ca_event)
 // asynchronously to actually change the status to connected.  However, here we
 // assume that the external WAN device is configured and connected
 // outside of linux igd.
+//
+// v2.0: If external interface has IP, assume that status is Connected, else Disconnected
 int RequestConnection(struct Upnp_Action_Request *ca_event)
 {
-
     IXML_Document *propSet = NULL;
 
-    //Immediatley Set connectionstatus to connected, and lastconnectionerror to none.
-    strcpy(ConnectionStatus,"Connected");
+    GetConnectionStatus(ConnectionStatus, g_vars.extInterfaceName);
+    //Immediatley Set lastconnectionerror to none.
     strcpy(LastConnectionError, "ERROR_NONE");
-    trace(2, "RequestConnection recieved ... Setting Status to %s.", ConnectionStatus);
+    trace(2, "RequestConnection received ... Setting Status to %s.", ConnectionStatus);
 
     // Build DOM Document with state variable connectionstatus and event it
     UpnpAddToPropertySet(&propSet, "ConnectionStatus", ConnectionStatus);
@@ -1054,6 +1056,7 @@ void UpdateEvents(void *input)
     
     EthernetLinkStatusEventing(propSet);
     ExternalIPAddressEventing(propSet);
+    ConnectionStatusEventing(propSet);
           
     ithread_mutex_unlock(&DevMutex);
 
@@ -1086,7 +1089,7 @@ int EthernetLinkStatusEventing(IXML_Document *propSet)
 // return 0 if no change
 int ExternalIPAddressEventing(IXML_Document *propSet)
 {
-    char prevStatus[IP_ADDRESS_LENGTH];
+    char prevStatus[INET6_ADDRSTRLEN];
     
     strcpy(prevStatus,ExternalIPAddress);
     GetIpAddressStr(ExternalIPAddress, g_vars.extInterfaceName);
@@ -1097,6 +1100,25 @@ int ExternalIPAddressEventing(IXML_Document *propSet)
         UpnpAddToPropertySet(&propSet, "ExternalIPAddress", ExternalIPAddress);
         UpnpNotifyExt(deviceHandle, wanConnectionUDN, "urn:upnp-org:serviceId:WANIPConn1", propSet);
         trace(2, "ExternalIPAddress changed: From %s to %s",prevStatus,ExternalIPAddress);
+        propSet = NULL;        
+        return 1;
+    }
+    return 0;
+}
+
+int ConnectionStatusEventing(IXML_Document *propSet)
+{
+    char prevStatus[20];
+    
+    strcpy(prevStatus,ConnectionStatus);
+    GetConnectionStatus(ConnectionStatus, g_vars.extInterfaceName);
+
+    // has status changed?
+    if (strcmp(prevStatus,ConnectionStatus) != 0)
+    {
+        UpnpAddToPropertySet(&propSet, "ConnectionStatus", ConnectionStatus);
+        UpnpNotifyExt(deviceHandle, wanConnectionUDN, "urn:upnp-org:serviceId:WANIPConn1", propSet);
+        trace(2, "ConnectionStatus changed: From %s to %s",prevStatus,ConnectionStatus);
         propSet = NULL;        
         return 1;
     }
