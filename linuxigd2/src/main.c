@@ -23,7 +23,7 @@ globals g_vars;
 int main (int argc, char** argv)
 {
     char descDocUrl[7+15+1+5+1+sizeof(g_vars.descDocName)+1]; // http://ipaddr:port/docName<null>
-    char intIpAddress[16];     // Server internal ip address
+    char intIpAddress[INET6_ADDRSTRLEN];     // Server internal ip address updated IPv6 address length 16 -> 46
     sigset_t sigsToCatch;
     int ret, signum, arg = 1, foreground = 0;
 

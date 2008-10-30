@@ -727,7 +727,7 @@ int DeleteDNSServer(struct Upnp_Action_Request *ca_event)
 {
     FILE *file = NULL, *new_file = NULL;
     char line[MAX_CONFIG_LINE];
-    char dns[DNS_MAX_LENGTH];
+    char dns[INET6_ADDRSTRLEN];
     char *dns_to_delete = NULL;
     regex_t nameserver;
     regmatch_t submatch[SUB_MATCH];
@@ -759,11 +759,11 @@ int DeleteDNSServer(struct Upnp_Action_Request *ca_event)
                 if (regexec(&nameserver, line, SUB_MATCH, submatch, 0) == 0)
                 {
                     // nameserver found, get it
-                    strncpy(dns, &line[submatch[1].rm_so], min(submatch[1].rm_eo-submatch[1].rm_so, DNS_MAX_LENGTH));
-                    dns[min(submatch[1].rm_eo-submatch[1].rm_so, DNS_MAX_LENGTH-1)] = 0;
+                    strncpy(dns, &line[submatch[1].rm_so], min(submatch[1].rm_eo-submatch[1].rm_so, INET6_ADDRSTRLEN));
+                    dns[min(submatch[1].rm_eo-submatch[1].rm_so, INET6_ADDRSTRLEN-1)] = 0;
 
                     // if this one needs to be deleted, then continue while loop
-                    if (strncmp(dns, dns_to_delete, DNS_MAX_LENGTH) == 0)
+                    if (strncmp(dns, dns_to_delete, INET6_ADDRSTRLEN) == 0)
                     {
                         dns_found = 1;
                         continue;
@@ -814,7 +814,7 @@ int GetDNSServers(struct Upnp_Action_Request *ca_event)
     FILE *file;
     char dns_servers[RESULT_LEN];
     char line[MAX_CONFIG_LINE];
-    char dns[DNS_MAX_LENGTH];
+    char dns[INET6_ADDRSTRLEN];
     regex_t nameserver;
     regmatch_t submatch[SUB_MATCH];
     int dns_place = 0;
@@ -837,8 +837,8 @@ int GetDNSServers(struct Upnp_Action_Request *ca_event)
             if (dns_place > 0)
                 dns_place += snprintf(&dns_servers[dns_place], RESULT_LEN - dns_place, ",");
 
-            strncpy(dns, &line[submatch[1].rm_so], min(submatch[1].rm_eo-submatch[1].rm_so, DNS_MAX_LENGTH));
-            dns[min(submatch[1].rm_eo-submatch[1].rm_so, DNS_MAX_LENGTH-1)] = 0;
+            strncpy(dns, &line[submatch[1].rm_so], min(submatch[1].rm_eo-submatch[1].rm_so, INET6_ADDRSTRLEN));
+            dns[min(submatch[1].rm_eo-submatch[1].rm_so, INET6_ADDRSTRLEN-1)] = 0;
             dns_place += snprintf(&dns_servers[dns_place], RESULT_LEN - dns_place, "%s", dns);
         }
     }

@@ -9,8 +9,8 @@
 #include "globals.h"
 #include "util.h"
 #include "unittest.h"
-#include "util.h"       // HSa added
-#include <arpa/inet.h>  // HSa added
+#include "util.h"
+#include <arpa/inet.h>
 
 // Global variables
 globals g_vars;

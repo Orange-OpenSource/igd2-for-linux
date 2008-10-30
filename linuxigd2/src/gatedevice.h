@@ -3,6 +3,7 @@
 
 #include <upnp/upnp.h>
 
+
 /* interface statistics */
 typedef enum
 {
@@ -34,7 +35,7 @@ int NATEnabled;
 char ExternalIPAddress[INET6_ADDRSTRLEN];
 int PortMappingNumberOfEntries;
 int PortMappingEnabled;
-char RemoteHost[16];
+char RemoteHost[INET6_ADDRSTRLEN];    // updated IPv6 addrss length 16 -> 46
 long int SystemUpdateID;
 char ChangedPortMapping[100];
 

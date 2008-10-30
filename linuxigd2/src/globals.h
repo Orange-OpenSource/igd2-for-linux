@@ -2,6 +2,7 @@
 #define _GLOBALS_H_
 
 #include <net/if.h>
+#include <arpa/inet.h>
 
 #define CHAIN_NAME_LEN 32
 #define BITRATE_LEN 32
@@ -10,7 +11,6 @@
 #define NUM_LEN 32
 
 #define SUB_MATCH 2
-#define DNS_MAX_LENGTH 16
 
 #ifndef min
 #define min(a,b) ((a) < (b) ? (a) : (b))
