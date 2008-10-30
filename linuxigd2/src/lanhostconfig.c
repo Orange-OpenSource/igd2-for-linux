@@ -1,10 +1,10 @@
-#include <glib.h>
-#include <glib/gstdio.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <regex.h>
+#include <stdarg.h>
 #include <sys/wait.h>
+#include <sys/stat.h>
 
 #include "lanhostconfig.h"
 #include "globals.h"
@@ -13,10 +13,12 @@
 #define SERVICE_START "start"
 #define SERVICE_STOP "stop"
 
+#define COMMAND_LEN 64
+
 struct LanHostConfig
 {
-    gboolean DHCPServerConfigurable;
-    gboolean dhcrelay;
+    int DHCPServerConfigurable;
+    int dhcrelay;
 } lanHostConfig;
 
 /**
@@ -143,11 +145,8 @@ void ParseResult(struct Upnp_Action_Request *ca_event, const char *str, ...)
 
 int SetDHCPServerConfigurable(struct Upnp_Action_Request *ca_event)
 {
-    GString *result_str;
     char *configurable;
     int config;
-
-    result_str = g_string_new("");
 
     if ( (configurable = GetFirstDocumentItem(ca_event->ActionRequest, "NewDHCPServerConfigurable") ) )
     {
@@ -171,7 +170,6 @@ int SetDHCPServerConfigurable(struct Upnp_Action_Request *ca_event)
         InvalidArgs(ca_event);
 
     if (configurable) free(configurable);
-    g_string_free(result_str, TRUE);
 
     return ca_event->ErrCode;
 }
@@ -424,7 +422,7 @@ int GetAddressRange(struct Upnp_Action_Request *ca_event)
 
 int SetReservedAddress(struct Upnp_Action_Request *ca_event)
 {
-    GString *command;
+    char command[COMMAND_LEN];
     FILE *cmd;
     char line[MAX_CONFIG_LINE];
     char *all_addr, *addr;
@@ -441,13 +439,11 @@ int SetReservedAddress(struct Upnp_Action_Request *ca_event)
         return ca_event->ErrCode;
     }
 
-    command = g_string_new("");
-
     // delete all hosts
     while (i < 2048)
     {
-        g_string_printf(command, "uci -q get dhcp.@host[0]");
-        cmd = popen(command->str, "r");
+        sprintf(command, "uci -q get dhcp.@host[0]");
+        cmd = popen(command, "r");
         if (cmd == NULL)
         {
             trace(1, "SetReservedAddress: Error running command: '%s'", command);
@@ -459,8 +455,8 @@ int SetReservedAddress(struct Upnp_Action_Request *ca_event)
             break;
 
         fclose(cmd);
-        g_string_printf(command, "uci -q delete dhcp.@host[0]");
-        cmd = popen(command->str, "r");
+        sprintf(command, "uci -q delete dhcp.@host[0]");
+        cmd = popen(command, "r");
         if (cmd == NULL)
         {
             trace(1, "SetReservedAddress: Error running command: '%s'", command);
@@ -486,8 +482,8 @@ int SetReservedAddress(struct Upnp_Action_Request *ca_event)
             RunCommand(g_vars.uciCmd, set_args);
             set_args[2] = "dhcp.@host[-1].mac=00:00:00:00:00:00";
             RunCommand(g_vars.uciCmd, set_args);
-            g_string_printf(command, "dhcp.@host[-1].ip=%s", addr);
-            set_args[2] = command->str;
+            sprintf(command, "dhcp.@host[-1].ip=%s", addr);
+            set_args[2] = command;
             RunCommand(g_vars.uciCmd, set_args);
 
             strtok(NULL, ",");
@@ -497,7 +493,6 @@ int SetReservedAddress(struct Upnp_Action_Request *ca_event)
     if (ca_event->ErrCode == 0)
         ParseResult(ca_event, "");
 
-    g_string_free(command, TRUE);
     if (all_addr) free(all_addr);
 
     return ca_event->ErrCode;
@@ -506,12 +501,12 @@ int SetReservedAddress(struct Upnp_Action_Request *ca_event)
 
 int DeleteReservedAddress(struct Upnp_Action_Request *ca_event)
 {
-    GString *command;
+    char command[COMMAND_LEN];
     char *del_addr;
     FILE *cmd;
     char line[MAX_CONFIG_LINE];
     int i = 0;
-    gboolean deleted = FALSE;
+    int deleted = FALSE;
 
     if (CheckDHCPServerConfigurable(ca_event))
         return ca_event->ErrCode;
@@ -522,14 +517,12 @@ int DeleteReservedAddress(struct Upnp_Action_Request *ca_event)
         return ca_event->ErrCode;
     }
 
-    command = g_string_new("");
-
     // added 2048 as precaution, if under some conditions uci returns always something
     // if that is reached, give internal error
     while (i < 2048)
     {
-        g_string_printf(command, "uci -q get dhcp.@host[%d].ip", i);
-        cmd = popen(command->str, "r");
+        sprintf(command, "uci -q get dhcp.@host[%d].ip", i);
+        cmd = popen(command, "r");
         if (cmd == NULL)
         {
             trace(1, "DeleteReservedAddress: Error running command: '%s'", command);
@@ -544,8 +537,8 @@ int DeleteReservedAddress(struct Upnp_Action_Request *ca_event)
 
         if (strncmp(line, del_addr, MAX_CONFIG_LINE) == 0)
         {
-            g_string_printf(command, "uci -q delete dhcp.@host[%d]", i);
-            cmd = popen(command->str, "r");
+            sprintf(command, "uci -q delete dhcp.@host[%d]", i);
+            cmd = popen(command, "r");
             if (cmd == NULL)
             {
                 trace(1, "DeleteReservedAddress: Error running command: '%s'", command);
@@ -581,7 +574,6 @@ int DeleteReservedAddress(struct Upnp_Action_Request *ca_event)
         ParseResult(ca_event, "");
 
     if (cmd) fclose(cmd);
-    g_string_free(command, TRUE);
     if (del_addr) free(del_addr);
 
     return ca_event->ErrCode;
@@ -589,23 +581,22 @@ int DeleteReservedAddress(struct Upnp_Action_Request *ca_event)
 
 int GetReservedAddresses(struct Upnp_Action_Request *ca_event)
 {
-    GString *addresses, *command;
+    char command[COMMAND_LEN];
+    char addresses[RESULT_LEN];
     FILE *cmd;
     char line[MAX_CONFIG_LINE];
     int i = 0;
+    int addr_place = 0;
 
     if (CheckDHCPServerConfigurable(ca_event))
         return ca_event->ErrCode;
-
-    addresses = g_string_new("");
-    command = g_string_new("");
 
     // added 2048 as precaution, if under some conditions uci returns always something
     // if that is reached, give internal error
     while (i < 2048)
     {
-        g_string_printf(command, "uci -q get dhcp.@host[%d].ip", i);
-        cmd = popen(command->str, "r");
+        sprintf(command, "uci -q get dhcp.@host[%d].ip", i);
+        cmd = popen(command, "r");
         if (cmd == NULL)
         {
             trace(1, "GetReservedAddresses: Error running command: '%s'", command);
@@ -618,9 +609,11 @@ int GetReservedAddresses(struct Upnp_Action_Request *ca_event)
             break;
         }
 
-        if (strlen(addresses->str) > 0)
-            g_string_append(addresses, ",");
-        g_string_append_printf(addresses, "%s", line);
+        // add comma separator before all except first address
+        if (addr_place > 0)
+            addr_place += snprintf(&addresses[addr_place], RESULT_LEN - addr_place, ",");
+
+        addr_place += snprintf(&addresses[addr_place], RESULT_LEN - addr_place, "%s", line);
 
         fclose(cmd);
         i++;
@@ -632,11 +625,9 @@ int GetReservedAddresses(struct Upnp_Action_Request *ca_event)
     }
 
     if (ca_event->ErrCode == 0)
-        ParseResult(ca_event, "<NewReservedAddresses>%s</NewReservedAddresses>\n", addresses->str);
+        ParseResult(ca_event, "<NewReservedAddresses>%s</NewReservedAddresses>\n", addresses);
 
     if (cmd) fclose(cmd);
-    g_string_free(addresses, TRUE);
-    g_string_free(command, TRUE);
 
     return ca_event->ErrCode;
 }
@@ -657,12 +648,7 @@ int SetDNSServer(struct Upnp_Action_Request *ca_event)
     regcomp(&nameserver, "nameserver[[:blank:]]*([[:digit:]]{1,3}[.][[:digit:]]{1,3}[.][[:digit:]]{1,3}[.][[:digit:]]{1,3})", REG_EXTENDED);
     ca_event->ErrCode = 0;
 
-    if (g_file_test(g_vars.resolvConf, G_FILE_TEST_IS_SYMLINK))
-    {
-        trace(1, "SetDNSServer: resolv.conf is a symlink, '%s'.", g_vars.resolvConf);
-        addErrorData(ca_event, 501, "Action Failed");
-    }
-    else if ((dns_list = GetFirstDocumentItem(ca_event->ActionRequest, "NewDNSServers")))
+    if ((dns_list = GetFirstDocumentItem(ca_event->ActionRequest, "NewDNSServers")))
     {
         // open resolv.conf for reading
         file = fopen(g_vars.resolvConf, "r");
@@ -710,12 +696,12 @@ int SetDNSServer(struct Upnp_Action_Request *ca_event)
             {
                 // operation was successful
                 // replace the real file with our temp file
-                if (g_remove(g_vars.resolvConf))
+                if (remove(g_vars.resolvConf))
                 {
                     trace(1, "SetDNSServer: removing resolv.conf failed: '%s'.", g_vars.resolvConf);
                     addErrorData(ca_event, 501, "Action Failed");
                 }
-                if (g_rename(RESOLV_CONF_TMP, g_vars.resolvConf))
+                if (rename(RESOLV_CONF_TMP, g_vars.resolvConf))
                 {
                     trace(1, "SetDNSServer: renaming resolv.conf failed, old: '%s' new '%s'.", RESOLV_CONF_TMP, g_vars.resolvConf);
                     addErrorData(ca_event, 501, "Action Failed");
@@ -753,12 +739,7 @@ int DeleteDNSServer(struct Upnp_Action_Request *ca_event)
     regcomp(&nameserver, "nameserver[[:blank:]]*([[:digit:]]{1,3}[.][[:digit:]]{1,3}[.][[:digit:]]{1,3}[.][[:digit:]]{1,3})", REG_EXTENDED);
     ca_event->ErrCode = 0;
 
-    if (g_file_test(g_vars.resolvConf, G_FILE_TEST_IS_SYMLINK))
-    {
-        trace(1, "DeleteDNSServer: resolv.conf is a symlink, '%s'.", g_vars.resolvConf);
-        addErrorData(ca_event, 501, "Action Failed");
-    }
-    else if ((dns_to_delete = GetFirstDocumentItem(ca_event->ActionRequest, "NewDNSServers")))
+    if ((dns_to_delete = GetFirstDocumentItem(ca_event->ActionRequest, "NewDNSServers")))
     {
         file = fopen(g_vars.resolvConf, "r");
         new_file = fopen(RESOLV_CONF_TMP, "w");
@@ -796,12 +777,12 @@ int DeleteDNSServer(struct Upnp_Action_Request *ca_event)
             {
                 // operation was successful
                 // replace the real file with our temp file
-                if (g_remove(g_vars.resolvConf))
+                if (remove(g_vars.resolvConf))
                 {
                     trace(1, "DeleteDNSServer: removing resolv.conf failed: '%s'.", g_vars.resolvConf);
                     addErrorData(ca_event, 501, "Action Failed");
                 }
-                if (g_rename(RESOLV_CONF_TMP, g_vars.resolvConf))
+                if (rename(RESOLV_CONF_TMP, g_vars.resolvConf))
                 {
                     trace(1, "DeleteDNSServer: renaming resolv.conf failed, old: '%s' new '%s'.", RESOLV_CONF_TMP, g_vars.resolvConf);
                     addErrorData(ca_event, 501, "Action Failed");
@@ -831,13 +812,13 @@ int DeleteDNSServer(struct Upnp_Action_Request *ca_event)
 int GetDNSServers(struct Upnp_Action_Request *ca_event)
 {
     FILE *file;
-    GString *dns_servers;
+    char dns_servers[RESULT_LEN];
     char line[MAX_CONFIG_LINE];
     char dns[DNS_MAX_LENGTH];
     regex_t nameserver;
     regmatch_t submatch[SUB_MATCH];
+    int dns_place = 0;
 
-    dns_servers = g_string_new("");
     regcomp(&nameserver, "nameserver[[:blank:]]*([[:digit:]]{1,3}[.][[:digit:]]{1,3}[.][[:digit:]]{1,3}[.][[:digit:]]{1,3})", REG_EXTENDED);
 
     file = fopen(g_vars.resolvConf, "r");
@@ -853,17 +834,17 @@ int GetDNSServers(struct Upnp_Action_Request *ca_event)
         if (regexec(&nameserver, line, SUB_MATCH, submatch, 0) == 0)
         {
             // nameserver found, get it and add to list
-            if (strlen(dns_servers->str) > 0)
-                g_string_append(dns_servers, ",");
+            if (dns_place > 0)
+                dns_place += snprintf(&dns_servers[dns_place], RESULT_LEN - dns_place, ",");
+
             strncpy(dns, &line[submatch[1].rm_so], min(submatch[1].rm_eo-submatch[1].rm_so, DNS_MAX_LENGTH));
             dns[min(submatch[1].rm_eo-submatch[1].rm_so, DNS_MAX_LENGTH-1)] = 0;
-            g_string_append_printf(dns_servers, "%s", dns);
+            dns_place += snprintf(&dns_servers[dns_place], RESULT_LEN - dns_place, "%s", dns);
         }
     }
 
-    ParseResult(ca_event, "<NewDNSServers>%s</NewDNSServers>\n", dns_servers->str);
+    ParseResult(ca_event, "<NewDNSServers>%s</NewDNSServers>\n", dns_servers);
 
-    g_string_free(dns_servers, TRUE);
     regfree(&nameserver);
     fclose(file);
 
@@ -875,18 +856,20 @@ int GetDNSServers(struct Upnp_Action_Request *ca_event)
  */
 int InitLanHostConfig()
 {
+    struct stat buf;
+
     lanHostConfig.DHCPServerConfigurable = TRUE;
     lanHostConfig.dhcrelay = FALSE;
 
     // check that dnsmasq exists
-    if (!g_file_test(g_vars.dnsmasqCmd, G_FILE_TEST_EXISTS))
+    if (stat(g_vars.dnsmasqCmd, &buf))
     {
         lanHostConfig.DHCPServerConfigurable = FALSE;
         trace(1, "DHCPServerConfigurable set to false, dnsmasq not found at: %s.", g_vars.dnsmasqCmd);
         return 1;
     }
     // check that uci exists
-    if (!g_file_test(g_vars.uciCmd, G_FILE_TEST_EXISTS))
+    if (stat(g_vars.uciCmd, &buf))
     {
         lanHostConfig.DHCPServerConfigurable = FALSE;
         trace(1, "DHCPServerConfigurable set to false, uci not found at: %s.", g_vars.uciCmd);

@@ -7,7 +7,6 @@
 #include <upnp/upnptools.h>
 #include <upnp/TimerThread.h>
 #include <arpa/inet.h>
-#include <glib.h>
 #include "globals.h"
 #include "gatedevice.h"
 #include "pmlist.h"
@@ -85,7 +84,7 @@ int StateTableInit(char *descDocUrl)
     SystemUpdateID = 0;
     strcpy(EthernetLinkStatus,"Unavailable");
     GetConnectionStatus(ConnectionStatus, g_vars.extInterfaceName);
-    
+
     return (ret);
 }
 
@@ -566,7 +565,7 @@ int AddPortMapping(struct Upnp_Action_Request *ca_event)
             addErrorData(ca_event, 724, "SamePortValueRequired");
             result = 724;
         }
-        
+
         if (result == 0)
         {
             // If port map with the same External Port, Protocol, and Internal Client exists
@@ -578,9 +577,9 @@ int AddPortMapping(struct Upnp_Action_Request *ca_event)
                 trace(3, "Found port map to already exist.  Replacing");
                 pmlist_Delete(ret);
             }
-            
+
             result = AddNewPortMapping(ca_event,bool_enabled,atoi(int_duration),remote_host,ext_port,int_port,proto,int_ip,desc);
-    
+
             if (result == 1)
             {
                 ca_event->ErrCode = UPNP_E_SUCCESS;
@@ -588,7 +587,7 @@ int AddPortMapping(struct Upnp_Action_Request *ca_event)
                          ca_event->ActionName, "urn:schemas-upnp-org:service:WANIPConnection:1", "", ca_event->ActionName);
                 ca_event->ActionResult = ixmlParseBuffer(resultStr);
             }
-        }      
+        }
     }
     else
     {
@@ -625,14 +624,14 @@ int GetGenericPortMappingEntry(struct Upnp_Action_Request *ca_event)
         if (temp)
         {
             snprintf(result_param, RESULT_LEN, "<NewRemoteHost>%s</NewRemoteHost><NewExternalPort>%s</NewExternalPort><NewProtocol>%s</NewProtocol><NewInternalPort>%s</NewInternalPort><NewInternalClient>%s</NewInternalClient><NewEnabled>%d</NewEnabled><NewPortMappingDescription>%s</NewPortMappingDescription><NewLeaseDuration>%li</NewLeaseDuration>",
-                                                temp->m_RemoteHost,
-                                                temp->m_ExternalPort,
-                                                temp->m_PortMappingProtocol,
-                                                temp->m_InternalPort,
-                                                temp->m_InternalClient,
-                                                temp->m_PortMappingEnabled,
-                                                temp->m_PortMappingDescription,
-                                                (temp->expirationTime-time(NULL)));
+                     temp->m_RemoteHost,
+                     temp->m_ExternalPort,
+                     temp->m_PortMappingProtocol,
+                     temp->m_InternalPort,
+                     temp->m_InternalClient,
+                     temp->m_PortMappingEnabled,
+                     temp->m_PortMappingDescription,
+                     (temp->expirationTime-time(NULL)));
             action_succeeded = 1;
         }
         if (action_succeeded)
@@ -672,8 +671,8 @@ int GetSpecificPortMappingEntry(struct Upnp_Action_Request *ca_event)
     struct portMap *temp;
 
     if ((remote_host = GetFirstDocumentItem(ca_event->ActionRequest, "NewRemoteHost")) &&
-           (ext_port = GetFirstDocumentItem(ca_event->ActionRequest, "NewExternalPort")) &&
-           (proto = GetFirstDocumentItem(ca_event->ActionRequest,"NewProtocol")))
+            (ext_port = GetFirstDocumentItem(ca_event->ActionRequest, "NewExternalPort")) &&
+            (proto = GetFirstDocumentItem(ca_event->ActionRequest,"NewProtocol")))
     {
         if ((strcmp(proto, "TCP") == 0) || (strcmp(proto, "UDP") == 0))
         {
@@ -891,7 +890,8 @@ int DeletePortMappingRange(struct Upnp_Action_Request *ca_event)
                 snprintf(del_port,str_len,"%d",ext_port);
                 index = 0;
                 // remove all instances with externalPort
-                do {
+                do
+                {
                     temp = pmlist_FindSpecificAfterIndex("", del_port, proto, index);
                     if (temp)
                     {
@@ -905,7 +905,8 @@ int DeletePortMappingRange(struct Upnp_Action_Request *ca_event)
                         else
                             index++;
                     }
-                } while (temp != NULL);
+                }
+                while (temp != NULL);
             }
 
             // maximum 5 events per second (from specification), that is why we send only one event after deleting all
@@ -917,7 +918,7 @@ int DeletePortMappingRange(struct Upnp_Action_Request *ca_event)
                 UpnpAddToPropertySet(&propSet,"PortMappingNumberOfEntries", tmp);
                 snprintf(tmp,11,"%ld",SystemUpdateID);
                 UpnpAddToPropertySet(&propSet,"SystemUpdateID", tmp);
-                
+
                 UpnpAddToPropertySet(&propSet,"ChangedPortMapping", ChangedPortMapping);
 
                 UpnpNotifyExt(deviceHandle, ca_event->DevUDN,ca_event->ServiceID,propSet);
@@ -1028,9 +1029,9 @@ int createEventUpdateTimer(void)
     // Add event update job
     TPJobInit( &gEventUpdateJob, ( start_routine ) UpdateEvents, event );
     TimerThreadSchedule( &gExpirationTimerThread,
-                            g_vars.eventUpdateInterval,
-                            REL_SEC, &gEventUpdateJob, SHORT_TERM,
-                            &( event->eventId ) );
+                         g_vars.eventUpdateInterval,
+                         REL_SEC, &gEventUpdateJob, SHORT_TERM,
+                         &( event->eventId ) );
     return  event->eventId;
 }
 
@@ -1044,15 +1045,15 @@ void UpdateEvents(void *input)
     trace(3, "Update Events");
 
     ithread_mutex_lock(&DevMutex);
-    
+
     EthernetLinkStatusEventing(propSet);
     ExternalIPAddressEventing(propSet);
     ConnectionStatusEventing(propSet);
-          
+
     ithread_mutex_unlock(&DevMutex);
 
     if (propSet) ixmlDocument_free(propSet);
-    
+
     // create update event again
     createEventUpdateTimer();
 }
@@ -1061,7 +1062,7 @@ void UpdateEvents(void *input)
 int EthernetLinkStatusEventing(IXML_Document *propSet)
 {
     char prevStatus[12];
-    
+
     strcpy(prevStatus,EthernetLinkStatus);
     setEthernetLinkStatus(EthernetLinkStatus, g_vars.extInterfaceName);
 
@@ -1081,7 +1082,7 @@ int EthernetLinkStatusEventing(IXML_Document *propSet)
 int ExternalIPAddressEventing(IXML_Document *propSet)
 {
     char prevStatus[INET6_ADDRSTRLEN];
-    
+
     strcpy(prevStatus,ExternalIPAddress);
     GetIpAddressStr(ExternalIPAddress, g_vars.extInterfaceName);
 
@@ -1091,7 +1092,7 @@ int ExternalIPAddressEventing(IXML_Document *propSet)
         UpnpAddToPropertySet(&propSet, "ExternalIPAddress", ExternalIPAddress);
         UpnpNotifyExt(deviceHandle, wanConnectionUDN, "urn:upnp-org:serviceId:WANIPConn1", propSet);
         trace(2, "ExternalIPAddress changed: From %s to %s",prevStatus,ExternalIPAddress);
-        propSet = NULL;        
+        propSet = NULL;
         return 1;
     }
     return 0;
@@ -1100,7 +1101,7 @@ int ExternalIPAddressEventing(IXML_Document *propSet)
 int ConnectionStatusEventing(IXML_Document *propSet)
 {
     char prevStatus[20];
-    
+
     strcpy(prevStatus,ConnectionStatus);
     GetConnectionStatus(ConnectionStatus, g_vars.extInterfaceName);
 
@@ -1110,7 +1111,7 @@ int ConnectionStatusEventing(IXML_Document *propSet)
         UpnpAddToPropertySet(&propSet, "ConnectionStatus", ConnectionStatus);
         UpnpNotifyExt(deviceHandle, wanConnectionUDN, "urn:upnp-org:serviceId:WANIPConn1", propSet);
         trace(2, "ConnectionStatus changed: From %s to %s",prevStatus,ConnectionStatus);
-        propSet = NULL;        
+        propSet = NULL;
         return 1;
     }
     return 0;
@@ -1138,8 +1139,8 @@ void ExpireMapping(void *input)
     snprintf(tmp,11,"%ld",++SystemUpdateID);
     UpnpAddToPropertySet(&propSet,"SystemUpdateID", tmp);
     snprintf(ChangedPortMapping,100,"%s,%s,%s,%s,%s",event->mapping->m_ExternalPort,
-                event->mapping->m_ExternalPort,event->mapping->m_PortMappingProtocol,
-                event->mapping->m_InternalClient,event->mapping->m_RemoteHost);
+             event->mapping->m_ExternalPort,event->mapping->m_PortMappingProtocol,
+             event->mapping->m_InternalClient,event->mapping->m_RemoteHost);
     UpnpAddToPropertySet(&propSet,"ChangedPortMapping", ChangedPortMapping);
     UpnpNotifyExt(deviceHandle, event->DevUDN, event->ServiceID, propSet);
     ixmlDocument_free(propSet);
@@ -1170,7 +1171,7 @@ int ScheduleMappingExpiration(struct portMap *mapping, char *DevUDN, char *Servi
     }
     else // mapping->m_PortMappingLeaseDuration < 0
     {
-       //client did not provide a duration, so use the default duration
+        //client did not provide a duration, so use the default duration
         if (g_vars.duration==0 || g_vars.duration>MAXIMUM_DURATION)
         {
             mapping->expirationTime = curtime+MAXIMUM_DURATION;
@@ -1297,13 +1298,12 @@ int AddAnyPortMapping
     if ( (new_remote_host = GetFirstDocumentItem(ca_event->ActionRequest, "NewRemoteHost") )
             && (new_external_port = GetFirstDocumentItem(ca_event->ActionRequest, "NewExternalPort") )
             && (new_protocol = GetFirstDocumentItem(ca_event->ActionRequest, "NewProtocol") )
-        && (new_internal_port = GetFirstDocumentItem(ca_event->ActionRequest, "NewInternalPort") )
+            && (new_internal_port = GetFirstDocumentItem(ca_event->ActionRequest, "NewInternalPort") )
             && (new_internal_client = GetFirstDocumentItem(ca_event->ActionRequest, "NewInternalClient") )
-        && (new_enabled = GetFirstDocumentItem(ca_event->ActionRequest, "NewEnabled") )
+            && (new_enabled = GetFirstDocumentItem(ca_event->ActionRequest, "NewEnabled") )
             && (new_port_mapping_description = GetFirstDocumentItem(ca_event->ActionRequest, "NewPortMappingDescription") )
             && (new_lease_duration = GetFirstDocumentItem(ca_event->ActionRequest, "NewLeaseDuration") ) )
     {
-
     // Check RemoteHost and ExternalPort parameters
     if (checkForWildCard(new_remote_host)) {
         trace(1, "Wild cards not permitted in remote_host:%s", new_remote_host);
@@ -1323,7 +1323,6 @@ int AddAnyPortMapping
         addErrorData(ca_event, 724, "SamePortValueRequired");
         result = 724;
     }
-
     leaseDuration = atol(new_lease_duration);
 
     // TODO: SecurityChecks here...
@@ -1339,7 +1338,6 @@ int AddAnyPortMapping
             // TODO: free port mapping search
                     trace(3, "Found port map to already exist.  Finding next free");
                     next_free_port = pmlist_FindNextFreePort(new_protocol);
-
             if (next_free_port > 0)
                 {
                 trace(3, "Found free port:%d", next_free_port);
@@ -1353,26 +1351,23 @@ int AddAnyPortMapping
                     }
             }
             else {
-
             // Otherwise just add the port map
                 result = AddNewPortMapping(ca_event, new_enabled, leaseDuration, new_remote_host,
                               new_external_port, new_internal_port, new_protocol,
                                               new_internal_client, new_port_mapping_description);
-
             }
     }
-
     if (result==718)
         {
-                trace(1,"Failure in GateDeviceAddAnyPortMapping: RemoteHost: %s Protocol:%s ExternalPort: %s InternalClient: %s.%s\n",
-                      new_remote_host, new_protocol, new_external_port, new_internal_client, new_internal_port);
+            trace(1,"Failure in GateDeviceAddAnyPortMapping: RemoteHost: %s Protocol:%s ExternalPort: %s InternalClient: %s.%s\n",
+                  new_remote_host, new_protocol, new_external_port, new_internal_client, new_internal_port);
 
         addErrorData(ca_event, 718, "ConflictInMappingEntry");
-
-         }
+        }
 
     }
-    else {
+    else
+    {
         trace(1, "Failure in GateDeviceAddAnyPortMapping: Invalid Arguments!");
         trace(1, "  RemoteHost: %s ExternalPort: %s Protocol: %s InternalClient: %s Enabled: %s PortMappingDesc: %s LeaseDuration: %s",
               new_remote_host, new_external_port, new_protocol, new_internal_client, new_enabled,
@@ -1403,8 +1398,8 @@ int AddAnyPortMapping
 }
 
 int AddNewPortMapping(struct Upnp_Action_Request *ca_event, char* new_enabled, int leaseDuration,
-                     char* new_remote_host, char* new_external_port, char* new_internal_port,
-                     char* new_protocol, char* new_internal_client, char* new_port_mapping_description)
+                      char* new_remote_host, char* new_external_port, char* new_internal_port,
+                      char* new_protocol, char* new_internal_client, char* new_port_mapping_description)
 {
     int result;
     char num[5]; // Maximum number of port mapping entries 9999
@@ -1450,15 +1445,13 @@ int RetrieveListOfPortmappings(struct Upnp_Action_Request *ca_event)
     char *proto = NULL;
     char *number_of_ports = NULL;
     char cp_ip[INET_ADDRSTRLEN] = "";
-
-    GString *result_str;
+    char result_str[RESULT_LEN];
 
     int start, end;
     int max_entries;
     int action_succeeded = 0;
+    int result_place = 0;
     struct portMap *pm = NULL;
-
-    result_str = g_string_new("");
 
     if ( (start_port = GetFirstDocumentItem(ca_event->ActionRequest, "NewStartPort") )
             && (end_port = GetFirstDocumentItem(ca_event->ActionRequest, "NewEndPort") )
@@ -1469,7 +1462,7 @@ int RetrieveListOfPortmappings(struct Upnp_Action_Request *ca_event)
         start = atoi(start_port);
         end = atoi(end_port);
         max_entries = atoi(number_of_ports);
-        if(max_entries == 0)
+        if (max_entries == 0)
             max_entries = INT_MAX;
 
         // If manage is not true or CP is not authorized, list only CP's port mappings
@@ -1477,12 +1470,12 @@ int RetrieveListOfPortmappings(struct Upnp_Action_Request *ca_event)
             inet_ntop(AF_INET, &ca_event->CtrlPtIPAddr, cp_ip, INET_ADDRSTRLEN);
 
         // Write XML header
-        g_string_printf(result_str, xml_portmapListingHeader, ca_event->ActionName);
+        result_place += snprintf(result_str, RESULT_LEN, xml_portmapListingHeader, ca_event->ActionName);
 
         // Loop through port mappings until we run out or max_entries reaches 0
-        while( (pm = pmlist_FindRangeAfter(start, end, proto, cp_ip, pm)) != NULL && max_entries--)
+        while ( (pm = pmlist_FindRangeAfter(start, end, proto, cp_ip, pm)) != NULL && max_entries--)
         {
-            g_string_append_printf(result_str, xml_portmapEntry,
+            result_place += sprintf(&result_str[result_place], xml_portmapEntry,
                                    pm->m_RemoteHost, pm->m_ExternalPort, pm->m_PortMappingProtocol,
                                    pm->m_InternalPort, pm->m_InternalClient, pm->m_PortMappingEnabled,
                                    pm->m_PortMappingDescription, pm->m_PortMappingLeaseDuration);
@@ -1492,8 +1485,8 @@ int RetrieveListOfPortmappings(struct Upnp_Action_Request *ca_event)
         if (action_succeeded)
         {
             ca_event->ErrCode = UPNP_E_SUCCESS;
-            g_string_append_printf(result_str, xml_portmapListingFooter, ca_event->ActionName);
-            ca_event->ActionResult = ixmlParseBuffer(result_str->str);
+            result_place += sprintf(&result_str[result_place], xml_portmapListingFooter, ca_event->ActionName);
+            ca_event->ActionResult = ixmlParseBuffer(result_str);
         }
         else
         {
@@ -1512,13 +1505,11 @@ int RetrieveListOfPortmappings(struct Upnp_Action_Request *ca_event)
         ca_event->ActionResult = NULL;
     }
 
-    if(start_port) free(start_port);
-    if(end_port) free(end_port);
-    if(proto) free(proto);
-    if(manage) free(manage);
-    if(number_of_ports) free(number_of_ports);
-
-    g_string_free(result_str, TRUE);
+    if (start_port) free(start_port);
+    if (end_port) free(end_port);
+    if (proto) free(proto);
+    if (manage) free(manage);
+    if (number_of_ports) free(number_of_ports);
 
     return ca_event->ErrCode;
 }

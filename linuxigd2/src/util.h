@@ -2,7 +2,6 @@
 #define _UTIL_H_
 
 #include <upnp/upnp.h>
-#include <glib.h>
 
 int get_sockfd(void);
 int GetIpAddressStr(char *address, char *ifname);
