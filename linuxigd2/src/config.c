@@ -74,6 +74,7 @@ int parseConfigFile(globals_p vars)
     regex_t re_event_interval;
     regex_t re_dhcrelay;
     regex_t re_dhcrelay_server;
+    regex_t re_dhcpc;
 
     // Make sure all vars are 0 or \0 terminated
     vars->debug = 0;
@@ -94,6 +95,7 @@ int parseConfigFile(globals_p vars)
     strcpy(vars->dhcrelayCmd, "");
     strcpy(vars->dhcrelayServer, "");
     vars->eventUpdateInterval = DEFAULT_EVENT_UPDATE_INTERVAL;
+    strcpy(vars->dhcpc, "");
 
     // Regexp to match a comment line
     regcomp(&re_comment,"^[[:blank:]]*#",0);
@@ -112,12 +114,13 @@ int parseConfigFile(globals_p vars)
     regcomp(&re_desc_doc,"description_document_name[[:blank:]]*=[[:blank:]]*([[:alpha:].]{1,20})",REG_EXTENDED);
     regcomp(&re_xml_path,"xml_document_path[[:blank:]]*=[[:blank:]]*([[:alpha:]_/.]{1,50})",REG_EXTENDED);
     regcomp(&re_listenport,"listenport[[:blank:]]*=[[:blank:]]*([[:digit:]]+)",REG_EXTENDED);
-    regcomp(&re_dnsmasq,"xml_document_path[[:blank:]]*=[[:blank:]]*([[:alpha:]_/.]{1,50})",REG_EXTENDED);
-    regcomp(&re_uci,"xml_document_path[[:blank:]]*=[[:blank:]]*([[:alpha:]_/.]{1,50})",REG_EXTENDED);
-    regcomp(&re_dhcrelay,"xml_document_path[[:blank:]]*=[[:blank:]]*([[:alpha:]_/.]{1,50})",REG_EXTENDED);
-    regcomp(&re_resolv,"xml_document_path[[:blank:]]*=[[:blank:]]*([[:alpha:]_/.]{1,50})",REG_EXTENDED);
-    regcomp(&re_event_interval,"listenport[[:blank:]]*=[[:blank:]]*([[:digit:]]+)",REG_EXTENDED);
-    regcomp(&re_dhcrelay_server,"listenport[[:blank:]]*=[[:blank:]]*([[:digit:].:]+)",REG_EXTENDED);
+    regcomp(&re_dnsmasq,"dnsmasq_script[[:blank:]]*=[[:blank:]]*([[:alpha:]_/.]{1,50})",REG_EXTENDED);
+    regcomp(&re_uci,"uci_command[[:blank:]]*=[[:blank:]]*([[:alpha:]_/.]{1,50})",REG_EXTENDED);
+    regcomp(&re_dhcrelay,"dhcrelay_script[[:blank:]]*=[[:blank:]]*([[:alpha:]_/.]{1,50})",REG_EXTENDED);
+    regcomp(&re_resolv,"resolf_conf[[:blank:]]*=[[:blank:]]*([[:alpha:]_/.]{1,50})",REG_EXTENDED);
+    regcomp(&re_event_interval,"event_update_interval[[:blank:]]*=[[:blank:]]*([[:digit:]]+)",REG_EXTENDED);
+    regcomp(&re_dhcrelay_server,"dhcrelay_server[[:blank:]]*=[[:blank:]]*([[:digit:].:]+)",REG_EXTENDED);
+    regcomp(&re_dhcpc,"dhcpc_location[[:blank:]]*=[[:blank:]]*\"([^\"]+)\"",REG_EXTENDED);
 
     if ((conf_file=fopen(CONF_FILE,"r")) != NULL)
     {
@@ -215,6 +218,10 @@ int parseConfigFile(globals_p vars)
                     getConfigOptionArgument(tmp, OPTION_LEN, line, submatch);
                     vars->eventUpdateInterval = atoi(tmp);
                 }
+                else if (regexec(&re_dhcpc,line,NMATCH,submatch,0) == 0)
+                {
+                    getConfigOptionArgument(vars->dhcpc, OPTION_LEN, line, submatch);
+                }
                 else
                 {
                     // We end up here if ther is an unknown config directive
@@ -244,6 +251,7 @@ int parseConfigFile(globals_p vars)
     regfree(&re_dhcrelay_server);
     regfree(&re_resolv);
     regfree(&re_event_interval);
+    regfree(&re_dhcpc);
     // Set default values for options not found in config file
     if (strnlen(vars->forwardChainName, OPTION_LEN) == 0)
     {
@@ -288,6 +296,10 @@ int parseConfigFile(globals_p vars)
     if (strnlen(vars->resolvConf, OPTION_LEN) == 0)
     {
         snprintf(vars->resolvConf, OPTION_LEN, RESOLV_CONF_DEFAULT);
+    }
+    if (strnlen(vars->dhcpc, OPTION_LEN) == 0)
+    {
+        snprintf(vars->dhcpc, OPTION_LEN, DHCPC_DEFAULT);
     }
     if (strnlen(vars->iptables, OPTION_LEN) == 0)
     {

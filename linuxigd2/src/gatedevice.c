@@ -115,7 +115,6 @@ int HandleSubscriptionRequest(struct Upnp_Subscription_Request *sr_event)
             GetIpAddressStr(ExternalIPAddress, g_vars.extInterfaceName);
             trace(3, "Received request to subscribe to WANIPConn1");
             UpnpAddToPropertySet(&propSet, "PossibleConnectionTypes","IP_Routed");
-            UpnpAddToPropertySet(&propSet, "ConnectionStatus","Connected");
             UpnpAddToPropertySet(&propSet, "ExternalIPAddress", ExternalIPAddress);
             UpnpAddToPropertySet(&propSet, "PortMappingNumberOfEntries","0");
             UpnpAcceptSubscriptionExt(deviceHandle, sr_event->UDN, sr_event->ServiceId,
@@ -215,12 +214,12 @@ int HandleActionRequest(struct Upnp_Action_Request *ca_event)
                 result = AddAnyPortMapping(ca_event);
             else if (strcmp(ca_event->ActionName,"RetrieveListOfPortmappings") == 0)
                 result = RetrieveListOfPortmappings(ca_event);
-
+            else if (strcmp(ca_event->ActionName,"ForceTermination") == 0)
+                result = ForceTermination(ca_event);
+                
             // Intentionally Non-Implemented Functions -- To be added later
             /*else if (strcmp(ca_event->ActionName,"RequestTermination") == 0)
                 result = RequestTermination(ca_event);
-            else if (strcmp(ca_event->ActionName,"ForceTermination") == 0)
-                result = ForceTermination(ca_event);
             else if (strcmp(ca_event->ActionName,"SetAutoDisconnectTime") == 0)
                 result = SetAutoDisconnectTime(ca_event);
             else if (strcmp(ca_event->ActionName,"SetIdleDisconnectTime") == 0)
@@ -378,30 +377,125 @@ int SetConnectionType(struct Upnp_Action_Request *ca_event)
 
 // This function should set the state variable ConnectionStatus to
 // connecting, and then return synchronously, firing off a thread
-// asynchronously to actually change the status to connected.  However, here we
-// assume that the external WAN device is configured and connected
-// outside of linux igd.
+// asynchronously to actually change the status to connected.
 //
 // v2.0: If external interface has IP, assume that status is Connected, else Disconnected
 int RequestConnection(struct Upnp_Action_Request *ca_event)
 {
     IXML_Document *propSet = NULL;
-
-    GetConnectionStatus(ConnectionStatus, g_vars.extInterfaceName);
-    //Immediatley Set lastconnectionerror to none.
+    int result = 0;
+    
+    trace(2, "RequestConnection received ... Checking status...");
+    
+    //Immediatley Set lastconnectionerror to none. We don't now think about errors.
     strcpy(LastConnectionError, "ERROR_NONE");
-    trace(2, "RequestConnection received ... Setting Status to %s.", ConnectionStatus);
+    
+    // connection already up. Nothing to do.
+    if (GetConnectionStatus(ConnectionStatus, g_vars.extInterfaceName))
+    {
+        // Build DOM Document with state variable connectionstatus and event it
+        UpnpAddToPropertySet(&propSet, "ConnectionStatus", ConnectionStatus);
+        // Send off notifications of state change
+        UpnpNotifyExt(deviceHandle, ca_event->DevUDN, ca_event->ServiceID, propSet);
+    
+        ca_event->ErrCode = UPNP_E_SUCCESS;
+        
+        return ca_event->ErrCode;
+    }
+    else if (strcmp(ConnectionType,"IP_Routed") != 0)
+    {
+        trace(1, "RequestConnection: ConnectionType must be IP_Routed. Type: %s", ConnectionType);
+        result = 710;
+        addErrorData(ca_event, result, "InvalidConnectionType");
+    }
+    else if (strcmp(ConnectionStatus,"Disconnecting") == 0)
+    {
+        trace(1, "RequestConnection: Connection of %s is disconnecting", g_vars.extInterfaceName);
+        result = 707;
+        addErrorData(ca_event, result, "DisconnectInProgress");
+    }
+    else if (strcmp(ConnectionStatus,"Connecting") == 0)
+    {
+        trace(1, "RequestConnection: Connection of %s is connecting", g_vars.extInterfaceName);
+        result = 705;
+        addErrorData(ca_event, result, "ConnectionSetupInProgress");
+    }
 
-    // Build DOM Document with state variable connectionstatus and event it
-    UpnpAddToPropertySet(&propSet, "ConnectionStatus", ConnectionStatus);
+    if (result == 0)
+    {
+        strcpy(ConnectionStatus, "Connecting");
+        UpnpAddToPropertySet(&propSet, "ConnectionStatus", ConnectionStatus);
+        UpnpNotifyExt(deviceHandle, ca_event->DevUDN, ca_event->ServiceID, propSet);
+        
+        trace(2, "RequestConnection received ... Connecting..");
+        
+        if (startDHCPClient(g_vars.extInterfaceName))
+            ca_event->ErrCode = UPNP_E_SUCCESS;
+        else
+            ca_event->ErrCode = UPNP_SOAP_E_ACTION_FAILED;        
 
-    // Send off notifications of state change
-    UpnpNotifyExt(deviceHandle, ca_event->DevUDN, ca_event->ServiceID, propSet);
-
-    ca_event->ErrCode = UPNP_E_SUCCESS;
+        GetConnectionStatus(ConnectionStatus, g_vars.extInterfaceName);
+        // Build DOM Document with state variable connectionstatus and event it
+        UpnpAddToPropertySet(&propSet, "ConnectionStatus", ConnectionStatus);
+        // Send off notifications of state change
+        UpnpNotifyExt(deviceHandle, ca_event->DevUDN, ca_event->ServiceID, propSet);
+    }
+    
     return ca_event->ErrCode;
 }
 
+/**
+ * Force termination of WAN-connection immediatedly. (i.e. try to release IP of external interface)
+ */
+int ForceTermination(struct Upnp_Action_Request *ca_event)
+{
+    IXML_Document *propSet = NULL;
+    int result = 0;
+
+    GetConnectionStatus(ConnectionStatus, g_vars.extInterfaceName);
+    
+    if (strcmp(ConnectionType,"IP_Routed") != 0)
+    {
+        trace(1, "ForceTermination: ConnectionType must be IP_Routed. Type: %s", ConnectionType);
+        result = 710;
+        addErrorData(ca_event, result, "InvalidConnectionType");
+    }    
+    else if (strcmp(ConnectionStatus,"Disconnected") == 0)
+    {
+        trace(1, "ForceTermination: Connection of %s already terminated", g_vars.extInterfaceName);
+        result = 711;
+        addErrorData(ca_event, result, "ConnectionAlreadyTerminated");
+    }
+    else if (strcmp(ConnectionStatus,"Disconnecting") == 0)
+    {
+        trace(1, "ForceTermination: Connection of %s already disconnecting", g_vars.extInterfaceName);
+        result = 707;
+        addErrorData(ca_event, result, "DisconnectInProgress");
+    }
+
+    // if ok to continue termination
+    if (result == 0)
+    {
+        trace(2, "ForceTermination received ... Disconnecting.");
+
+        strcpy(ConnectionStatus, "Disconnecting");
+        UpnpAddToPropertySet(&propSet, "ConnectionStatus", ConnectionStatus);
+        UpnpNotifyExt(deviceHandle, ca_event->DevUDN, ca_event->ServiceID, propSet);
+        
+        // terminate    
+        if (releaseIP(g_vars.extInterfaceName))
+            ca_event->ErrCode = UPNP_E_SUCCESS;
+        else
+            ca_event->ErrCode = UPNP_SOAP_E_ACTION_FAILED;
+            
+        GetConnectionStatus(ConnectionStatus, g_vars.extInterfaceName);
+        // Event ConnectionStatus
+        UpnpAddToPropertySet(&propSet, "ConnectionStatus", ConnectionStatus);
+        UpnpNotifyExt(deviceHandle, ca_event->DevUDN, ca_event->ServiceID, propSet);     
+    }
+    
+    return ca_event->ErrCode;
+}
 
 int GetCommonLinkProperties(struct Upnp_Action_Request *ca_event)
 {
