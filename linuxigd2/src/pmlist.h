@@ -1,7 +1,9 @@
 #ifndef _PMLIST_H_
 #define _PMLIST_H_
+#include <arpa/inet.h>
 
 #define DEST_LEN 100
+
 
 typedef struct ExpirationEvent
 {
@@ -15,11 +17,11 @@ struct portMap
 {
     int m_PortMappingEnabled;
     long int m_PortMappingLeaseDuration;
-    char m_RemoteHost[16];
+    char m_RemoteHost[INET6_ADDRSTRLEN];      // updated IPv6 addrss length 16 -> 46
     char m_ExternalPort[6];
     char m_InternalPort[6];
     char m_PortMappingProtocol[4];
-    char m_InternalClient[16];
+    char m_InternalClient[INET6_ADDRSTRLEN];  // updated IPv6 addrss length 16 -> 46
     char m_PortMappingDescription[50];
 
     int expirationEventId;

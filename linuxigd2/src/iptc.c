@@ -4,7 +4,7 @@
 #include <errno.h>
 #include <netdb.h>
 #include <string.h>
-#include <arpa/inet.h> /* inet_addr */
+#include <arpa/inet.h>
 #include "globals.h"
 #include "util.h"
 #include "iptc.h"
