@@ -9,7 +9,6 @@
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <upnp/upnp.h>
-#include <glib.h>
 #include "globals.h"
 
 
@@ -60,12 +59,12 @@ int GetConnectionStatus(char *conStatus, char *ifname)
 {
     char tmp[INET_ADDRSTRLEN];
     int status = GetIpAddressStr(tmp, ifname);
-    
+
     if (status == 1)
         strcpy(conStatus,"Connected");
     else
         strcpy(conStatus,"Disconnected");
-   
+
     return status;
 }
 

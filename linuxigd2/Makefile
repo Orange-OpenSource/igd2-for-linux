@@ -25,16 +25,16 @@ endif
 all: upnpd
 
 upnpd: $(FILES) main.o
-	$(CC) $(CFLAGS) $^ $(LIBS) `pkg-config --libs glib-2.0` -o $(BIN)$@
+	$(CC) $(CFLAGS) $^ $(LIBS) -o $(BIN)$@
 	@echo "make $@ finished on `date`"
 
 %.o:	src/%.c
-	$(CC) $(CFLAGS) $(INCLUDES) `pkg-config --cflags glib-2.0` -D_GNU_SOURCE -c $< -o $@
+	$(CC) $(CFLAGS) $(INCLUDES) -D_GNU_SOURCE -c $< -o $@
 
 unittest: test
 test: $(FILES)
-	$(CC) $(CFLAGS) $(INCLUDES) `pkg-config --cflags glib-2.0` -D_GNU_SOURCE -c src/unittest.c -o unittest.o
-	$(CC) $(CFLAGS) $^ unittest.o $(LIBS) -lcunit `pkg-config --libs glib-2.0` -o $(BIN)$@
+	$(CC) $(CFLAGS) $(INCLUDES) -D_GNU_SOURCE -c src/unittest.c -o unittest.o
+	$(CC) $(CFLAGS) $^ unittest.o $(LIBS) -lcunit -o $(BIN)$@
 
 clean:
 	rm -f *.o $(BIN)upnpd
