@@ -11,8 +11,10 @@ int checkForWildCard(const char *str);
 void addErrorData(struct Upnp_Action_Request *ca_event, int errorCode, char* message);
 void trace(int debuglevel, const char *format, ...);
 int setEthernetLinkStatus(char *ethLinStatus, char *iface);
-
 int resolveBoolean(char *);
+int releaseIP(char *iface);
+int killDHCPClient(char *iface);
+int startDHCPClient(char *iface);
 
 char* GetFirstDocumentItem( IN IXML_Document * doc, const char *item );
 char* GetDocumentItem(IXML_Document * doc, const char *item, int index);

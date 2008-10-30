@@ -1,3 +1,6 @@
+#include <stdlib.h>
+#include <sys/wait.h>
+#include <unistd.h>
 #include <string.h>
 #include <stdio.h>
 #include <stdarg.h>
@@ -55,6 +58,7 @@ int GetIpAddressStr(char *address, char *ifname)
 }
 
 // if interface has IP, status id connected. Else disconnected
+// There are also manually adjusted states Unconfigured, Connecting and Disconnecting!
 int GetConnectionStatus(char *conStatus, char *ifname)
 {
     char tmp[INET_ADDRSTRLEN];
@@ -224,4 +228,68 @@ int setEthernetLinkStatus(char *ethLinkStatus, char *iface)
     fclose(fp);
     strcpy(ethLinkStatus,"Down");
     return 1;
+}
+
+// return 1 if interface doesn't have IP
+int killDHCPClient(char *iface)
+{
+    char tmp[INET6_ADDRSTRLEN];
+    
+    if (!fork())
+    {
+        snprintf(tmp, INET6_ADDRSTRLEN, "`cat /var/run/%s.pid`", iface);
+        execl("/bin/kill", "/bin/kill", "-SIGHUP", tmp, NULL);   
+    }    
+    wait(NULL);
+    
+    if (!GetIpAddressStr(tmp, iface))
+        return 1;
+    else
+        return 0;        
+}
+
+// return 1 if interface does have IP
+int startDHCPClient(char *iface)
+{
+    char tmp[INET6_ADDRSTRLEN];
+    
+    if (!fork())
+    {
+        execl(g_vars.dhcpc, g_vars.dhcpc, "-t", "0", "-i", iface, "-R", NULL);
+    }    
+    wait(NULL);
+    
+    if (GetIpAddressStr(tmp, iface))
+        return 1;
+    else
+        return 0;        
+}
+
+/**
+ * Release IP address of given interface
+ * 
+ * return 0 on failure.
+ */
+int releaseIP(char *iface)
+{
+    char tmp[INET6_ADDRSTRLEN];
+    int success = 0;
+    
+    // check does IP exist
+    if (!GetIpAddressStr(tmp, iface))
+        return 1;
+    
+    // kill already running udhcpc-client for given iface and check if IP was released
+    if (killDHCPClient(iface))
+        success = 1; //OK
+    else
+    {        
+        // start udhcpc-clientdaemon with parameter -R which will release IP after quiting daemon
+        startDHCPClient(iface);
+    
+        // then kill udhcpc-client running. Now there shouldn't be IP anymore.
+        if(killDHCPClient(iface))
+            success = 1;
+    } 
+    return success;
 }
