@@ -432,7 +432,11 @@ int RequestConnection(struct Upnp_Action_Request *ca_event)
         if (startDHCPClient(g_vars.extInterfaceName))
             ca_event->ErrCode = UPNP_E_SUCCESS;
         else
-            ca_event->ErrCode = UPNP_SOAP_E_ACTION_FAILED;        
+        {
+            trace(1, "RequestConnection: Connection set up failed", g_vars.extInterfaceName);
+            result = 704;
+            addErrorData(ca_event, result, "ConnectionSetupFailed");
+        }     
 
         GetConnectionStatus(ConnectionStatus, g_vars.extInterfaceName);
         // Build DOM Document with state variable connectionstatus and event it
