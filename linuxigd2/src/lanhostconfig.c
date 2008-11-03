@@ -271,10 +271,13 @@ int GetSubnetMask(struct Upnp_Action_Request *ca_event)
     }
 
     // get result
-    // TODO: add error checking, if uci returns something else than the subnet mask
-    fgets(subnet_mask, 48, cmd);
-
-    ParseResult(ca_event, "<NewSubnetMask>%s</NewSubnetMask>\n", subnet_mask);
+    if(fgets(subnet_mask, 48, cmd) != NULL)
+        ParseResult(ca_event, "<NewSubnetMask>%s</NewSubnetMask>\n", subnet_mask);
+    else
+    {
+        trace(1, "GetSubnetMask: uci command returned null.");
+        addErrorData(ca_event, 501, "Action Failed");
+    }
 
     pclose(cmd);
 
@@ -339,7 +342,7 @@ int GetDomainName(struct Upnp_Action_Request *ca_event)
         return ca_event->ErrCode;
 
     // try to run uci command
-    cmd = popen("uci get dchp.@dnsmasq[0].domain", "r");
+    cmd = popen("uci get -q dhcp.@dnsmasq[0].domain", "r");
     if (cmd == NULL)
     {
         trace(1, "GetDomainName: getting Domain Name failed.");
@@ -348,9 +351,13 @@ int GetDomainName(struct Upnp_Action_Request *ca_event)
     }
 
     // get result
-    fgets(domain_name, 40, cmd);
-
-    ParseResult(ca_event, "<NewDomainName>%s</NewDomainName>\n", domain_name);
+    if(fgets(domain_name, 40, cmd) != NULL)
+        ParseResult(ca_event, "<NewDomainName>%s</NewDomainName>\n", domain_name);
+    else
+    {
+        trace(1, "GetDomainName: uci command returned null.");
+        addErrorData(ca_event, 501, "Action Failed");
+    }
 
     pclose(cmd);
 
@@ -588,6 +595,8 @@ int GetReservedAddresses(struct Upnp_Action_Request *ca_event)
     int i = 0;
     int addr_place = 0;
 
+    addresses[0] = 0;
+
     if (CheckDHCPServerConfigurable(ca_event))
         return ca_event->ErrCode;
 
@@ -818,6 +827,8 @@ int GetDNSServers(struct Upnp_Action_Request *ca_event)
     regex_t nameserver;
     regmatch_t submatch[SUB_MATCH];
     int dns_place = 0;
+
+    dns_servers[0] = 0;
 
     regcomp(&nameserver, "nameserver[[:blank:]]*([[:digit:]]{1,3}[.][[:digit:]]{1,3}[.][[:digit:]]{1,3}[.][[:digit:]]{1,3})", REG_EXTENDED);
 
