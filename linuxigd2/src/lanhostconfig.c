@@ -130,7 +130,7 @@ void ParseResult(struct Upnp_Action_Request *ca_event, const char *str, ...)
 
     // write all parameters into one string
     va_start(arg, str);
-    snprintf(parameters, RESULT_LEN, str, arg);
+    vsnprintf(parameters, RESULT_LEN, str, arg);
     va_end(arg);
 
     // and form final xml
