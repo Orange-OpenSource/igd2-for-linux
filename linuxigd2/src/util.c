@@ -230,15 +230,44 @@ int setEthernetLinkStatus(char *ethLinkStatus, char *iface)
     return 1;
 }
 
+/**
+ * Read integer value from given file.
+ */ 
+int readIntFromFile(char *file)
+{
+    FILE *fp;
+    int value = -1;
+    
+    trace(3,"Read integer value from %s", file);
+    
+    if((fp = fopen(file, "r"))==NULL) {
+        return -1;
+    }
+    
+    while(!feof(fp)) {
+        fscanf(fp,"%d", &value);
+        if (value > -1)
+            return value;
+    }
+    return -2;
+}
+
 // return 1 if interface doesn't have IP
 int killDHCPClient(char *iface)
 {
-    char tmp[INET6_ADDRSTRLEN];
+    char tmp[50];
+    int pid;
     
     if (!fork())
     {
-        snprintf(tmp, INET6_ADDRSTRLEN, "`cat /var/run/%s.pid`", iface);
-        execl("/bin/kill", "/bin/kill", "-SIGHUP", tmp, NULL);   
+        trace(2,"Killing DHCP client...");
+        snprintf(tmp, 50, "/var/run/%s.pid", iface);
+        pid = readIntFromFile(tmp);
+        if (pid > -1)
+        {   
+            snprintf(tmp, 50, "%d", pid);
+            execl("/bin/kill", "kill", tmp, NULL);
+        }
     }    
     wait(NULL);
     
@@ -255,6 +284,7 @@ int startDHCPClient(char *iface)
     
     if (!fork())
     {
+        trace(2,"Starting DHCP client...");
         execl(g_vars.dhcpc, g_vars.dhcpc, "-t", "0", "-i", iface, "-R", NULL);
     }    
     wait(NULL);

@@ -83,6 +83,9 @@ int StateTableInit(char *descDocUrl)
     PortMappingNumberOfEntries = 0;
     SystemUpdateID = 0;
     strcpy(EthernetLinkStatus,"Unavailable");
+    
+    // only supported type at the moment
+    strcpy(ConnectionType,"IP_Routed");
     GetConnectionStatus(ConnectionStatus, g_vars.extInterfaceName);
 
     return (ret);

@@ -15,6 +15,7 @@ int resolveBoolean(char *);
 int releaseIP(char *iface);
 int killDHCPClient(char *iface);
 int startDHCPClient(char *iface);
+int readIntFromFile(char *file);
 
 char* GetFirstDocumentItem( IN IXML_Document * doc, const char *item );
 char* GetDocumentItem(IXML_Document * doc, const char *item, int index);
