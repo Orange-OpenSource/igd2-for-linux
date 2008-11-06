@@ -356,7 +356,7 @@
                 </argument>
                 <argument>
                     <name>PortMappingList</name>
-                    <direction>Out</direction>
+                    <direction>out</direction>
                     <relatedStateVariable>A_ARG_TYPE_PortListing</relatedStateVariable>
                 </argument>
             </argumentList>
