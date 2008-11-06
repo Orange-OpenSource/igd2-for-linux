@@ -34,9 +34,6 @@
             <name>RequestConnection</name>
         </action>
         <action>
-            <name>RequestTermination</name>
-        </action>
-        <action>
             <name>ForceTermination</name>
         </action>
         <action>
