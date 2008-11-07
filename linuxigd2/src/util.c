@@ -247,52 +247,76 @@ int readIntFromFile(char *file)
     while(!feof(fp)) {
         fscanf(fp,"%d", &value);
         if (value > -1)
+        {
+            fclose(fp);
             return value;
+        }
     }
+    fclose(fp);
     return -2;
 }
 
 // return 1 if interface doesn't have IP
 int killDHCPClient(char *iface)
 {
-    char tmp[50];
+    char tmp[30];
     int pid;
     
-    if (!fork())
-    {
-        trace(2,"Killing DHCP client...");
-        snprintf(tmp, 50, "/var/run/%s.pid", iface);
-        pid = readIntFromFile(tmp);
-        if (pid > -1)
-        {   
-            snprintf(tmp, 50, "%d", pid);
-            execl("/bin/kill", "kill", tmp, NULL);
-        }
-    }    
-    wait(NULL);
-    
-    if (!GetIpAddressStr(tmp, iface))
-        return 1;
+    trace(2,"Killing DHCP client...");
+    snprintf(tmp, 50, "/var/run/%s.pid", iface);
+    pid = readIntFromFile(tmp);
+    if (pid > -1)
+    {   
+        snprintf(tmp, 30, "kill %d", pid);
+        trace(3,"system(%s)",tmp);
+        system(tmp);
+    }
     else
-        return 0;        
+    {
+        // brute force
+        trace(3,"No PID file available for %s of %s",g_vars.dhcpc,iface);
+        snprintf(tmp, 30, "killall %s", g_vars.dhcpc);
+        trace(3,"system(%s)",tmp);
+        system(tmp);
+    }
+
+    sleep(2); // wait that IP is released
+
+    if (!GetIpAddressStr(tmp, iface))
+    {   
+        trace(3,"Success IP: %s",tmp);
+        return 1;
+    }
+    else
+    {
+        trace(3,"Failure IP: %s",tmp);
+        return 0;
+    }        
 }
 
 // return 1 if interface does have IP
 int startDHCPClient(char *iface)
 {
-    char tmp[INET6_ADDRSTRLEN];
-    
-    if (!fork())
-    {
-        trace(2,"Starting DHCP client...");
-        execl(g_vars.dhcpc, g_vars.dhcpc, "-t", "0", "-i", iface, "-R", NULL);
-    }    
-    wait(NULL);
-    
+
+    char tmp[50];
+
+    trace(2,"Starting DHCP client...");
+    snprintf(tmp, 50, "%s -t 0 -i %s -R", g_vars.dhcpc, iface);
+    trace(3,"system(%s)",tmp);
+    system(tmp);
+
+    sleep(2); // wait that IP is acquired
+
     if (GetIpAddressStr(tmp, iface))
+    {   
+        trace(3,"Success IP: %s",tmp);
         return 1;
+    }
     else
-        return 0;        
+    {
+        trace(3,"Failure IP: %s",tmp);
+        return 0;
+    }     
 }
 
 /**

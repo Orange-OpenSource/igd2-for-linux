@@ -83,6 +83,6 @@ extern globals g_vars;
 #define RESOLV_CONF_TMP "/tmp/resolv.conf.IGDv2"
 // How often check if update events should be sent
 #define DEFAULT_EVENT_UPDATE_INTERVAL 60
-#define DHCPC_DEFAULT "/sbin/udhcpc"
+#define DHCPC_DEFAULT "udhcpc"
 
 #endif // _GLOBALS_H_

@@ -120,7 +120,7 @@ int parseConfigFile(globals_p vars)
     regcomp(&re_resolv,"resolf_conf[[:blank:]]*=[[:blank:]]*([[:alpha:]_/.]{1,50})",REG_EXTENDED);
     regcomp(&re_event_interval,"event_update_interval[[:blank:]]*=[[:blank:]]*([[:digit:]]+)",REG_EXTENDED);
     regcomp(&re_dhcrelay_server,"dhcrelay_server[[:blank:]]*=[[:blank:]]*([[:digit:].:]+)",REG_EXTENDED);
-    regcomp(&re_dhcpc,"dhcpc_location[[:blank:]]*=[[:blank:]]*\"([^\"]+)\"",REG_EXTENDED);
+    regcomp(&re_dhcpc,"dhcpc_cmd[[:blank:]]*=[[:blank:]]*([[:alpha:]_/.]{1,50})",REG_EXTENDED);
 
     if ((conf_file=fopen(CONF_FILE,"r")) != NULL)
     {

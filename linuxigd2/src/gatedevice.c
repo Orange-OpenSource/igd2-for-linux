@@ -43,8 +43,7 @@ int EventHandler(Upnp_EventType EventType, void *Event, void *Cookie)
         HandleActionRequest((struct Upnp_Action_Request *) Event);
         break;
     default:
-        trace(1, "Error in EventHandler: Unknown event type %d",
-              EventType);
+        trace(1, "Error in EventHandler: Unknown event type %d", EventType);
     }
     return (0);
 }
@@ -116,10 +115,13 @@ int HandleSubscriptionRequest(struct Upnp_Subscription_Request *sr_event)
         if (strcmp(sr_event->ServiceId, "urn:upnp-org:serviceId:WANIPConn1") == 0)
         {
             GetIpAddressStr(ExternalIPAddress, g_vars.extInterfaceName);
+            GetConnectionStatus(ConnectionStatus, g_vars.extInterfaceName);
             trace(3, "Received request to subscribe to WANIPConn1");
             UpnpAddToPropertySet(&propSet, "PossibleConnectionTypes","IP_Routed");
             UpnpAddToPropertySet(&propSet, "ExternalIPAddress", ExternalIPAddress);
             UpnpAddToPropertySet(&propSet, "PortMappingNumberOfEntries","0");
+            UpnpAddToPropertySet(&propSet, "ConnectionStatus", ConnectionStatus);
+
             UpnpAcceptSubscriptionExt(deviceHandle, sr_event->UDN, sr_event->ServiceId,
                                       propSet, sr_event->Sid);
             ixmlDocument_free(propSet);
@@ -384,25 +386,35 @@ int SetConnectionType(struct Upnp_Action_Request *ca_event)
 //
 // v2.0: If external interface has IP, assume that status is Connected, else Disconnected
 int RequestConnection(struct Upnp_Action_Request *ca_event)
-{
+{ 
     IXML_Document *propSet = NULL;
     int result = 0;
+    char resultStr[RESULT_LEN];
+    IXML_Document *ixml_result = NULL;
+
+    // create result document for succesfull cases. addErrorData overwrites this if no success
+    snprintf(resultStr, RESULT_LEN, "<u:RequestConnectionResponse xmlns:u=\"urn:schemas-upnp-org:service:WANIPConnection:1\">\n"
+             "</u:RequestConnectionResponse>");
+
+    // Create a IXML_Document from resultStr and return with ca_event
+    if ((ixml_result = ixmlParseBuffer(resultStr)) != NULL)
+    {
+        ca_event->ActionResult = ixml_result;
+    } 
+    
+    ca_event->ErrCode = UPNP_E_SUCCESS;
     
     trace(2, "RequestConnection received ... Checking status...");
     
     //Immediatley Set lastconnectionerror to none. We don't now think about errors.
     strcpy(LastConnectionError, "ERROR_NONE");
+    GetConnectionStatus(ConnectionStatus, g_vars.extInterfaceName);
     
     // connection already up. Nothing to do.
-    if (GetConnectionStatus(ConnectionStatus, g_vars.extInterfaceName))
+    if (strcmp(ConnectionStatus,"Connected") == 0)
     {
-        // Build DOM Document with state variable connectionstatus and event it
-        UpnpAddToPropertySet(&propSet, "ConnectionStatus", ConnectionStatus);
-        // Send off notifications of state change
-        UpnpNotifyExt(deviceHandle, ca_event->DevUDN, ca_event->ServiceID, propSet);
-    
-        ca_event->ErrCode = UPNP_E_SUCCESS;
-        
+        trace(2, "RequestConnection: Connection is already connected");
+       
         return ca_event->ErrCode;
     }
     else if (strcmp(ConnectionType,"IP_Routed") != 0)
@@ -459,6 +471,22 @@ int ForceTermination(struct Upnp_Action_Request *ca_event)
     IXML_Document *propSet = NULL;
     int result = 0;
 
+    char resultStr[RESULT_LEN];
+    IXML_Document *ixml_result = NULL;
+    
+    // create result document for succesfull cases. addErrorData overwrites this if no success
+    snprintf(resultStr, RESULT_LEN, "<u:ForceTerminationResponse xmlns:u=\"urn:schemas-upnp-org:service:WANIPConnection:1\">\n"
+             "</u:ForceTerminationResponse>");
+
+    // Create a IXML_Document from resultStr and return with ca_event
+    if ((ixml_result = ixmlParseBuffer(resultStr)) != NULL)
+    {
+        ca_event->ActionResult = ixml_result;
+    }
+
+
+    ca_event->ErrCode = UPNP_E_SUCCESS;
+
     GetConnectionStatus(ConnectionStatus, g_vars.extInterfaceName);
     
     if (strcmp(ConnectionType,"IP_Routed") != 0)
@@ -491,7 +519,10 @@ int ForceTermination(struct Upnp_Action_Request *ca_event)
         
         // terminate    
         if (releaseIP(g_vars.extInterfaceName))
-            ca_event->ErrCode = UPNP_E_SUCCESS;
+        {       
+            trace(3, "Disconnected...");   
+            ca_event->ErrCode = UPNP_E_SUCCESS;   
+        }
         else
             ca_event->ErrCode = UPNP_SOAP_E_ACTION_FAILED;
             
