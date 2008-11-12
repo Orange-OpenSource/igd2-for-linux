@@ -463,19 +463,19 @@
             <name>PortMappingDescription</name>
             <dataType>string</dataType>
         </stateVariable>
-        <stateVariable sendEvents="Yes">
+        <stateVariable sendEvents="yes">
             <name>SystemUpdateID</name>
             <dataType>ui4</dataType>
         </stateVariable>
-        <stateVariable sendEvents="Yes">
+        <stateVariable sendEvents="yes">
             <name>ChangedPortMapping</name>
             <dataType>CSV(ui2,ui2,string,string,string)</dataType>
         </stateVariable>
-        <stateVariable sendEvents="No">
+        <stateVariable sendEvents="no">
             <name>A_ARG_TYPE_Manage</name>
             <dataType>boolean</dataType>
         </stateVariable>
-        <stateVariable sendEvents="No">
+        <stateVariable sendEvents="no">
             <name>A_ARG_TYPE_PortListing</name>
             <dataType>CSV(string,string,string,string,string,ui2,string,ui4)</dataType>
         </stateVariable>
