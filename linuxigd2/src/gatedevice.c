@@ -81,7 +81,7 @@ int StateTableInit(char *descDocUrl)
     pmlist_Head = pmlist_Current = NULL;
     PortMappingNumberOfEntries = 0;
     SystemUpdateID = 0;
-    strcpy(EthernetLinkStatus,"Unavailable");
+    setEthernetLinkStatus(EthernetLinkStatus, g_vars.extInterfaceName);
     
     // only supported type at the moment
     strcpy(ConnectionType,"IP_Routed");
@@ -114,6 +114,9 @@ int HandleSubscriptionRequest(struct Upnp_Subscription_Request *sr_event)
         // WAN IP Connection Device Notifications
         if (strcmp(sr_event->ServiceId, "urn:upnp-org:serviceId:WANIPConn1") == 0)
         {
+            char tmp[11];
+            snprintf(tmp,11,"%ld",SystemUpdateID);
+                   
             GetIpAddressStr(ExternalIPAddress, g_vars.extInterfaceName);
             GetConnectionStatus(ConnectionStatus, g_vars.extInterfaceName);
             trace(3, "Received request to subscribe to WANIPConn1");
@@ -121,6 +124,8 @@ int HandleSubscriptionRequest(struct Upnp_Subscription_Request *sr_event)
             UpnpAddToPropertySet(&propSet, "ExternalIPAddress", ExternalIPAddress);
             UpnpAddToPropertySet(&propSet, "PortMappingNumberOfEntries","0");
             UpnpAddToPropertySet(&propSet, "ConnectionStatus", ConnectionStatus);
+            UpnpAddToPropertySet(&propSet, "SystemUpdateID",tmp);
+            UpnpAddToPropertySet(&propSet, "ChangedPortMapping","");
 
             UpnpAcceptSubscriptionExt(deviceHandle, sr_event->UDN, sr_event->ServiceId,
                                       propSet, sr_event->Sid);
@@ -455,6 +460,7 @@ int RequestConnection(struct Upnp_Action_Request *ca_event)
 
         GetConnectionStatus(ConnectionStatus, g_vars.extInterfaceName);
         // Build DOM Document with state variable connectionstatus and event it
+        propSet = NULL;
         UpnpAddToPropertySet(&propSet, "ConnectionStatus", ConnectionStatus);
         // Send off notifications of state change
         UpnpNotifyExt(deviceHandle, ca_event->DevUDN, ca_event->ServiceID, propSet);
@@ -525,9 +531,11 @@ int ForceTermination(struct Upnp_Action_Request *ca_event)
         }
         else
             ca_event->ErrCode = UPNP_SOAP_E_ACTION_FAILED;
+        
             
         GetConnectionStatus(ConnectionStatus, g_vars.extInterfaceName);
         // Event ConnectionStatus
+        propSet = NULL;
         UpnpAddToPropertySet(&propSet, "ConnectionStatus", ConnectionStatus);
         UpnpNotifyExt(deviceHandle, ca_event->DevUDN, ca_event->ServiceID, propSet);     
     }
@@ -1057,6 +1065,7 @@ int DeletePortMappingRange(struct Upnp_Action_Request *ca_event)
                 action_succeeded = 1;
             }
 
+            // portmappings which are in area of deletion exists, but none has been deleted -> Action is not permitted
             if (foundPortmapCount > 0 && !action_succeeded)
             {
                 trace(1, "Failure in GateDeviceDeletePortMappingRange: DeletePortMappingRange: StartPort:%s EndPort:%s Proto:%s Manage:%s ActionNotPermitted!\n", start_port,end_port,proto,bool_manage);
