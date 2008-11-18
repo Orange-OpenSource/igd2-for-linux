@@ -373,8 +373,7 @@
                 <allowedValue>Unconfigured</allowedValue>
                 <allowedValue>Connecting</allowedValue>
                 <allowedValue>Connected</allowedValue>
-                <allowedValue>PendingDisconnect
-                </allowedValue>
+                <allowedValue>PendingDisconnect</allowedValue>
                 <allowedValue>Disconnecting</allowedValue>
                 <allowedValue>Disconnected</allowedValue>
             </allowedValueList>
