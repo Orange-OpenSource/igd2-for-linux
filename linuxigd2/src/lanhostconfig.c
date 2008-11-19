@@ -14,6 +14,8 @@
 #define SERVICE_STOP "stop"
 
 #define COMMAND_LEN 64
+#define LINE_LEN 256
+#define DEFAULT_GATEWAY_IP "0.0.0.0"
 
 struct LanHostConfig
 {
@@ -141,6 +143,43 @@ void ParseResult(struct Upnp_Action_Request *ca_event, const char *str, ...)
              ca_event->ActionName);
 
     ParseXMLResponse(ca_event, result);
+}
+
+/**
+ * GetDefaultGateway returns default gateway address.
+ *
+ * First parameter must be large enough to hold IPv4 address
+ * Returns TRUE on success.
+ */
+int GetDefaultGateway(char *gateway)
+{
+    FILE *cmd;
+    char line[LINE_LEN];
+    char *addr;
+
+    // try to run route command
+    cmd = popen("route -n", "r");
+    if (cmd == NULL)
+        return FALSE;
+
+    // get result
+    while (fgets(line, LINE_LEN, cmd) != NULL)
+    {
+        // get first column in line
+        addr = strtok(line, " ");
+        // is default gw in this line?
+        if (strcmp(addr, DEFAULT_GATEWAY_IP) == 0)
+        {
+            // default gw is in next column
+            addr = strtok(NULL, " ");
+            strcpy(gateway, addr);
+            pclose(cmd);
+            return TRUE;
+        }
+    }
+
+    pclose(cmd);
+    return FALSE;
 }
 
 int SetDHCPServerConfigurable(struct Upnp_Action_Request *ca_event)
@@ -271,7 +310,7 @@ int GetSubnetMask(struct Upnp_Action_Request *ca_event)
     }
 
     // get result
-    if(fgets(subnet_mask, 48, cmd) != NULL)
+    if (fgets(subnet_mask, 48, cmd) != NULL)
         ParseResult(ca_event, "<NewSubnetMask>%s</NewSubnetMask>\n", subnet_mask);
     else
     {
@@ -286,17 +325,91 @@ int GetSubnetMask(struct Upnp_Action_Request *ca_event)
 
 int SetIPRouter(struct Upnp_Action_Request *ca_event)
 {
-    return 0;
+    char *parmList[] = { ROUTE_COMMAND, NULL, "default", "gw", NULL, NULL };
+    char addr[LINE_LEN];
+    char *new_router;
+    int  status;
+
+    if ((new_router = GetFirstDocumentItem(ca_event->ActionRequest, "NewIPRouters")))
+    {
+        // if default gateway already exists, delete it
+        if (GetDefaultGateway(addr))
+        {
+            // check that new gateway is different than current
+            if(strcmp(new_router, addr) == 0)
+            {
+                addErrorData(ca_event, 701, "ValueAlreadySpecified");
+                trace(2, "SetIPRouter: new default gw '%s' is the same as current one '%s'", new_router, addr);
+                free(new_router);
+                return ca_event->ErrCode;
+            }
+
+            parmList[1] = "del";
+            parmList[4] = addr;
+
+            // TODO: check return value
+            RunCommand(ROUTE_COMMAND, parmList);
+        }
+
+        // add new default gw
+        parmList[1] = "add";
+        parmList[4] = new_router;
+
+        status = RunCommand(ROUTE_COMMAND, parmList);
+
+        if (!status)
+            ParseResult(ca_event, "");
+        else
+        {
+            trace(2, "SetIPRouter: Route command returned error: %d", status);
+            addErrorData(ca_event, 501, "Action Failed");
+        }
+
+    }
+
+    if (new_router) free(new_router);
+
+    return ca_event->ErrCode;
 }
 
 int DeleteIPRouter(struct Upnp_Action_Request *ca_event)
 {
-    return 0;
+    char *parmList[] = { ROUTE_COMMAND, "del", "default", "gw", NULL, NULL };
+    int status;
+
+    if ((parmList[4] = GetFirstDocumentItem(ca_event->ActionRequest, "NewIPRouters")))
+    {
+        // run route del command
+        status = RunCommand(ROUTE_COMMAND, parmList);
+        if (!status)
+            ParseResult(ca_event, "");
+        else
+        {
+            trace(2, "DeleteIPRouter: Route command returned error: %d", status);
+            addErrorData(ca_event, 702, "ValueSpecifiedIsInvalid");
+        }
+    }
+    else
+        InvalidArgs(ca_event);
+
+    if (parmList[4]) free(parmList[4]);
+
+    return ca_event->ErrCode;
 }
 
 int GetIPRoutersList(struct Upnp_Action_Request *ca_event)
 {
-    return 0;
+    char addr[LINE_LEN];
+    int gw_found = FALSE;
+
+    gw_found = GetDefaultGateway(addr);
+
+    if (gw_found)
+        ParseResult(ca_event, "<NewIPRouters>%s</NewIPRouters>\n", addr);
+    else
+        addErrorData(ca_event, 501, "Invalid Args");
+
+    return ca_event->ErrCode;
 }
 
 int SetDomainName(struct Upnp_Action_Request *ca_event)
@@ -311,7 +424,7 @@ int SetDomainName(struct Upnp_Action_Request *ca_event)
     if ( (domainName = GetFirstDocumentItem(ca_event->ActionRequest, "NewDomainName") ) )
     {
         // try to run uci command
-        snprintf(setDname,60,"uci set dchp.@dnsmasq[0].domain=%s",domainName );
+        snprintf(setDname,60,"uci set dhcp.@dnsmasq[0].domain=%s",domainName );
         cmd = popen(setDname, "r");
         if (cmd == NULL)
         {
@@ -351,7 +464,7 @@ int GetDomainName(struct Upnp_Action_Request *ca_event)
     }
 
     // get result
-    if(fgets(domain_name, 40, cmd) != NULL)
+    if (fgets(domain_name, 40, cmd) != NULL)
         ParseResult(ca_event, "<NewDomainName>%s</NewDomainName>\n", domain_name);
     else
     {
@@ -414,8 +527,12 @@ int GetAddressRange(struct Upnp_Action_Request *ca_event)
     {
         // get result
         // TODO: add error checking, if uci returns something invalid
-        fgets(start, 12, cmd);
-        fgets(limit, 12, cmd_2);
+        if (fgets(start, 12, cmd) == NULL ||
+                fgets(limit, 12, cmd_2) == NULL)
+        {
+            trace(1, "GetAddressRange: error reading values.");
+            addErrorData(ca_event, 501, "Action Failed");
+        }
     }
 
     if (ca_event->ErrCode == 0)
@@ -447,7 +564,7 @@ int SetReservedAddress(struct Upnp_Action_Request *ca_event)
     }
 
     // delete all hosts
-    while (i < 2048)
+    while (i < 256)
     {
         sprintf(command, "uci -q get dhcp.@host[0]");
         cmd = popen(command, "r");
@@ -485,15 +602,15 @@ int SetReservedAddress(struct Upnp_Action_Request *ca_event)
             RunCommand(g_vars.uciCmd, add_args);
 
             // set host values
-            set_args[2] = "dhcp.@host[-1].name=IGDv2";
+            set_args[3] = "dhcp.@host[-1].name=IGDv2";
             RunCommand(g_vars.uciCmd, set_args);
-            set_args[2] = "dhcp.@host[-1].mac=00:00:00:00:00:00";
+            set_args[3] = "dhcp.@host[-1].mac=00:00:00:00:00:00";
             RunCommand(g_vars.uciCmd, set_args);
             sprintf(command, "dhcp.@host[-1].ip=%s", addr);
-            set_args[2] = command;
+            set_args[3] = command;
             RunCommand(g_vars.uciCmd, set_args);
 
-            strtok(NULL, ",");
+            addr = strtok(NULL, ",");
         }
     }
 
@@ -503,7 +620,6 @@ int SetReservedAddress(struct Upnp_Action_Request *ca_event)
     if (all_addr) free(all_addr);
 
     return ca_event->ErrCode;
-
 }
 
 int DeleteReservedAddress(struct Upnp_Action_Request *ca_event)
@@ -524,9 +640,9 @@ int DeleteReservedAddress(struct Upnp_Action_Request *ca_event)
         return ca_event->ErrCode;
     }
 
-    // added 2048 as precaution, if under some conditions uci returns always something
+    // added 256 as precaution, if under some conditions uci returns always something
     // if that is reached, give internal error
-    while (i < 2048)
+    while (i < 256)
     {
         sprintf(command, "uci -q get dhcp.@host[%d].ip", i);
         cmd = popen(command, "r");
@@ -565,7 +681,7 @@ int DeleteReservedAddress(struct Upnp_Action_Request *ca_event)
         fclose(cmd);
         i++;
     }
-    if (i == 2048)
+    if (i == 256)
     {
         trace(1, "DeleteReservedAddress: Internal error in function.");
         addErrorData(ca_event, 501, "Action Failed");

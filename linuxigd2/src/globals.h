@@ -54,7 +54,7 @@ struct GLOBALS
 
     // Event update thread checking interval
     int eventUpdateInterval;
-    
+
     // dhcp-client command
     char dhcpc[OPTION_LEN];
 };
@@ -84,5 +84,7 @@ extern globals g_vars;
 // How often check if update events should be sent
 #define DEFAULT_EVENT_UPDATE_INTERVAL 60
 #define DHCPC_DEFAULT "udhcpc"
+
+#define ROUTE_COMMAND "route"
 
 #endif // _GLOBALS_H_
