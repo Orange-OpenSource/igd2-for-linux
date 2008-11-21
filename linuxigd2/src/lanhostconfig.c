@@ -17,6 +17,8 @@
 #define LINE_LEN 256
 #define DEFAULT_GATEWAY_IP "0.0.0.0"
 
+#define MAX_RESERVED_ADDRESS 256
+
 struct LanHostConfig
 {
     int DHCPServerConfigurable;
@@ -208,7 +210,7 @@ int SetDHCPServerConfigurable(struct Upnp_Action_Request *ca_event)
     else
         InvalidArgs(ca_event);
 
-    if (configurable) free(configurable);
+    free(configurable);
 
     return ca_event->ErrCode;
 }
@@ -255,7 +257,7 @@ int SetDHCPRelay(struct Upnp_Action_Request *ca_event)
     if (ca_event->ErrCode == 0)
         ParseResult(ca_event, "");
 
-    if (dhcrelay) free(dhcrelay);
+    free(dhcrelay);
 
     return ca_event->ErrCode;
 }
@@ -367,7 +369,7 @@ int SetIPRouter(struct Upnp_Action_Request *ca_event)
 
     }
 
-    if (new_router) free(new_router);
+    free(new_router);
 
     return ca_event->ErrCode;
 }
@@ -392,7 +394,7 @@ int DeleteIPRouter(struct Upnp_Action_Request *ca_event)
     else
         InvalidArgs(ca_event);
 
-    if (parmList[4]) free(parmList[4]);
+    free(parmList[4]);
 
     return ca_event->ErrCode;
 }
@@ -441,7 +443,7 @@ int SetDomainName(struct Upnp_Action_Request *ca_event)
         InvalidArgs(ca_event);
 
     if (cmd)pclose(cmd);
-    if (domainName) free(domainName);
+    free(domainName);
 
     return ca_event->ErrCode;
 }
@@ -552,6 +554,7 @@ int SetReservedAddress(struct Upnp_Action_Request *ca_event)
     char *all_addr, *addr;
     char *add_args[] = { g_vars.uciCmd, "-q", "add", "dhcp", "host", NULL };
     char *set_args[] = { g_vars.uciCmd, "-q", "set", NULL, NULL };
+    char *del_args[] = { g_vars.uciCmd, "-q", "delete", "dhcp.@host[0]", NULL };
     int i=0;
 
     if (CheckDHCPServerConfigurable(ca_event))
@@ -576,18 +579,14 @@ int SetReservedAddress(struct Upnp_Action_Request *ca_event)
         }
         // if nothing is returned, we have removed all hosts
         if (fgets(line, MAX_CONFIG_LINE, cmd) == NULL)
-            break;
-
-        fclose(cmd);
-        sprintf(command, "uci -q delete dhcp.@host[0]");
-        cmd = popen(command, "r");
-        if (cmd == NULL)
         {
-            trace(1, "SetReservedAddress: Error running command: '%s'", command);
-            addErrorData(ca_event, 501, "Action Failed");
+            pclose(cmd);
             break;
         }
-        fclose(cmd);
+
+        pclose(cmd);
+
+        RunCommand(g_vars.uciCmd, del_args);
 
         i++;
     }
@@ -617,7 +616,7 @@ int SetReservedAddress(struct Upnp_Action_Request *ca_event)
     if (ca_event->ErrCode == 0)
         ParseResult(ca_event, "");
 
-    if (all_addr) free(all_addr);
+    free(all_addr);
 
     return ca_event->ErrCode;
 }
@@ -640,9 +639,9 @@ int DeleteReservedAddress(struct Upnp_Action_Request *ca_event)
         return ca_event->ErrCode;
     }
 
-    // added 256 as precaution, if under some conditions uci returns always something
+    // added MAX_RESERVED_ADDRESS as precaution, if under some conditions uci returns always something
     // if that is reached, give internal error
-    while (i < 256)
+    while (i < MAX_RESERVED_ADDRESS)
     {
         sprintf(command, "uci -q get dhcp.@host[%d].ip", i);
         cmd = popen(command, "r");
@@ -655,11 +654,13 @@ int DeleteReservedAddress(struct Upnp_Action_Request *ca_event)
         if (fgets(line, MAX_CONFIG_LINE, cmd) == NULL)
         {
             // returned nothing, no more hosts defined
+            pclose(cmd);
             break;
         }
 
         if (strncmp(line, del_addr, MAX_CONFIG_LINE) == 0)
         {
+            pclose(cmd);
             sprintf(command, "uci -q delete dhcp.@host[%d]", i);
             cmd = popen(command, "r");
             if (cmd == NULL)
@@ -678,10 +679,10 @@ int DeleteReservedAddress(struct Upnp_Action_Request *ca_event)
             break;
         }
 
-        fclose(cmd);
+        pclose(cmd);
         i++;
     }
-    if (i == 256)
+    if (i == MAX_RESERVED_ADDRESS)
     {
         trace(1, "DeleteReservedAddress: Internal error in function.");
         addErrorData(ca_event, 501, "Action Failed");
@@ -696,8 +697,8 @@ int DeleteReservedAddress(struct Upnp_Action_Request *ca_event)
     if (ca_event->ErrCode == 0)
         ParseResult(ca_event, "");
 
-    if (cmd) fclose(cmd);
-    if (del_addr) free(del_addr);
+    if (cmd) pclose(cmd);
+    free(del_addr);
 
     return ca_event->ErrCode;
 }
@@ -716,9 +717,9 @@ int GetReservedAddresses(struct Upnp_Action_Request *ca_event)
     if (CheckDHCPServerConfigurable(ca_event))
         return ca_event->ErrCode;
 
-    // added 2048 as precaution, if under some conditions uci returns always something
+    // added MAX_RESERVED_ADDRESS as precaution, if under some conditions uci returns always something
     // if that is reached, give internal error
-    while (i < 2048)
+    while (i < MAX_RESERVED_ADDRESS)
     {
         sprintf(command, "uci -q get dhcp.@host[%d].ip", i);
         cmd = popen(command, "r");
@@ -731,6 +732,7 @@ int GetReservedAddresses(struct Upnp_Action_Request *ca_event)
         if (fgets(line, MAX_CONFIG_LINE, cmd) == NULL)
         {
             // returned nothing, no more hosts defined
+            pclose(cmd);
             break;
         }
 
@@ -740,10 +742,10 @@ int GetReservedAddresses(struct Upnp_Action_Request *ca_event)
 
         addr_place += snprintf(&addresses[addr_place], RESULT_LEN - addr_place, "%s", line);
 
-        fclose(cmd);
+        pclose(cmd);
         i++;
     }
-    if (i == 2048)
+    if (i == MAX_RESERVED_ADDRESS)
     {
         trace(1, "GetReservedAddresses: Internal error in function.");
         addErrorData(ca_event, 501, "Action Failed");
@@ -752,7 +754,7 @@ int GetReservedAddresses(struct Upnp_Action_Request *ca_event)
     if (ca_event->ErrCode == 0)
         ParseResult(ca_event, "<NewReservedAddresses>%s</NewReservedAddresses>\n", addresses);
 
-    if (cmd) fclose(cmd);
+    if (cmd) pclose(cmd);
 
     return ca_event->ErrCode;
 }
@@ -843,7 +845,7 @@ int SetDNSServer(struct Upnp_Action_Request *ca_event)
     regfree(&nameserver);
     if (file) fclose(file);
     if (new_file) fclose(new_file);
-    if (dns_list) free(dns_list);
+    free(dns_list);
 
     return ca_event->ErrCode;
 }
@@ -929,7 +931,7 @@ int DeleteDNSServer(struct Upnp_Action_Request *ca_event)
     regfree(&nameserver);
     if (file) fclose(file);
     if (new_file) fclose(new_file);
-    if (dns_to_delete) free(dns_to_delete);
+    free(dns_to_delete);
 
     return ca_event->ErrCode;
 }
