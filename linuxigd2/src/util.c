@@ -130,13 +130,12 @@ void addErrorData(struct Upnp_Action_Request *ca_event, int errorCode, char* mes
 
 /*
  * Returns true if value is "yes", "true" or "1".
- * TODO: uppercase yes/true?
  */
 int resolveBoolean(char *value)
 {
-    if ( strcmp(value, "yes") == 0 ||
-         strcmp(value, "true") == 0 ||
-         strcmp(value, "1") == 0 )
+    if ( strcasecmp(value, "yes") == 0 ||
+         strcasecmp(value, "true") == 0 ||
+         strcasecmp(value, "1") == 0 )
     {
         return 1;
     }
@@ -232,18 +231,18 @@ int setEthernetLinkStatus(char *ethLinkStatus, char *iface)
 
 /**
  * Read integer value from given file.
- */ 
+ */
 int readIntFromFile(char *file)
 {
     FILE *fp;
     int value = -1;
-    
+
     trace(3,"Read integer value from %s", file);
-    
+
     if((fp = fopen(file, "r"))==NULL) {
         return -1;
     }
-    
+
     while(!feof(fp)) {
         fscanf(fp,"%d", &value);
         if (value > -1)
@@ -261,12 +260,12 @@ int killDHCPClient(char *iface)
 {
     char tmp[30];
     int pid;
-    
+
     trace(2,"Killing DHCP client...");
     snprintf(tmp, 50, "/var/run/%s.pid", iface);
     pid = readIntFromFile(tmp);
     if (pid > -1)
-    {   
+    {
         snprintf(tmp, 30, "kill %d", pid);
         trace(3,"system(%s)",tmp);
         system(tmp);
@@ -283,7 +282,7 @@ int killDHCPClient(char *iface)
     sleep(2); // wait that IP is released
 
     if (!GetIpAddressStr(tmp, iface))
-    {   
+    {
         trace(3,"Success IP: %s",tmp);
         return 1;
     }
@@ -291,7 +290,7 @@ int killDHCPClient(char *iface)
     {
         trace(3,"Failure IP: %s",tmp);
         return 0;
-    }        
+    }
 }
 
 // return 1 if interface does have IP
@@ -308,7 +307,7 @@ int startDHCPClient(char *iface)
     sleep(2); // wait that IP is acquired
 
     if (GetIpAddressStr(tmp, iface))
-    {   
+    {
         trace(3,"Success IP: %s",tmp);
         return 1;
     }
@@ -316,34 +315,34 @@ int startDHCPClient(char *iface)
     {
         trace(3,"Failure IP: %s",tmp);
         return 0;
-    }     
+    }
 }
 
 /**
  * Release IP address of given interface
- * 
+ *
  * return 0 on failure.
  */
 int releaseIP(char *iface)
 {
     char tmp[INET6_ADDRSTRLEN];
     int success = 0;
-    
+
     // check does IP exist
     if (!GetIpAddressStr(tmp, iface))
         return 1;
-    
+
     // kill already running udhcpc-client for given iface and check if IP was released
     if (killDHCPClient(iface))
         success = 1; //OK
     else
-    {        
+    {
         // start udhcpc-clientdaemon with parameter -R which will release IP after quiting daemon
         startDHCPClient(iface);
-    
+
         // then kill udhcpc-client running. Now there shouldn't be IP anymore.
         if(killDHCPClient(iface))
             success = 1;
-    } 
+    }
     return success;
 }
