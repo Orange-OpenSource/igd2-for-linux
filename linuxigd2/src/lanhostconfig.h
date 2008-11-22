@@ -3,6 +3,15 @@
 
 #include <upnp/upnp.h>
 
+#define SERVICE_START "start"
+#define SERVICE_STOP "stop"
+
+#define COMMAND_LEN 64
+#define LINE_LEN 256
+#define DEFAULT_GATEWAY_IP "0.0.0.0"
+
+#define MAX_RESERVED_ADDRESS 256
+
 int SetDHCPServerConfigurable(struct Upnp_Action_Request *ca_event);
 int GetDHCPServerConfigurable(struct Upnp_Action_Request *ca_event);
 int SetDHCPRelay(struct Upnp_Action_Request *ca_event);
