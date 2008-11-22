@@ -10,15 +10,6 @@
 #include "globals.h"
 #include "util.h"
 
-#define SERVICE_START "start"
-#define SERVICE_STOP "stop"
-
-#define COMMAND_LEN 64
-#define LINE_LEN 256
-#define DEFAULT_GATEWAY_IP "0.0.0.0"
-
-#define MAX_RESERVED_ADDRESS 256
-
 struct LanHostConfig
 {
     int DHCPServerConfigurable;
@@ -39,7 +30,7 @@ int RunCommand(char *cmd, char **parm)
     else if (pid == 0)
         execvp(cmd, parm);
     else
-        wait(&status);
+        waitpid(pid, &status, 0);
 
     return status;
 }
@@ -50,7 +41,6 @@ int RunCommand(char *cmd, char **parm)
  */
 void UciCommit()
 {
-    // TODO: uci commit
     char *args[] = { g_vars.uciCmd, "commit", NULL };
     RunCommand(g_vars.uciCmd, args);
 }
@@ -60,7 +50,6 @@ void UciCommit()
  */
 void DnsmasqCommand(char *cmd)
 {
-    // TODO: restart dnsmasq server
     char *args[] = { g_vars.dnsmasqCmd, cmd, NULL };
     RunCommand(g_vars.dnsmasqCmd, args);
 }
@@ -184,6 +173,12 @@ int GetDefaultGateway(char *gateway)
     return FALSE;
 }
 
+/**
+ * Action: SetDHCPServerConfigurable.
+ *
+ * Set dhcp server configuration flag.
+ * It fails if InitLanHostConfig fails.
+ */
 int SetDHCPServerConfigurable(struct Upnp_Action_Request *ca_event)
 {
     char *configurable;
@@ -215,6 +210,11 @@ int SetDHCPServerConfigurable(struct Upnp_Action_Request *ca_event)
     return ca_event->ErrCode;
 }
 
+/**
+ * Action: GetDHCPServerConfigurable.
+ *
+ * Get the dhcp configuration flag.
+ */
 int GetDHCPServerConfigurable(struct Upnp_Action_Request *ca_event)
 {
     ParseResult(ca_event, "<NewDHCPServerConfigurable>%d</NewDHCPServerConfigurable>\n", (lanHostConfig.DHCPServerConfigurable ? 1 : 0));
@@ -222,6 +222,12 @@ int GetDHCPServerConfigurable(struct Upnp_Action_Request *ca_event)
     return ca_event->ErrCode;
 }
 
+/**
+ * Action: SetDHCPRelay.
+ *
+ * Change dhcp mode between relay server and normal dhcp server.
+ * Start / Stop dhcrelay and dnsmasq accordingly.
+ */
 int SetDHCPRelay(struct Upnp_Action_Request *ca_event)
 {
     char *dhcrelay;
@@ -236,7 +242,7 @@ int SetDHCPRelay(struct Upnp_Action_Request *ca_event)
 
         if (b_dhcrelay != lanHostConfig.dhcrelay)
         {
-            // TODO: check return value if these functions
+            // TODO: check return value of these functions
             if (b_dhcrelay)
             {
                 DnsmasqCommand(SERVICE_STOP);
@@ -262,6 +268,11 @@ int SetDHCPRelay(struct Upnp_Action_Request *ca_event)
     return ca_event->ErrCode;
 }
 
+/**
+ * Action: GetDHCPRelay.
+ *
+ * Returns the state of dhcrelay server.
+ */
 int GetDHCPRelay(struct Upnp_Action_Request *ca_event)
 {
     ParseResult(ca_event, "<NewDHCPRelay>%d</NewDHCPRelay>\n", (lanHostConfig.dhcrelay ? 1 : 0));
@@ -269,6 +280,11 @@ int GetDHCPRelay(struct Upnp_Action_Request *ca_event)
     return ca_event->ErrCode;
 }
 
+/**
+ * Action: SetSubnetMask.
+ *
+ * Set the subnet mask of the LAN.
+ */
 int SetSubnetMask(struct Upnp_Action_Request *ca_event)
 {
     char *subnet_mask;
@@ -294,6 +310,11 @@ int SetSubnetMask(struct Upnp_Action_Request *ca_event)
     return ca_event->ErrCode;
 }
 
+/**
+ * Action: GetSubnetMask.
+ *
+ * Get subnet mask.
+ */
 int GetSubnetMask(struct Upnp_Action_Request *ca_event)
 {
     FILE *cmd;
@@ -325,12 +346,21 @@ int GetSubnetMask(struct Upnp_Action_Request *ca_event)
     return ca_event->ErrCode;
 }
 
+/**
+ * Action: SetIPRouter.
+ *
+ * Sets the default router.
+ * This action only affects the default router, not all like defined the spec.
+ */
 int SetIPRouter(struct Upnp_Action_Request *ca_event)
 {
     char *parmList[] = { ROUTE_COMMAND, NULL, "default", "gw", NULL, NULL };
     char addr[LINE_LEN];
     char *new_router;
     int  status;
+
+    if (CheckDHCPServerConfigurable(ca_event))
+        return ca_event->ErrCode;
 
     if ((new_router = GetFirstDocumentItem(ca_event->ActionRequest, "NewIPRouters")))
     {
@@ -374,10 +404,19 @@ int SetIPRouter(struct Upnp_Action_Request *ca_event)
     return ca_event->ErrCode;
 }
 
+/**
+ * Action: DeleteIPRouter.
+ *
+ * Deletes the default router.
+ * This action only affects the default router, not all like defined the spec.
+ */
 int DeleteIPRouter(struct Upnp_Action_Request *ca_event)
 {
     char *parmList[] = { ROUTE_COMMAND, "del", "default", "gw", NULL, NULL };
     int status;
+
+    if (CheckDHCPServerConfigurable(ca_event))
+        return ca_event->ErrCode;
 
     if ((parmList[4] = GetFirstDocumentItem(ca_event->ActionRequest, "NewIPRouters")))
     {
@@ -399,6 +438,12 @@ int DeleteIPRouter(struct Upnp_Action_Request *ca_event)
     return ca_event->ErrCode;
 }
 
+/**
+ * Action: GetIPRoutersList.
+ *
+ * Returns the default router.
+ * This action returns only the default router, not all like defined the spec.
+ */
 int GetIPRoutersList(struct Upnp_Action_Request *ca_event)
 {
     char addr[LINE_LEN];
@@ -414,6 +459,9 @@ int GetIPRoutersList(struct Upnp_Action_Request *ca_event)
     return ca_event->ErrCode;
 }
 
+/**
+ * Action: SetDomainName.
+ */
 int SetDomainName(struct Upnp_Action_Request *ca_event)
 {
     FILE *cmd = NULL;
@@ -426,7 +474,7 @@ int SetDomainName(struct Upnp_Action_Request *ca_event)
     if ( (domainName = GetFirstDocumentItem(ca_event->ActionRequest, "NewDomainName") ) )
     {
         // try to run uci command
-        snprintf(setDname,60,"uci set dhcp.@dnsmasq[0].domain=%s",domainName );
+        snprintf(setDname, 60, "uci set dhcp.@dnsmasq[0].domain=%s", domainName);
         cmd = popen(setDname, "r");
         if (cmd == NULL)
         {
@@ -448,6 +496,9 @@ int SetDomainName(struct Upnp_Action_Request *ca_event)
     return ca_event->ErrCode;
 }
 
+/**
+ * Action: GetDomainName.
+ */
 int GetDomainName(struct Upnp_Action_Request *ca_event)
 {
     FILE *cmd;
@@ -479,6 +530,12 @@ int GetDomainName(struct Upnp_Action_Request *ca_event)
     return ca_event->ErrCode;
 }
 
+/**
+ * Action: SetAddressRange.
+ *
+ * Sets the address range dhcp server will give out.
+ * Only accepts the last byte (for example 150 gets translated to xxx.xxx.xxx.150).
+ */
 int SetAddressRange(struct Upnp_Action_Request *ca_event)
 {
     char *parmList[] = { g_vars.uciCmd, "set", "dhcp.lan.start", NULL, NULL };
@@ -509,6 +566,11 @@ int SetAddressRange(struct Upnp_Action_Request *ca_event)
     return ca_event->ErrCode;
 }
 
+/**
+ * Action: GetAddressRange.
+ *
+ * Gets the address range dhcp server will give out. Only returns the last byte.
+ */
 int GetAddressRange(struct Upnp_Action_Request *ca_event)
 {
     FILE *cmd = NULL, *cmd_2 = NULL;
@@ -546,6 +608,12 @@ int GetAddressRange(struct Upnp_Action_Request *ca_event)
     return ca_event->ErrCode;
 }
 
+/**
+ * Action: SetReservedAddress.
+ *
+ * Sets the reserved addesses, that dhcp server won't give to clients.
+ * Old values will be deleted before the new list is applied.
+ */
 int SetReservedAddress(struct Upnp_Action_Request *ca_event)
 {
     char command[COMMAND_LEN];
@@ -567,7 +635,7 @@ int SetReservedAddress(struct Upnp_Action_Request *ca_event)
     }
 
     // delete all hosts
-    while (i < 256)
+    while (i < MAX_RESERVED_ADDRESS)
     {
         sprintf(command, "uci -q get dhcp.@host[0]");
         cmd = popen(command, "r");
@@ -621,6 +689,12 @@ int SetReservedAddress(struct Upnp_Action_Request *ca_event)
     return ca_event->ErrCode;
 }
 
+/**
+ * Action: DeleteReservedAddress.
+ *
+ * Deletes specified ip-address from reserved addresses if it can be found.
+ * This action only takes one ip-address at a time, not a comma separated list.
+ */
 int DeleteReservedAddress(struct Upnp_Action_Request *ca_event)
 {
     char command[COMMAND_LEN];
@@ -658,9 +732,10 @@ int DeleteReservedAddress(struct Upnp_Action_Request *ca_event)
             break;
         }
 
-        if (strncmp(line, del_addr, MAX_CONFIG_LINE) == 0)
+        pclose(cmd);
+
+        if (strncmp(line, del_addr, strlen(del_addr)) == 0)
         {
-            pclose(cmd);
             sprintf(command, "uci -q delete dhcp.@host[%d]", i);
             cmd = popen(command, "r");
             if (cmd == NULL)
@@ -674,12 +749,12 @@ int DeleteReservedAddress(struct Upnp_Action_Request *ca_event)
                 deleted = TRUE;
                 UciCommit();
                 DnsmasqRestart();
+                pclose(cmd);
             }
 
             break;
         }
 
-        pclose(cmd);
         i++;
     }
     if (i == MAX_RESERVED_ADDRESS)
@@ -703,6 +778,11 @@ int DeleteReservedAddress(struct Upnp_Action_Request *ca_event)
     return ca_event->ErrCode;
 }
 
+/**
+ * Action: GetReservedAddresses.
+ *
+ * Returns all reserved addresses in a comma separated list.
+ */
 int GetReservedAddresses(struct Upnp_Action_Request *ca_event)
 {
     char command[COMMAND_LEN];
@@ -739,7 +819,8 @@ int GetReservedAddresses(struct Upnp_Action_Request *ca_event)
         // add comma separator before all except first address
         if (addr_place > 0)
             addr_place += snprintf(&addresses[addr_place], RESULT_LEN - addr_place, ",");
-
+        // remove extra linechange
+        line[strlen(line)-1] = 0;
         addr_place += snprintf(&addresses[addr_place], RESULT_LEN - addr_place, "%s", line);
 
         pclose(cmd);
@@ -759,6 +840,14 @@ int GetReservedAddresses(struct Upnp_Action_Request *ca_event)
     return ca_event->ErrCode;
 }
 
+/**
+ * Action: SetDNSServer.
+ *
+ * Sets dns servers.
+ * Opens resolv.conf file and a temp file. Copies all but nameservers from original
+ * file to the temp file. Adds new nameservers to the temp file. Copies the temp file
+ * over the original file.
+ */
 int SetDNSServer(struct Upnp_Action_Request *ca_event)
 {
     FILE *file = NULL, *new_file = NULL;
@@ -771,7 +860,6 @@ int SetDNSServer(struct Upnp_Action_Request *ca_event)
     if (CheckDHCPServerConfigurable(ca_event))
         return ca_event->ErrCode;
 
-    // TODO: seems to accept for example 192.168.0.0.0 ?
     regcomp(&nameserver, "nameserver[[:blank:]]*([[:digit:]]{1,3}[.][[:digit:]]{1,3}[.][[:digit:]]{1,3}[.][[:digit:]]{1,3})", REG_EXTENDED);
     ca_event->ErrCode = 0;
 
@@ -850,6 +938,13 @@ int SetDNSServer(struct Upnp_Action_Request *ca_event)
     return ca_event->ErrCode;
 }
 
+/**
+ * Action: DeleteDNSServer.
+ *
+ * Deletes one dns server.
+ * Opens resolv.conf file and a temp file. Copies everything except the deleted nameserver from original
+ * file to the temp file. The temp file is copied over the original file.
+ */
 int DeleteDNSServer(struct Upnp_Action_Request *ca_event)
 {
     FILE *file = NULL, *new_file = NULL;
@@ -936,6 +1031,11 @@ int DeleteDNSServer(struct Upnp_Action_Request *ca_event)
     return ca_event->ErrCode;
 }
 
+/**
+ * Action: GetDNSServers.
+ *
+ * Returns all dns servers as a comma separated list.
+ */
 int GetDNSServers(struct Upnp_Action_Request *ca_event)
 {
     FILE *file;
