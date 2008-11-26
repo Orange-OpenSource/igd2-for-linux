@@ -57,6 +57,9 @@ struct GLOBALS
 
     // dhcp-client command
     char dhcpc[OPTION_LEN];
+    
+    // How often alive notifications are send
+    int advertisementInterval;
 };
 
 typedef struct GLOBALS* globals_p;
@@ -86,5 +89,6 @@ extern globals g_vars;
 #define DHCPC_DEFAULT "udhcpc"
 
 #define ROUTE_COMMAND "route"
+#define ADVERTISEMENT_INTERVAL 1800
 
 #endif // _GLOBALS_H_

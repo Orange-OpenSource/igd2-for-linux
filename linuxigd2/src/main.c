@@ -180,14 +180,14 @@ int main (int argc, char** argv)
     // Record the startup time, for uptime
     startup_time = time(NULL);
 
-    // Send out initial advertisements of our device's services with timeouts of 30 minutes
-    if ( (ret = UpnpSendAdvertisement(deviceHandle, 1800) != UPNP_E_SUCCESS ))
+    // Send out initial advertisements of our device's services (with timeouts of 30 minutes, default value,can be changed from config file)
+    if ( (ret = UpnpSendAdvertisement(deviceHandle, g_vars.advertisementInterval) != UPNP_E_SUCCESS ))
     {
         syslog(LOG_ERR, "Error Sending Advertisements.  Exiting ...");
         UpnpFinish();
         exit(1);
     }
-    trace(2, "Advertisements Sent.  Listening for requests ... ");
+    trace(2, "Advertisements Sent. Advertisement sending interval set to %d seconds.  Listening for requests ...",g_vars.advertisementInterval);
 
     // Loop until program exit signals received
     do
