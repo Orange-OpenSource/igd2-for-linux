@@ -75,6 +75,7 @@ int parseConfigFile(globals_p vars)
     regex_t re_dhcrelay;
     regex_t re_dhcrelay_server;
     regex_t re_dhcpc;
+    regex_t re_advertisement_interval;
 
     // Make sure all vars are 0 or \0 terminated
     vars->debug = 0;
@@ -96,6 +97,7 @@ int parseConfigFile(globals_p vars)
     strcpy(vars->dhcrelayServer, "");
     vars->eventUpdateInterval = DEFAULT_EVENT_UPDATE_INTERVAL;
     strcpy(vars->dhcpc, "");
+    vars->advertisementInterval = ADVERTISEMENT_INTERVAL;
 
     // Regexp to match a comment line
     regcomp(&re_comment,"^[[:blank:]]*#",0);
@@ -121,6 +123,7 @@ int parseConfigFile(globals_p vars)
     regcomp(&re_event_interval,"event_update_interval[[:blank:]]*=[[:blank:]]*([[:digit:]]+)",REG_EXTENDED);
     regcomp(&re_dhcrelay_server,"dhcrelay_server[[:blank:]]*=[[:blank:]]*([[:digit:].:]+)",REG_EXTENDED);
     regcomp(&re_dhcpc,"dhcpc_cmd[[:blank:]]*=[[:blank:]]*([[:alpha:]_/.]{1,50})",REG_EXTENDED);
+    regcomp(&re_advertisement_interval,"advertisement_interval[[:blank:]]*=[[:blank:]]*([[:digit:]]+)",REG_EXTENDED);
 
     if ((conf_file=fopen(CONF_FILE,"r")) != NULL)
     {
@@ -222,6 +225,12 @@ int parseConfigFile(globals_p vars)
                 {
                     getConfigOptionArgument(vars->dhcpc, OPTION_LEN, line, submatch);
                 }
+                else if (regexec(&re_advertisement_interval,line,NMATCH,submatch,0) == 0)
+                {
+                    char tmp[6];
+                    getConfigOptionArgument(tmp, OPTION_LEN, line, submatch);
+                    vars->advertisementInterval = atoi(tmp);
+                }
                 else
                 {
                     // We end up here if ther is an unknown config directive
@@ -252,6 +261,7 @@ int parseConfigFile(globals_p vars)
     regfree(&re_resolv);
     regfree(&re_event_interval);
     regfree(&re_dhcpc);
+    regfree(&re_advertisement_interval);
     // Set default values for options not found in config file
     if (strnlen(vars->forwardChainName, OPTION_LEN) == 0)
     {
@@ -306,6 +316,10 @@ int parseConfigFile(globals_p vars)
         // Can't find the iptables executable, return -1 to
         // indicate en error
         return -1;
+    }
+    if (vars->advertisementInterval < 300)
+    {
+        vars->advertisementInterval = 300;
     }
     else
     {
