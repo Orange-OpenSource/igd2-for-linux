@@ -324,15 +324,15 @@ int parseConfigFile(globals_p vars)
     {
         snprintf(vars->networkCmd, OPTION_LEN, NETWORK_CMD_DEFAULT);
     }
+    if (vars->advertisementInterval < 300)
+    {
+        vars->advertisementInterval = 300;
+    }
     if (strnlen(vars->iptables, OPTION_LEN) == 0)
     {
         // Can't find the iptables executable, return -1 to
         // indicate en error
         return -1;
-    }
-    if (vars->advertisementInterval < 300)
-    {
-        vars->advertisementInterval = 300;
     }
     else
     {
