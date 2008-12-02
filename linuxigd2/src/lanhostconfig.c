@@ -662,13 +662,17 @@ int ParseAddressRange( struct Upnp_Action_Request *ca_event,
     // check that start address isn't 254 or over it
     if ( start_nro >= 254 )
     {
-        trace( 2, "%s: Start address last part is over 254, %s.", ca_event->ActionName, start_addr );
+        trace( 2, "%s: Start address last part is over 253, %s.", ca_event->ActionName, start_addr );
+        InvalidArgs(ca_event);
+        return ca_event->ErrCode;
     }
 
     // check that limit address isn't 255 or over it
     if ( last_nro >= 255 )
     {
-        trace( 2, "%s: Last address last part is over 255, %s.", ca_event->ActionName, start_addr );
+        trace( 2, "%s: Last address last part is over 254, %s.", ca_event->ActionName, start_addr );
+        InvalidArgs(ca_event);
+        return ca_event->ErrCode;
     }
 
     // write start address
