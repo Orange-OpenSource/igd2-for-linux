@@ -3,14 +3,22 @@
 
 #include <upnp/upnp.h>
 
-#define SERVICE_START "start"
-#define SERVICE_STOP "stop"
+#define SERVICE_START   "start"
+#define SERVICE_STOP    "stop"
+#define SERVICE_RESTART "restart"
 
 #define COMMAND_LEN 64
 #define LINE_LEN 256
 #define DEFAULT_GATEWAY_IP "0.0.0.0"
 
 #define MAX_RESERVED_ADDRESS 256
+
+// max size of last ip part
+static const int MAX_IP_LAST_PART = 5;
+
+// regex to identify valid nameserver lines in resolv.conf
+static const char REGEX_NAMESERVER[] = "nameserver[[:blank:]]*([[:digit:]]{1,3}[.][[:digit:]]{1,3}[.][[:digit:]]{1,3}[.][[:digit:]]{1,3})";
+static const char REGEX_IP_LASTBYTE[] = "[[:digit:]]{1,3}[.][[:digit:]]{1,3}[.][[:digit:]]{1,3}[.]([[:digit:]]{1,3})";
 
 int SetDHCPServerConfigurable(struct Upnp_Action_Request *ca_event);
 int GetDHCPServerConfigurable(struct Upnp_Action_Request *ca_event);
