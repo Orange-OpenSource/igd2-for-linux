@@ -75,6 +75,7 @@ int parseConfigFile(globals_p vars)
     regex_t re_dhcrelay;
     regex_t re_dhcrelay_server;
     regex_t re_dhcpc;
+    regex_t re_network;
     regex_t re_advertisement_interval;
 
     // Make sure all vars are 0 or \0 terminated
@@ -97,6 +98,7 @@ int parseConfigFile(globals_p vars)
     strcpy(vars->dhcrelayServer, "");
     vars->eventUpdateInterval = DEFAULT_EVENT_UPDATE_INTERVAL;
     strcpy(vars->dhcpc, "");
+    strcpy(vars->networkCmd, "");
     vars->advertisementInterval = ADVERTISEMENT_INTERVAL;
 
     // Regexp to match a comment line
@@ -123,6 +125,7 @@ int parseConfigFile(globals_p vars)
     regcomp(&re_event_interval,"event_update_interval[[:blank:]]*=[[:blank:]]*([[:digit:]]+)",REG_EXTENDED);
     regcomp(&re_dhcrelay_server,"dhcrelay_server[[:blank:]]*=[[:blank:]]*([[:digit:].:]+)",REG_EXTENDED);
     regcomp(&re_dhcpc,"dhcpc_cmd[[:blank:]]*=[[:blank:]]*([[:alpha:]_/.]{1,50})",REG_EXTENDED);
+    regcomp(&re_network,"network_script[[:blank:]]*=[[:blank:]]*([[:alpha:]_/.]{1,50})",REG_EXTENDED);
     regcomp(&re_advertisement_interval,"advertisement_interval[[:blank:]]*=[[:blank:]]*([[:digit:]]+)",REG_EXTENDED);
 
     if ((conf_file=fopen(CONF_FILE,"r")) != NULL)
@@ -225,6 +228,10 @@ int parseConfigFile(globals_p vars)
                 {
                     getConfigOptionArgument(vars->dhcpc, OPTION_LEN, line, submatch);
                 }
+                else if (regexec(&re_network,line,NMATCH,submatch,0) == 0)
+                {
+                    getConfigOptionArgument(vars->networkCmd, OPTION_LEN, line, submatch);
+                }
                 else if (regexec(&re_advertisement_interval,line,NMATCH,submatch,0) == 0)
                 {
                     char tmp[6];
@@ -261,7 +268,9 @@ int parseConfigFile(globals_p vars)
     regfree(&re_resolv);
     regfree(&re_event_interval);
     regfree(&re_dhcpc);
+    regfree(&re_network);
     regfree(&re_advertisement_interval);
+    
     // Set default values for options not found in config file
     if (strnlen(vars->forwardChainName, OPTION_LEN) == 0)
     {
@@ -310,6 +319,10 @@ int parseConfigFile(globals_p vars)
     if (strnlen(vars->dhcpc, OPTION_LEN) == 0)
     {
         snprintf(vars->dhcpc, OPTION_LEN, DHCPC_DEFAULT);
+    }
+    if (strnlen(vars->networkCmd, OPTION_LEN) == 0)
+    {
+        snprintf(vars->networkCmd, OPTION_LEN, NETWORK_CMD_DEFAULT);
     }
     if (strnlen(vars->iptables, OPTION_LEN) == 0)
     {

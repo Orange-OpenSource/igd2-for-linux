@@ -47,6 +47,8 @@ struct GLOBALS
     char dhcrelayCmd[OPTION_LEN];
     // dhcrelay server
     char dhcrelayServer[OPTION_LEN];
+    // dhcrelay server
+    char networkCmd[OPTION_LEN];
     // uci command
     char uciCmd[OPTION_LEN];
     // resolv.conf location
@@ -87,6 +89,8 @@ extern globals g_vars;
 // How often check if update events should be sent
 #define DEFAULT_EVENT_UPDATE_INTERVAL 60
 #define DHCPC_DEFAULT "udhcpc"
+#define NETWORK_CMD_DEFAULT "/etc/init.d/network"
+
 
 #define ROUTE_COMMAND "route"
 #define ADVERTISEMENT_INTERVAL 1800
