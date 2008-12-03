@@ -64,10 +64,13 @@ int DnsmasqCommand( char *param )
 }
 
 /**
- * Restarts dnsmasq service.
+ * Restarts dnsmasq service, if dhcrelay server is not used.
  */
 void DnsmasqRestart()
 {
+    if(lanHostConfig.dhcrelay)
+        return;
+    
     DnsmasqCommand( SERVICE_STOP );
     DnsmasqCommand( SERVICE_START );
 }
@@ -211,7 +214,7 @@ int GetDefaultGateway( char *gateway )
  * Action: SetDHCPServerConfigurable.
  *
  * Set dhcp server configuration flag.
- * It fails if InitLanHostConfig fails.
+ * It fails if CheckLanHostConfigFiles fails.
  *
  * @param ca_event Upnp event struct.
  * @return Upnp error code.
@@ -225,8 +228,8 @@ int SetDHCPServerConfigurable( struct Upnp_Action_Request *ca_event )
     {
         config = resolveBoolean( configurable );
 
-        // if user is setting configurable to true, check that init can be run successfully
-        if ( config && InitLanHostConfig() )
+        // if user is setting configurable to true, check that all necessary files are installed
+        if ( config && CheckLanHostConfigFiles() )
         {
             // init failed, send action failed response
             ca_event->ErrCode = 501;
@@ -1288,17 +1291,14 @@ int GetDNSServers( struct Upnp_Action_Request *ca_event )
 }
 
 /**
- * Checks that all required programs are present.
- *
- * @return 0 on success. 1 when LanHostConfig can't be used.
+ * Checks that all necessary programs for lanhostconfig are installed.
+ * 
+ * @return 1 on failure, 0 on success.
  */
-int InitLanHostConfig()
+int CheckLanHostConfigFiles()
 {
     struct stat buf;
-
-    lanHostConfig.DHCPServerConfigurable = TRUE;
-    lanHostConfig.dhcrelay = FALSE;
-
+    
     // check that dnsmasq exists
     if ( stat( g_vars.dnsmasqCmd, &buf ) )
     {
@@ -1314,6 +1314,23 @@ int InitLanHostConfig()
         return 1;
     }
 
+    return 0;
+}
+        
+/**
+ * Checks that all required programs are present.
+ *
+ * @return 0 on success. 1 when LanHostConfig can't be used.
+ */
+int InitLanHostConfig()
+{
+    lanHostConfig.DHCPServerConfigurable = TRUE;
+    lanHostConfig.dhcrelay = FALSE;
+
+    // check that all necessary programs to run lanhostconfig are installed
+    if(CheckLanHostConfigFiles())
+        return 1;
+    
     /** @todo We should save the state of dhcrelay and dnsmasq and start/stop them based on that. */
 
     DhcrelayStop();
