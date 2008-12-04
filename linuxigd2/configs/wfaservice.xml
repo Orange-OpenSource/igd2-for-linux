@@ -1,0 +1,54 @@
+<?xml version="1.0"?>
+      <scpd xmlns="urn:schemas-upnp-org:service-1-0">
+      <specVersion>
+	<major>1</major>
+	<minor>0</minor>
+      </specVersion>
+      <actionList>
+	<action>
+		<name>GetDeviceInfo</name>
+		<argumentList>
+			<argument>
+				<name>NewDeviceInfo</name>
+				<direction>out</direction>
+				<relatedStateVariable>DeviceInfo</relatedStateVariable>
+			</argument>
+		</argumentList>
+	</action>
+	<action>
+		<name>PutMessage</name>
+		<argumentList>
+			<argument>
+				<name>NewMessage</name>
+				<direction>in</direction>
+				<relatedStateVariable>Message</relatedStateVariable>
+			</argument>
+			<argument>
+				<name>NewMessage</name>
+				<direction>out</direction>
+				<relatedStateVariable>Message</relatedStateVariable>
+			</argument>
+		</argumentList>
+	</action>
+
+           </actionList>
+    <serviceStateTable>
+	<stateVariable sendEvents="no">
+		       <name>Message</name>
+		       <dataType>bin.base64</dataType>
+                 </stateVariable>
+	<stateVariable sendEvents="no">
+		       <name>InMessage</name>
+		       <dataType>bin.base64</dataType>
+                 </stateVariable>
+	<stateVariable sendEvents="no">
+		       <name>OutMessage</name>
+		       <dataType>bin.base64</dataType>
+                 </stateVariable>
+	<stateVariable sendEvents="no">
+		       <name>DeviceInfo</name>
+		       <dataType>bin.base64</dataType>
+                </stateVariable>
+
+        </serviceStateTable>
+  </scpd>
