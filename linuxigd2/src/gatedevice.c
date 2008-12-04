@@ -12,6 +12,7 @@
 #include "pmlist.h"
 #include "util.h"
 #include "lanhostconfig.h"
+#include "applicationlevelsecurity.h"
 
 //Definitions for mapping expiration timer thread
 static TimerThread gExpirationTimerThread;
@@ -23,7 +24,7 @@ static ithread_mutex_t DevMutex = PTHREAD_MUTEX_INITIALIZER;
 
 // XML string definitions
 static const char xml_portmapEntry[] = "<p:PortmapEntry NewRemoteHost=\"%s\" NewExternalPort=\"%s\" NewProtocol=\"%s\" NewInternalPort=\"%s\" NewInternalClient=\"%s\" NewEnabled=\"%d\" NewDescription=\"%s\" NewLeaseTime=\"%ld\"></p:PortmapEntry>\n";
-static const char xml_portmapListingHeader[] = "<u:%sResponse xmlns:u=\"urn:schemas-upnp-org:service:WANIPConnection:1\"><p:PortMappingList xmlns:p=\"http://www.upnp.org/schemas/GWPortMappingList.xsd\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:schemaLocation=\"http://www.upnp.org/schemas/GWPortMappingList.xsd GwPortMappingList-V0.5.xsd\">\n";
+static const char xml_portmapListingHeader[] = "<u:%sResponse xmlns:u=\"urn:schemas-upnp-org:service:WANIPConnection:2\"><p:PortMappingList xmlns:p=\"http://www.upnp.org/schemas/GWPortMappingList.xsd\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:schemaLocation=\"http://www.upnp.org/schemas/GWPortMappingList.xsd GwPortMappingList-V0.5.xsd\">\n";
 static const char xml_portmapListingFooter[] = "</p:PortMappingList></u:%sResponse>";
 
 // Main event handler for callbacks from the SDK.  Determine type of event
@@ -82,10 +83,11 @@ int StateTableInit(char *descDocUrl)
     PortMappingNumberOfEntries = 0;
     SystemUpdateID = 0;
     setEthernetLinkStatus(EthernetLinkStatus, g_vars.extInterfaceName);
+    GetIpAddressStr(ExternalIPAddress, g_vars.extInterfaceName);
+    GetConnectionStatus(ConnectionStatus, g_vars.extInterfaceName);
     
     // only supported type at the moment
     strcpy(ConnectionType,"IP_Routed");
-    GetConnectionStatus(ConnectionStatus, g_vars.extInterfaceName);
 
     return (ret);
 }
@@ -112,14 +114,14 @@ int HandleSubscriptionRequest(struct Upnp_Subscription_Request *sr_event)
     else if (strcmp(sr_event->UDN, wanConnectionUDN) == 0)
     {
         // WAN IP Connection Device Notifications
-        if (strcmp(sr_event->ServiceId, "urn:upnp-org:serviceId:WANIPConn1") == 0)
+        if (strcmp(sr_event->ServiceId, "urn:upnp-org:serviceId:WANIPConn2") == 0)
         {
             char tmp[11];
             snprintf(tmp,11,"%ld",SystemUpdateID);
                    
             GetIpAddressStr(ExternalIPAddress, g_vars.extInterfaceName);
             GetConnectionStatus(ConnectionStatus, g_vars.extInterfaceName);
-            trace(3, "Received request to subscribe to WANIPConn1");
+            trace(3, "Received request to subscribe to WANIPConn2");
             UpnpAddToPropertySet(&propSet, "PossibleConnectionTypes","IP_Routed");
             UpnpAddToPropertySet(&propSet, "ExternalIPAddress", ExternalIPAddress);
             UpnpAddToPropertySet(&propSet, "PortMappingNumberOfEntries","0");
@@ -149,6 +151,15 @@ int HandleSubscriptionRequest(struct Upnp_Subscription_Request *sr_event)
                                       propSet, sr_event->Sid);
             ixmlDocument_free(propSet);
         }
+        // TODO change service id to right value, add statevariables if there is any
+        else if (strcmp(sr_event->ServiceId, "urn:upnp-org:serviceId:WFAWLANConfig1") == 0)
+        {
+            trace(3, "Received request to subscribe to WFAWLANConfig");
+            // No state variable requires eventing, is next step needed?
+            UpnpAcceptSubscriptionExt(deviceHandle, sr_event->UDN, sr_event->ServiceId,
+                                      propSet, sr_event->Sid);
+            ixmlDocument_free(propSet);
+        }        
     }
     ithread_mutex_unlock(&DevMutex);
     return(1);
@@ -196,7 +207,7 @@ int HandleActionRequest(struct Upnp_Action_Request *ca_event)
         // Common debugging info, hopefully gets removed soon.
         trace(3, "ActionName = %s", ca_event->ActionName);
 
-        if (strcmp(ca_event->ServiceID, "urn:upnp-org:serviceId:WANIPConn1") == 0)
+        if (strcmp(ca_event->ServiceID, "urn:upnp-org:serviceId:WANIPConn2") == 0)
         {
             if (strcmp(ca_event->ActionName,"GetConnectionTypeInfo") == 0)
                 result = GetConnectionTypeInfo(ca_event);
@@ -300,6 +311,33 @@ int HandleActionRequest(struct Upnp_Action_Request *ca_event)
                 result = InvalidAction(ca_event);
             }
         }
+        // TODO change id and move block under rigth device
+        else if (strcmp(ca_event->ServiceID,"urn:upnp-org:serviceId:WFAWLANConfig1") == 0)
+        {
+            // Public interface
+            if (strcmp(ca_event->ActionName,"GetDeviceInfo") == 0)
+                result = GetDeviceInfo(ca_event);
+            else if (strcmp(ca_event->ActionName,"PutMessage") == 0)
+                result = PutMessage(ca_event);
+            else if (strcmp(ca_event->ActionName,"RequestCert") == 0)
+                result = RequestCert(ca_event);
+            else if (strcmp(ca_event->ActionName,"GetRoles") == 0)
+                result = GetRoles(ca_event);
+            else if (strcmp(ca_event->ActionName,"GetCACert") == 0)
+                result = GetCACert(ca_event);
+            else if (strcmp(ca_event->ActionName,"GetKnownCAs") == 0)
+                result = GetKnownCAs(ca_event);
+            // Admin Interface
+            else if (strcmp(ca_event->ActionName,"AddACLEntry") == 0)
+                result = AddACLEntry(ca_event);
+            else if (strcmp(ca_event->ActionName,"AddCACertHash") == 0)
+                result = AddCACertHash(ca_event); 
+            else
+            {
+                trace(1, "Invalid Action Request : %s",ca_event->ActionName);
+                result = InvalidAction(ca_event);
+            }
+        }
     }
 
     ithread_mutex_unlock(&DevMutex);
@@ -324,7 +362,7 @@ int GetConnectionTypeInfo (struct Upnp_Action_Request *ca_event)
     IXML_Document *result;
 
     snprintf(resultStr, RESULT_LEN,
-             "<u:GetConnectionTypeInfoResponse xmlns:u=\"urn:schemas-upnp-org:service:WANIPConnection:1\">\n"
+             "<u:GetConnectionTypeInfoResponse xmlns:u=\"urn:schemas-upnp-org:service:WANIPConnection:2\">\n"
              "<NewConnectionType>IP_Routed</NewConnectionType>\n"
              "<NewPossibleConnectionTypes>IP_Routed</NewPossibleConnectionTypes>"
              "</u:GetConnectionTypeInfoResponse>");
@@ -352,7 +390,7 @@ int GetNATRSIPStatus(struct Upnp_Action_Request *ca_event)
     char resultStr[RESULT_LEN];
     IXML_Document *result;
 
-    snprintf(resultStr, RESULT_LEN, "<u:GetNATRSIPStatusResponse xmlns:u=\"urn:schemas-upnp-org:service:WANIPConnection:1\">\n"
+    snprintf(resultStr, RESULT_LEN, "<u:GetNATRSIPStatusResponse xmlns:u=\"urn:schemas-upnp-org:service:WANIPConnection:2\">\n"
              "<NewRSIPAvailable>0</NewRSIPAvailable>\n"
              "<NewNATEnabled>1</NewNATEnabled>\n"
              "</u:GetNATRSIPStatusResponse>");
@@ -398,7 +436,7 @@ int RequestConnection(struct Upnp_Action_Request *ca_event)
     IXML_Document *ixml_result = NULL;
 
     // create result document for succesfull cases. addErrorData overwrites this if no success
-    snprintf(resultStr, RESULT_LEN, "<u:RequestConnectionResponse xmlns:u=\"urn:schemas-upnp-org:service:WANIPConnection:1\">\n"
+    snprintf(resultStr, RESULT_LEN, "<u:RequestConnectionResponse xmlns:u=\"urn:schemas-upnp-org:service:WANIPConnection:2\">\n"
              "</u:RequestConnectionResponse>");
 
     // Create a IXML_Document from resultStr and return with ca_event
@@ -481,7 +519,7 @@ int ForceTermination(struct Upnp_Action_Request *ca_event)
     IXML_Document *ixml_result = NULL;
     
     // create result document for succesfull cases. addErrorData overwrites this if no success
-    snprintf(resultStr, RESULT_LEN, "<u:ForceTerminationResponse xmlns:u=\"urn:schemas-upnp-org:service:WANIPConnection:1\">\n"
+    snprintf(resultStr, RESULT_LEN, "<u:ForceTerminationResponse xmlns:u=\"urn:schemas-upnp-org:service:WANIPConnection:2\">\n"
              "</u:ForceTerminationResponse>");
 
     // Create a IXML_Document from resultStr and return with ca_event
@@ -724,7 +762,7 @@ int AddPortMapping(struct Upnp_Action_Request *ca_event)
             {
                 ca_event->ErrCode = UPNP_E_SUCCESS;
                 snprintf(resultStr, RESULT_LEN, "<u:%sResponse xmlns:u=\"%s\">\n%s\n</u:%sResponse>",
-                         ca_event->ActionName, "urn:schemas-upnp-org:service:WANIPConnection:1", "", ca_event->ActionName);
+                         ca_event->ActionName, "urn:schemas-upnp-org:service:WANIPConnection:2", "", ca_event->ActionName);
                 ca_event->ActionResult = ixmlParseBuffer(resultStr);
             }
         }
@@ -778,7 +816,7 @@ int GetGenericPortMappingEntry(struct Upnp_Action_Request *ca_event)
         {
             ca_event->ErrCode = UPNP_E_SUCCESS;
             snprintf(resultStr, RESULT_LEN, "<u:%sResponse xmlns:u=\"%s\">\n%s\n</u:%sResponse>", ca_event->ActionName,
-                     "urn:schemas-upnp-org:service:WANIPConnection:1",result_param, ca_event->ActionName);
+                     "urn:schemas-upnp-org:service:WANIPConnection:2",result_param, ca_event->ActionName);
             ca_event->ActionResult = ixmlParseBuffer(resultStr);
         }
         else
@@ -834,7 +872,7 @@ int GetSpecificPortMappingEntry(struct Upnp_Action_Request *ca_event)
                 {
                     ca_event->ErrCode = UPNP_E_SUCCESS;
                     snprintf(resultStr, RESULT_LEN, "<u:%sResponse xmlns:u=\"%s\">\n%s\n</u:%sResponse>", ca_event->ActionName,
-                             "urn:schemas-upnp-org:service:WANIPConnection:1",result_param, ca_event->ActionName);
+                             "urn:schemas-upnp-org:service:WANIPConnection:2",result_param, ca_event->ActionName);
                     ca_event->ActionResult = ixmlParseBuffer(resultStr);
                 }
                 else
@@ -880,7 +918,7 @@ int GetExternalIPAddress(struct Upnp_Action_Request *ca_event)
 
     ca_event->ErrCode = UPNP_E_SUCCESS;
     GetIpAddressStr(ExternalIPAddress, g_vars.extInterfaceName);
-    snprintf(resultStr, RESULT_LEN, "<u:GetExternalIPAddressResponse xmlns:u=\"urn:schemas-upnp-org:service:WANIPConnection:1\">\n"
+    snprintf(resultStr, RESULT_LEN, "<u:GetExternalIPAddressResponse xmlns:u=\"urn:schemas-upnp-org:service:WANIPConnection:2\">\n"
              "<NewExternalIPAddress>%s</NewExternalIPAddress>\n"
              "</u:GetExternalIPAddressResponse>", ExternalIPAddress);
 
@@ -976,7 +1014,7 @@ int DeletePortMapping(struct Upnp_Action_Request *ca_event)
     {
         ca_event->ErrCode = UPNP_E_SUCCESS;
         snprintf(resultStr, RESULT_LEN, "<u:%sResponse xmlns:u=\"%s\">\n%s\n</u:%sResponse>",
-                 ca_event->ActionName, "urn:schemas-upnp-org:service:WANIPConnection:1", "", ca_event->ActionName);
+                 ca_event->ActionName, "urn:schemas-upnp-org:service:WANIPConnection:2", "", ca_event->ActionName);
         ca_event->ActionResult = ixmlParseBuffer(resultStr);
     }
 
@@ -1101,7 +1139,7 @@ int DeletePortMappingRange(struct Upnp_Action_Request *ca_event)
     {
         ca_event->ErrCode = UPNP_E_SUCCESS;
         snprintf(resultStr, RESULT_LEN, "<u:%sResponse xmlns:u=\"%s\">\n%s\n</u:%sResponse>",
-                 ca_event->ActionName, "urn:schemas-upnp-org:service:WANIPConnection:1", "", ca_event->ActionName);
+                 ca_event->ActionName, "urn:schemas-upnp-org:service:WANIPConnection:2", "", ca_event->ActionName);
         ca_event->ActionResult = ixmlParseBuffer(resultStr);
     }
 
@@ -1231,7 +1269,7 @@ int ExternalIPAddressEventing(IXML_Document *propSet)
     if (strcmp(prevStatus,ExternalIPAddress) != 0)
     {
         UpnpAddToPropertySet(&propSet, "ExternalIPAddress", ExternalIPAddress);
-        UpnpNotifyExt(deviceHandle, wanConnectionUDN, "urn:upnp-org:serviceId:WANIPConn1", propSet);
+        UpnpNotifyExt(deviceHandle, wanConnectionUDN, "urn:upnp-org:serviceId:WANIPConn2", propSet);
         trace(2, "ExternalIPAddress changed: From %s to %s",prevStatus,ExternalIPAddress);
         propSet = NULL;
         return 1;
@@ -1250,7 +1288,7 @@ int ConnectionStatusEventing(IXML_Document *propSet)
     if (strcmp(prevStatus,ConnectionStatus) != 0)
     {
         UpnpAddToPropertySet(&propSet, "ConnectionStatus", ConnectionStatus);
-        UpnpNotifyExt(deviceHandle, wanConnectionUDN, "urn:upnp-org:serviceId:WANIPConn1", propSet);
+        UpnpNotifyExt(deviceHandle, wanConnectionUDN, "urn:upnp-org:serviceId:WANIPConn2", propSet);
         trace(2, "ConnectionStatus changed: From %s to %s",prevStatus,ConnectionStatus);
         propSet = NULL;
         return 1;
@@ -1399,10 +1437,10 @@ void DeleteAllPortMappings(void)
     UpnpAddToPropertySet(&propSet, "PortMappingNumberOfEntries", "0");
     snprintf(tmp,11,"%ld",++SystemUpdateID);
     UpnpAddToPropertySet(&propSet,"SystemUpdateID", tmp);
-    UpnpNotifyExt(deviceHandle, wanConnectionUDN, "urn:upnp-org:serviceId:WANIPConn1", propSet);
+    UpnpNotifyExt(deviceHandle, wanConnectionUDN, "urn:upnp-org:serviceId:WANIPConn2", propSet);
     ixmlDocument_free(propSet);
     trace(2, "DeleteAllPortMappings: UpnpNotifyExt(deviceHandle,%s,%s,propSet)\n  PortMappingNumberOfEntries: %s",
-          wanConnectionUDN, "urn:upnp-org:serviceId:WANIPConn1", "0");
+          wanConnectionUDN, "urn:upnp-org:serviceId:WANIPConn2", "0");
 
     ithread_mutex_unlock(&DevMutex);
 }
@@ -1522,7 +1560,7 @@ int AddAnyPortMapping
         if (next_free_port == 0) next_free_port = atoi(new_external_port);
 
     snprintf(resultStr, RESULT_LEN, "<u:%sResponse xmlns:u=\"%s\">\n%s%d%s\n</u:%sResponse>",
-                 ca_event->ActionName, "urn:schemas-upnp-org:service:WANIPConnection:1", "<ReservedPort>",
+                 ca_event->ActionName, "urn:schemas-upnp-org:service:WANIPConnection:2", "<ReservedPort>",
          next_free_port, "</ReservedPort>", ca_event->ActionName);
     ca_event->ActionResult = ixmlParseBuffer(resultStr);
     }

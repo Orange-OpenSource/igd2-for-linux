@@ -67,9 +67,9 @@
             <serviceList>
               <service>
                 <serviceType>urn:schemas-upnp-org:service:WANIPConnection:2</serviceType>
-                <serviceId>urn:upnp-org:serviceId:WANIPConn1</serviceId>
-                <controlURL>/upnp/control/WANIPConn1</controlURL>
-                <eventSubURL>/upnp/control/WANIPConn1</eventSubURL>
+                <serviceId>urn:upnp-org:serviceId:WANIPConn2</serviceId>
+                <controlURL>/upnp/control/WANIPConn2</controlURL>
+                <eventSubURL>/upnp/control/WANIPConn2</eventSubURL>
                 <SCPDURL>/gateconnSCPD.xml</SCPDURL>
               </service>
               <service>
@@ -86,6 +86,13 @@
                   <eventSubURL>/upnp/control/LANHostConfig1</eventSubURL>
                   <SCPDURL>/lanhostconfigSCPD.xml</SCPDURL>
               </service>
+              <service>
+                  <serviceType>urn:schemas-upnp-org:service:WFAWLANConfig:1</serviceType>
+                  <serviceId>urn:upnp-org:serviceId:WFAWLANConfig1</serviceId>
+                  <controlURL>/upnp/control/WFAWLANConfig1</controlURL>
+                  <eventSubURL>/upnp/control/WFAWLANConfig1</eventSubURL>
+                  <SCPDURL>/wfaservice.xml</SCPDURL>
+              </service>        
             </serviceList>
           </device>
         </deviceList>
