@@ -40,6 +40,7 @@ int SetDNSServer(struct Upnp_Action_Request *ca_event);
 int DeleteDNSServer(struct Upnp_Action_Request *ca_event);
 int GetDNSServers(struct Upnp_Action_Request *ca_event);
 
+int CheckLanHostConfigFiles();
 int InitLanHostConfig();
 void FreeLanHostConfig();
 
