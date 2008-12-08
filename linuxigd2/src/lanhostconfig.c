@@ -344,7 +344,7 @@ int SetSubnetMask( struct Upnp_Action_Request *ca_event )
 {
     char *subnet_mask;
     char command[INET6_ADDRSTRLEN];
-    char *args[] = { g_vars.uciCmd, "get", NULL, NULL };
+    char *args[] = { g_vars.uciCmd, "set", NULL, NULL };
 
     if ( CheckDHCPServerConfigurable( ca_event ) )
         return ca_event->ErrCode;
@@ -353,6 +353,7 @@ int SetSubnetMask( struct Upnp_Action_Request *ca_event )
     {
         /** @todo Check that the new netmask is valid before applying it */
         snprintf( command, INET6_ADDRSTRLEN, "network.lan.netmask=%s", subnet_mask );
+        args[2] = command;
         RunCommand( g_vars.uciCmd, args );
         UciCommit();
         NetworkCommand( SERVICE_RESTART );
@@ -717,8 +718,9 @@ int ParseAddressRange( struct Upnp_Action_Request *ca_event,
  */
 int SetAddressRange( struct Upnp_Action_Request *ca_event )
 {
-    char *parmList[] = { g_vars.uciCmd, "set", "dhcp.lan.start", NULL, NULL };
+    char *parmList[] = { g_vars.uciCmd, "set", NULL, NULL };
     char *start_addr, *limit_addr;
+    char command[MAX_IP_LAST_PART+15];
     char start[MAX_IP_LAST_PART], limit[MAX_IP_LAST_PART];
 
     if ( CheckDHCPServerConfigurable( ca_event ) )
@@ -732,11 +734,13 @@ int SetAddressRange( struct Upnp_Action_Request *ca_event )
         // parse last part of both ip addresses
         if ( ParseAddressRange( ca_event, start, limit, start_addr, limit_addr ) )
             return ca_event->ErrCode;
-
-        parmList[3] = start;
+        
+        snprintf( command, MAX_IP_LAST_PART+15, "dhcp.lan.start=%s", start );
+        parmList[2] = command;
         RunCommand( g_vars.uciCmd, parmList );
-        parmList[2] = "dhcp.lan.limit";
-        parmList[3] = limit;
+        
+        snprintf( command, MAX_IP_LAST_PART+15, "dhcp.lan.limit=%s", limit );
+        parmList[2] = command;
         RunCommand( g_vars.uciCmd, parmList );
 
         UciCommit();
