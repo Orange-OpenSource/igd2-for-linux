@@ -55,8 +55,30 @@ int main (int argc, char** argv)
     // Get the internal ip address to start the daemon on
     if (GetIpAddressStr(intIpAddress, g_vars.intInterfaceName) == 0)
     {
-        fprintf(stderr, "Invalid internal interface name '%s'\n", g_vars.intInterfaceName);
-        exit(EXIT_FAILURE);
+        // Check if IP has been set by avahi-autoipd which uses aliases :avahi or :3 (eth0.1:3)
+        char *tempIface;
+        strncpy(tempIface, g_vars.intInterfaceName, IFNAMSIZ);
+        strncat(tempIface,":3",IFNAMSIZ);
+        if (GetIpAddressStr(intIpAddress, tempIface) != 0)
+        {
+            strncpy(g_vars.intInterfaceName, tempIface, IFNAMSIZ);
+            trace(2,"Using %s as internal interface configured by avahi-autoipd\n",g_vars.intInterfaceName);
+        }
+        else
+        {
+            strncpy(tempIface, g_vars.intInterfaceName, IFNAMSIZ);
+            strncat(tempIface,":avahi",IFNAMSIZ);
+            if (GetIpAddressStr(intIpAddress, tempIface) != 0)
+            {
+                strncpy(g_vars.intInterfaceName, tempIface, IFNAMSIZ);
+                trace(2,"Using %s as internal interface configured by avahi-autoipd\n",g_vars.intInterfaceName);
+            }
+            else
+            {
+                fprintf(stderr, "Invalid internal interface name '%s'\n", g_vars.intInterfaceName);
+                exit(EXIT_FAILURE);                
+            }
+        }
     }
 
     if (!foreground)
