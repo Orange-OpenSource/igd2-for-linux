@@ -21,6 +21,7 @@ int reactor_loop = 1;
 int InitALS()
 {   
     // TODO these values. What those should be and move to config file 
+    // TODO: Should start new thread for multiple simultanious registration processes?
     strcpy(input.OwnInfo.Manufacturer, "TestManufacturer");
     strcpy(input.OwnInfo.ModelName, "TestModelName");
     strcpy(input.OwnInfo.ModelNumber, "TestModelNumber");
@@ -75,7 +76,7 @@ int message_received(int error, unsigned char *data, int len, void* control)
     }
 
     update_enrollee_sm(esm, data, len, &Enrollee_send_msg, &Enrollee_send_msg_len, &status);
-printf("Status: %d\n",status);
+
     switch (status)
     {
         case E_SUCCESS:
