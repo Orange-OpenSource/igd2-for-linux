@@ -56,7 +56,7 @@ int main (int argc, char** argv)
     if (GetIpAddressStr(intIpAddress, g_vars.intInterfaceName) == 0)
     {
         // Check if IP has been set by avahi-autoipd which uses aliases :avahi or :3 (eth0.1:3)
-        char *tempIface;
+        char tempIface[IFNAMSIZ];
         strncpy(tempIface, g_vars.intInterfaceName, IFNAMSIZ);
         strncat(tempIface,":3",IFNAMSIZ);
         if (GetIpAddressStr(intIpAddress, tempIface) != 0)
