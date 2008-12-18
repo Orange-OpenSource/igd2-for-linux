@@ -37,7 +37,6 @@ int PortMappingNumberOfEntries;
 int PortMappingEnabled;
 char RemoteHost[INET6_ADDRSTRLEN];    // updated IPv6 addrss length 16 -> 46
 long int SystemUpdateID;
-char ChangedPortMapping[100];
 
 char EthernetLinkStatus[12];
 

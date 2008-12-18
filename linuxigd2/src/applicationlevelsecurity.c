@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <string.h>
 #include <stdlib.h>
 
 #include "lanhostconfig.h"
@@ -139,7 +140,7 @@ int GetDeviceInfo(struct Upnp_Action_Request *ca_event)
 
     bin_to_base64(Enrollee_send_msg_len,Enrollee_send_msg, &b64len, pB64Msg,maxb64len);
     // return M1 as base64 encoded
-    printf("Send M1 as response for GetDeviceInfo request\n");
+    trace(3,"Send M1 as response for GetDeviceInfo request\n");
     //printf("M1 in base64: %s\n",pB64Msg);
     
     ca_event->ErrCode = UPNP_E_SUCCESS;
@@ -181,7 +182,7 @@ int PutMessage(struct Upnp_Action_Request *ca_event)
     unsigned char *pB64Msg=(unsigned char *)malloc(maxb64len); 
     bin_to_base64(Enrollee_send_msg_len,Enrollee_send_msg, &b64len, pB64Msg,maxb64len);
     
-    printf("Send response for PutMessage request\n");
+    trace(3,"Send response for PutMessage request\n");
     
     ca_event->ErrCode = UPNP_E_SUCCESS;
     snprintf(resultStr, RESULT_LEN, "<u:%sResponse xmlns:u=\"%s\">\n<NewOutMessage>%s</NewOutMessage>\n</u:%sResponse>",

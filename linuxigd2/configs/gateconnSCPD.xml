@@ -466,10 +466,6 @@
             <name>SystemUpdateID</name>
             <dataType>ui4</dataType>
         </stateVariable>
-        <stateVariable sendEvents="yes">
-            <name>ChangedPortMapping</name>
-            <dataType>CSV(ui2,ui2,string,string,string)</dataType>
-        </stateVariable>
         <stateVariable sendEvents="no">
             <name>A_ARG_TYPE_Manage</name>
             <dataType>boolean</dataType>
