@@ -8,7 +8,6 @@
 #include <openssl/err.h>
 
 #include "httpsserver.h"
-#include "httpparser.h"
 #include "httpreadwrite.h"
 #include "upnpapi.h"
 #include "statcodes.h"
@@ -21,7 +20,8 @@ static int RUNNING = 0;
 /*---------------------------------------------------------------------*/
 /*--- OpenListener - create server socket                           ---*/
 /*---------------------------------------------------------------------*/
-int OpenListener(int port)
+static int 
+OpenListener(int port)
 {   int sd;
     struct sockaddr_in addr;
 
@@ -33,12 +33,12 @@ int OpenListener(int port)
     if ( bind(sd, &addr, sizeof(addr)) != 0 )
     {
         perror("can't bind port");
-        //abort();
+        return UPNP_E_SOCKET_BIND;
     }
     if ( listen(sd, 10) != 0 )
     {
         perror("Can't configure listening port");
-        //abort();
+        return UPNP_E_LISTEN;
     }
     return sd;
 }
@@ -47,7 +47,8 @@ int OpenListener(int port)
 /*--- InitServerCTX - initialize SSL server  and create context     
 ---*/
 /*---------------------------------------------------------------------*/
-SSL_CTX* InitServerCTX(void)
+static SSL_CTX* 
+InitServerCTX(void)
 {   SSL_METHOD *method;
     SSL_CTX *ctx;
 
@@ -68,7 +69,8 @@ SSL_CTX* InitServerCTX(void)
 /*---------------------------------------------------------------------*/
 /*--- LoadCertificates - load from files.                           ---*/
 /*---------------------------------------------------------------------*/
-void LoadCertificates(SSL_CTX* ctx, char* CertFile, char* KeyFile)
+static void 
+LoadCertificates(SSL_CTX* ctx, char* CertFile, char* KeyFile)
 {
     /* set the local certificate from CertFile */
     if ( SSL_CTX_use_certificate_file(ctx, CertFile, SSL_FILETYPE_PEM) <= 0 )
@@ -93,7 +95,8 @@ void LoadCertificates(SSL_CTX* ctx, char* CertFile, char* KeyFile)
 /*---------------------------------------------------------------------*/
 /*--- ShowCerts - print out certificates.                           ---*/
 /*---------------------------------------------------------------------*/
-void ShowCerts(SSL* ssl)
+static void 
+ShowCerts(SSL* ssl)
 {   X509 *cert;
     char *line;
 
@@ -116,7 +119,8 @@ void ShowCerts(SSL* ssl)
 /*---------------------------------------------------------------------*/
 /*--- Servlet - SSL servlet (contexts can be shared) ---*/
 /*---------------------------------------------------------------------*/
-void Servlet(SSL* ssl)  /* Serve the connection -- threadable Sessio? Jotain? */
+static void 
+Servlet(SSL* ssl)
 {   
     int buflen = 1024;
     char buf[buflen];
@@ -146,11 +150,8 @@ void Servlet(SSL* ssl)  /* Serve the connection -- threadable Sessio? Jotain? */
         bytes = SSL_read(ssl, buf, sizeof(buf));    /* get request */
         if ( bytes > 0 )
         {            
-            // buf on suoraan HTTP paketti!! Suoraan vaan sinne minne muutkin http:t menee. Entäs vastaus...
-            //buf[bytes] = 0;
-            
+            printf("%s\n",buf);
             ret_code = parseHttpMessage(buf, bytes, &parser, HTTPMETHOD_UNKNOWN, &timeout, &http_error_code);
-            printf("Parse returned %d\n%s\n",ret_code,parser.msg.msg.buf);
             // dispatch
             http_error_code = dispatch_request( &info, &parser );
             if( http_error_code != 0 ) {
@@ -159,8 +160,6 @@ void Servlet(SSL* ssl)  /* Serve the connection -- threadable Sessio? Jotain? */
             http_error_code = 0;
 
             printf("Client msg: \"%s\"\n%d\n", buf,ret_code);
-            sprintf(reply, HTMLecho, buf);          /* construct reply */
-            SSL_write(ssl, reply, strlen(reply));   /* send reply */
         }
         else
             ERR_print_errors_fp(stderr);
@@ -186,8 +185,26 @@ error_handler:
 /* close connection */
 }
 
-
-int parseHttpMessage(
+/************************************************************************
+ * Function: parseHttpMessage
+ *
+ * Parameters :
+ *  char *buf - String containing HTTP packet
+ *  int buflen - Length of buf
+ *  http_parser_t *parser - Parser
+ *  http_method_t request_method - 
+ *  int *timeout_secs - 
+ *  int *http_error_code - 
+ *
+ * Description:
+ *  Parse http message from string into parser.
+ *
+ * Return: int
+ *  PARSE_SUCCESS - On Success
+ *  Error code - On Error
+ ************************************************************************/
+static int 
+parseHttpMessage(
     IN char *buf,
     IN int buflen,
     OUT http_parser_t *parser,
@@ -249,6 +266,48 @@ ExitFunction:
 }
 
 /************************************************************************
+ * Function: RunHttpsServer
+ *
+ * Parameters:
+ *  SSL_CTX *ctx - SSL_CTX object as framework for TLS/SSL enabled functions 
+ *
+ * Description:
+ *  Function runs the https server. The HttpsServer accepts a 
+ *  new request and schedules a thread to handle the new request.
+ *  Checks for socket state and invokes appropriate read and shutdown 
+ *  actions for the https server 
+ *
+ * Return: void
+ ************************************************************************/
+static void
+RunHttpsServer( httpsRunParams *params )
+{
+    struct sockaddr_in addr;
+    int len = sizeof(addr);
+    
+    RUNNING = 1;
+   
+    while (RUNNING) {
+        printf("___ RUN HTTPS___\n");
+        
+        int sock = accept(params->server, &addr, &len);
+        // fork here for multiple clients
+        //if(fork())
+        //{
+        //    close(sock);
+        //}           
+        //else 
+        //{
+            printf("Connection: %s:%d\n",
+                inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));
+            params->ssl = SSL_new(params->ctx); 
+            SSL_set_fd(params->ssl, sock); 
+            Servlet(params->ssl);
+        //}
+    }    
+}
+
+/************************************************************************
  * Function: StartHttpsServer
  *
  * Parameters :
@@ -274,39 +333,51 @@ StartHttpsServer( unsigned short listen_port, char* CertFile, char* PrivKeyFile 
     SSL *ssl = NULL;
     SSL_CTX *ctx;
     int server;
-   
+    
+    ThreadPoolJob job;
+ 
     ctx = InitServerCTX();                              
 
     LoadCertificates(ctx, CertFile, PrivKeyFile);  /* load certs */
-    server = OpenListener(listen_port);               
+    server = OpenListener(listen_port);
+    if (server < 0)
+    {
+        return server;
+    }           
 
-    struct sockaddr_in addr;
-    int len = sizeof(addr);
-    
+    // ssl objects for running https server
+    httpsRunParams *params;
+
+    params = (httpsRunParams *) malloc( sizeof (httpsRunParams) );
+    if( params == NULL ) {
+        return UPNP_E_OUTOF_MEMORY;
+    }
+
+    params->ssl = ssl;
+    params->ctx = ctx;
+    params->server = server;
+
+
+    TPJobInit( &job, (start_routine)RunHttpsServer, (void *)params );
+    TPJobSetPriority( &job, MED_PRIORITY );
+    TPJobSetFreeFunction( &job, ( free_routine ) free );
+
+    int success = ThreadPoolAddPersistent( &gMiniServerThreadPool, &job, NULL );
+    if ( success < 0 ) {
+        // release ssl here?
+        return UPNP_E_OUTOF_MEMORY;
+    }
+
+/*    
     if (!fork())
     {
-        RUNNING = 1;
-        
-        while (RUNNING) {
-            printf("___ RUN HTTPS 2___\n");
-            
-            int sock = accept(server, &addr, &len);
-            // fork here for multiple clients
-            if(fork())
-            {
-                close(sock);
-            }           
-            else 
-            {
-                printf("Connection: %s:%d\n",
-                    inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));
-                ssl = SSL_new(ctx); 
-                SSL_set_fd(ssl, sock); 
-                Servlet(ssl);
-            }
-        }
+
     }
-    
+    else
+    {
+        wait(&status);
+    }
+*/    
     return listen_port;
 }
 

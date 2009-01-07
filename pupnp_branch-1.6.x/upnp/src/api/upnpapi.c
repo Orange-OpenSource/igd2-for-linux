@@ -3943,7 +3943,6 @@ UpnpEnableWebserver( IN int enable )
     switch ( enable ) {
 #ifdef INTERNAL_WEB_SERVER
         case TRUE:
-            printf("INTERNAL WEB SERVER IS TRUE\n");
             if( ( retVal = web_server_init() ) != UPNP_E_SUCCESS ) {
                 return retVal;
             }
@@ -3952,7 +3951,6 @@ UpnpEnableWebserver( IN int enable )
             break;
 
         case FALSE:
-            printf("INTERNAL WEB SERVER IS FALSE\n");
             web_server_destroy();
             bWebServerState = WEB_SERVER_DISABLED;
             SetHTTPGetCallback( NULL );
