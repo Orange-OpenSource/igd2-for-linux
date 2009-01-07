@@ -248,9 +248,16 @@ sock_read_write( IN SOCKINFO * info,
         bytes_sent = 0;
         while( byte_left > 0 ) {
             // write data
-            num_written =
-                send( sockfd, buffer + bytes_sent, byte_left,
-                      MSG_DONTROUTE|MSG_NOSIGNAL);
+            if (info->ssl == NULL) {
+                printf("Writing with god damn sockets!\n");
+                num_written =
+                    send( sockfd, buffer + bytes_sent, byte_left,
+                          MSG_DONTROUTE|MSG_NOSIGNAL);
+            } else  {
+                printf("Writing with SSL!\n");
+                num_written = SSL_write(info->ssl, buffer, strlen(buffer));
+            }
+                
             if( num_written == -1 ) {
 #ifdef SO_NOSIGPIPE
 	        setsockopt(sockfd, SOL_SOCKET, SO_NOSIGPIPE, &old, olen);
@@ -304,7 +311,8 @@ sock_read( IN SOCKINFO * info,
            IN size_t bufsize,
            INOUT int *timeoutSecs )
 {
-    return sock_read_write( info, buffer, bufsize, timeoutSecs, TRUE );
+    int ret = sock_read_write( info, buffer, bufsize, timeoutSecs, TRUE );
+    return ret;
 }
 
 /************************************************************************
@@ -330,5 +338,6 @@ sock_write( IN SOCKINFO * info,
             IN size_t bufsize,
             INOUT int *timeoutSecs )
 {
-    return sock_read_write( info, buffer, bufsize, timeoutSecs, FALSE );
+    int ret = sock_read_write( info, buffer, bufsize, timeoutSecs, FALSE );
+    return ret;
 }

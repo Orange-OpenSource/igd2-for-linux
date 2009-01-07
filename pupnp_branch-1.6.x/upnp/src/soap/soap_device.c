@@ -956,6 +956,7 @@ handle_invoke_action( IN SOCKINFO * info,
                                 &cookie );
 
     if( err_code != UPNP_E_SUCCESS ) {
+        printf("Here we have error! device info\n");
         goto error_handler;
     }
 
@@ -1028,7 +1029,7 @@ soap_device_callback( IN http_parser_t * parser,
     const char *err_str;
     memptr action_name;
     IXML_Document *xml_doc = NULL;
-
+    
     // set default error
     err_code = SOAP_INVALID_ACTION;
     err_str = Soap_Invalid_Action;

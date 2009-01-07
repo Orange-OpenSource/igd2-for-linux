@@ -141,6 +141,11 @@ int StartMiniServer( unsigned short listen_port );
 int StopMiniServer();
 
 
+
+int dispatch_request( IN SOCKINFO * info, http_parser_t * hparser );
+UPNP_INLINE void handle_error( IN SOCKINFO * info, int http_error_code, int major, int minor );
+
+
 #ifdef __cplusplus
 }   /* extern C */
 #endif

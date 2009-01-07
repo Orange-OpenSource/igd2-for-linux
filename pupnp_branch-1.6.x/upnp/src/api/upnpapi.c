@@ -43,25 +43,25 @@
 
 
 #ifndef WIN32
-	#include <arpa/inet.h>
-	#include <net/if.h>
-	#include <netinet/in.h>
-	#include <sys/ioctl.h>
-	#include <sys/param.h>
-	#include <sys/socket.h>
-	#include <sys/types.h>
-	#include <sys/utsname.h>
+    #include <arpa/inet.h>
+    #include <net/if.h>
+    #include <netinet/in.h>
+    #include <sys/ioctl.h>
+    #include <sys/param.h>
+    #include <sys/socket.h>
+    #include <sys/types.h>
+    #include <sys/utsname.h>
 
 
-	#include <unistd.h>
+    #include <unistd.h>
 
 
-	#if defined(_sun)
-		#include <sys/sockio.h>
-		#include <fcntl.h>
-	#elif defined(BSD) && BSD >= 199306
-		#include <ifaddrs.h>
-	#endif
+    #if defined(_sun)
+        #include <sys/sockio.h>
+        #include <fcntl.h>
+    #elif defined(BSD) && BSD >= 199306
+        #include <ifaddrs.h>
+    #endif
 #endif /* WIN32 */
 
 
@@ -77,11 +77,12 @@
 #include "gena.h"
 #include "miniserver.h"
 #include "service_table.h"
+#include "httpsserver.h"
 
 
 #ifdef INTERNAL_WEB_SERVER
-	#include "webserver.h"
-	#include "urlconfig.h"
+    #include "webserver.h"
+    #include "urlconfig.h"
 #endif // INTERNAL_WEB_SERVER
 
 
@@ -141,26 +142,26 @@ size_t g_maxContentLength = DEFAULT_SOAP_CONTENT_LENGTH; // in bytes
 /****************************************************************************
  * Function: UpnpInit
  *
- * Parameters:		
- *	IN const char * HostIP: Local IP Address
- *	IN short DestPort: Local Port to listen for incoming connections
+ * Parameters:      
+ *  IN const char * HostIP: Local IP Address
+ *  IN short DestPort: Local Port to listen for incoming connections
  * Description:
- *	Initializes 
- *		- Mutex objects, 
- *		- Handle Table
- *		- Thread Pool and Thread Pool Attributes
- *		- MiniServer(starts listening for incoming requests) 
- *			and WebServer (Sends request to the 
- *		        Upper Layer after HTTP Parsing)
- *		- Checks for IP Address passed as an argument. IF NULL, 
+ *  Initializes 
+ *      - Mutex objects, 
+ *      - Handle Table
+ *      - Thread Pool and Thread Pool Attributes
+ *      - MiniServer(starts listening for incoming requests) 
+ *          and WebServer (Sends request to the 
+ *              Upper Layer after HTTP Parsing)
+ *      - Checks for IP Address passed as an argument. IF NULL, 
  *                gets local host name
- *		- Sets GENA and SOAP Callbacks.
- *		- Starts the timer thread.
+ *      - Sets GENA and SOAP Callbacks.
+ *      - Starts the timer thread.
  *
  * Returns:
- *	UPNP_E_SUCCESS on success, nonzero on failure.
- *	UPNP_E_INIT_FAILED if Initialization fails.
- *	UPNP_E_INIT if UPnP is already initialized
+ *  UPNP_E_SUCCESS on success, nonzero on failure.
+ *  UPNP_E_INIT_FAILED if Initialization fails.
+ *  UPNP_E_INIT if UPnP is already initialized
  *****************************************************************************/
 int UpnpInit( IN const char *HostIP,
               IN unsigned short DestPort )
@@ -168,9 +169,9 @@ int UpnpInit( IN const char *HostIP,
     int retVal = 0;
     ThreadPoolAttr attr;
 #ifdef WIN32
-	WORD wVersionRequested;
-	WSADATA wsaData;
-	int err;
+    WORD wVersionRequested;
+    WSADATA wsaData;
+    int err;
 #endif
 
     if( UpnpSdkInit == 1 ) {
@@ -179,30 +180,30 @@ int UpnpInit( IN const char *HostIP,
     }
 
 #ifdef WIN32
-	wVersionRequested = MAKEWORD( 2, 2 );
+    wVersionRequested = MAKEWORD( 2, 2 );
 
-	err = WSAStartup( wVersionRequested, &wsaData );
-	if ( err != 0 ) {
-		/* Tell the user that we could not find a usable */
-		/* WinSock DLL.                                  */
-		return UPNP_E_INIT_FAILED;
-	}
+    err = WSAStartup( wVersionRequested, &wsaData );
+    if ( err != 0 ) {
+        /* Tell the user that we could not find a usable */
+        /* WinSock DLL.                                  */
+        return UPNP_E_INIT_FAILED;
+    }
 
-	/* Confirm that the WinSock DLL supports 2.2.*/
-	/* Note that if the DLL supports versions greater    */
-	/* than 2.2 in addition to 2.2, it will still return */
-	/* 2.2 in wVersion since that is the version we      */
-	/* requested.                                        */
-	 
-	if ( LOBYTE( wsaData.wVersion ) != 2 ||
-			HIBYTE( wsaData.wVersion ) != 2 ) {
-		/* Tell the user that we could not find a usable */
-		/* WinSock DLL.                                  */
-		WSACleanup( );
-		return UPNP_E_INIT_FAILED; 
-	}
+    /* Confirm that the WinSock DLL supports 2.2.*/
+    /* Note that if the DLL supports versions greater    */
+    /* than 2.2 in addition to 2.2, it will still return */
+    /* 2.2 in wVersion since that is the version we      */
+    /* requested.                                        */
+     
+    if ( LOBYTE( wsaData.wVersion ) != 2 ||
+            HIBYTE( wsaData.wVersion ) != 2 ) {
+        /* Tell the user that we could not find a usable */
+        /* WinSock DLL.                                  */
+        WSACleanup( );
+        return UPNP_E_INIT_FAILED; 
+    }
 
-	/* The WinSock DLL is acceptable. Proceed. */
+    /* The WinSock DLL is acceptable. Proceed. */
 #endif
 
     membuffer_init( &gDocumentRootDir );
@@ -307,6 +308,20 @@ int UpnpInit( IN const char *HostIP,
     DestPort = retVal;
     LOCAL_PORT = DestPort;
 
+#if EXCLUDE_HTTPSSERVER == 0
+    if( ( retVal = StartHttpsServer( DestPort+1, "newreq.pem", "newreq.pem" ) ) <= 0 ) { // TODO: fix this stupid port numbering and file naming
+        UpnpPrintf( UPNP_CRITICAL, API, __FILE__, __LINE__,
+            "Https server failed to start" );
+        UpnpFinish();
+        UpnpSdkInit = 0;
+        printf("FAILED WITH %d\n",retVal);
+        if( retVal != -1 )
+            return retVal;
+        else                    // if httpsserver is already running for unknown reasons!
+            return UPNP_E_INIT_FAILED;
+    }
+#endif
+
 #if EXCLUDE_WEB_SERVER == 0
     if( ( retVal =
           UpnpEnableWebserver( WEB_SERVER_ENABLED ) ) != UPNP_E_SUCCESS ) {
@@ -329,50 +344,50 @@ int UpnpInit( IN const char *HostIP,
 #ifdef DEBUG
 static void 
 PrintThreadPoolStats(
-	ThreadPool *tp, 
-	const char *DbgFileName,
-	int DbgLineNo,
-	const char *msg)
+    ThreadPool *tp, 
+    const char *DbgFileName,
+    int DbgLineNo,
+    const char *msg)
 {
-	ThreadPoolStats stats;
-	ThreadPoolGetStats(tp, &stats);
-	UpnpPrintf(UPNP_INFO, API, DbgFileName, DbgLineNo, 
-		"%s\n"
-		"High Jobs pending: %d\n"
-		"Med Jobs Pending: %d\n"
-		"Low Jobs Pending: %d\n"
-		"Average wait in High Q in milliseconds: %lf\n"
-		"Average wait in Med Q in milliseconds: %lf\n"
-		"Average wait in Low Q in milliseconds: %lf\n"
-		"Max Threads Used: %d\n"
-		"Worker Threads: %d\n"
-		"Persistent Threads: %d\n"
-		"Idle Threads: %d\n"
-		"Total Threads: %d\n"
-		"Total Work Time: %lf\n"
-		"Total Idle Time: %lf\n",
-		msg,
-		stats.currentJobsHQ,
-		stats.currentJobsMQ,
-		stats.currentJobsLQ,
-		stats.avgWaitHQ,
-		stats.avgWaitMQ,
-		stats.avgWaitLQ,
-		stats.maxThreads,
-		stats.workerThreads,
-		stats.persistentThreads,
-		stats.idleThreads,
-		stats.totalThreads,
-		stats.totalWorkTime,
-		stats.totalIdleTime);
+    ThreadPoolStats stats;
+    ThreadPoolGetStats(tp, &stats);
+    UpnpPrintf(UPNP_INFO, API, DbgFileName, DbgLineNo, 
+        "%s\n"
+        "High Jobs pending: %d\n"
+        "Med Jobs Pending: %d\n"
+        "Low Jobs Pending: %d\n"
+        "Average wait in High Q in milliseconds: %lf\n"
+        "Average wait in Med Q in milliseconds: %lf\n"
+        "Average wait in Low Q in milliseconds: %lf\n"
+        "Max Threads Used: %d\n"
+        "Worker Threads: %d\n"
+        "Persistent Threads: %d\n"
+        "Idle Threads: %d\n"
+        "Total Threads: %d\n"
+        "Total Work Time: %lf\n"
+        "Total Idle Time: %lf\n",
+        msg,
+        stats.currentJobsHQ,
+        stats.currentJobsMQ,
+        stats.currentJobsLQ,
+        stats.avgWaitHQ,
+        stats.avgWaitMQ,
+        stats.avgWaitLQ,
+        stats.maxThreads,
+        stats.workerThreads,
+        stats.persistentThreads,
+        stats.idleThreads,
+        stats.totalThreads,
+        stats.totalWorkTime,
+        stats.totalIdleTime);
 }
 #else /* DEBUG */
 static UPNP_INLINE void 
 PrintThreadPoolStats(
-	ThreadPool *tp, 
-	const char *DbgFileName,
-	int DbgLineNo,
-	const char *msg)
+    ThreadPool *tp, 
+    const char *DbgFileName,
+    int DbgLineNo,
+    const char *msg)
 {
 }
 #endif /* DEBUG */
@@ -381,19 +396,19 @@ PrintThreadPoolStats(
 /****************************************************************************
  * Function: UpnpFinish
  *
- * Parameters:	NONE
+ * Parameters:  NONE
  *
  * Description:
- *	Checks for pending jobs and threads 
- *		Unregisters either the client or device 
- *		Shuts down the Timer Thread
- *		Stops the Mini Server
- *		Uninitializes the Thread Pool
- *		For Win32 cleans up Winsock Interface 
- *		Cleans up mutex objects
+ *  Checks for pending jobs and threads 
+ *      Unregisters either the client or device 
+ *      Shuts down the Timer Thread
+ *      Stops the Mini Server
+ *      Uninitializes the Thread Pool
+ *      For Win32 cleans up Winsock Interface 
+ *      Cleans up mutex objects
  *
  * Return Values:
- *	UPNP_E_SUCCESS on success, nonzero on failure.
+ *  UPNP_E_SUCCESS on success, nonzero on failure.
  *****************************************************************************/
 int
 UpnpFinish()
@@ -407,7 +422,7 @@ UpnpFinish()
     struct Handle_Info *temp;
 
 #ifdef WIN32
-//	WSACleanup();
+//  WSACleanup();
 #endif
 
     if( UpnpSdkInit != 1 ) {
@@ -436,6 +451,7 @@ UpnpFinish()
 
     TimerThreadShutdown( &gTimerThread );
     StopMiniServer();
+    StopHttpsServer();
 
 #if EXCLUDE_WEB_SERVER == 0
     web_server_destroy();
@@ -481,10 +497,10 @@ UpnpFinish()
  * Parameters: NONE
  *
  * Description:
- *	Gives back the miniserver port.
+ *  Gives back the miniserver port.
  *
  * Return Values:
- *	local port on success, zero on failure.
+ *  local port on success, zero on failure.
  *****************************************************************************/
 unsigned short
 UpnpGetServerPort( void )
@@ -502,10 +518,10 @@ UpnpGetServerPort( void )
  * Parameters: NONE
  *
  * Description:
- *	Gives back the local ipaddress.
+ *  Gives back the local ipaddress.
  *
  * Return Values: char *
- *	return the IP address string on success else NULL of failure
+ *  return the IP address string on success else NULL of failure
  ***************************************************************************/
 char *
 UpnpGetServerIpAddress( void )
@@ -521,23 +537,23 @@ UpnpGetServerIpAddress( void )
 /****************************************************************************
  * Function: UpnpRegisterRootDevice
  *
- * Parameters:	
- *	IN const char *DescUrl:Pointer to a string containing the 
- *		description URL for this root device instance. 
- *	IN Upnp_FunPtr Callback: Pointer to the callback function for 
- *		receiving asynchronous events. 
- *	IN const void *Cookie: Pointer to user data returned with the 
- *		callback function when invoked.
- *	OUT UpnpDevice_Handle *Hnd: Pointer to a variable to store the 
- *		new device handle.
+ * Parameters:  
+ *  IN const char *DescUrl:Pointer to a string containing the 
+ *      description URL for this root device instance. 
+ *  IN Upnp_FunPtr Callback: Pointer to the callback function for 
+ *      receiving asynchronous events. 
+ *  IN const void *Cookie: Pointer to user data returned with the 
+ *      callback function when invoked.
+ *  OUT UpnpDevice_Handle *Hnd: Pointer to a variable to store the 
+ *      new device handle.
  *
  * Description:
- *	This function registers a device application with
- *	the UPnP Library.  A device application cannot make any other API
- *	calls until it registers using this function.  
+ *  This function registers a device application with
+ *  the UPnP Library.  A device application cannot make any other API
+ *  calls until it registers using this function.  
  *
  * Return Values:
- *	UPNP_E_SUCCESS on success, nonzero on failure.
+ *  UPNP_E_SUCCESS on success, nonzero on failure.
  *****************************************************************************/
 int
 UpnpRegisterRootDevice( IN const char *DescUrl,
@@ -662,18 +678,18 @@ UpnpRegisterRootDevice( IN const char *DescUrl,
 /****************************************************************************
  * Function: UpnpUnRegisterRootDevice
  *
- * Parameters:	
- *	IN UpnpDevice_Handle Hnd: The handle of the device instance 
- *		to unregister
+ * Parameters:  
+ *  IN UpnpDevice_Handle Hnd: The handle of the device instance 
+ *      to unregister
  * Description:
- *	This function unregisters a root device registered with 
- *	UpnpRegisterRootDevice} or UpnpRegisterRootDevice2. After this call, the 
- *	UpnpDevice_Handle Hnd is no longer valid. For all advertisements that 
- *	have not yet expired, the UPnP library sends a device unavailable message 
- *	automatically. 
+ *  This function unregisters a root device registered with 
+ *  UpnpRegisterRootDevice} or UpnpRegisterRootDevice2. After this call, the 
+ *  UpnpDevice_Handle Hnd is no longer valid. For all advertisements that 
+ *  have not yet expired, the UPnP library sends a device unavailable message 
+ *  automatically. 
  *
  * Return Values:
- *	UPNP_E_SUCCESS on success, nonzero on failure.
+ *  UPNP_E_SUCCESS on success, nonzero on failure.
  *****************************************************************************/
 int
 UpnpUnRegisterRootDevice( IN UpnpDevice_Handle Hnd )
@@ -752,16 +768,16 @@ UpnpUnRegisterRootDevice( IN UpnpDevice_Handle Hnd )
 /**************************************************************************
  * Function: GetNameForAlias
  *
- * Parameters:	
- *	IN char *name: name of the file
- *	OUT char** alias: pointer to alias string 
+ * Parameters:  
+ *  IN char *name: name of the file
+ *  OUT char** alias: pointer to alias string 
  *
  * Description:
- *	This function determines alias for given name which is a file name 
- *	or URL.
+ *  This function determines alias for given name which is a file name 
+ *  or URL.
  *
  * Return Values:
- *	UPNP_E_SUCCESS on success, nonzero on failure.
+ *  UPNP_E_SUCCESS on success, nonzero on failure.
  ***************************************************************************/
 static int
 GetNameForAlias( IN char *name,
@@ -788,12 +804,12 @@ GetNameForAlias( IN char *name,
 /**************************************************************************
  * Function: get_server_addr
  *
- * Parameters:	
- *	OUT struct sockaddr_in* serverAddr: pointer to server address
- *		structure 
+ * Parameters:  
+ *  OUT struct sockaddr_in* serverAddr: pointer to server address
+ *      structure 
  *
  * Description:
- *	This function fills the sockadr_in with miniserver information.
+ *  This function fills the sockadr_in with miniserver information.
  *
  * Return Values: VOID
  *      
@@ -812,17 +828,17 @@ get_server_addr( OUT struct sockaddr_in *serverAddr )
 /**************************************************************************
  * Function: GetDescDocumentAndURL ( In the case of device)
  *
- * Parameters:	
- *	IN Upnp_DescType descriptionType: pointer to server address
- *		structure 
- *	IN char* description:
- *	IN unsigned int bufferLen:
- *	IN int config_baseURL:
- *	OUT IXML_Document **xmlDoc:
- *	OUT char descURL[LINE_SIZE]: 
+ * Parameters:  
+ *  IN Upnp_DescType descriptionType: pointer to server address
+ *      structure 
+ *  IN char* description:
+ *  IN unsigned int bufferLen:
+ *  IN int config_baseURL:
+ *  OUT IXML_Document **xmlDoc:
+ *  OUT char descURL[LINE_SIZE]: 
  *
  * Description:
- *	This function fills the sockadr_in with miniserver information.
+ *  This function fills the sockadr_in with miniserver information.
  *
  * Return Values: VOID
  *      
@@ -951,17 +967,17 @@ GetDescDocumentAndURL( IN Upnp_DescType descriptionType,
 /**************************************************************************
  * Function: GetDescDocumentAndURL ( In the case of control point)
  *
- *  Parameters:	
- *	IN Upnp_DescType descriptionType: pointer to server address
- *		structure 
- *	IN char* description:
- *	IN unsigned int bufferLen:
- *	IN int config_baseURL:
- *	OUT IXML_Document **xmlDoc:
- *	OUT char *descURL: 
+ *  Parameters: 
+ *  IN Upnp_DescType descriptionType: pointer to server address
+ *      structure 
+ *  IN char* description:
+ *  IN unsigned int bufferLen:
+ *  IN int config_baseURL:
+ *  OUT IXML_Document **xmlDoc:
+ *  OUT char *descURL: 
  *
  * Description:
- *	This function fills the sockadr_in with miniserver information.
+ *  This function fills the sockadr_in with miniserver information.
  *
  * Return Values: VOID
  *      
@@ -1003,27 +1019,27 @@ GetDescDocumentAndURL( IN Upnp_DescType descriptionType,
 /****************************************************************************
  * Function: UpnpRegisterRootDevice2
  *
- * Parameters:	
- *	IN Upnp_DescType descriptionType: The type of description document.
- *	IN const char* description:  Treated as a URL, file name or 
- *		memory buffer depending on description type. 
- *	IN size_t bufferLen: Length of memory buffer if passing a description
- *		in a buffer, otherwize ignored.
- *	IN int config_baseURL: If nonzero, URLBase of description document is 
- *		configured and the description is served using the internal
- *		web server.
- *	IN Upnp_FunPtr Fun: Pointer to the callback function for 
- *		receiving asynchronous events. 
- *	IN const void* Cookie: Pointer to user data returned with the 
- *		callback function when invoked. 
- *	OUT UpnpDevice_Handle* Hnd: Pointer to a variable to store 
- *		the new device handle.
+ * Parameters:  
+ *  IN Upnp_DescType descriptionType: The type of description document.
+ *  IN const char* description:  Treated as a URL, file name or 
+ *      memory buffer depending on description type. 
+ *  IN size_t bufferLen: Length of memory buffer if passing a description
+ *      in a buffer, otherwize ignored.
+ *  IN int config_baseURL: If nonzero, URLBase of description document is 
+ *      configured and the description is served using the internal
+ *      web server.
+ *  IN Upnp_FunPtr Fun: Pointer to the callback function for 
+ *      receiving asynchronous events. 
+ *  IN const void* Cookie: Pointer to user data returned with the 
+ *      callback function when invoked. 
+ *  OUT UpnpDevice_Handle* Hnd: Pointer to a variable to store 
+ *      the new device handle.
  *
  * Description:
- *	This function is similar to  UpnpRegisterRootDevice except that
- *	it also allows the description document to be specified as a file or 
- *	a memory buffer. The description can also be configured to have the
- *	correct IP and port address.
+ *  This function is similar to  UpnpRegisterRootDevice except that
+ *  it also allows the description document to be specified as a file or 
+ *  a memory buffer. The description can also be configured to have the
+ *  correct IP and port address.
  *
  * Return Values:
  *      UPNP_E_SUCCESS on success, nonzero on failure.
@@ -1155,18 +1171,18 @@ UpnpRegisterRootDevice2( IN Upnp_DescType descriptionType,
 /**************************************************************************
  * Function: UpnpRegisterClient
  *
- * Parameters:	
- *	IN Upnp_FunPtr Fun:  Pointer to a function for receiving 
- *		 asynchronous events.
- *	IN const void * Cookie: Pointer to user data returned with the 
- *		callback function when invoked.
- *	OUT UpnpClient_Handle *Hnd: Pointer to a variable to store 
- *		the new control point handle.
+ * Parameters:  
+ *  IN Upnp_FunPtr Fun:  Pointer to a function for receiving 
+ *       asynchronous events.
+ *  IN const void * Cookie: Pointer to user data returned with the 
+ *      callback function when invoked.
+ *  OUT UpnpClient_Handle *Hnd: Pointer to a variable to store 
+ *      the new control point handle.
  *
  * Description:
- *	This function registers a control point application with the
- *	UPnP Library.  A control point application cannot make any other API 
- *	calls until it registers using this function.
+ *  This function registers a control point application with the
+ *  UPnP Library.  A control point application cannot make any other API 
+ *  calls until it registers using this function.
  *
  * Return Values: int
  *      
@@ -1231,17 +1247,17 @@ UpnpRegisterClient( IN Upnp_FunPtr Fun,
 /****************************************************************************
  * Function: UpnpUnRegisterClient
  *
- * Parameters:	
- *	IN UpnpClient_Handle Hnd: The handle of the control point instance 
- *		to unregister
+ * Parameters:  
+ *  IN UpnpClient_Handle Hnd: The handle of the control point instance 
+ *      to unregister
  * Description:
- *	This function unregisters a client registered with 
- *	UpnpRegisterclient or UpnpRegisterclient2. After this call, the 
- *	UpnpDevice_Handle Hnd is no longer valid. The UPnP Library generates 
- *	no more callbacks after this function returns.
+ *  This function unregisters a client registered with 
+ *  UpnpRegisterclient or UpnpRegisterclient2. After this call, the 
+ *  UpnpDevice_Handle Hnd is no longer valid. The UPnP Library generates 
+ *  no more callbacks after this function returns.
  *
  * Return Values:
- *	UPNP_E_SUCCESS on success, nonzero on failure.
+ *  UPNP_E_SUCCESS on success, nonzero on failure.
  *****************************************************************************/
 #ifdef INCLUDE_CLIENT_APIS
 int
@@ -1308,16 +1324,16 @@ UpnpUnRegisterClient( IN UpnpClient_Handle Hnd )
 /**************************************************************************
  * Function: UpnpSendAdvertisement 
  *
- * Parameters:	
- *	IN UpnpDevice_Handle Hnd: handle of the device instance
- *	IN int Exp : Timer for resending the advertisement
+ * Parameters:  
+ *  IN UpnpDevice_Handle Hnd: handle of the device instance
+ *  IN int Exp : Timer for resending the advertisement
  *
  * Description:
- *	This function sends the device advertisement. It also schedules a
- *	job for the next advertisement after "Exp" time.
+ *  This function sends the device advertisement. It also schedules a
+ *  job for the next advertisement after "Exp" time.
  *
  * Return Values: int
- *	UPNP_E_SUCCESS if successful else sends appropriate error.
+ *  UPNP_E_SUCCESS if successful else sends appropriate error.
  ***************************************************************************/
 int
 UpnpSendAdvertisement( IN UpnpDevice_Handle Hnd,
@@ -1417,19 +1433,19 @@ UpnpSendAdvertisement( IN UpnpDevice_Handle Hnd,
 /**************************************************************************
  * Function: UpnpSearchAsync 
  *
- * Parameters:	
- *	IN UpnpClient_Handle Hnd: handle of the control point instance
- *	IN int Mx : Maximum time to wait for the search reply
- *	IN const char *Target_const: 
- *	IN const void *Cookie_const:
+ * Parameters:  
+ *  IN UpnpClient_Handle Hnd: handle of the control point instance
+ *  IN int Mx : Maximum time to wait for the search reply
+ *  IN const char *Target_const: 
+ *  IN const void *Cookie_const:
  *
  * Description:
- *	This function searches for the devices for the provided maximum time.
- *	It is a asynchronous function. It schedules a search job and returns. 
- *	client is notified about the search results after search timer.
+ *  This function searches for the devices for the provided maximum time.
+ *  It is a asynchronous function. It schedules a search job and returns. 
+ *  client is notified about the search results after search timer.
  *
  * Return Values: int
- *	UPNP_E_SUCCESS if successful else sends appropriate error.
+ *  UPNP_E_SUCCESS if successful else sends appropriate error.
  ***************************************************************************/
 int
 UpnpSearchAsync( IN UpnpClient_Handle Hnd,
@@ -1485,16 +1501,16 @@ UpnpSearchAsync( IN UpnpClient_Handle Hnd,
 /**************************************************************************
  * Function: UpnpSetMaxSubscriptions 
  *
- * Parameters:	
- *	IN UpnpDevice_Handle Hnd: The handle of the device for which
- *		the maximum subscriptions is being set.
- *	IN int MaxSubscriptions: The maximum number of subscriptions to be
- *		allowed per service.
+ * Parameters:  
+ *  IN UpnpDevice_Handle Hnd: The handle of the device for which
+ *      the maximum subscriptions is being set.
+ *  IN int MaxSubscriptions: The maximum number of subscriptions to be
+ *      allowed per service.
  *
  * Description:
- *	This function sets the maximum subscriptions of the control points
+ *  This function sets the maximum subscriptions of the control points
  * Return Values: int
- *	UPNP_E_SUCCESS if successful else sends appropriate error.
+ *  UPNP_E_SUCCESS if successful else sends appropriate error.
  ***************************************************************************/
 int
 UpnpSetMaxSubscriptions( IN UpnpDevice_Handle Hnd,
@@ -1532,18 +1548,18 @@ UpnpSetMaxSubscriptions( IN UpnpDevice_Handle Hnd,
 /**************************************************************************
  * Function: UpnpSetMaxSubscriptionTimeOut 
  *
- * Parameters:	
- *	IN UpnpDevice_Handle Hnd: The handle of the device for which the
- *		maximum subscription time-out is being set.
- *	IN int MaxSubscriptionTimeOut:The maximum subscription time-out 
- *		to be accepted
+ * Parameters:  
+ *  IN UpnpDevice_Handle Hnd: The handle of the device for which the
+ *      maximum subscription time-out is being set.
+ *  IN int MaxSubscriptionTimeOut:The maximum subscription time-out 
+ *      to be accepted
  *
  * Description:
- *	This function sets the maximum subscription timer. Control points
- *	will require to send the subscription request before timeout.
+ *  This function sets the maximum subscription timer. Control points
+ *  will require to send the subscription request before timeout.
  *
  * Return Values: int
- *	UPNP_E_SUCCESS if successful else sends appropriate error.
+ *  UPNP_E_SUCCESS if successful else sends appropriate error.
  ***************************************************************************/
 int
 UpnpSetMaxSubscriptionTimeOut( IN UpnpDevice_Handle Hnd,
@@ -1583,26 +1599,26 @@ UpnpSetMaxSubscriptionTimeOut( IN UpnpDevice_Handle Hnd,
 /**************************************************************************
  * Function: UpnpSubscribeAsync 
  *
- * Parameters:	
- *	IN UpnpClient_Handle Hnd: The handle of the control point for which 
- *		the subscription request is to be sent.
- *	IN const char * EvtUrl_const: URL that control point wants to 
- *		subscribe
- *	IN int TimeOut: The requested subscription time.  Upon 
- *		return, it contains the actual subscription time 
- *		returned from the service
- *	IN Upnp_FunPtr Fun : callback function to tell result of the 
- *		subscription request
- *	IN const void * Cookie_const: cookie passed by client to give back 
- *		in the callback function.
+ * Parameters:  
+ *  IN UpnpClient_Handle Hnd: The handle of the control point for which 
+ *      the subscription request is to be sent.
+ *  IN const char * EvtUrl_const: URL that control point wants to 
+ *      subscribe
+ *  IN int TimeOut: The requested subscription time.  Upon 
+ *      return, it contains the actual subscription time 
+ *      returned from the service
+ *  IN Upnp_FunPtr Fun : callback function to tell result of the 
+ *      subscription request
+ *  IN const void * Cookie_const: cookie passed by client to give back 
+ *      in the callback function.
  *
  * Description:
- *	This function performs the same operation as UpnpSubscribeAsync
- *	but returns immediately and calls the registered callback function 
- *	when the operation is complete.
+ *  This function performs the same operation as UpnpSubscribeAsync
+ *  but returns immediately and calls the registered callback function 
+ *  when the operation is complete.
  *
  * Return Values: int
- *	UPNP_E_SUCCESS if successful else sends appropriate error.
+ *  UPNP_E_SUCCESS if successful else sends appropriate error.
  ***************************************************************************/
 int
 UpnpSubscribeAsync( IN UpnpClient_Handle Hnd,
@@ -1648,7 +1664,7 @@ UpnpSubscribeAsync( IN UpnpClient_Handle Hnd,
         return UPNP_E_OUTOF_MEMORY;
     }
 
-    Param->FunName = SUBSCRIBE;
+    Param->FunName = FUN_SUBSCRIBE;
     Param->Handle = Hnd;
     strcpy( Param->Url, EvtUrl );
     Param->TimeOut = TimeOut;
@@ -1673,21 +1689,21 @@ UpnpSubscribeAsync( IN UpnpClient_Handle Hnd,
 /**************************************************************************
  * Function: UpnpSubscribe 
  *
- * Parameters:	
- *	IN UpnpClient_Handle Hnd: The handle of the control point.
- *	IN const char *PublisherUrl: The URL of the service to subscribe to.
- *	INOUT int *TimeOut: Pointer to a variable containing the requested 
- *		subscription time.  Upon return, it contains the
- *		actual subscription time returned from the service.
- *	OUT Upnp_SID SubsId: Pointer to a variable to receive the 
- *		subscription ID (SID). 
+ * Parameters:  
+ *  IN UpnpClient_Handle Hnd: The handle of the control point.
+ *  IN const char *PublisherUrl: The URL of the service to subscribe to.
+ *  INOUT int *TimeOut: Pointer to a variable containing the requested 
+ *      subscription time.  Upon return, it contains the
+ *      actual subscription time returned from the service.
+ *  OUT Upnp_SID SubsId: Pointer to a variable to receive the 
+ *      subscription ID (SID). 
  *
  * Description:
- *	This function registers a control point to receive event
- *	notifications from another device.  This operation is synchronous
+ *  This function registers a control point to receive event
+ *  notifications from another device.  This operation is synchronous
  *
  * Return Values: int
- *	UPNP_E_SUCCESS if successful else sends appropriate error.
+ *  UPNP_E_SUCCESS if successful else sends appropriate error.
  ***************************************************************************/
 int
 UpnpSubscribe( IN UpnpClient_Handle Hnd,
@@ -1773,19 +1789,19 @@ int UpnpUnSubscribe(UpnpClient_Handle Hnd, const Upnp_SID SubsId)
 /**************************************************************************
  * Function: UpnpUnSubscribeAsync 
  *
- *  Parameters:	
- *	IN UpnpClient_Handle Hnd: The handle of the subscribed control point. 
- *	IN Upnp_SID SubsId: The ID returned when the control point 
- *		subscribed to the service.
- *	IN Upnp_FunPtr Fun: Pointer to a callback function to be called
- *		when the operation is complete. 
- *	IN const void *Cookie:Pointer to user data to pass to the
- *		callback function when invoked.
+ *  Parameters: 
+ *  IN UpnpClient_Handle Hnd: The handle of the subscribed control point. 
+ *  IN Upnp_SID SubsId: The ID returned when the control point 
+ *      subscribed to the service.
+ *  IN Upnp_FunPtr Fun: Pointer to a callback function to be called
+ *      when the operation is complete. 
+ *  IN const void *Cookie:Pointer to user data to pass to the
+ *      callback function when invoked.
  *
  *  Description:
  *      This function removes a subscription of a control point
  *  from a service previously subscribed to using UpnpSubscribe or
- *	UpnpSubscribeAsync,generating a callback when the operation is complete.
+ *  UpnpSubscribeAsync,generating a callback when the operation is complete.
  *
  *  Return Values: int
  *      UPNP_E_SUCCESS if successful else sends appropriate error.
@@ -1828,7 +1844,7 @@ UpnpUnSubscribeAsync( IN UpnpClient_Handle Hnd,
     if( Param == NULL )
         return UPNP_E_OUTOF_MEMORY;
 
-    Param->FunName = UNSUBSCRIBE;
+    Param->FunName = FUN_UNSUBSCRIBE;
     Param->Handle = Hnd;
     strcpy( Param->SubsId, SubsId );
     Param->Fun = Fun;
@@ -1889,24 +1905,24 @@ int UpnpRenewSubscription(UpnpClient_Handle Hnd, int *TimeOut, const Upnp_SID Su
 /**************************************************************************
  * Function: UpnpRenewSubscriptionAsync 
  *
- * Parameters:	
- *	IN UpnpClient_Handle Hnd: The handle of the control point that 
- *		is renewing the subscription. 
- *	IN int TimeOut: The requested subscription time.  The 
- *		actual timeout value is returned when 
- *		the callback function is called. 
- *	IN Upnp_SID SubsId: The ID for the subscription to renew. 
- *	IN Upnp_FunPtr Fun: Pointer to a callback function to be 
- *		invoked when the renewal is complete. 
- *	IN const void *Cookie  : Pointer to user data passed 
- *		to the callback function when invoked.
+ * Parameters:  
+ *  IN UpnpClient_Handle Hnd: The handle of the control point that 
+ *      is renewing the subscription. 
+ *  IN int TimeOut: The requested subscription time.  The 
+ *      actual timeout value is returned when 
+ *      the callback function is called. 
+ *  IN Upnp_SID SubsId: The ID for the subscription to renew. 
+ *  IN Upnp_FunPtr Fun: Pointer to a callback function to be 
+ *      invoked when the renewal is complete. 
+ *  IN const void *Cookie  : Pointer to user data passed 
+ *      to the callback function when invoked.
  *
  * Description:
- *	This function renews a subscription that is about
- *	to expire, generating a callback when the operation is complete.
+ *  This function renews a subscription that is about
+ *  to expire, generating a callback when the operation is complete.
  *
  * Return Values: int
- *	UPNP_E_SUCCESS if successful else sends appropriate error.
+ *  UPNP_E_SUCCESS if successful else sends appropriate error.
  ***************************************************************************/
 int
 UpnpRenewSubscriptionAsync( IN UpnpClient_Handle Hnd,
@@ -1951,7 +1967,7 @@ UpnpRenewSubscriptionAsync( IN UpnpClient_Handle Hnd,
         return UPNP_E_OUTOF_MEMORY;
     }
 
-    Param->FunName = RENEW;
+    Param->FunName = FUN_RENEW;
     Param->Handle = Hnd;
     strcpy( Param->SubsId, SubsId );
     Param->Fun = Fun;
@@ -1976,26 +1992,26 @@ UpnpRenewSubscriptionAsync( IN UpnpClient_Handle Hnd,
 /**************************************************************************
  * Function: UpnpNotify 
  *
- *  Parameters:	
- *	IN UpnpDevice_Handle: The handle to the device sending the event.
- *	IN const char *DevID: The device ID of the subdevice of the 
- *		service generating the event. 
- *	IN const char *ServID: The unique identifier of the service 
- *		generating the event. 
- *	IN const char **VarName: Pointer to an array of variables that 
- *		have changed.
- *	IN const char **NewVal: Pointer to an array of new values for 
- *		those variables. 
- *	IN int cVariables: The count of variables included in this 
- *		notification. 
+ *  Parameters: 
+ *  IN UpnpDevice_Handle: The handle to the device sending the event.
+ *  IN const char *DevID: The device ID of the subdevice of the 
+ *      service generating the event. 
+ *  IN const char *ServID: The unique identifier of the service 
+ *      generating the event. 
+ *  IN const char **VarName: Pointer to an array of variables that 
+ *      have changed.
+ *  IN const char **NewVal: Pointer to an array of new values for 
+ *      those variables. 
+ *  IN int cVariables: The count of variables included in this 
+ *      notification. 
  *
  * Description:
- *	This function sends out an event change notification to all
- *	control points subscribed to a particular service.  This function is
- *	synchronous and generates no callbacks.
+ *  This function sends out an event change notification to all
+ *  control points subscribed to a particular service.  This function is
+ *  synchronous and generates no callbacks.
  *
  * Return Values: int
- *	UPNP_E_SUCCESS if successful else sends appropriate error.
+ *  UPNP_E_SUCCESS if successful else sends appropriate error.
  ***************************************************************************/
 int
 UpnpNotify( IN UpnpDevice_Handle Hnd,
@@ -2052,25 +2068,25 @@ UpnpNotify( IN UpnpDevice_Handle Hnd,
 /**************************************************************************
  * Function: UpnpNotifyExt 
  *
- * Parameters:	
- *	IN UpnpDevice_Handle: The handle to the device sending the 
- *		event.
- *	IN const char *DevID: The device ID of the subdevice of the 
- *		service generating the event.
- *	IN const char *ServID: The unique identifier of the service 
- *		generating the event. 
- *	IN IXML_Document *PropSet: The DOM document for the property set. 
- *		Property set documents must conform to the XML schema
- *		defined in section 4.3 of the Universal Plug and Play
- *		Device Architecture specification. 
+ * Parameters:  
+ *  IN UpnpDevice_Handle: The handle to the device sending the 
+ *      event.
+ *  IN const char *DevID: The device ID of the subdevice of the 
+ *      service generating the event.
+ *  IN const char *ServID: The unique identifier of the service 
+ *      generating the event. 
+ *  IN IXML_Document *PropSet: The DOM document for the property set. 
+ *      Property set documents must conform to the XML schema
+ *      defined in section 4.3 of the Universal Plug and Play
+ *      Device Architecture specification. 
  *
  * Description:
- *	This function is similar to UpnpNotify except that it takes
- *	a DOM document for the event rather than an array of strings. This 
- *	function is synchronous and generates no callbacks.
+ *  This function is similar to UpnpNotify except that it takes
+ *  a DOM document for the event rather than an array of strings. This 
+ *  function is synchronous and generates no callbacks.
  *
  * Return Values: int
- *	UPNP_E_SUCCESS if successful else sends appropriate error.
+ *  UPNP_E_SUCCESS if successful else sends appropriate error.
  ***************************************************************************/
 int
 UpnpNotifyExt( IN UpnpDevice_Handle Hnd,
@@ -2120,13 +2136,13 @@ UpnpNotifyExt( IN UpnpDevice_Handle Hnd,
 #ifdef INCLUDE_DEVICE_APIS
 
 int UpnpAcceptSubscription(
-	UpnpDevice_Handle Hnd,
-	const char *DevID_const,
-	const char *ServName_const,
-	const char **VarName_const,
-	const char **NewVal_const,
-	int cVariables,
-	const Upnp_SID SubsId)
+    UpnpDevice_Handle Hnd,
+    const char *DevID_const,
+    const char *ServName_const,
+    const char **VarName_const,
+    const char **NewVal_const,
+    int cVariables,
+    const Upnp_SID SubsId)
 {
     struct Handle_Info *SInfo = NULL;
     int retVal;
@@ -2181,26 +2197,26 @@ int UpnpAcceptSubscription(
 /**************************************************************************
  * Function: UpnpAcceptSubscriptionExt 
  *
- * Parameters:	
- * 	IN UpnpDevice_Handle Hnd: The handle of the device. 
- * 	IN const char *DevID: The device ID of the subdevice of the 
- *		service generating the event. 
- *	IN const char *ServID: The unique service identifier of the service 
- *		generating the event. 
- *	IN IXML_Document *PropSet: The DOM document for the property set. 
- *		Property set documents must conform to the XML schema
- *		defined in section 4.3 of the Universal Plug and Play
- *		Device Architecture specification. 
- *	IN Upnp_SID SubsId: The subscription ID of the newly
- *		registered control point. 
+ * Parameters:  
+ *  IN UpnpDevice_Handle Hnd: The handle of the device. 
+ *  IN const char *DevID: The device ID of the subdevice of the 
+ *      service generating the event. 
+ *  IN const char *ServID: The unique service identifier of the service 
+ *      generating the event. 
+ *  IN IXML_Document *PropSet: The DOM document for the property set. 
+ *      Property set documents must conform to the XML schema
+ *      defined in section 4.3 of the Universal Plug and Play
+ *      Device Architecture specification. 
+ *  IN Upnp_SID SubsId: The subscription ID of the newly
+ *      registered control point. 
  *
  * Description:
- *	This function is similar to UpnpAcceptSubscription except that it
- *	takes a DOM document for the variables to event rather than an array
- *	of strings. This function is sychronous and generates no callbacks.
+ *  This function is similar to UpnpAcceptSubscription except that it
+ *  takes a DOM document for the variables to event rather than an array
+ *  of strings. This function is sychronous and generates no callbacks.
  *
  * Return Values: int
- *	UPNP_E_SUCCESS if successful else sends appropriate error.
+ *  UPNP_E_SUCCESS if successful else sends appropriate error.
  ***************************************************************************/
 int
 UpnpAcceptSubscriptionExt( IN UpnpDevice_Handle Hnd,
@@ -2238,7 +2254,7 @@ UpnpAcceptSubscriptionExt( IN UpnpDevice_Handle Hnd,
         HandleUnlock();
         return UPNP_E_INVALID_PARAM;
     }
-	/* Now accepts an empty state list, so the code below is commented out */
+    /* Now accepts an empty state list, so the code below is commented out */
 #if 0
     if( PropSet == NULL ) {
         HandleUnlock();
@@ -2270,28 +2286,28 @@ UpnpAcceptSubscriptionExt( IN UpnpDevice_Handle Hnd,
 /**************************************************************************
  * Function: UpnpSendAction 
  *
- * Parameters:	
- *	IN UpnpClient_Handle Hnd: The handle of the control point 
- *		sending the action. 
- *	IN const char *ActionURL: The action URL of the service. 
- *	IN const char *ServiceType: The type of the service. 
- *	IN const char *DevUDN: This parameter is ignored. 
- *	IN IXML_Document *Action: The DOM document for the action. 
- *	OUT IXML_Document **RespNode: The DOM document for the response 
- *		to the action.  The UPnP Library allocates this document
- *		and the caller needs to free it.  
+ * Parameters:  
+ *  IN UpnpClient_Handle Hnd: The handle of the control point 
+ *      sending the action. 
+ *  IN const char *ActionURL: The action URL of the service. 
+ *  IN const char *ServiceType: The type of the service. 
+ *  IN const char *DevUDN: This parameter is ignored. 
+ *  IN IXML_Document *Action: The DOM document for the action. 
+ *  OUT IXML_Document **RespNode: The DOM document for the response 
+ *      to the action.  The UPnP Library allocates this document
+ *      and the caller needs to free it.  
  *  
  * Description:
- *	This function sends a message to change a state variable in a service.
- *	This is a synchronous call that does not return until the action is
- *	complete.
+ *  This function sends a message to change a state variable in a service.
+ *  This is a synchronous call that does not return until the action is
+ *  complete.
  * 
- *	Note that a positive return value indicates a SOAP-protocol error code.
- *	In this case,  the error description can be retrieved from RespNode.
- *	A negative return value indicates a UPnP Library error.
+ *  Note that a positive return value indicates a SOAP-protocol error code.
+ *  In this case,  the error description can be retrieved from RespNode.
+ *  A negative return value indicates a UPnP Library error.
  *
  * Return Values: int
- *	UPNP_E_SUCCESS if successful else sends appropriate error.
+ *  UPNP_E_SUCCESS if successful else sends appropriate error.
  ***************************************************************************/
 int
 UpnpSendAction( IN UpnpClient_Handle Hnd,
@@ -2315,7 +2331,7 @@ UpnpSendAction( IN UpnpClient_Handle Hnd,
     UpnpPrintf( UPNP_ALL, API, __FILE__, __LINE__,
         "Inside UpnpSendAction \n" );
     if(DevUDN_const !=NULL) {
-	UpnpPrintf(UPNP_ALL,API,__FILE__,__LINE__,"non NULL DevUDN is ignored\n");
+    UpnpPrintf(UPNP_ALL,API,__FILE__,__LINE__,"non NULL DevUDN is ignored\n");
     }
     DevUDN_const = NULL;
 
@@ -2348,30 +2364,30 @@ UpnpSendAction( IN UpnpClient_Handle Hnd,
 /**************************************************************************
  * Function: UpnpSendActionEx 
  *
- * Parameters:	
- *	IN UpnpClient_Handle Hnd: The handle of the control point sending
- *		the action. 
- *	IN const char *ActionURL_const: The action URL of the service. 
- *	IN const char *ServiceType_const: The type of the service. 
- *	IN const char *DevUDN_const: This parameter is ignored. 
- *	IN IXML_Document *Header: The DOM document for the SOAP header. 
- *		This may be NULL if the header is not required. 
- *	IN IXML_Document *Action:   The DOM document for the action. 
- *	OUT IXML_Document **RespNodePtr: The DOM document for the response to
- *		the action.  The UPnP library allocates this document and the
- *		caller needs to free it.
+ * Parameters:  
+ *  IN UpnpClient_Handle Hnd: The handle of the control point sending
+ *      the action. 
+ *  IN const char *ActionURL_const: The action URL of the service. 
+ *  IN const char *ServiceType_const: The type of the service. 
+ *  IN const char *DevUDN_const: This parameter is ignored. 
+ *  IN IXML_Document *Header: The DOM document for the SOAP header. 
+ *      This may be NULL if the header is not required. 
+ *  IN IXML_Document *Action:   The DOM document for the action. 
+ *  OUT IXML_Document **RespNodePtr: The DOM document for the response to
+ *      the action.  The UPnP library allocates this document and the
+ *      caller needs to free it.
  *  
  * Description:
- *	this function sends a message to change a state variable in a 
- *	service. This is a synchronous call that does not return until the 
- *	action is complete.
+ *  this function sends a message to change a state variable in a 
+ *  service. This is a synchronous call that does not return until the 
+ *  action is complete.
  *
- *	Note that a positive return value indicates a SOAP-protocol error code.
- *	In this case,  the error description can be retrieved from {\bf RespNode}.
- *	A negative return value indicates a UPnP Library error.
+ *  Note that a positive return value indicates a SOAP-protocol error code.
+ *  In this case,  the error description can be retrieved from {\bf RespNode}.
+ *  A negative return value indicates a UPnP Library error.
  *
  * Return Values: int
- *	UPNP_E_SUCCESS if successful else sends appropriate error.
+ *  UPNP_E_SUCCESS if successful else sends appropriate error.
  ***************************************************************************/
 int
 UpnpSendActionEx( IN UpnpClient_Handle Hnd,
@@ -2430,28 +2446,28 @@ UpnpSendActionEx( IN UpnpClient_Handle Hnd,
 /**************************************************************************
  * Function: UpnpSendActionAsync 
  *
- *  Parameters:	
- *	IN UpnpClient_Handle Hnd: The handle of the control point 
- *		sending the action. 
- *	IN const char *ActionURL: The action URL of the service. 
- *	IN const char *ServiceType: The type of the service. 
- *	IN const char *DevUDN: This parameter is ignored. 
- *	IN IXML_Document *Action: The DOM document for the action to 
- *		perform on this device. 
- *	IN Upnp_FunPtr Fun: Pointer to a callback function to 
- *		be invoked when the operation completes
- *	IN const void *Cookie: Pointer to user data that to be 
- *		passed to the callback when invoked.
+ *  Parameters: 
+ *  IN UpnpClient_Handle Hnd: The handle of the control point 
+ *      sending the action. 
+ *  IN const char *ActionURL: The action URL of the service. 
+ *  IN const char *ServiceType: The type of the service. 
+ *  IN const char *DevUDN: This parameter is ignored. 
+ *  IN IXML_Document *Action: The DOM document for the action to 
+ *      perform on this device. 
+ *  IN Upnp_FunPtr Fun: Pointer to a callback function to 
+ *      be invoked when the operation completes
+ *  IN const void *Cookie: Pointer to user data that to be 
+ *      passed to the callback when invoked.
  *  
  * Description:
- *	this function sends a message to change a state variable
- *	in a service, generating a callback when the operation is complete.
- *	See UpnpSendAction for comments on positive return values. These 
- *	positive return values are sent in the event struct associated with the
- *	UPNP_CONTROL_ACTION_COMPLETE event.
+ *  this function sends a message to change a state variable
+ *  in a service, generating a callback when the operation is complete.
+ *  See UpnpSendAction for comments on positive return values. These 
+ *  positive return values are sent in the event struct associated with the
+ *  UPNP_CONTROL_ACTION_COMPLETE event.
  *
  * Return Values: int
- *	UPNP_E_SUCCESS if successful else sends appropriate error.
+ *  UPNP_E_SUCCESS if successful else sends appropriate error.
  ***************************************************************************/
 int
 UpnpSendActionAsync( IN UpnpClient_Handle Hnd,
@@ -2506,7 +2522,7 @@ UpnpSendActionAsync( IN UpnpClient_Handle Hnd,
         return UPNP_E_OUTOF_MEMORY;
     }
 
-    Param->FunName = ACTION;
+    Param->FunName = FUN_ACTION;
     Param->Handle = Hnd;
     strcpy( Param->Url, ActionURL );
     strcpy( Param->ServiceType, ServiceType );
@@ -2541,30 +2557,30 @@ UpnpSendActionAsync( IN UpnpClient_Handle Hnd,
 /*************************************************************************
  * Function: UpnpSendActionExAsync 
  *
- * Parameters:	
- *	IN UpnpClient_Handle Hnd: The handle of the control point 
- *		sending the action. 
- *	IN const char *ActionURL_const: The action URL of the service. 
- *	IN const char *ServiceType_const: The type of the service. 
- *	IN const char *DevUDN_const: This parameter is ignored. 
- *	IN IXML_Document *Header: The DOM document for the SOAP header. 
- *		This may be NULL if the header is not required. 
- *	IN IXML_Document *Act: The DOM document for the action to 
- *		perform on this device. 
- *	IN Upnp_FunPtr Fun: Pointer to a callback function to be invoked
- *		when the operation completes. 
- *	IN const void *Cookie_const: Pointer to user data that to be
- *		passed to the callback when invoked. 
+ * Parameters:  
+ *  IN UpnpClient_Handle Hnd: The handle of the control point 
+ *      sending the action. 
+ *  IN const char *ActionURL_const: The action URL of the service. 
+ *  IN const char *ServiceType_const: The type of the service. 
+ *  IN const char *DevUDN_const: This parameter is ignored. 
+ *  IN IXML_Document *Header: The DOM document for the SOAP header. 
+ *      This may be NULL if the header is not required. 
+ *  IN IXML_Document *Act: The DOM document for the action to 
+ *      perform on this device. 
+ *  IN Upnp_FunPtr Fun: Pointer to a callback function to be invoked
+ *      when the operation completes. 
+ *  IN const void *Cookie_const: Pointer to user data that to be
+ *      passed to the callback when invoked. 
  *
  * Description:
- *	this function sends sends a message to change a state variable
- *	in a service, generating a callback when the operation is complete.
- *	See UpnpSendAction for comments on positive return values. These 
- *	positive return values are sent in the event struct associated with 
- *	the UPNP_CONTROL_ACTION_COMPLETE event.
+ *  this function sends sends a message to change a state variable
+ *  in a service, generating a callback when the operation is complete.
+ *  See UpnpSendAction for comments on positive return values. These 
+ *  positive return values are sent in the event struct associated with 
+ *  the UPNP_CONTROL_ACTION_COMPLETE event.
  *
  * Return Values: int
- *	UPNP_E_SUCCESS if successful else sends appropriate error.
+ *  UPNP_E_SUCCESS if successful else sends appropriate error.
  ***************************************************************************/
 int
 UpnpSendActionExAsync( IN UpnpClient_Handle Hnd,
@@ -2627,7 +2643,7 @@ UpnpSendActionExAsync( IN UpnpClient_Handle Hnd,
         return UPNP_E_OUTOF_MEMORY;
     }
 
-    Param->FunName = ACTION;
+    Param->FunName = FUN_ACTION;
     Param->Handle = Hnd;
     strcpy( Param->Url, ActionURL );
     strcpy( Param->ServiceType, ServiceType );
@@ -2677,14 +2693,14 @@ UpnpSendActionExAsync( IN UpnpClient_Handle Hnd,
 /*************************************************************************
  * Function: UpnpGetServiceVarStatusAsync 
  *
- * Parameters:	
- *	IN UpnpClient_Handle Hnd: The handle of the control point. 
- *	IN const char *ActionURL: The URL of the service. 
- *	IN const char *VarName: The name of the variable to query. 
- *	IN Upnp_FunPtr Fun: Pointer to a callback function to 
- *		be invoked when the operation is complete. 
- *	IN const void *Cookie: Pointer to user data to pass to the 
- *		callback function when invoked. 
+ * Parameters:  
+ *  IN UpnpClient_Handle Hnd: The handle of the control point. 
+ *  IN const char *ActionURL: The URL of the service. 
+ *  IN const char *VarName: The name of the variable to query. 
+ *  IN Upnp_FunPtr Fun: Pointer to a callback function to 
+ *      be invoked when the operation is complete. 
+ *  IN const void *Cookie: Pointer to user data to pass to the 
+ *      callback function when invoked. 
  *
  *  Description:
  *      this function queries the state of a variable of a 
@@ -2733,7 +2749,7 @@ UpnpGetServiceVarStatusAsync( IN UpnpClient_Handle Hnd,
         return UPNP_E_OUTOF_MEMORY;
     }
 
-    Param->FunName = STATUS;
+    Param->FunName = FUN_STATUS;
     Param->Handle = Hnd;
     strcpy( Param->Url, ActionURL );
     strcpy( Param->VarName, VarName );
@@ -2757,22 +2773,22 @@ UpnpGetServiceVarStatusAsync( IN UpnpClient_Handle Hnd,
 /**************************************************************************
  * Function: UpnpGetServiceVarStatus 
  *
- * Parameters:	
- *	IN UpnpClient_Handle Hnd: The handle of the control point.
- *	IN const char *ActionURL: The URL of the service. 
- *	IN const char *VarName: The name of the variable to query. 
- *	OUT DOMString *StVarVal: The pointer to store the value 
- *		for VarName. The UPnP Library allocates this string and
- *		the caller needs to free it.
+ * Parameters:  
+ *  IN UpnpClient_Handle Hnd: The handle of the control point.
+ *  IN const char *ActionURL: The URL of the service. 
+ *  IN const char *VarName: The name of the variable to query. 
+ *  OUT DOMString *StVarVal: The pointer to store the value 
+ *      for VarName. The UPnP Library allocates this string and
+ *      the caller needs to free it.
  *  
  * Description:
- *	this function queries the state of a state variable of a service on
- *	another device.  This is a synchronous call. A positive return value
- *	indicates a SOAP error code, whereas a negative return code indicates
- *	a UPnP SDK error code.
+ *  this function queries the state of a state variable of a service on
+ *  another device.  This is a synchronous call. A positive return value
+ *  indicates a SOAP error code, whereas a negative return code indicates
+ *  a UPnP SDK error code.
  *
  * Return Values: int
- *	UPNP_E_SUCCESS if successful else sends appropriate error.
+ *  UPNP_E_SUCCESS if successful else sends appropriate error.
  ***************************************************************************/
 int
 UpnpGetServiceVarStatus( IN UpnpClient_Handle Hnd,
@@ -2829,12 +2845,12 @@ UpnpGetServiceVarStatus( IN UpnpClient_Handle Hnd,
 /**************************************************************************
  * Function: UpnpOpenHttpPost 
  *
- * Parameters:	
+ * Parameters:  
  *  
  * Description:
  *
  * Return Values: int
- *	UPNP_E_SUCCESS if successful else sends appropriate error.
+ *  UPNP_E_SUCCESS if successful else sends appropriate error.
  ***************************************************************************/
 
 int
@@ -2851,12 +2867,12 @@ UpnpOpenHttpPost( IN const char *url,
 /**************************************************************************
  * Function: UpnpWriteHttpPost 
  *
- * Parameters:	
+ * Parameters:  
  *  
  * Description:
  *
  * Return Values: int
- *	UPNP_E_SUCCESS if successful else sends appropriate error.
+ *  UPNP_E_SUCCESS if successful else sends appropriate error.
  ***************************************************************************/
 int
 UpnpWriteHttpPost( IN void *handle,
@@ -2870,12 +2886,12 @@ UpnpWriteHttpPost( IN void *handle,
 /**************************************************************************
  * Function: UpnpCloseHttpPost 
  *
- * Parameters:	
+ * Parameters:  
  *  
  * Description:
  *
  * Return Values: int
- *	UPNP_E_SUCCESS if successful else sends appropriate error.
+ *  UPNP_E_SUCCESS if successful else sends appropriate error.
  ***************************************************************************/
 int
 UpnpCloseHttpPost( IN void *handle,
@@ -2888,12 +2904,12 @@ UpnpCloseHttpPost( IN void *handle,
 /**************************************************************************
  * Function: UpnpOpenHttpGet 
  *
- * Parameters:	
+ * Parameters:  
  *  
  * Description:
  *
  * Return Values: int
- *	UPNP_E_SUCCESS if successful else sends appropriate error.
+ *  UPNP_E_SUCCESS if successful else sends appropriate error.
  ***************************************************************************/
 int
 UpnpOpenHttpGet( IN const char *url_str,
@@ -2912,12 +2928,12 @@ UpnpOpenHttpGet( IN const char *url_str,
 /**************************************************************************
  * Function: UpnpOpenHttpGetProxy
  *
- * Parameters:	
+ * Parameters:  
  *  
  * Description:
  *
  * Return Values: int
- *	UPNP_E_SUCCESS if successful else sends appropriate error.
+ *  UPNP_E_SUCCESS if successful else sends appropriate error.
  ***************************************************************************/
 int
 UpnpOpenHttpGetProxy( IN const char *url_str,
@@ -2935,12 +2951,12 @@ UpnpOpenHttpGetProxy( IN const char *url_str,
 /**************************************************************************
  * Function: UpnpOpenHttpGetEx
  *
- * Parameters:	
+ * Parameters:  
  *  
  * Description:
  *
  * Return Values: int
- *	UPNP_E_SUCCESS if successful else sends appropriate error.
+ *  UPNP_E_SUCCESS if successful else sends appropriate error.
  ***************************************************************************/
 int
 UpnpOpenHttpGetEx( IN const char *url_str,
@@ -2964,12 +2980,12 @@ UpnpOpenHttpGetEx( IN const char *url_str,
 /**************************************************************************
  * Function: UpnpCancelHttpGet 
  *
- * Parameters:	
+ * Parameters:  
  *  
  * Description:
  *
  * Return Values: int
- *	UPNP_E_SUCCESS if successful else sends appropriate error.
+ *  UPNP_E_SUCCESS if successful else sends appropriate error.
  ***************************************************************************/
 int
 UpnpCancelHttpGet( IN void *Handle )
@@ -2980,12 +2996,12 @@ UpnpCancelHttpGet( IN void *Handle )
 /**************************************************************************
  * Function: UpnpCloseHttpGet 
  *
- * Parameters:	
+ * Parameters:  
  *  
  * Description:
  *
  * Return Values: int
- *	UPNP_E_SUCCESS if successful else sends appropriate error.
+ *  UPNP_E_SUCCESS if successful else sends appropriate error.
  ***************************************************************************/
 int
 UpnpCloseHttpGet( IN void *Handle )
@@ -2996,12 +3012,12 @@ UpnpCloseHttpGet( IN void *Handle )
 /**************************************************************************
  * Function: UpnpReadHttpGet 
  *
- * Parameters:	
+ * Parameters:  
  *  
  * Description:
  *
  * Return Values: int
- *	UPNP_E_SUCCESS if successful else sends appropriate error.
+ *  UPNP_E_SUCCESS if successful else sends appropriate error.
  ***************************************************************************/
 int
 UpnpReadHttpGet( IN void *Handle,
@@ -3017,13 +3033,13 @@ UpnpReadHttpGet( IN void *Handle,
 /**************************************************************************
  * Function: UpnpHttpGetProgress 
  *
- * Parameters:	
+ * Parameters:  
  *  
  * Description:
  *
  * Return Values: int
- *	UPNP_E_SUCCESS if successful.
- *	UPNP_E_INVALID_PARAM if the provided pointers were invalid.
+ *  UPNP_E_SUCCESS if successful.
+ *  UPNP_E_INVALID_PARAM if the provided pointers were invalid.
  ***************************************************************************/
 int
 UpnpHttpGetProgress( IN void *Handle, 
@@ -3036,12 +3052,12 @@ UpnpHttpGetProgress( IN void *Handle,
 /**************************************************************************
  * Function: UpnpDownloadUrlItem 
  *
- * Parameters:	
+ * Parameters:  
  *  
  * Description:
  *
  * Return Values: int
- *	UPNP_E_SUCCESS if successful else sends appropriate error.
+ *  UPNP_E_SUCCESS if successful else sends appropriate error.
  ***************************************************************************/
 int
 UpnpDownloadUrlItem( const char *url,
@@ -3068,12 +3084,12 @@ UpnpDownloadUrlItem( const char *url,
 /**************************************************************************
  * Function: UpnpDownloadXmlDoc 
  *
- * Parameters:	
+ * Parameters:  
  *  
  * Description:
  *
  * Return Values: int
- *	UPNP_E_SUCCESS if successful else sends appropriate error.
+ *  UPNP_E_SUCCESS if successful else sends appropriate error.
  ***************************************************************************/
 int
 UpnpDownloadXmlDoc( const char *url,
@@ -3143,10 +3159,10 @@ UpnpDownloadXmlDoc( const char *url,
 /**************************************************************************
  * Function: UpnpThreadDistribution 
  *
- * Parameters:	
+ * Parameters:  
  *  
  * Description:
- *	Function to schedule async functions in threadpool.
+ *  Function to schedule async functions in threadpool.
  *
  * Return Values: VOID
  *      
@@ -3161,7 +3177,7 @@ UpnpThreadDistribution( struct UpnpNonblockParam *Param )
 
     switch ( Param->FunName ) {
 #if EXCLUDE_GENA == 0
-        case SUBSCRIBE: {
+        case FUN_SUBSCRIBE: {
             struct Upnp_Event_Subscribe Evt;
             Evt.ErrCode = genaSubscribe(
                 Param->Handle, Param->Url,
@@ -3173,35 +3189,35 @@ UpnpThreadDistribution( struct UpnpNonblockParam *Param )
             free( Param );
             break;
         }
-        case UNSUBSCRIBE: {
-	    struct Upnp_Event_Subscribe Evt;
-	    Evt.ErrCode =
-	    genaUnSubscribe( Param->Handle,
-			     Param->SubsId );
-	    strcpy( ( char * )Evt.Sid, Param->SubsId );
-	    strcpy( Evt.PublisherUrl, "" );
-	    Evt.TimeOut = 0;
-	    Param->Fun( UPNP_EVENT_UNSUBSCRIBE_COMPLETE,
-			&Evt, Param->Cookie );
-	    free( Param );
+        case FUN_UNSUBSCRIBE: {
+        struct Upnp_Event_Subscribe Evt;
+        Evt.ErrCode =
+        genaUnSubscribe( Param->Handle,
+                 Param->SubsId );
+        strcpy( ( char * )Evt.Sid, Param->SubsId );
+        strcpy( Evt.PublisherUrl, "" );
+        Evt.TimeOut = 0;
+        Param->Fun( UPNP_EVENT_UNSUBSCRIBE_COMPLETE,
+            &Evt, Param->Cookie );
+        free( Param );
             break;
         }
-        case RENEW: {
-	    struct Upnp_Event_Subscribe Evt;
-	    Evt.ErrCode =
-	    genaRenewSubscription( Param->Handle,
-				   Param->SubsId,
-				   &( Param->TimeOut ) );
-	    Evt.TimeOut = Param->TimeOut;
-	    strcpy( ( char * )Evt.Sid, Param->SubsId );
-	    Param->Fun( UPNP_EVENT_RENEWAL_COMPLETE, &Evt,
-			Param->Cookie );
+        case FUN_RENEW: {
+        struct Upnp_Event_Subscribe Evt;
+        Evt.ErrCode =
+        genaRenewSubscription( Param->Handle,
+                   Param->SubsId,
+                   &( Param->TimeOut ) );
+        Evt.TimeOut = Param->TimeOut;
+        strcpy( ( char * )Evt.Sid, Param->SubsId );
+        Param->Fun( UPNP_EVENT_RENEWAL_COMPLETE, &Evt,
+            Param->Cookie );
             free( Param );
-	    break;
+        break;
         }
 #endif // EXCLUDE_GENA == 0
 #if EXCLUDE_SOAP == 0
-        case ACTION: {
+        case FUN_ACTION: {
             struct Upnp_Action_Complete Evt;
             Evt.ActionResult = NULL;
                 Evt.ErrCode =
@@ -3216,7 +3232,7 @@ UpnpThreadDistribution( struct UpnpNonblockParam *Param )
                 free( Param );
                 break;
         }
-        case STATUS: {
+        case FUN_STATUS: {
                 struct Upnp_State_Var_Complete Evt;
                 Evt.ErrCode = SoapGetServiceVarStatus(
                     Param->Url, Param->VarName, &( Evt.CurrentVal ) );
@@ -3242,10 +3258,10 @@ UpnpThreadDistribution( struct UpnpNonblockParam *Param )
 /**************************************************************************
  * Function: GetCallBackFn 
  *
- * Parameters:	
+ * Parameters:  
  *  
  * Description:
- *	This function is to get callback function ptr from a handle
+ *  This function is to get callback function ptr from a handle
  *
  * Return Values: Upnp_FunPtr
  *      
@@ -3263,7 +3279,7 @@ GetCallBackFn( UpnpClient_Handle Hnd )
  * Parameters: VOID
  *  
  * Description:
- *	This function is to initialize handle table
+ *  This function is to initialize handle table
  *
  * Return Values: VOID
  *      
@@ -3284,7 +3300,7 @@ InitHandleList()
  * Parameters: VOID
  *  
  * Description:
- *	This function is to get a free handle
+ *  This function is to get a free handle
  *
  * Return Values: VOID
  *      
@@ -3312,14 +3328,14 @@ GetFreeHandle()
 /**************************************************************************
  * Function: GetClientHandleInfo 
  *
- * Parameters:	
- *	IN UpnpClient_Handle *client_handle_out: client handle pointer ( key 
- *		for the client handle structure).
- *	OUT struct Handle_Info **HndInfo: Client handle structure passed by 
- *		this function.
+ * Parameters:  
+ *  IN UpnpClient_Handle *client_handle_out: client handle pointer ( key 
+ *      for the client handle structure).
+ *  OUT struct Handle_Info **HndInfo: Client handle structure passed by 
+ *      this function.
  *
  * Description:
- *	This function is to get client handle info
+ *  This function is to get client handle info
  *
  *  Return Values: HND_CLIENT
  *      
@@ -3345,14 +3361,14 @@ GetClientHandleInfo( IN UpnpClient_Handle * client_handle_out,
 /**************************************************************************
  * Function: GetDeviceHandleInfo 
  *
- * Parameters:	
- * 	IN UpnpDevice_Handle * device_handle_out: device handle pointer
- * 		(key for the client handle structure).
- *	OUT struct Handle_Info **HndInfo: Device handle structure passed by
- *		this function.
+ * Parameters:  
+ *  IN UpnpDevice_Handle * device_handle_out: device handle pointer
+ *      (key for the client handle structure).
+ *  OUT struct Handle_Info **HndInfo: Device handle structure passed by
+ *      this function.
  *  
  *  Description:
- *		This function is to get device handle info.
+ *      This function is to get device handle info.
  *
  *  Return Values: HND_DEVICE
  *      
@@ -3377,14 +3393,14 @@ GetDeviceHandleInfo( UpnpDevice_Handle * device_handle_out,
 /**************************************************************************
  * Function: GetDeviceHandleInfo 
  *
- * Parameters:	
- * 	IN UpnpClient_Handle * device_handle_out: handle pointer
- * 		(key for the client handle structure).
- *	OUT struct Handle_Info **HndInfo: handle structure passed by
- *		this function.
+ * Parameters:  
+ *  IN UpnpClient_Handle * device_handle_out: handle pointer
+ *      (key for the client handle structure).
+ *  OUT struct Handle_Info **HndInfo: handle structure passed by
+ *      this function.
  *  
  * Description:
- *	This function is to get  handle info.
+ *  This function is to get  handle info.
  *
  * Return Values: HND_DEVICE
  *      
@@ -3393,7 +3409,6 @@ Upnp_Handle_Type
 GetHandleInfo( UpnpClient_Handle Hnd,
                struct Handle_Info ** HndInfo )
 {
-
     UpnpPrintf( UPNP_INFO, API, __FILE__, __LINE__,
         "GetHandleInfo: Handle is %d\n", Hnd );
 
@@ -3416,14 +3431,14 @@ GetHandleInfo( UpnpClient_Handle Hnd,
 /**************************************************************************
  * Function: FreeHandle 
  *
- * Parameters:	
- * 	IN int Upnp_Handle: handle index 
+ * Parameters:  
+ *  IN int Upnp_Handle: handle index 
  *  
  * Description:
- *	This function is to to free handle info.
- *	
+ *  This function is to to free handle info.
+ *  
  * Return Values: int
- *	UPNP_E_SUCCESS if successful else return appropriate error
+ *  UPNP_E_SUCCESS if successful else return appropriate error
  ***************************************************************************/
 int
 FreeHandle( int Upnp_Handle )
@@ -3447,14 +3462,14 @@ FreeHandle( int Upnp_Handle )
 /**************************************************************************
  * Function: PrintHandleInfo 
  *
- * Parameters:	
- *	IN UpnpClient_Handle Hnd: handle index 
+ * Parameters:  
+ *  IN UpnpClient_Handle Hnd: handle index 
  *  
  * Description:
- *	This function is to print handle info.
- *	
+ *  This function is to print handle info.
+ *  
  * Return Values: int
- *	UPNP_E_SUCCESS if successful else return appropriate error
+ *  UPNP_E_SUCCESS if successful else return appropriate error
  ***************************************************************************/
 int PrintHandleInfo( IN UpnpClient_Handle Hnd )
 {
@@ -3523,30 +3538,30 @@ void printNodes( IXML_Node * tmpRoot, int depth )
  /**************************************************************************
  * Function: getlocalhostname 
  *
- * Parameters:	
- * 	OUT char *out: IP address of the interface.
+ * Parameters:  
+ *  OUT char *out: IP address of the interface.
  *  
  * Description:
- *	This function is to get local IP address. It gets the ip address for 
- *	the DEFAULT_INTERFACE interface which is up and not a loopback
- *	assumes at most MAX_INTERFACES interfaces
+ *  This function is to get local IP address. It gets the ip address for 
+ *  the DEFAULT_INTERFACE interface which is up and not a loopback
+ *  assumes at most MAX_INTERFACES interfaces
  *
  *  Return Values: int
- *	UPNP_E_SUCCESS if successful else return appropriate error
+ *  UPNP_E_SUCCESS if successful else return appropriate error
  ***************************************************************************/
     int getlocalhostname( OUT char *out ) {
 
 #ifdef WIN32
- 	 struct hostent *h=NULL;
+     struct hostent *h=NULL;
     struct sockaddr_in LocalAddr;
 
- 		gethostname(out,LINE_SIZE);
- 		h=gethostbyname(out);
- 		if (h!=NULL){
- 			memcpy(&LocalAddr.sin_addr,h->h_addr_list[0],4);
- 			strcpy( out, inet_ntoa(LocalAddr.sin_addr));
- 		}
- 		return UPNP_E_SUCCESS;
+        gethostname(out,LINE_SIZE);
+        h=gethostbyname(out);
+        if (h!=NULL){
+            memcpy(&LocalAddr.sin_addr,h->h_addr_list[0],4);
+            strcpy( out, inet_ntoa(LocalAddr.sin_addr));
+        }
+        return UPNP_E_SUCCESS;
 #elif (defined(BSD) && BSD >= 199306)
     struct ifaddrs *ifap, *ifa;
 
@@ -3665,12 +3680,12 @@ void printNodes( IXML_Node * tmpRoot, int depth )
  /**************************************************************************
  * Function: AutoAdvertise 
  *
- * Parameters:	
- * 	IN void *input: information provided to the thread.
+ * Parameters:  
+ *  IN void *input: information provided to the thread.
  *  
  * Description:
- *	This function is a timer thread scheduled by UpnpSendAdvertisement 
- *	to the send advetisement again. 
+ *  This function is a timer thread scheduled by UpnpSendAdvertisement 
+ *  to the send advetisement again. 
  *
  * Return Values: VOID
  *     
@@ -3693,22 +3708,22 @@ AutoAdvertise( void *input )
  /**************************************************************************
  * Function: UpnpSetWebServerRootDir 
  *
- * Parameters:	
- *	IN const char* rootDir:Path of the root directory of the web server. 
+ * Parameters:  
+ *  IN const char* rootDir:Path of the root directory of the web server. 
  *  
  * Description:
- *	This function sets the document root directory for
- *	the internal web server. This directory is considered the
- *	root directory (i.e. "/") of the web server.
- *	This function also activates or deactivates the web server.
- *	To disable the web server, pass NULL for rootDir to 
- *	activate, pass a valid directory string.
+ *  This function sets the document root directory for
+ *  the internal web server. This directory is considered the
+ *  root directory (i.e. "/") of the web server.
+ *  This function also activates or deactivates the web server.
+ *  To disable the web server, pass NULL for rootDir to 
+ *  activate, pass a valid directory string.
  *  
- *	Note that this function is not available when the web server is not
- *	compiled into the UPnP Library.
+ *  Note that this function is not available when the web server is not
+ *  compiled into the UPnP Library.
  *
  * Return Values: int
- *	UPNP_E_SUCCESS if successful else returns appropriate error
+ *  UPNP_E_SUCCESS if successful else returns appropriate error
  ***************************************************************************/
 int
 UpnpSetWebServerRootDir( IN const char *rootDir )
@@ -3730,18 +3745,18 @@ UpnpSetWebServerRootDir( IN const char *rootDir )
  /**************************************************************************
  * Function: UpnpAddVirtualDir 
  *
- * Parameters:	
- *	IN const char *newDirName:The name of the new directory mapping to add.
+ * Parameters:  
+ *  IN const char *newDirName:The name of the new directory mapping to add.
  *  
  * Description:
- *	This function adds a virtual directory mapping.
+ *  This function adds a virtual directory mapping.
  *
- *	All webserver requests containing the given directory are read using
- *	functions contained in a UpnpVirtualDirCallbacks structure registered
- *	via UpnpSetVirtualDirCallbacks.
+ *  All webserver requests containing the given directory are read using
+ *  functions contained in a UpnpVirtualDirCallbacks structure registered
+ *  via UpnpSetVirtualDirCallbacks.
  *  
- *	Note that this function is not available when the web server is not
- *	compiled into the UPnP Library.
+ *  Note that this function is not available when the web server is not
+ *  compiled into the UPnP Library.
  *
  *  Return Values: int
  *     UPNP_E_SUCCESS if successful else returns appropriate error
@@ -3806,14 +3821,14 @@ UpnpAddVirtualDir( IN const char *newDirName )
  /**************************************************************************
  * Function: UpnpRemoveVirtualDir 
  *
- * Parameters:	
- * 	IN const char *newDirName:The name of the directory mapping to remove.
+ * Parameters:  
+ *  IN const char *newDirName:The name of the directory mapping to remove.
  *  
  * Description:
- *	This function removes a virtual directory mapping.
+ *  This function removes a virtual directory mapping.
  *
  * Return Values: int
- *	UPNP_E_SUCCESS if successful else returns appropriate error
+ *  UPNP_E_SUCCESS if successful else returns appropriate error
  ***************************************************************************/
 int
 UpnpRemoveVirtualDir( IN const char *dirName )
@@ -3874,7 +3889,7 @@ UpnpRemoveVirtualDir( IN const char *dirName )
  * Parameters: VOID
  *  
  * Description:
- *	This function removes all the virtual directory mappings.
+ *  This function removes all the virtual directory mappings.
  *
  * Return Values: VOID
  *     
@@ -3906,15 +3921,15 @@ UpnpRemoveAllVirtualDirs()
  /**************************************************************************
  * Function: UpnpEnableWebserver 
  *
- * Parameters:	
- *	IN int enable: TRUE to enable, FALSE to disable.
+ * Parameters:  
+ *  IN int enable: TRUE to enable, FALSE to disable.
  *  
  * Description:
- *	This function enables or disables the webserver.  A value of
- *	TRUE enables the webserver, FALSE disables it.
+ *  This function enables or disables the webserver.  A value of
+ *  TRUE enables the webserver, FALSE disables it.
  *
  * Return Values: int
- *	UPNP_E_SUCCESS if successful else returns appropriate error
+ *  UPNP_E_SUCCESS if successful else returns appropriate error
  ***************************************************************************/
 int
 UpnpEnableWebserver( IN int enable )
@@ -3928,6 +3943,7 @@ UpnpEnableWebserver( IN int enable )
     switch ( enable ) {
 #ifdef INTERNAL_WEB_SERVER
         case TRUE:
+            printf("INTERNAL WEB SERVER IS TRUE\n");
             if( ( retVal = web_server_init() ) != UPNP_E_SUCCESS ) {
                 return retVal;
             }
@@ -3936,6 +3952,7 @@ UpnpEnableWebserver( IN int enable )
             break;
 
         case FALSE:
+            printf("INTERNAL WEB SERVER IS FALSE\n");
             web_server_destroy();
             bWebServerState = WEB_SERVER_DISABLED;
             SetHTTPGetCallback( NULL );
@@ -3954,11 +3971,11 @@ UpnpEnableWebserver( IN int enable )
  * Parameters: VOID
  *  
  * Description:
- *	This function  checks if the webserver is enabled or disabled. 
+ *  This function  checks if the webserver is enabled or disabled. 
  *
  * Return Values: int
- *	1, if webserver enabled
- *	0, if webserver disabled
+ *  1, if webserver enabled
+ *  0, if webserver disabled
  ***************************************************************************/
 int
 UpnpIsWebserverEnabled()
@@ -3973,16 +3990,16 @@ UpnpIsWebserverEnabled()
  /**************************************************************************
  * Function: UpnpSetVirtualDirCallbacks 
  *
- * Parameters:	
- *	IN struct UpnpVirtualDirCallbacks *callbacks:a structure that 
- *		contains the callback functions.
- *	
+ * Parameters:  
+ *  IN struct UpnpVirtualDirCallbacks *callbacks:a structure that 
+ *      contains the callback functions.
+ *  
  * Description:
- *	This function sets the callback function to be used to 
- *	access a virtual directory.
+ *  This function sets the callback function to be used to 
+ *  access a virtual directory.
  *
  * Return Values: int
- *	UPNP_E_SUCCESS on success, or UPNP_E_INVALID_PARAM
+ *  UPNP_E_SUCCESS on success, or UPNP_E_INVALID_PARAM
  ***************************************************************************/
 int
 UpnpSetVirtualDirCallbacks( IN struct UpnpVirtualDirCallbacks *callbacks )
@@ -4059,20 +4076,20 @@ UpnpSetContentLength( IN UpnpClient_Handle Hnd,
 /**************************************************************************
  * Function: UpnpSetMaxContentLength
  *
- * Parameters:	
- *	IN int contentLength: The maximum size to be set 
- *	
+ * Parameters:  
+ *  IN int contentLength: The maximum size to be set 
+ *  
  * Description:
- *	Sets the maximum content-length that the SDK will process on an 
- *	incoming SOAP requests or responses. This API allows devices that have
- *	memory constraints to exhibit consistent behaviour if the size of the 
- *	incoming SOAP message exceeds the memory that device can allocate. 
- *	The default maximum content-length is {\tt DEFAULT_SOAP_CONTENT_LENGTH}
- *	= 16K bytes.
+ *  Sets the maximum content-length that the SDK will process on an 
+ *  incoming SOAP requests or responses. This API allows devices that have
+ *  memory constraints to exhibit consistent behaviour if the size of the 
+ *  incoming SOAP message exceeds the memory that device can allocate. 
+ *  The default maximum content-length is {\tt DEFAULT_SOAP_CONTENT_LENGTH}
+ *  = 16K bytes.
  *
  * Return Values: int
- *	UPNP_E_SUCCESS: The operation completed successfully.
- *		
+ *  UPNP_E_SUCCESS: The operation completed successfully.
+ *      
  ***************************************************************************/
 int
 UpnpSetMaxContentLength (

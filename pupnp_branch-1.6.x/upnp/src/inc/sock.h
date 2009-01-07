@@ -33,6 +33,7 @@
 #define GENLIB_NET_SOCK_H
 
 #include "util.h"
+#include <openssl/ssl.h>
 
 #ifndef WIN32
  #include <netinet/in.h>
@@ -53,6 +54,9 @@ typedef struct
     // the following two fields are filled only in incoming requests;
     struct in_addr foreign_ip_addr;
     unsigned short foreign_ip_port;
+    
+    // https
+    SSL *ssl;
     
 } SOCKINFO;
 

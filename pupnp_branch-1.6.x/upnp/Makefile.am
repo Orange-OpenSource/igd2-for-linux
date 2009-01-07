@@ -53,6 +53,7 @@ libupnp_la_SOURCES = \
 	src/inc/md5.h \
 	src/inc/membuffer.h \
 	src/inc/miniserver.h \
+	src/inc/httpsserver.h \
 	src/inc/netall.h \
 	src/inc/parsetools.h \
 	src/inc/server.h \
@@ -90,6 +91,7 @@ libupnp_la_SOURCES += \
 # genlib
 libupnp_la_SOURCES += \
 	src/genlib/miniserver/miniserver.c \
+	src/genlib/miniserver/httpsserver.c \
 	src/genlib/service_table/service_table.c \
 	src/genlib/util/membuffer.c \
 	src/genlib/util/strintmap.c \
@@ -156,3 +158,4 @@ CLEANFILES = \
 	IUpnpErrFile.txt \
 	IUpnpInfoFile.txt
 
+libupnp_la_LIBADD = -lssl

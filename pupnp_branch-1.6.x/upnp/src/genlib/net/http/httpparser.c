@@ -2325,7 +2325,6 @@ parser_parse( INOUT http_parser_t * parser )
     //takes an http_parser_t with memory already allocated 
     //in the message 
     assert( parser != NULL );
-
     do {
         switch ( parser->position ) {
             case POS_ENTITY:
@@ -2389,6 +2388,7 @@ parser_append( INOUT http_parser_t * parser,
     // append data to buffer
     ret_code = membuffer_append( &parser->msg.msg, buf, buf_length );
     if( ret_code != 0 ) {
+        printf("Oh no failure %d\n%d\n\n",ret_code,parser->msg.msg.length);
         // set failure status
         parser->http_error_code = HTTP_INTERNAL_SERVER_ERROR;
         return PARSE_FAILURE;

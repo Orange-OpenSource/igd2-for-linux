@@ -130,16 +130,16 @@ extern ThreadPool gSendThreadPool;
 extern ThreadPool gMiniServerThreadPool;
 
 typedef enum {
-    SUBSCRIBE,
-    UNSUBSCRIBE,
-    DK_NOTIFY,
-    QUERY,
-    ACTION,
-    STATUS,
-    DEVDESCRIPTION,
-    SERVDESCRIPTION,
-    MINI,
-    RENEW} UpnpFunName;
+    FUN_SUBSCRIBE,
+    FUN_UNSUBSCRIBE,
+    FUN_DK_NOTIFY,
+    FUN_QUERY,
+    FUN_ACTION,
+    FUN_STATUS,
+    FUN_DEVDESCRIPTION,
+    FUN_SERVDESCRIPTION,
+    FUN_MINI,
+    FUN_RENEW} UpnpFunName;
 
 struct  UpnpNonblockParam 
 { 

@@ -1681,6 +1681,7 @@ web_server_callback( IN http_parser_t * parser,
                      INOUT http_message_t * req,
                      IN SOCKINFO * info )
 {
+    printf("webserver callback reached!\n");
     int ret;
     int timeout = 0;
     enum resp_type rtype = 0;

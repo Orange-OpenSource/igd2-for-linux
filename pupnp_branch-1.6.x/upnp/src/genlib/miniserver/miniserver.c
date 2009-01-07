@@ -155,7 +155,7 @@ SetGenaCallback( MiniServerCallback callback )
  *	0 - On Success
  *	HTTP_INTERNAL_SERVER_ERROR - Callback is NULL
  ************************************************************************/
-static int
+int
 dispatch_request( IN SOCKINFO * info,
                   http_parser_t * hparser )
 {
@@ -166,6 +166,7 @@ dispatch_request( IN SOCKINFO * info,
         case SOAPMETHOD_POST:
         case HTTPMETHOD_MPOST:
             callback = gSoapCallback;
+            printf("gSoapCallback\n");
             break;
 
             //Gena Call
@@ -175,6 +176,7 @@ dispatch_request( IN SOCKINFO * info,
             UpnpPrintf( UPNP_INFO, MSERV, __FILE__, __LINE__,
                 "miniserver %d: got GENA msg\n", info->socket );
             callback = gGenaCallback;
+            printf("gGenaCallback\n");
             break;
 
             //HTTP server call
@@ -183,13 +185,16 @@ dispatch_request( IN SOCKINFO * info,
         case HTTPMETHOD_HEAD:
         case HTTPMETHOD_SIMPLEGET:
             callback = gGetCallback;
+            printf("gGetCallback\n");
             break;
 
         default:
+            printf("NULL\n");
             callback = NULL;
     }
 
     if( callback == NULL ) {
+        printf("DISPATCH RETURNING NULL\n");
         return HTTP_INTERNAL_SERVER_ERROR;
     }
 
@@ -211,7 +216,7 @@ dispatch_request( IN SOCKINFO * info,
  *
  * Return: void
  ************************************************************************/
-static UPNP_INLINE void
+UPNP_INLINE void
 handle_error( IN SOCKINFO * info,
               int http_error_code,
               int major,
@@ -257,6 +262,7 @@ static void
 handle_request( void *args )
 {
     SOCKINFO info;
+    info.ssl = NULL;
     int http_error_code;
     int ret_code;
     int major = 1;
