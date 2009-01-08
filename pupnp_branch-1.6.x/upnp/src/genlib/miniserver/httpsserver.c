@@ -22,7 +22,8 @@ static int RUNNING = 0;
 /*---------------------------------------------------------------------*/
 static int 
 OpenListener(int port)
-{   int sd;
+{   
+    int sd;
     struct sockaddr_in addr;
 
     sd = socket(PF_INET, SOCK_STREAM, 0);
@@ -126,7 +127,6 @@ Servlet(SSL* ssl)
     char buf[buflen];
     char reply[buflen];
     int sd, bytes;
-    const char* HTMLecho="<html><body><pre>%s</pre></body></html>\n\n";
     
     int http_error_code;
     int ret_code;
@@ -149,8 +149,7 @@ Servlet(SSL* ssl)
 /* get any certificates */
         bytes = SSL_read(ssl, buf, sizeof(buf));    /* get request */
         if ( bytes > 0 )
-        {            
-            printf("%s\n",buf);
+        {
             ret_code = parseHttpMessage(buf, bytes, &parser, HTTPMETHOD_UNKNOWN, &timeout, &http_error_code);
             // dispatch
             http_error_code = dispatch_request( &info, &parser );
@@ -158,8 +157,6 @@ Servlet(SSL* ssl)
                 goto error_handler;
             }
             http_error_code = 0;
-
-            printf("Client msg: \"%s\"\n%d\n", buf,ret_code);
         }
         else
             ERR_print_errors_fp(stderr);
@@ -175,13 +172,13 @@ error_handler:
     }
 
     
-    //SSL_shutdown(ssl);
+    SSL_shutdown(ssl);
     
-    sd = SSL_get_fd(ssl);                           
+    //sd = SSL_get_fd(ssl);                           
 /* get socket connection */
     SSL_free(ssl);                                  
 /* release SSL state */
-    close(sd);                                      
+    //close(sd);                                      
 /* close connection */
 }
 
@@ -288,23 +285,27 @@ RunHttpsServer( httpsRunParams *params )
     RUNNING = 1;
    
     while (RUNNING) {
-        printf("___ RUN HTTPS___\n");
-        
         int sock = accept(params->server, &addr, &len);
-        // fork here for multiple clients
-        //if(fork())
-        //{
-        //    close(sock);
-        //}           
-        //else 
-        //{
-            printf("Connection: %s:%d\n",
-                inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));
-            params->ssl = SSL_new(params->ctx); 
-            SSL_set_fd(params->ssl, sock); 
-            Servlet(params->ssl);
-        //}
-    }    
+        printf("Connection: %s:%d\n",
+            inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));
+        params->ssl = SSL_new(params->ctx); 
+        SSL_set_fd(params->ssl, sock); 
+        Servlet(params->ssl);
+    } 
+    
+    if (params->ssl != NULL)
+    {
+        SSL_shutdown(params->ssl);
+        SSL_free(params->ssl);       
+    }
+    if (params->ctx != NULL)
+    {
+        SSL_CTX_free(params->ctx);
+    }
+    if (params->server > 0)
+    {
+        close(params->server);
+    }
 }
 
 /************************************************************************
@@ -331,7 +332,7 @@ int
 StartHttpsServer( unsigned short listen_port, char* CertFile, char* PrivKeyFile )
 {
     SSL *ssl = NULL;
-    SSL_CTX *ctx;
+    SSL_CTX *ctx = NULL;
     int server;
     
     ThreadPoolJob job;
@@ -364,20 +365,10 @@ StartHttpsServer( unsigned short listen_port, char* CertFile, char* PrivKeyFile 
 
     int success = ThreadPoolAddPersistent( &gMiniServerThreadPool, &job, NULL );
     if ( success < 0 ) {
-        // release ssl here?
+        StopHttpsServer();
         return UPNP_E_OUTOF_MEMORY;
     }
-
-/*    
-    if (!fork())
-    {
-
-    }
-    else
-    {
-        wait(&status);
-    }
-*/    
+ 
     return listen_port;
 }
 
@@ -397,17 +388,7 @@ StartHttpsServer( unsigned short listen_port, char* CertFile, char* PrivKeyFile 
 int
 StopHttpsServer()
 {
-    RUNNING = 0;
-/*        
-    if (ssl != NULL)
-    {
-        SSL_shutdown(ssl);
-        
-        int sd;
-        sd = SSL_get_fd(ssl);
-        SSL_free(ssl);          
-        close(sd);
-    }         
-*/
+    RUNNING = 0;      
+
     return 0;
 }

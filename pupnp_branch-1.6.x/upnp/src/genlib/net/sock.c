@@ -251,14 +251,10 @@ sock_read_write( IN SOCKINFO * info,
             if (info->ssl == NULL) {
                 num_written =
                     send( sockfd, buffer + bytes_sent, byte_left,
-                          MSG_DONTROUTE|MSG_NOSIGNAL);
-                printf("Wrote with god damn sockets!\n");                          
+                          MSG_DONTROUTE|MSG_NOSIGNAL);                        
             } else  {
-                printf("Start writing\n");
                 num_written = SSL_write(info->ssl, buffer, strlen(buffer));
-                printf("Wrote with SSL!\n");
                 if (num_written < 1) {
-                    printf("Failure when ssl writing %d\n",num_written);
                     return num_written;
                 }
             }
