@@ -31,6 +31,12 @@
             </argumentList>
         </action>
         <action>
+            <name>ForceTermination</name>
+        </action>
+        <action>
+            <name>RequestConnection</name>
+        </action>        
+        <action>
             <name>GetStatusInfo</name>
             <argumentList>
                 <argument>
@@ -254,14 +260,14 @@
                     <relatedStateVariable>PortMappingProtocol</relatedStateVariable>
                 </argument>
                 <argument>
-                    <name>Manage</name>
+                    <name>NewManage</name>
                     <direction>in</direction>
                     <relatedStateVariable>A_ARG_TYPE_Manage</relatedStateVariable>
                 </argument>
             </argumentList>
         </action>
         <action>
-            <name>RetrieveListOfPortmappings</name>
+            <name>GetListOfPortmappings</name>
             <argumentList>
                 <argument>
                     <name>NewStartPort</name>
@@ -279,7 +285,7 @@
                     <relatedStateVariable>PortMappingProtocol</relatedStateVariable>
                 </argument>
                 <argument>
-                    <name>Manage</name>
+                    <name>NewManage</name>
                     <direction>in</direction>
                     <relatedStateVariable>A_ARG_TYPE_Manage</relatedStateVariable>
                 </argument>
@@ -339,17 +345,11 @@
                     <relatedStateVariable>PortMappingLeaseDuration</relatedStateVariable>
                 </argument>
                 <argument>
-                    <name>ReservedPort</name>
+                    <name>NewReservedPort</name>
                     <direction>out</direction>
                     <relatedStateVariable>ExternalPort</relatedStateVariable>
                 </argument>
             </argumentList>
-        </action>
-        <action>
-            <name>ForceTermination</name>
-        </action>
-        <action>
-            <name>RequestConnection</name>
         </action>
     </actionList>
     <serviceStateTable>
@@ -472,7 +472,7 @@
         </stateVariable>
         <stateVariable sendEvents="no">
             <name>A_ARG_TYPE_PortListing</name>
-            <dataType>CSV(string,string,string,string,string,ui2,string,ui4)</dataType>
+            <dataType>string</dataType>
         </stateVariable>
     </serviceStateTable>
 </scpd>
