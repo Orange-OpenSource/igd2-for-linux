@@ -50,7 +50,7 @@ void Test_AddAnyPortMapping(void)
     event.ActionRequest = ixmlParseBuffer(add_any_port_mapping_ok_xml);
 
     CU_ASSERT(AddAnyPortMapping(&event) == 0);
-    port = GetFirstDocumentItem(event.ActionResult, "ReservedPort");
+    port = GetFirstDocumentItem(event.ActionResult, "NewReservedPort");
     CU_ASSERT(strcmp(port, "100") == 0);
 
     // Add it again
@@ -58,7 +58,7 @@ void Test_AddAnyPortMapping(void)
     result = AddAnyPortMapping(&event);
     CU_ASSERT(result == 0);
 
-    port = GetFirstDocumentItem(event.ActionResult, "ReservedPort");
+    port = GetFirstDocumentItem(event.ActionResult, "NewReservedPort");
     CU_ASSERT(strcmp(port, "100") != 0);
 
     // Wildcard in remote host
@@ -88,15 +88,15 @@ void Test_RetrieveListOfPortMappings(void)
 
     // Ok
     event.ActionRequest = ixmlParseBuffer(retrieve_port_list_request_xml);
-    CU_ASSERT(RetrieveListOfPortmappings(&event) == 0);
+    CU_ASSERT(GetListOfPortmappings(&event) == 0);
 
     // Invalid arguments
     event.ActionRequest = ixmlParseBuffer(retrieve_port_list_inv_args_xml);
-    CU_ASSERT(RetrieveListOfPortmappings(&event) == 402);
+    CU_ASSERT(GetListOfPortmappings(&event) == 402);
 
     // No results
     event.ActionRequest = ixmlParseBuffer(retrieve_port_list_no_results_xml);
-    CU_ASSERT(RetrieveListOfPortmappings(&event) == 714);
+    CU_ASSERT(GetListOfPortmappings(&event) == 714);
 }
 
 void Test_GetSpecificPortMappingEntry(void)

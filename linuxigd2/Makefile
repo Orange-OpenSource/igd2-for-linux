@@ -2,27 +2,28 @@ PREFIX=/usr
 LIBUPNP_PREFIX=/usr
 #LIBIPTC_PREFIX=/usr
 
-COMMON_DIR = ./sc_common
+#COMMON_DIR = ./sc_common
 
 CC=gcc
 INCLUDES= -I$(LIBUPNP_PREFIX)/include -I../include -I$(COMMON_DIR)/inc
 LIBS= -lpthread -lupnp -lixml -lthreadutil -L$(LIBUPNP_PREFIX)/lib -L../libs
-FILES= gatedevice.o pmlist.o util.o config.o lanhostconfig.o applicationlevelsecurity.o \
-	$(COMMON_DIR)/scmessage.o \
-	$(COMMON_DIR)/message_utilities.o \
-	$(COMMON_DIR)/sccryptoutil.o \
-	$(COMMON_DIR)/dh.o \
-	$(COMMON_DIR)/base64mem.o \
-	$(COMMON_DIR)/sha256.o \
-	$(COMMON_DIR)/common.o \
-	$(COMMON_DIR)/statectl.o \
-	$(COMMON_DIR)/list.o \
-	$(COMMON_DIR)/hexprint.o \
-	$(COMMON_DIR)/enrollee_state_machine.o \
-	$(COMMON_DIR)/enrollee_states.o \
-	$(COMMON_DIR)/enrollee_utilities.o \
-	$(COMMON_DIR)/debug.o \
-	$(COMMON_DIR)/crypto.o
+FILES= gatedevice.o pmlist.o util.o config.o lanhostconfig.o 
+#applicationlevelsecurity.o \ 
+#	$(COMMON_DIR)/scmessage.o \
+#	$(COMMON_DIR)/message_utilities.o \
+#	$(COMMON_DIR)/sccryptoutil.o \
+#	$(COMMON_DIR)/dh.o \
+#	$(COMMON_DIR)/base64mem.o \
+#	$(COMMON_DIR)/sha256.o \
+#	$(COMMON_DIR)/common.o \
+#	$(COMMON_DIR)/statectl.o \
+#	$(COMMON_DIR)/list.o \
+#	$(COMMON_DIR)/hexprint.o \
+#	$(COMMON_DIR)/enrollee_state_machine.o \
+#	$(COMMON_DIR)/enrollee_states.o \
+#	$(COMMON_DIR)/enrollee_utilities.o \
+#	$(COMMON_DIR)/debug.o \
+#	$(COMMON_DIR)/crypto.o
 BIN=bin/
 
 CFLAGS += -Wall -g -O2

@@ -13,7 +13,7 @@
 #include "pmlist.h"
 #include "util.h"
 #include "lanhostconfig.h"
-#include "applicationlevelsecurity.h"
+//#include "applicationlevelsecurity.h"
 
 //Definitions for mapping expiration timer thread
 static TimerThread gExpirationTimerThread;
@@ -151,7 +151,8 @@ int HandleSubscriptionRequest(struct Upnp_Subscription_Request *sr_event)
                                       propSet, sr_event->Sid);
             ixmlDocument_free(propSet);
         }
-        // TODO change service id to right value, add statevariables if there is any
+        /*
+        // TODO change service id to right value ALS, add statevariables if there is any 
         else if (strcmp(sr_event->ServiceId, "urn:upnp-org:serviceId:WFAWLANConfig1") == 0)
         {
             trace(3, "Received request to subscribe to WFAWLANConfig");
@@ -159,7 +160,8 @@ int HandleSubscriptionRequest(struct Upnp_Subscription_Request *sr_event)
             UpnpAcceptSubscriptionExt(deviceHandle, sr_event->UDN, sr_event->ServiceId,
                                       propSet, sr_event->Sid);
             ixmlDocument_free(propSet);
-        }        
+        }
+        */   
     }
     ithread_mutex_unlock(&DevMutex);
     return(1);
@@ -233,8 +235,8 @@ int HandleActionRequest(struct Upnp_Action_Request *ca_event)
                 result = DeletePortMappingRange(ca_event);
             else if (strcmp(ca_event->ActionName,"AddAnyPortMapping") == 0)
                 result = AddAnyPortMapping(ca_event);
-            else if (strcmp(ca_event->ActionName,"RetrieveListOfPortmappings") == 0)
-                result = RetrieveListOfPortmappings(ca_event);
+            else if (strcmp(ca_event->ActionName,"GetListOfPortmappings") == 0)
+                result = GetListOfPortmappings(ca_event);
             else if (strcmp(ca_event->ActionName,"ForceTermination") == 0)
                 result = ForceTermination(ca_event);
                 
@@ -311,7 +313,8 @@ int HandleActionRequest(struct Upnp_Action_Request *ca_event)
                 result = InvalidAction(ca_event);
             }
         }
-        // TODO change id and move block under rigth device
+        /*
+        // TODO change id and move block under rigth device ALS
         else if (strcmp(ca_event->ServiceID,"urn:upnp-org:serviceId:WFAWLANConfig1") == 0)
         {
             // Public interface
@@ -338,6 +341,7 @@ int HandleActionRequest(struct Upnp_Action_Request *ca_event)
                 result = InvalidAction(ca_event);
             }
         }
+        */
     }
 
     ithread_mutex_unlock(&DevMutex);
@@ -1052,7 +1056,7 @@ int DeletePortMappingRange(struct Upnp_Action_Request *ca_event)
     if ((start_port = GetFirstDocumentItem(ca_event->ActionRequest, "NewStartPort")) &&
             (end_port = GetFirstDocumentItem(ca_event->ActionRequest, "NewEndPort")) &&
             (proto = GetFirstDocumentItem(ca_event->ActionRequest, "NewProtocol")) &&
-            (bool_manage = GetFirstDocumentItem(ca_event->ActionRequest, "Manage")))
+            (bool_manage = GetFirstDocumentItem(ca_event->ActionRequest, "NewManage")))
     {
         if ((strcmp(proto, "TCP") == 0) || (strcmp(proto, "UDP") == 0))
         {
@@ -1075,17 +1079,10 @@ int DeletePortMappingRange(struct Upnp_Action_Request *ca_event)
                         if ((authorized && managed) || ControlPointIP_equals_InternalClientIP(temp->m_InternalClient, &ca_event->CtrlPtIPAddr))
                         {
                             result = pmlist_DeleteIndex(temp, index);
-                            SystemUpdateID++;
+                            
                             if (result==1)
                             {
                                 trace(2, "DeletePortMappingRange: StartPort:%s EndPort:%s Proto:%s Manage:%s\n", start_port, end_port, proto, bool_manage);
-                
-                                snprintf(tmp,11,"%d",pmlist_Size());
-                                UpnpAddToPropertySet(&propSet,"PortMappingNumberOfEntries", tmp);
-                                snprintf(tmp,11,"%ld",SystemUpdateID);
-                                UpnpAddToPropertySet(&propSet,"SystemUpdateID", tmp);
-                
-                                UpnpNotifyExt(deviceHandle, ca_event->DevUDN,ca_event->ServiceID,propSet);
                                 action_succeeded = 1;
                             }                    
                         }
@@ -1094,6 +1091,18 @@ int DeletePortMappingRange(struct Upnp_Action_Request *ca_event)
                     }
                 }
                 while (temp != NULL);
+            }
+            
+            // if action has succeeded and something has been deleted, send event and update SystemUpdateId 
+            if (action_succeeded)
+            {
+                SystemUpdateID++;
+                snprintf(tmp,11,"%d",pmlist_Size());
+                UpnpAddToPropertySet(&propSet,"PortMappingNumberOfEntries", tmp);
+                snprintf(tmp,11,"%ld",SystemUpdateID);
+                UpnpAddToPropertySet(&propSet,"SystemUpdateID", tmp);
+                
+                UpnpNotifyExt(deviceHandle, ca_event->DevUDN,ca_event->ServiceID,propSet);                
             }
 
             // portmappings which are in area of deletion exists, but none has been deleted -> Action is not permitted
@@ -1549,8 +1558,8 @@ int AddAnyPortMapping
         if (next_free_port == 0) next_free_port = atoi(new_external_port);
 
     snprintf(resultStr, RESULT_LEN, "<u:%sResponse xmlns:u=\"%s\">\n%s%d%s\n</u:%sResponse>",
-                 ca_event->ActionName, "urn:schemas-upnp-org:service:WANIPConnection:2", "<ReservedPort>",
-         next_free_port, "</ReservedPort>", ca_event->ActionName);
+                 ca_event->ActionName, "urn:schemas-upnp-org:service:WANIPConnection:2", "<NewReservedPort>",
+         next_free_port, "</NewReservedPort>", ca_event->ActionName);
     ca_event->ActionResult = ixmlParseBuffer(resultStr);
     }
 
@@ -1603,7 +1612,7 @@ int AddNewPortMapping(struct Upnp_Action_Request *ca_event, char* new_enabled, i
 /**
  * Action: Retrieves a list of all port mappings.
  */
-int RetrieveListOfPortmappings(struct Upnp_Action_Request *ca_event)
+int GetListOfPortmappings(struct Upnp_Action_Request *ca_event)
 {
     char *start_port = NULL;
     char *end_port = NULL;
@@ -1621,7 +1630,7 @@ int RetrieveListOfPortmappings(struct Upnp_Action_Request *ca_event)
 
     if ( (start_port = GetFirstDocumentItem(ca_event->ActionRequest, "NewStartPort") )
             && (end_port = GetFirstDocumentItem(ca_event->ActionRequest, "NewEndPort") )
-            && (manage = GetFirstDocumentItem(ca_event->ActionRequest, "Manage") )
+            && (manage = GetFirstDocumentItem(ca_event->ActionRequest, "NewManage") )
             && (number_of_ports = GetFirstDocumentItem(ca_event->ActionRequest, "NewNumberOfPorts") )
             && (proto = GetFirstDocumentItem(ca_event->ActionRequest, "NewProtocol") ))
     {

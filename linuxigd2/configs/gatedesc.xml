@@ -37,9 +37,9 @@
         <manufacturerURL>http://linux-igd.sourceforge.net</manufacturerURL>
         <modelDescription>WAN Device on Linux IGD</modelDescription>
         <modelName>Linux IGD</modelName>
-        <modelNumber>1.00</modelNumber>
+        <modelNumber>2.00</modelNumber>
         <modelURL>http://linux-igd.sourceforge.net</modelURL>
-        <serialNumber>1.00</serialNumber>
+        <serialNumber>2.00</serialNumber>
         <UDN>uuid:75802409-bccb-40e7-8e6c-fa095ecce13f</UDN>
         <UPC>Linux IGD</UPC>
         <serviceList>
@@ -85,14 +85,7 @@
                   <controlURL>/upnp/control/LANHostConfig1</controlURL>
                   <eventSubURL>/upnp/control/LANHostConfig1</eventSubURL>
                   <SCPDURL>/lanhostconfigSCPD.xml</SCPDURL>
-              </service>
-              <service>
-                  <serviceType>urn:schemas-upnp-org:service:WFAWLANConfig:1</serviceType>
-                  <serviceId>urn:upnp-org:serviceId:WFAWLANConfig1</serviceId>
-                  <controlURL>/upnp/control/WFAWLANConfig1</controlURL>
-                  <eventSubURL>/upnp/control/WFAWLANConfig1</eventSubURL>
-                  <SCPDURL>/wfaservice.xml</SCPDURL>
-              </service>        
+              </service>    
             </serviceList>
           </device>
         </deviceList>
