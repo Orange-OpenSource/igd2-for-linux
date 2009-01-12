@@ -3,11 +3,10 @@ LIBUPNP_PREFIX=/usr
 #LIBIPTC_PREFIX=/usr
 
 COMMON_DIR = ./sc_common
-SSL_DIR = /usr/local/ssl
 
 CC=gcc
-INCLUDES= -I$(LIBUPNP_PREFIX)/include -I../include -I$(COMMON_DIR)/inc -I$(SSL_DIR)/include
-LIBS= -lpthread -lupnp -lixml -lthreadutil -L$(LIBUPNP_PREFIX)/lib -L../libs -L$(SSL_DIR)/lib -lcrypto -ldl -lssl
+INCLUDES= -I$(LIBUPNP_PREFIX)/include -I../include -I$(COMMON_DIR)/inc
+LIBS= -lpthread -lupnp -lixml -lthreadutil -L$(LIBUPNP_PREFIX)/lib -L../libs
 FILES= gatedevice.o pmlist.o util.o config.o lanhostconfig.o applicationlevelsecurity.o \
 	$(COMMON_DIR)/scmessage.o \
 	$(COMMON_DIR)/message_utilities.o \
