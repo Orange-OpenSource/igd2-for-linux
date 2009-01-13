@@ -18,6 +18,22 @@ static struct ipt_natinfo *append_range(struct ipt_natinfo *info, const struct n
 
 static int matchcmp(const struct ipt_entry_match *match, const char *srcports, const char *destports);
 
+/**
+ * Add new rule into iptables with libiptc.
+ *
+ * @param table Name of table where rule is added.
+ * @param chain Name of chain where rule is added.
+ * @param protocol Network protocol of packet (tcp or udp).
+ * @param iniface Name of an interface via which a packet was received.
+ * @param outiface  Name of an interface via which a packet is going to be sent.
+ * @param src Source address of packet.
+ * @param dest Destination address of packet.
+ * @param srcports Source port of packet.
+ * @param destports Destination port of packet. 
+ * @param target What rule should do if packet match. (ACCEPT or DNAT)
+ * @param dnat_to In case of DNAT this is same as src:srcports
+ * @param append If true, rule is appended as last chain, else rule is inserted as first in chain.
+ */
 void iptc_add_rule(const char *table,
                    const char *chain,
                    const char *protocol,
@@ -140,6 +156,21 @@ void iptc_add_rule(const char *table,
     free(chain_entry);
 }
 
+/**
+ * Delete rule from iptables with libiptc.
+ *
+ * @param table Name of table.
+ * @param chain Name of chain.
+ * @param protocol Network protocol of packet (tcp or udp).
+ * @param iniface Name of an interface via which a packet was received.
+ * @param outiface  Name of an interface via which a packet is going to be sent.
+ * @param src Source address of packet.
+ * @param dest Destination address of packet.
+ * @param srcports Source port of packet.
+ * @param destports Destination port of packet. 
+ * @param target What rule should do if packet match. (ACCEPT or DNAT)
+ * @param dnat_to In case of DNAT this is same as src:srcports
+ */
 void iptc_delete_rule(const char *table,
                       const char *chain,
                       const char *protocol,
