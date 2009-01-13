@@ -14,6 +14,20 @@
 #include "iptc.h"
 #endif
 
+/**
+ * Create new portMap struct of rule to add iptables. 
+ * portMap-struct is internal presentation of iptables rule in IGD. 
+ *
+ * @param enabled Is rule enabled.
+ * @param duration How long portmapping should exist.
+ * @param remoteHost WAN IP address (destination) of connections initiated by a client in the local network.
+ * @param externalPort TCP or UDP port number of the Client as seen by the remote host.
+ * @param internalPort The local TCP or UDP port number of the client.
+ * @param protocol Portmapping protocol, either TCP or UDP.
+ * @param internalClient The local IP address of the client.
+ * @param desc Textual description of portmapping.
+ * @return Pointer to newly created portMap-struct.
+ */
 struct portMap* pmlist_NewNode(int enabled, long int duration, char *remoteHost,
                                            char *externalPort, char *internalPort,
                                            char *protocol, char *internalClient, char *desc)
@@ -42,6 +56,16 @@ struct portMap* pmlist_NewNode(int enabled, long int duration, char *remoteHost,
     return temp;
 }
 
+/**
+ * Search if portmapping with given parameters exist in IGD's portmapping list. 
+ * Starts searching from the beginning of list. 
+ *
+ * @param remoteHost WAN IP address (destination) of connections initiated by a client in the local network. If empty string, then it is assumed as wildcarded address and matches all addresses.
+ * @param externalPort TCP or UDP port number of the Client as seen by the remote host.
+ * @param proto Portmapping protocol, either TCP or UDP.
+ * @param internalClient The local IP address of the client.
+ * @return Pointer to found portmapping. If portmapping is not found, return NULL.
+ */
 struct portMap* pmlist_Find(char * remoteHost, char *externalPort, char *proto, char *internalClient)
 {
     struct portMap* temp;
@@ -65,6 +89,12 @@ struct portMap* pmlist_Find(char * remoteHost, char *externalPort, char *proto, 
     return NULL;
 }
 
+/**
+ * Fetch portmapping from given index in portmapping list. 
+ *
+ * @param index Index of searched portmapping. 0 is first.
+ * @return Pointer to found portmapping. If portmapping is not found, return NULL.
+ */
 struct portMap* pmlist_FindByIndex(int index)
 {
     int i=0;
@@ -88,6 +118,15 @@ struct portMap* pmlist_FindByIndex(int index)
     return NULL;
 }
 
+/**
+ * Search if portmapping matching given parameters exist in IGD's portmapping list. 
+ * Starts searching from the beginning of list. 
+ *
+ * @param remoteHost WAN IP address (destination) of connections initiated by a client in the local network. If empty string, then it is assumed as wildcarded address and matches all addresses.
+ * @param externalPort TCP or UDP port number of the Client as seen by the remote host.
+ * @param protocol Portmapping protocol, either TCP or UDP.
+ * @return Pointer to found portmapping. If portmapping is not found, return NULL.
+ */
 struct portMap* pmlist_FindSpecific(char * remoteHost, char *externalPort, char *protocol)
 {
     struct portMap* temp;
@@ -111,7 +150,14 @@ struct portMap* pmlist_FindSpecific(char * remoteHost, char *externalPort, char 
 }
 
 /**
- * Find next specific portmap from or after given index
+ * Search if portmapping matching given parameters exist in IGD's portmapping list. 
+ * Starts searching from the given index of list. 
+ *
+ * @param remoteHost WAN IP address (destination) of connections initiated by a client in the local network. If empty string, then it is assumed as wildcarded address and matches all addresses.
+ * @param externalPort TCP or UDP port number of the Client as seen by the remote host.
+ * @param protocol Portmapping protocol, either TCP or UDP.
+ * @param index Index of portmapping list where searching is started from.
+ * @return Pointer to found portmapping. If portmapping is not found, return NULL.
  */
 struct portMap* pmlist_FindSpecificAfterIndex(char * remoteHost, char *externalPort, char *protocol, int index)
 {
@@ -139,7 +185,10 @@ struct portMap* pmlist_FindSpecificAfterIndex(char * remoteHost, char *externalP
 }
 
 /**
- * Search for next free external_port
+ * Search for next free external_port between ports 1024 and 9999.
+ * 
+ * @param protocol Next free portnumber of which protocol is searched.
+ * @return Next free portnumber of given protocol or -1 if no ports are free.
  */
 int pmlist_FindNextFreePort(char *protocol)
 {
@@ -192,6 +241,11 @@ struct portMap* pmlist_FindRangeAfter(int start_port, int end_port, char *protoc
     return NULL;
 }
 
+/**
+ * Check if portmapping list is empty.
+ * 
+ * @return 0 if not empty, 1 if is empty.
+ */
 int pmlist_IsEmtpy(void)
 {
     if (pmlist_Head)
@@ -200,6 +254,11 @@ int pmlist_IsEmtpy(void)
         return 1;
 }
 
+/**
+ * Count how many portmappings there is in IGD's portmapping list.
+ * 
+ * @return Size of portmapping list.
+ */
 int pmlist_Size(void)
 {
     struct portMap* temp;
@@ -218,6 +277,11 @@ int pmlist_Size(void)
     return size;
 }
 
+/**
+ * Delete all pormappings from portmapping list and from iptables.
+ * 
+ * @return 1 allways.
+ */
 int pmlist_FreeList(void)
 {
     struct portMap *temp, *next;
@@ -236,6 +300,13 @@ int pmlist_FreeList(void)
     return 1;
 }
 
+/**
+ * Append new portmapping node at the end of portmapping list and
+ * add portmaping into iptables with pmlist_AddPortMapping.
+ * 
+ * @param item Portmapping struct which is added into list.
+ * @return 1 if addition succeeded, 0 if failed.
+ */
 int pmlist_PushBack(struct portMap* item)
 {
     int action_succeeded = 0;
@@ -268,7 +339,12 @@ int pmlist_PushBack(struct portMap* item)
         return 0;
 }
 
-
+/**
+ * Delete portmapping node from portmapping list.
+ * 
+ * @param item Portmapping struct which is deleted from list.
+ * @return 1 if deleting succeeded, 0 if failed.
+ */
 int pmlist_Delete(struct portMap* item)
 {
     struct portMap *temp;
@@ -318,7 +394,13 @@ int pmlist_Delete(struct portMap* item)
     return action_succeeded;
 }
 
-int pmlist_DeleteIndex(struct portMap* item, int index)
+/**
+ * Delete portmapping node in given index from portmapping list.
+ * 
+ * @param index Index of portmapping which is deleted from list.
+ * @return 1 if deleting succeeded, 0 if failed.
+ */
+int pmlist_DeleteIndex(int index)
 {
     struct portMap *temp;
     int action_succeeded = 0;
@@ -327,8 +409,8 @@ int pmlist_DeleteIndex(struct portMap* item, int index)
     if (temp) // We found the item to delete
     {
         CancelMappingExpiration(temp->expirationEventId);
-        pmlist_DeletePortMapping(item->m_PortMappingEnabled, item->m_RemoteHost, item->m_PortMappingProtocol,
-                                 item->m_ExternalPort, item->m_InternalClient, item->m_InternalPort);
+        pmlist_DeletePortMapping(temp->m_PortMappingEnabled, temp->m_RemoteHost, temp->m_PortMappingProtocol,
+                                 temp->m_ExternalPort, temp->m_InternalClient, temp->m_InternalPort);
         if (temp == pmlist_Head) // We are the head of the list
         {
             if (temp->next == NULL) // We're the only node in the list
@@ -367,6 +449,18 @@ int pmlist_DeleteIndex(struct portMap* item, int index)
     return action_succeeded;
 }
 
+/**
+ * Add new portmapping rule in iptables.
+ * Use either libiptc or iptables commandline command for adding.
+ * 
+ * @param enabled Is rule enabled. Rule is added only if it is enabled (1).
+ * @param protocol Portmapping protocol, either TCP or UDP.
+ * @param remoteHost WAN IP address (destination) of connections initiated by a client in the local network.
+ * @param externalPort TCP or UDP port number of the Client as seen by the remote host.
+ * @param internalClient The local IP address of the client.
+ * @param internalPort The local TCP or UDP port number of the client.
+ * @return 1 if addition succeeded, 0 if failed.
+ */
 int pmlist_AddPortMapping (int enabled, char *protocol, char *remoteHost, char *externalPort, char *internalClient, char *internalPort)
 {
     if (enabled)
@@ -511,6 +605,18 @@ int pmlist_AddPortMapping (int enabled, char *protocol, char *remoteHost, char *
     return 1;
 }
 
+/**
+ * Add new portmapping rule in iptables.
+ * Use either libiptc or iptables commandline command for adding.
+ * 
+ * @param enabled Is rule enabled. Rule is deleted only if it is enabled (1).
+ * @param remoteHost WAN IP address (destination) of connections initiated by a client in the local network.
+ * @param protocol Portmapping protocol, either TCP or UDP.
+ * @param externalPort TCP or UDP port number of the Client as seen by the remote host.
+ * @param internalClient The local IP address of the client.
+ * @param internalPort The local TCP or UDP port number of the client.
+ * @return 1 allways.
+ */
 int pmlist_DeletePortMapping(int enabled, char *remoteHost, char *protocol, char *externalPort, char *internalClient, char *internalPort)
 {
     if (enabled)
