@@ -30,6 +30,13 @@ static int get_sockfd(void)
     return sockfd;
 }
 
+/**
+ * Get IP address assigned for given network interface.
+ *
+ * @param address IP address is wrote into this.
+ * @param ifname Interface name.
+ * @return 1 if success, 0 if failure. IP address is returned in address parameter.
+ */
 int GetIpAddressStr(char *address, char *ifname)
 {
     struct ifreq ifr;
@@ -57,8 +64,15 @@ int GetIpAddressStr(char *address, char *ifname)
     return succeeded;
 }
 
-// if interface has IP, status id connected. Else disconnected
-// There are also manually adjusted states Unconfigured, Connecting and Disconnecting!
+/**
+ * Get connection status string used as ConnectionStatus state variable.
+ * If interface has IP, status id connected. Else disconnected
+ * There are also manually adjusted states Unconfigured, Connecting and Disconnecting!
+ *
+ * @param conStatus Connection status string is written in this.
+ * @param ifname Interface name.
+ * @return 1 if success, 0 if failure. Connection status is returned in conStatus parameter.
+ */
 int GetConnectionStatus(char *conStatus, char *ifname)
 {
     char tmp[INET_ADDRSTRLEN];
@@ -72,8 +86,13 @@ int GetConnectionStatus(char *conStatus, char *ifname)
     return status;
 }
 
-// check if IP of control point is same as ICAddress
-// return 0 if not, something else if match
+/**
+ * Check if IP of control point is same as internal client address in portmapping.
+ * 
+ * @param ICAddresscon IP of Internalclient in portmapping.
+ * @param in_ad IP of control point.
+ * @return 1 if match, 0 else.
+ */
 int ControlPointIP_equals_InternalClientIP(char *ICAddress, struct in_addr *in_ad)
 {
     char cpAddress[INET_ADDRSTRLEN];
@@ -109,7 +128,12 @@ void trace(int debuglevel, const char *format, ...)
     va_end(ap);
 }
 
-// check if parameter has a wild card
+/**
+ * Check if parameter string has a wildcard character, meaning '*'.
+ * 
+ * @param str String to check.
+ * @return 1 if found, 0 else.
+ */
 int checkForWildCard(const char *str)
 {
     int retVal = 0;
@@ -120,7 +144,13 @@ int checkForWildCard(const char *str)
     return retVal;
 }
 
-// add error data to event structure
+/**
+ * Add error data to event structure used by libupnp for creating response for action request message.
+ * 
+ * @param ca_event Response structure used for response.
+ * @param errorCode Error code number.
+ * @param message Error message string.
+ */
 void addErrorData(struct Upnp_Action_Request *ca_event, int errorCode, char* message)
 {
     ca_event->ErrCode = errorCode;
@@ -128,8 +158,12 @@ void addErrorData(struct Upnp_Action_Request *ca_event, int errorCode, char* mes
     ca_event->ActionResult = NULL;
 }
 
-/*
- * Returns true if value is "yes", "true" or "1".
+/**
+ * Resolve if given string is acceptable as boolean value used in upnp action request messages.
+ * 'yes', 'true' and '1' currently acceptable values.
+ * 
+ * @param value String to check.
+ * @return 1 if true, 0 else.
  */
 int resolveBoolean(char *value)
 {
@@ -160,7 +194,15 @@ void ParseXMLResponse(struct Upnp_Action_Request *ca_event, const char *result_s
     }
 }
 
-// get document item which is at position index in nodelist (all nodes with name item)
+/**
+ * Get document item which is at position index in nodelist (all nodes with same name item).
+ * Index 0 means first, 1 second, etc.
+ * 
+ * @param doc XML document where item is fetched.
+ * @param item Name of xml-node to fetch.
+ * @param index Which one of nodes with same name is selected.
+ * @return Value of desired node.
+ */
 char* GetDocumentItem(IXML_Document * doc, const char *item, int index)
 {
     IXML_NodeList *nodeList = NULL;
@@ -193,7 +235,13 @@ char* GetDocumentItem(IXML_Document * doc, const char *item, int index)
     return ret;
 }
 
-// From sampleutil.c included with libupnp
+/**
+ * Get first document item in nodelist with name given in item parameter.
+ * 
+ * @param doc XML document where item is fetched.
+ * @param item Name of xml-node to fetch.
+ * @return Value of desired node.
+ */
 char* GetFirstDocumentItem( IN IXML_Document * doc,
                             IN const char *item )
 {
@@ -202,6 +250,11 @@ char* GetFirstDocumentItem( IN IXML_Document * doc,
 
 /**
  * Resolve up/down status of given network interface and insert it into given string.
+ * Status is up if interface is listed in /proc/net/dev_mcast -file, else down.
+ * 
+ * @param ethLinkStatus Pointer to string where status is wrote.
+ * @param iface Network interface name.
+ * @return 0 if status is up, 1 if down or failed to open dev_mcast file.
  */
 int setEthernetLinkStatus(char *ethLinkStatus, char *iface)
 {
@@ -230,8 +283,12 @@ int setEthernetLinkStatus(char *ethLinkStatus, char *iface)
 }
 
 /**
- * Read integer value from given file.
- */
+ * Read integer value from given file. File should only contain this one numerical value.
+ * 
+ * @param file Name of file to read.
+ * @param iface Network interface name.
+ * @return Value read from file. -1 if fails to open file, -2 if no value found from file.
+ */ 
 int readIntFromFile(char *file)
 {
     FILE *fp;
@@ -255,7 +312,12 @@ int readIntFromFile(char *file)
     return -2;
 }
 
-// return 1 if interface doesn't have IP
+/**
+ * Kill DHCP client. After killing check that IP of iface has been released.
+ * 
+ * @param iface Network interface name.
+ * @return 1 if DHCP client is killed and IP released, 0 else.
+ */ 
 int killDHCPClient(char *iface)
 {
     char tmp[30];
@@ -283,20 +345,24 @@ int killDHCPClient(char *iface)
 
     if (!GetIpAddressStr(tmp, iface))
     {
-        trace(3,"Success IP: %s",tmp);
+        trace(3,"Success IP of %s is released",iface);
         return 1;
     }
     else
     {
-        trace(3,"Failure IP: %s",tmp);
+        trace(3,"Failure IP of %s: %s",iface,tmp);
         return 0;
     }
 }
 
-// return 1 if interface does have IP
+/**
+ * Start DHCP client. After starting check that iface has IP.
+ * 
+ * @param iface Network interface name.
+ * @return 1 if DHCP client is started and iface has IP, 0 else.
+ */ 
 int startDHCPClient(char *iface)
 {
-
     char tmp[50];
 
     trace(2,"Starting DHCP client...");
@@ -308,20 +374,21 @@ int startDHCPClient(char *iface)
 
     if (GetIpAddressStr(tmp, iface))
     {
-        trace(3,"Success IP: %s",tmp);
+        trace(3,"Success IP of %s: %s",iface,tmp);
         return 1;
     }
     else
     {
-        trace(3,"Failure IP: %s",tmp);
+        trace(3,"Failure %s doens't have IP",iface);
         return 0;
     }
 }
 
 /**
- * Release IP address of given interface
+ * Release IP address of given interface.
  *
- * return 0 on failure.
+ * @param iface Network interface name.
+ * @return 1 if iface doesn't have IP, 0 else.
  */
 int releaseIP(char *iface)
 {
