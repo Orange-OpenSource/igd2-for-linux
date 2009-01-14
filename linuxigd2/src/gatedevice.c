@@ -1049,7 +1049,9 @@ int DeletePortMappingRange(struct Upnp_Action_Request *ca_event)
     int index = 0;
     int foundPortmapCount = 0;
 
-    //chec if authorized
+    ca_event->ErrCode = UPNP_E_SUCCESS;
+
+    //check if authorized
     if (AuthorizeControlPoint(ca_event) == CONTROL_POINT_AUTHORIZED)
         authorized = 1;
 
@@ -1058,11 +1060,26 @@ int DeletePortMappingRange(struct Upnp_Action_Request *ca_event)
             (proto = GetFirstDocumentItem(ca_event->ActionRequest, "NewProtocol")) &&
             (bool_manage = GetFirstDocumentItem(ca_event->ActionRequest, "NewManage")))
     {
-        if ((strcmp(proto, "TCP") == 0) || (strcmp(proto, "UDP") == 0))
+        if ((end = atoi(end_port)) < (start = atoi(start_port)))
+        {
+            trace(1, "Failure in GateDeviceDeletePortMappingRange: DeletePortMappingRange: StartPort:%s EndPort:%s Proto:%s Manage:%s InconsistentParameters!\n", start_port,end_port,proto,bool_manage);
+            ca_event->ErrCode = 733;
+            strcpy(ca_event->ErrStr, "InconsistentParameters");
+            ca_event->ActionResult = NULL;        
+        }
+        
+        if ((strcmp(proto, "TCP") != 0) && (strcmp(proto, "UDP") != 0))
+        {
+            trace(1, "Failure in GateDeviceDeletePortMappingRange: Invalid NewProtocol=%s\n",proto);
+            ca_event->ErrCode = 402;
+            strcpy(ca_event->ErrStr, "Invalid Args");
+            ca_event->ActionResult = NULL;            
+        }
+        
+        // parameters OK, lets continue
+        if (ca_event->ErrCode == UPNP_E_SUCCESS) 
         {
             managed = resolveBoolean(bool_manage);
-            start = atoi(start_port);
-            end = atoi(end_port);
 
             //loop ports from start to end
             for (ext_port = start; ext_port <= end; ext_port++)
@@ -1078,6 +1095,7 @@ int DeletePortMappingRange(struct Upnp_Action_Request *ca_event)
                         foundPortmapCount++;
                         if ((authorized && managed) || ControlPointIP_equals_InternalClientIP(temp->m_InternalClient, &ca_event->CtrlPtIPAddr))
                         {
+                            // delete portmapping
                             result = pmlist_DeleteIndex(index);
                             
                             if (result==1)
@@ -1120,13 +1138,6 @@ int DeletePortMappingRange(struct Upnp_Action_Request *ca_event)
                 strcpy(ca_event->ErrStr, "NoSuchEntryInArray");
                 ca_event->ActionResult = NULL;
             }
-        }
-        else
-        {
-            trace(1, "Failure in GateDeviceDeletePortMappingRange: Invalid NewProtocol=%s\n",proto);
-            ca_event->ErrCode = 402;
-            strcpy(ca_event->ErrStr, "Invalid Args");
-            ca_event->ActionResult = NULL;
         }
     }
     else
@@ -1484,7 +1495,7 @@ int AddAnyPortMapping
     // Check RemoteHost and ExternalPort parameters
     if (checkForWildCard(new_remote_host)) {
         trace(1, "Wild cards not permitted in remote_host:%s", new_remote_host);
-        addErrorData(ca_event, 715, "WildCardNotPermittedInSrcIp");
+        addErrorData(ca_event, 715, "WildCardNotPermittedInSrcIP");
                 result = 715;
     } else
     if (checkForWildCard(new_external_port)) {
@@ -1634,46 +1645,54 @@ int GetListOfPortmappings(struct Upnp_Action_Request *ca_event)
             && (number_of_ports = GetFirstDocumentItem(ca_event->ActionRequest, "NewNumberOfPorts") )
             && (proto = GetFirstDocumentItem(ca_event->ActionRequest, "NewProtocol") ))
     {
-        start = atoi(start_port);
-        end = atoi(end_port);
-        max_entries = atoi(number_of_ports);
-        if (max_entries == 0)
-            max_entries = INT_MAX;
-
-        // If manage is not true or CP is not authorized, list only CP's port mappings
-        if ( !resolveBoolean(manage) || !AuthorizeControlPoint(ca_event) == CONTROL_POINT_AUTHORIZED )
-            inet_ntop(AF_INET, &ca_event->CtrlPtIPAddr, cp_ip, INET_ADDRSTRLEN);
-
-        // Write XML header
-        result_place += snprintf(result_str, RESULT_LEN, xml_portmapListingHeader, ca_event->ActionName);
-
-        // Loop through port mappings until we run out or max_entries reaches 0
-        while ( (pm = pmlist_FindRangeAfter(start, end, proto, cp_ip, pm)) != NULL && max_entries--)
+        if ((end = atoi(end_port)) < (start = atoi(start_port)))
         {
-            result_place += sprintf(&result_str[result_place], xml_portmapEntry,
-                                   pm->m_RemoteHost, pm->m_ExternalPort, pm->m_PortMappingProtocol,
-                                   pm->m_InternalPort, pm->m_InternalClient, pm->m_PortMappingEnabled,
-                                   pm->m_PortMappingDescription, pm->m_PortMappingLeaseDuration);
-            action_succeeded = 1;
-        }
-
-        if (action_succeeded)
-        {
-            ca_event->ErrCode = UPNP_E_SUCCESS;
-            result_place += sprintf(&result_str[result_place], xml_portmapListingFooter, ca_event->ActionName);
-            ca_event->ActionResult = ixmlParseBuffer(result_str);
+            trace(1, "Failure in GetListOfPortmappings: StartPort:%s EndPort:%s Proto:%s Manage:%s InconsistentParameters!\n", start_port,end_port,proto,manage);
+            ca_event->ErrCode = 733;
+            strcpy(ca_event->ErrStr, "InconsistentParameters");
+            ca_event->ActionResult = NULL;        
         }
         else
-        {
-            trace(2, "RetrieveListOfPortmappings: Portmapping does not exist");
-            ca_event->ErrCode = 714;
-            strcpy(ca_event->ErrStr, "NoSuchEntryInArray");
-            ca_event->ActionResult = NULL;
+        {    
+            max_entries = atoi(number_of_ports);
+            if (max_entries == 0)
+                max_entries = INT_MAX;
+    
+            // If manage is not true or CP is not authorized, list only CP's port mappings
+            if ( !resolveBoolean(manage) || !AuthorizeControlPoint(ca_event) == CONTROL_POINT_AUTHORIZED )
+                inet_ntop(AF_INET, &ca_event->CtrlPtIPAddr, cp_ip, INET_ADDRSTRLEN);
+    
+            // Write XML header
+            result_place += snprintf(result_str, RESULT_LEN, xml_portmapListingHeader, ca_event->ActionName);
+    
+            // Loop through port mappings until we run out or max_entries reaches 0
+            while ( (pm = pmlist_FindRangeAfter(start, end, proto, cp_ip, pm)) != NULL && max_entries--)
+            {
+                result_place += sprintf(&result_str[result_place], xml_portmapEntry,
+                                       pm->m_RemoteHost, pm->m_ExternalPort, pm->m_PortMappingProtocol,
+                                       pm->m_InternalPort, pm->m_InternalClient, pm->m_PortMappingEnabled,
+                                       pm->m_PortMappingDescription, pm->m_PortMappingLeaseDuration);
+                action_succeeded = 1;
+            }
+    
+            if (action_succeeded)
+            {
+                ca_event->ErrCode = UPNP_E_SUCCESS;
+                result_place += sprintf(&result_str[result_place], xml_portmapListingFooter, ca_event->ActionName);
+                ca_event->ActionResult = ixmlParseBuffer(result_str);
+            }
+            else
+            {
+                trace(2, "GetListOfPortmappings: Portmapping does not exist");
+                ca_event->ErrCode = 714;
+                strcpy(ca_event->ErrStr, "NoSuchEntryInArray");
+                ca_event->ActionResult = NULL;
+            }
         }
     }
     else
     {
-        trace(1, "RetrieveListOfPortmappings: Invalid Arguments\n\tStartPort: %s EndPort: %s Proto: %s NumberOfPorts: %s Manage: %s",
+        trace(1, "GetListOfPortmappings: Invalid Arguments\n\tStartPort: %s EndPort: %s Proto: %s NumberOfPorts: %s Manage: %s",
               start_port, end_port, proto, number_of_ports, manage);
         ca_event->ErrCode = 402;
         strcpy(ca_event->ErrStr, "Invalid Args");
