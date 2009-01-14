@@ -182,7 +182,7 @@ int main (int argc, char** argv)
             UpnpGetServerPort(), g_vars.descDocName);
 
     // Register our IGD as a valid UPnP Root device
-    trace(3, "Registering the root device with descDocUrl %s", descDocUrl);
+    trace(3, "Registering the root device with descDocUrl %s for byebye sending", descDocUrl);
     if ( (ret = UpnpRegisterRootDevice(descDocUrl, EventHandler, &deviceHandle,
                                        &deviceHandle)) != UPNP_E_SUCCESS )
     {
@@ -191,6 +191,32 @@ int main (int argc, char** argv)
         UpnpFinish();
         exit(1);
     }
+
+    // This should be moved into libupnp if this is going to be part of UDA1.1?
+    /*
+     * From WANIPConnection spec:
+     * UPnP IGD MUST broadcast an ssdp:byebye before sending the initial ssdp:alive onto 
+     * the local network upon startup. Sending an ssdp:byebye as part of the normal start 
+     * up process for a UPnP device ensures that UPnP control points with information about 
+     * the previous device instance will safely discard state information about the previous 
+     * device instance before communicating with the new device instance.
+     * 
+     * LOCATION header field value might be false because portnumber might have changed since 
+     * last shutdown. LOCATION is not needed in byebye's... 
+     */
+    trace(3, "Send initial sspd:byebye messages");
+    UpnpUnRegisterRootDevice(deviceHandle); // this will send byebye's
+    // Register our IGD as a valid UPnP Root device
+    trace(3, "Registering the root device again with descDocUrl %s", descDocUrl);
+    if ( (ret = UpnpRegisterRootDevice(descDocUrl, EventHandler, &deviceHandle,
+                                       &deviceHandle)) != UPNP_E_SUCCESS )
+    {
+        syslog(LOG_ERR, "Error registering the root device with descDocUrl: %s", descDocUrl);
+        syslog(LOG_ERR, "  UpnpRegisterRootDevice returned %d", ret);
+        UpnpFinish();
+        exit(1);
+    }
+    //end of byebye
 
     trace(2, "IGD root device successfully registered.");
 
