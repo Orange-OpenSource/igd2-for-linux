@@ -97,6 +97,6 @@ int ConnectionStatusEventing(IXML_Document *propSet);
 
 
 // Definition for authorizing control point
-#define CONTROL_POINT_AUTHORIZED    0
+#define CONTROL_POINT_AUTHORIZED    1
 
 #endif //_GATEDEVICE_H

@@ -421,9 +421,10 @@ int GetNATRSIPStatus(struct Upnp_Action_Request *ca_event)
 // bridge).  Possible other uses may be explored.
 int SetConnectionType(struct Upnp_Action_Request *ca_event)
 {
-    // Ignore requests
+    ca_event->ErrCode = 731;
+    strcpy(ca_event->ErrStr, "ReadOnly");
     ca_event->ActionResult = NULL;
-    ca_event->ErrCode = UPNP_E_SUCCESS;
+
     return ca_event->ErrCode;
 }
 
@@ -799,11 +800,18 @@ int GetGenericPortMappingEntry(struct Upnp_Action_Request *ca_event)
     char result_param[RESULT_LEN];
     char resultStr[RESULT_LEN];
     int action_succeeded = 0;
+    int authorized = 0;
+
+    //check if authorized
+    if (AuthorizeControlPoint(ca_event) == CONTROL_POINT_AUTHORIZED)
+    {
+        authorized = 1;
+    }
 
     if ((mapindex = GetFirstDocumentItem(ca_event->ActionRequest, "NewPortMappingIndex")))
     {
         temp = pmlist_FindByIndex(atoi(mapindex));
-        if (temp)
+        if (temp && (authorized || ControlPointIP_equals_InternalClientIP(temp->m_InternalClient, &ca_event->CtrlPtIPAddr)))
         {
             snprintf(result_param, RESULT_LEN, "<NewRemoteHost>%s</NewRemoteHost><NewExternalPort>%s</NewExternalPort><NewProtocol>%s</NewProtocol><NewInternalPort>%s</NewInternalPort><NewInternalClient>%s</NewInternalClient><NewEnabled>%d</NewEnabled><NewPortMappingDescription>%s</NewPortMappingDescription><NewLeaseDuration>%li</NewLeaseDuration>",
                      temp->m_RemoteHost,
@@ -816,18 +824,26 @@ int GetGenericPortMappingEntry(struct Upnp_Action_Request *ca_event)
                      (temp->expirationTime-time(NULL)));
             action_succeeded = 1;
         }
+        else if (!temp) // nothing in that index
+        {
+            trace(1, "GetGenericPortMappingEntry: SpecifiedArrayIndexInvalid");
+            ca_event->ErrCode = 713;
+            strcpy(ca_event->ErrStr, "SpecifiedArrayIndexInvalid");
+            ca_event->ActionResult = NULL;
+        }
+        else // not authorized and IP's doesn't match
+        {
+            trace(1, "GetGenericPortMappingEntry: Not authorized user and Control point IP and portmapping internal client doesn't mach");
+            snprintf(result_param, RESULT_LEN, "<NewRemoteHost></NewRemoteHost><NewExternalPort></NewExternalPort><NewProtocol></NewProtocol><NewInternalPort></NewInternalPort><NewInternalClient></NewInternalClient><NewEnabled></NewEnabled><NewPortMappingDescription></NewPortMappingDescription><NewLeaseDuration></NewLeaseDuration>");
+            action_succeeded = 1;     
+        }
+        
         if (action_succeeded)
         {
             ca_event->ErrCode = UPNP_E_SUCCESS;
             snprintf(resultStr, RESULT_LEN, "<u:%sResponse xmlns:u=\"%s\">\n%s\n</u:%sResponse>", ca_event->ActionName,
                      "urn:schemas-upnp-org:service:WANIPConnection:2",result_param, ca_event->ActionName);
             ca_event->ActionResult = ixmlParseBuffer(resultStr);
-        }
-        else
-        {
-            ca_event->ErrCode = 713;
-            strcpy(ca_event->ErrStr, "SpecifiedArrayIndexInvalid");
-            ca_event->ActionResult = NULL;
         }
 
     }
@@ -840,8 +856,8 @@ int GetGenericPortMappingEntry(struct Upnp_Action_Request *ca_event)
     }
     if (mapindex) free (mapindex);
     return (ca_event->ErrCode);
-
 }
+
 int GetSpecificPortMappingEntry(struct Upnp_Action_Request *ca_event)
 {
     char *remote_host=NULL;
@@ -851,7 +867,14 @@ int GetSpecificPortMappingEntry(struct Upnp_Action_Request *ca_event)
     char resultStr[RESULT_LEN];
     int action_succeeded = 0;
     struct portMap *temp;
+    int authorized = 0;
 
+    //check if authorized
+    if (AuthorizeControlPoint(ca_event) == CONTROL_POINT_AUTHORIZED)
+    {
+        authorized = 1;
+    }
+    
     if ((remote_host = GetFirstDocumentItem(ca_event->ActionRequest, "NewRemoteHost")) &&
             (ext_port = GetFirstDocumentItem(ca_event->ActionRequest, "NewExternalPort")) &&
             (proto = GetFirstDocumentItem(ca_event->ActionRequest,"NewProtocol")))
@@ -862,7 +885,7 @@ int GetSpecificPortMappingEntry(struct Upnp_Action_Request *ca_event)
             if ((strcmp(remote_host, "") == 0) || (inet_addr(remote_host) != -1))
             {
                 temp = pmlist_FindSpecific (remote_host, ext_port, proto);
-                if (temp)
+                if (temp && (authorized || ControlPointIP_equals_InternalClientIP(temp->m_InternalClient, &ca_event->CtrlPtIPAddr)))
                 {
                     snprintf(result_param, RESULT_LEN, "<NewInternalPort>%s</NewInternalPort><NewInternalClient>%s</NewInternalClient><NewEnabled>%d</NewEnabled><NewPortMappingDescription>%s</NewPortMappingDescription><NewLeaseDuration>%li</NewLeaseDuration>",
                              temp->m_InternalPort,
@@ -872,6 +895,21 @@ int GetSpecificPortMappingEntry(struct Upnp_Action_Request *ca_event)
                              (temp->expirationTime-time(NULL)));
                     action_succeeded = 1;
                 }
+                else if (!temp)
+                {
+                    trace(2, "GateDeviceGetSpecificPortMappingEntry: PortMapping Doesn't Exist...");
+                    ca_event->ErrCode = 714;
+                    strcpy(ca_event->ErrStr, "NoSuchEntryInArray");
+                    ca_event->ActionResult = NULL;
+                }
+                else
+                {
+                    trace(1, "Failure in GetSpecificPortMappingEntry: ActionNotPermitted\n");
+                    ca_event->ErrCode = 730;
+                    strcpy(ca_event->ErrStr, "ActionNotPermitted");
+                    ca_event->ActionResult = NULL;                    
+                }
+                
                 if (action_succeeded)
                 {
                     ca_event->ErrCode = UPNP_E_SUCCESS;
@@ -879,17 +917,10 @@ int GetSpecificPortMappingEntry(struct Upnp_Action_Request *ca_event)
                              "urn:schemas-upnp-org:service:WANIPConnection:2",result_param, ca_event->ActionName);
                     ca_event->ActionResult = ixmlParseBuffer(resultStr);
                 }
-                else
-                {
-                    trace(2, "GateDeviceGetSpecificPortMappingEntry: PortMapping Doesn't Exist...");
-                    ca_event->ErrCode = 714;
-                    strcpy(ca_event->ErrStr, "NoSuchEntryInArray");
-                    ca_event->ActionResult = NULL;
-                }
             }
             else
             {
-                trace(1, "Failure in GateDeviceDeletePortMapping: Invalid NewRemoteHost=%s\n",remote_host);
+                trace(1, "Failure in GetSpecificPortMappingEntry: Invalid NewRemoteHost=%s\n",remote_host);
                 ca_event->ErrCode = 402;
                 strcpy(ca_event->ErrStr, "Invalid Args");
                 ca_event->ActionResult = NULL;
@@ -897,7 +928,7 @@ int GetSpecificPortMappingEntry(struct Upnp_Action_Request *ca_event)
         }
         else
         {
-            trace(1, "Failure in GateDeviceGetSpecificPortMappingEntry: Invalid NewProtocol=%s\n",proto);
+            trace(1, "Failure in GetSpecificPortMappingEntry: Invalid NewProtocol=%s\n",proto);
             ca_event->ErrCode = 402;
             strcpy(ca_event->ErrStr, "Invalid Args");
             ca_event->ActionResult = NULL;
@@ -905,16 +936,15 @@ int GetSpecificPortMappingEntry(struct Upnp_Action_Request *ca_event)
     }
     else
     {
-        trace(1, "Failure in GateDeviceGetSpecificPortMappingEntry: Invalid Args %s", remote_host);
+        trace(1, "Failure in GetSpecificPortMappingEntry: Invalid Args %s", remote_host);
         ca_event->ErrCode = 402;
         strcpy(ca_event->ErrStr, "Invalid Args");
         ca_event->ActionResult = NULL;
     }
 
     return (ca_event->ErrCode);
-
-
 }
+
 int GetExternalIPAddress(struct Upnp_Action_Request *ca_event)
 {
     char resultStr[RESULT_LEN];
@@ -1616,6 +1646,12 @@ int AddNewPortMapping(struct Upnp_Action_Request *ca_event, char* new_enabled, i
                     ca_event->ActionName,ca_event->DevUDN,ca_event->ServiceID,new_remote_host, new_protocol, new_external_port,
                     new_internal_client, new_internal_port);
     }
+    else
+    {
+        trace(2, "%s: Failed to add new portmapping. DevUDN: %s ServiceID: %s RemoteHost: %s Protocol: %s ExternalPort: %s InternalClient: %s.%s",
+                    ca_event->ActionName,ca_event->DevUDN,ca_event->ServiceID,new_remote_host, new_protocol, new_external_port,
+                    new_internal_client, new_internal_port);
+    }
 
     return result;
 }
@@ -1746,5 +1782,6 @@ int GetEthernetLinkStatus (struct Upnp_Action_Request *ca_event)
 int AuthorizeControlPoint(struct Upnp_Action_Request *ca_event)
 {
     return CONTROL_POINT_AUTHORIZED;
+    //return 0;
 }
 
