@@ -358,8 +358,164 @@ int InvalidAction(struct Upnp_Action_Request *ca_event)
     return (ca_event->ErrCode);
 }
 
-// As IP_Routed is the only relevant Connection Type for Linux-IGD
-// we respond with IP_Routed as both current type and only type
+//-----------------------------------------------------------------------------
+//
+//                      WANCommonInterfaceConfig:1 Service Actions
+//
+//-----------------------------------------------------------------------------
+/**
+ * WANCommonInterfaceConfig:1 Action: GetCommonLinkProperties
+ * 
+ * @param ca_event Upnp event struct.
+ * @return Upnp error code.
+ */
+int GetCommonLinkProperties(struct Upnp_Action_Request *ca_event)
+{
+    char resultStr[RESULT_LEN];
+    IXML_Document *result;
+
+    ca_event->ErrCode = UPNP_E_SUCCESS;
+    snprintf(resultStr, RESULT_LEN,
+             "<u:GetCommonLinkPropertiesResponse xmlns:u=\"urn:schemas-upnp-org:service:WANCommonInterfaceConfig:1\">\n"
+             "<NewWANAccessType>Cable</NewWANAccessType>\n"
+             "<NewLayer1UpstreamMaxBitRate>%s</NewLayer1UpstreamMaxBitRate>\n"
+             "<NewLayer1DownstreamMaxBitRate>%s</NewLayer1DownstreamMaxBitRate>\n"
+             "<NewPhysicalLinkStatus>Up</NewPhysicalLinkStatus>\n"
+             "</u:GetCommonLinkPropertiesResponse>",g_vars.upstreamBitrate,g_vars.downstreamBitrate);
+
+    // Create a IXML_Document from resultStr and return with ca_event
+    if ((result = ixmlParseBuffer(resultStr)) != NULL)
+    {
+        ca_event->ActionResult = result;
+        ca_event->ErrCode = UPNP_E_SUCCESS;
+    }
+    else
+    {
+        trace(1, "Error parsing Response to GetCommonLinkProperties: %s", resultStr);
+        ca_event->ActionResult = NULL;
+        ca_event->ErrCode = 402;
+    }
+
+    return(ca_event->ErrCode);
+}
+
+/**
+ * WANCommonInterfaceConfig:1 Actions: GetTotalBytesSent
+ *                                     GetTotalBytesReceived
+ *                                     GetTotalPacketsSent
+ *                                     GetTotalPacketsReceived
+ * 
+ * Get specified statistic from /proc/net/dev.
+ * 
+ * @param ca_event Upnp event struct.
+ * @param stat Which value is read from /proc
+ * @return Upnp error code.
+ */
+int GetTotal(struct Upnp_Action_Request *ca_event, stats_t stat)
+{
+    char dev[IFNAMSIZ], resultStr[RESULT_LEN];
+    const char *methods[STATS_LIMIT] =
+        { "BytesSent", "BytesReceived", "PacketsSent", "PacketsReceived" };
+    unsigned long stats[STATS_LIMIT];
+    FILE *proc;
+    IXML_Document *result;
+    int read;
+
+    proc = fopen("/proc/net/dev", "r");
+    if (!proc)
+    {
+        fprintf(stderr, "failed to open\n");
+        return 0;
+    }
+
+    /* skip first two lines */
+    fscanf(proc, "%*[^\n]\n%*[^\n]\n");
+
+    /* parse stats */
+    do
+        read = fscanf(proc, "%[^:]:%lu %lu %*u %*u %*u %*u %*u %*u %lu %lu %*u %*u %*u %*u %*u %*u\n", dev, &stats[STATS_RX_BYTES], &stats[STATS_RX_PACKETS], &stats[STATS_TX_BYTES], &stats[STATS_TX_PACKETS]);
+    while (read != EOF && (read == 5 && strncmp(dev, g_vars.extInterfaceName, IFNAMSIZ) != 0));
+
+    fclose(proc);
+
+    snprintf(resultStr, RESULT_LEN,
+             "<u:GetTotal%sResponse xmlns:u=\"urn:schemas-upnp-org:service:WANCommonInterfaceConfig:1\">\n"
+             "<NewTotal%s>%lu</NewTotal%s>\n"
+             "</u:GetTotal%sResponse>",
+             methods[stat], methods[stat], stats[stat], methods[stat], methods[stat]);
+
+    // Create a IXML_Document from resultStr and return with ca_event
+    if ((result = ixmlParseBuffer(resultStr)) != NULL)
+    {
+        ca_event->ActionResult = result;
+        ca_event->ErrCode = UPNP_E_SUCCESS;
+    }
+    else
+    {
+        trace(1, "Error parsing response to GetTotal: %s", resultStr);
+        ca_event->ActionResult = NULL;
+        ca_event->ErrCode = 402;
+    }
+
+    return (ca_event->ErrCode);
+}
+
+
+//-----------------------------------------------------------------------------
+//
+//                      WANIPConnection:2 Service Actions
+//
+//-----------------------------------------------------------------------------
+
+/**
+ * WANIPConnection:2 Action: GetStatusInfo
+ * 
+ * Returns connection status related information to the control points.
+ * 
+ * @param ca_event Upnp event struct.
+ * @return Upnp error code.
+ */
+int GetStatusInfo(struct Upnp_Action_Request *ca_event)
+{
+    long int uptime;
+    char resultStr[RESULT_LEN];
+    IXML_Document *result = NULL;
+
+    uptime = (time(NULL) - startup_time);
+
+    snprintf(resultStr, RESULT_LEN,
+             "<u:GetStatusInfoResponse xmlns:u=\"urn:schemas-upnp-org:service:GetStatusInfo:1\">\n"
+             "<NewConnectionStatus>Connected</NewConnectionStatus>\n"
+             "<NewLastConnectionError>ERROR_NONE</NewLastConnectionError>\n"
+             "<NewUptime>%li</NewUptime>\n"
+             "</u:GetStatusInfoResponse>",
+             uptime);
+
+    // Create a IXML_Document from resultStr and return with ca_event
+    if ((result = ixmlParseBuffer(resultStr)) != NULL)
+    {
+        ca_event->ActionResult = result;
+        ca_event->ErrCode = UPNP_E_SUCCESS;
+    }
+    else
+    {
+        trace(1, "Error parsing Response to GetStatusInfo: %s", resultStr);
+        ca_event->ActionResult = NULL;
+        ca_event->ErrCode = 402;
+    }
+
+    return(ca_event->ErrCode);
+}
+
+/**
+ * WANIPConnection:2 Action: GetConnectionTypeInfo
+ * 
+ * As IP_Routed is the only relevant Connection Type for Linux-IGD
+ * we respond with IP_Routed as both current type and only type
+ * 
+ * @param ca_event Upnp event struct.
+ * @return Upnp error code.
+ */
 int GetConnectionTypeInfo (struct Upnp_Action_Request *ca_event)
 {
     char resultStr[RESULT_LEN];
@@ -387,8 +543,14 @@ int GetConnectionTypeInfo (struct Upnp_Action_Request *ca_event)
     return(ca_event->ErrCode);
 }
 
-// Linux-IGD does not support RSIP.  However NAT is of course
-// so respond with NewNATEnabled = 1
+/**
+ * WANIPConnection:2 Action: GetNATRSIPStatus
+ * 
+ * Linux-IGD does not support RSIP.  However NAT is of course so respond with NewNATEnabled = 1
+ * 
+ * @param ca_event Upnp event struct.
+ * @return Upnp error code.
+ */
 int GetNATRSIPStatus(struct Upnp_Action_Request *ca_event)
 {
     char resultStr[RESULT_LEN];
@@ -415,10 +577,16 @@ int GetNATRSIPStatus(struct Upnp_Action_Request *ca_event)
     return(ca_event->ErrCode);
 }
 
-
-// Connection Type is a Read Only Variable as linux-igd is only
-// a device that supports a NATing IP router (not an Ethernet
-// bridge).  Possible other uses may be explored.
+/**
+ * WANIPConnection:2 Action: SetConnectionType
+ * 
+ * Connection Type is a Read Only Variable as linux-igd is only
+ * a device that supports a NATing IP router (not an Ethernet
+ * bridge).  Possible other uses may be explored.
+ * 
+ * @param ca_event Upnp event struct.
+ * @return Upnp error code.
+ */
 int SetConnectionType(struct Upnp_Action_Request *ca_event)
 {
     ca_event->ErrCode = 731;
@@ -428,11 +596,15 @@ int SetConnectionType(struct Upnp_Action_Request *ca_event)
     return ca_event->ErrCode;
 }
 
-// This function should set the state variable ConnectionStatus to
-// connecting, and then return synchronously, firing off a thread
-// asynchronously to actually change the status to connected.
-//
-// v2.0: If external interface has IP, assume that status is Connected, else Disconnected
+/**
+ * WANIPConnection:2 Action: RequestConnection
+ * 
+ * Start DHCP Client and try to acquire IP-address.
+ * If external interface has IP, assume that status is Connected, else Disconnected.
+ * 
+ * @param ca_event Upnp event struct.
+ * @return Upnp error code.
+ */
 int RequestConnection(struct Upnp_Action_Request *ca_event)
 { 
     IXML_Document *propSet = NULL;
@@ -512,8 +684,14 @@ int RequestConnection(struct Upnp_Action_Request *ca_event)
     return ca_event->ErrCode;
 }
 
-/**
- * Force termination of WAN-connection immediatedly. (i.e. try to release IP of external interface)
+ /**
+ * WANIPConnection:2 Action: ForceTermination
+ * 
+ * Force termination of WAN-connection immediatedly. (i.e. try to release IP of external interface 
+ * by killing DHCP-client).
+ * 
+ * @param ca_event Upnp event struct.
+ * @return Upnp error code.
  */
 int ForceTermination(struct Upnp_Action_Request *ca_event)
 {
@@ -586,120 +764,14 @@ int ForceTermination(struct Upnp_Action_Request *ca_event)
     return ca_event->ErrCode;
 }
 
-int GetCommonLinkProperties(struct Upnp_Action_Request *ca_event)
-{
-    char resultStr[RESULT_LEN];
-    IXML_Document *result;
-
-    ca_event->ErrCode = UPNP_E_SUCCESS;
-    snprintf(resultStr, RESULT_LEN,
-             "<u:GetCommonLinkPropertiesResponse xmlns:u=\"urn:schemas-upnp-org:service:WANCommonInterfaceConfig:1\">\n"
-             "<NewWANAccessType>Cable</NewWANAccessType>\n"
-             "<NewLayer1UpstreamMaxBitRate>%s</NewLayer1UpstreamMaxBitRate>\n"
-             "<NewLayer1DownstreamMaxBitRate>%s</NewLayer1DownstreamMaxBitRate>\n"
-             "<NewPhysicalLinkStatus>Up</NewPhysicalLinkStatus>\n"
-             "</u:GetCommonLinkPropertiesResponse>",g_vars.upstreamBitrate,g_vars.downstreamBitrate);
-
-    // Create a IXML_Document from resultStr and return with ca_event
-    if ((result = ixmlParseBuffer(resultStr)) != NULL)
-    {
-        ca_event->ActionResult = result;
-        ca_event->ErrCode = UPNP_E_SUCCESS;
-    }
-    else
-    {
-        trace(1, "Error parsing Response to GetCommonLinkProperties: %s", resultStr);
-        ca_event->ActionResult = NULL;
-        ca_event->ErrCode = 402;
-    }
-
-    return(ca_event->ErrCode);
-}
-
-/* get specified statistic from /proc/net/dev */
-int GetTotal(struct Upnp_Action_Request *ca_event, stats_t stat)
-{
-    char dev[IFNAMSIZ], resultStr[RESULT_LEN];
-    const char *methods[STATS_LIMIT] =
-        { "BytesSent", "BytesReceived", "PacketsSent", "PacketsReceived" };
-    unsigned long stats[STATS_LIMIT];
-    FILE *proc;
-    IXML_Document *result;
-    int read;
-
-    proc = fopen("/proc/net/dev", "r");
-    if (!proc)
-    {
-        fprintf(stderr, "failed to open\n");
-        return 0;
-    }
-
-    /* skip first two lines */
-    fscanf(proc, "%*[^\n]\n%*[^\n]\n");
-
-    /* parse stats */
-    do
-        read = fscanf(proc, "%[^:]:%lu %lu %*u %*u %*u %*u %*u %*u %lu %lu %*u %*u %*u %*u %*u %*u\n", dev, &stats[STATS_RX_BYTES], &stats[STATS_RX_PACKETS], &stats[STATS_TX_BYTES], &stats[STATS_TX_PACKETS]);
-    while (read != EOF && (read == 5 && strncmp(dev, g_vars.extInterfaceName, IFNAMSIZ) != 0));
-
-    fclose(proc);
-
-    snprintf(resultStr, RESULT_LEN,
-             "<u:GetTotal%sResponse xmlns:u=\"urn:schemas-upnp-org:service:WANCommonInterfaceConfig:1\">\n"
-             "<NewTotal%s>%lu</NewTotal%s>\n"
-             "</u:GetTotal%sResponse>",
-             methods[stat], methods[stat], stats[stat], methods[stat], methods[stat]);
-
-    // Create a IXML_Document from resultStr and return with ca_event
-    if ((result = ixmlParseBuffer(resultStr)) != NULL)
-    {
-        ca_event->ActionResult = result;
-        ca_event->ErrCode = UPNP_E_SUCCESS;
-    }
-    else
-    {
-        trace(1, "Error parsing response to GetTotal: %s", resultStr);
-        ca_event->ActionResult = NULL;
-        ca_event->ErrCode = 402;
-    }
-
-    return (ca_event->ErrCode);
-}
-
-// Returns connection status related information to the control points
-int GetStatusInfo(struct Upnp_Action_Request *ca_event)
-{
-    long int uptime;
-    char resultStr[RESULT_LEN];
-    IXML_Document *result = NULL;
-
-    uptime = (time(NULL) - startup_time);
-
-    snprintf(resultStr, RESULT_LEN,
-             "<u:GetStatusInfoResponse xmlns:u=\"urn:schemas-upnp-org:service:GetStatusInfo:1\">\n"
-             "<NewConnectionStatus>Connected</NewConnectionStatus>\n"
-             "<NewLastConnectionError>ERROR_NONE</NewLastConnectionError>\n"
-             "<NewUptime>%li</NewUptime>\n"
-             "</u:GetStatusInfoResponse>",
-             uptime);
-
-    // Create a IXML_Document from resultStr and return with ca_event
-    if ((result = ixmlParseBuffer(resultStr)) != NULL)
-    {
-        ca_event->ActionResult = result;
-        ca_event->ErrCode = UPNP_E_SUCCESS;
-    }
-    else
-    {
-        trace(1, "Error parsing Response to GetStatusInfo: %s", resultStr);
-        ca_event->ActionResult = NULL;
-        ca_event->ErrCode = 402;
-    }
-
-    return(ca_event->ErrCode);
-}
-
-// Add New Port Map to the IGD
+ /**
+ * WANIPConnection:2 Action: AddPortMapping
+ * 
+ * Add New Port Map to the IGD
+ * 
+ * @param ca_event Upnp event struct.
+ * @return Upnp error code.
+ */
 int AddPortMapping(struct Upnp_Action_Request *ca_event)
 {
     char *remote_host=NULL;
@@ -811,6 +883,176 @@ int AddPortMapping(struct Upnp_Action_Request *ca_event)
     return(ca_event->ErrCode);
 }
 
+ /**
+ * WANIPConnection:2 Action: AddAnyPortMapping
+ * 
+ * Like AddPortMapping() action, AddAnyPortMapping() action also creates a port mapping 
+ * specified with the same arguments. The behaviour differs only on the case where the 
+ * specified port is not free, because in that case the gateway reserves any free 
+ * NewExternalPort and NewProtocol pair and returns the NewReservedPort.
+ * 
+ * @param ca_event Upnp event struct.
+ * @return Upnp error code.
+ */
+int AddAnyPortMapping(struct Upnp_Action_Request *ca_event)
+{
+    char *new_remote_host=NULL;
+    char *new_external_port=NULL;
+    char *new_protocol=NULL;
+    char *new_internal_port = NULL;
+    char *new_internal_client=NULL;
+    char *new_enabled=NULL;
+    char *new_port_mapping_description=NULL;
+    char *new_lease_duration=NULL;
+
+    long leaseDuration = 0;
+    int next_free_port = 0;
+
+    struct portMap *ret;
+
+    int result = 0;
+    char resultStr[RESULT_LEN];
+    char freePort[5];
+
+
+    if ( (new_remote_host = GetFirstDocumentItem(ca_event->ActionRequest, "NewRemoteHost") )
+            && (new_external_port = GetFirstDocumentItem(ca_event->ActionRequest, "NewExternalPort") )
+            && (new_protocol = GetFirstDocumentItem(ca_event->ActionRequest, "NewProtocol") )
+            && (new_internal_port = GetFirstDocumentItem(ca_event->ActionRequest, "NewInternalPort") )
+            && (new_internal_client = GetFirstDocumentItem(ca_event->ActionRequest, "NewInternalClient") )
+            && (new_enabled = GetFirstDocumentItem(ca_event->ActionRequest, "NewEnabled") )
+            && (new_port_mapping_description = GetFirstDocumentItem(ca_event->ActionRequest, "NewPortMappingDescription") )
+            && (new_lease_duration = GetFirstDocumentItem(ca_event->ActionRequest, "NewLeaseDuration") ) )
+    {
+        leaseDuration = atol(new_lease_duration);
+
+        // If ext_port or int_port is <1024 control point needs to be authorized
+        if ((atoi(new_external_port) < 1024 || atoi(new_internal_port) < 1024 || !ControlPointIP_equals_InternalClientIP(new_internal_client, &ca_event->CtrlPtIPAddr))
+             && AuthorizeControlPoint(ca_event) != CONTROL_POINT_AUTHORIZED)
+        {
+            trace(1, "Port numbers must be greater than 1023 and NewInternalClient must be same as IP of Control point \
+                        unless control port is authorized. external_port:%s, internal_port:%s internal_client:%s",
+                  new_external_port, new_internal_port, new_internal_client);
+            result = 729;
+            addErrorData(ca_event, result, "PortMappingNotAllowed");
+        }
+
+        // Check Internal client and Port parameters
+        else if (checkForWildCard(new_internal_client)) 
+        {
+            trace(1, "Wild cards not permitted in internal_client:%s", new_internal_client);
+            result = 715;
+            addErrorData(ca_event, result, "WildCardNotPermittedInSrcIp");
+        } 
+        // not sure if this is needed
+        // If wildcard ext_port (0) is supported, return value of NewReservedPort MUST be 0
+        else if (checkForWildCard(new_external_port)) 
+        {
+            trace(1, "Wild cards not permitted in external_port:%s", new_external_port);
+            result = 716;
+            addErrorData(ca_event, result, "WildCardNotPermittedInExtPort");
+        }
+        else if (checkForWildCard(new_internal_port)) 
+        {
+            trace(1, "Wild cards not permitted in internal_port:%s", new_internal_port);
+            result = 732;
+            addErrorData(ca_event, result, "WildCardNotPermittedInIntPort");
+        }        
+        // check that internal port == external port. Is this really needed?
+        else if (atoi(new_external_port) != atoi(new_internal_port))
+        {
+            trace(1, "Internal and External port values must be the same. external_port:%s, internal_port:%s",
+                  new_external_port, new_internal_port);
+            result = 724;
+            addErrorData(ca_event, result, "SamePortValuesRequired");
+        }
+        // check that leaseduration is between 0 and 604800
+        else if (leaseDuration < 0 || leaseDuration > 604800)
+        {
+            trace(1, "Duration must be between 0 and 604800");
+            result = 402;
+            addErrorData(ca_event, result, "Invalid Args");
+        }
+
+        // Parameters OK... proceed with adding port map
+        if (result == 0)
+            {
+                // If port map with the same External Port, Protocol, and Internal Client exists
+                // then get next free port map
+                if ((ret = pmlist_Find(new_remote_host, new_external_port, new_protocol, new_internal_client)) != NULL)
+                {
+                    // Find searches free external port...
+                    // TODO: free port mapping search
+                    trace(3, "Found port map to already exist.  Finding next free");
+                    next_free_port = pmlist_FindNextFreePort(new_protocol);
+                    if (next_free_port > 0)
+                    {
+                        trace(3, "Found free port:%d", next_free_port);
+                        sprintf(freePort, "%d", next_free_port);
+                        result = AddNewPortMapping(ca_event, new_enabled, leaseDuration, new_remote_host,
+                                                    freePort, new_internal_port, new_protocol,
+                                                    new_internal_client, new_port_mapping_description);
+                    }
+                    else 
+                    {
+                        result = 728; /* no free port found... use NoPortMapsAvailable error code */
+                    }
+                }
+                else 
+                {
+                    // Otherwise just add the port map
+                    result = AddNewPortMapping(ca_event, new_enabled, leaseDuration, new_remote_host,
+                                                new_external_port, new_internal_port, new_protocol,
+                                                new_internal_client, new_port_mapping_description);
+                }
+        }
+        if (result==728)
+        {
+            trace(1,"Failure in GateDeviceAddAnyPortMapping: RemoteHost: %s Protocol:%s ExternalPort: %s InternalClient: %s.%s\n",
+                    new_remote_host, new_protocol, new_external_port, new_internal_client, new_internal_port);
+
+            addErrorData(ca_event, 728, "NoPortMapsAvailable");
+        }
+
+    }
+    else
+    {
+        trace(1, "Failure in GateDeviceAddAnyPortMapping: Invalid Arguments!");
+        trace(1, "  RemoteHost: %s ExternalPort: %s Protocol: %s InternalClient: %s Enabled: %s PortMappingDesc: %s LeaseDuration: %s",
+                new_remote_host, new_external_port, new_protocol, new_internal_client, new_enabled, new_port_mapping_description, new_lease_duration);
+        addErrorData(ca_event, 402, "Invalid Args");
+    }
+
+    if (result == 1)
+    {
+        ca_event->ErrCode = UPNP_E_SUCCESS;
+        if (next_free_port == 0) next_free_port = atoi(new_external_port);
+
+        snprintf(resultStr, RESULT_LEN, "<u:%sResponse xmlns:u=\"%s\">\n%s%d%s\n</u:%sResponse>",
+                    ca_event->ActionName, "urn:schemas-upnp-org:service:WANIPConnection:2", "<NewReservedPort>",
+                    next_free_port, "</NewReservedPort>", ca_event->ActionName);
+        ca_event->ActionResult = ixmlParseBuffer(resultStr);
+    }
+
+    if (new_remote_host) free(new_remote_host);
+    if (new_external_port) free(new_external_port);
+    if (new_protocol) free(new_protocol);
+    if (new_internal_client) free(new_internal_client);
+    if (new_enabled) free(new_enabled);
+    if (new_port_mapping_description) free(new_port_mapping_description);
+    if (new_lease_duration) free(new_lease_duration);
+
+    return(ca_event->ErrCode);
+}
+
+ /**
+ * WANIPConnection:2 Action: GetGenericPortMappingEntry
+ * 
+ * This action retrieves NAT port mappings one entry at a time.
+ * 
+ * @param ca_event Upnp event struct.
+ * @return Upnp error code.
+ */
 int GetGenericPortMappingEntry(struct Upnp_Action_Request *ca_event)
 {
     char *mapindex = NULL;
@@ -876,6 +1118,15 @@ int GetGenericPortMappingEntry(struct Upnp_Action_Request *ca_event)
     return (ca_event->ErrCode);
 }
 
+ /**
+ * WANIPConnection:2 Action: GetSpecificPortMappingEntry
+ * 
+ * This action reports the port mapping specified by the unique tuple of RemoteHost, 
+ * ExternalPort and PortMappingProtocol.
+ * 
+ * @param ca_event Upnp event struct.
+ * @return Upnp error code.
+ */
 int GetSpecificPortMappingEntry(struct Upnp_Action_Request *ca_event)
 {
     char *remote_host=NULL;
@@ -963,6 +1214,14 @@ int GetSpecificPortMappingEntry(struct Upnp_Action_Request *ca_event)
     return (ca_event->ErrCode);
 }
 
+/**
+ * WANIPConnection:2 Action: GetExternalIPAddress
+ * 
+ * This action retrieves the value of the external IP address on this connection instance.
+ * 
+ * @param ca_event Upnp event struct.
+ * @return Upnp error code.
+ */
 int GetExternalIPAddress(struct Upnp_Action_Request *ca_event)
 {
     char resultStr[RESULT_LEN];
@@ -983,13 +1242,20 @@ int GetExternalIPAddress(struct Upnp_Action_Request *ca_event)
     else
     {
         trace(1, "Error parsing Response to ExternalIPAddress: %s", resultStr);
-        ca_event->ActionResult = NULL;
-        ca_event->ErrCode = 402;
+        addErrorData(ca_event, 402, "");
     }
 
     return(ca_event->ErrCode);
 }
 
+/**
+ * WANIPConnection:2 Action: DeletePortMapping
+ * 
+ * This action deletes a previously instantiated port mapping. 
+ * 
+ * @param ca_event Upnp event struct.
+ * @return Upnp error code.
+ */
 int DeletePortMapping(struct Upnp_Action_Request *ca_event)
 {
     char *remote_host=NULL;
@@ -1014,9 +1280,21 @@ int DeletePortMapping(struct Upnp_Action_Request *ca_event)
             if ((strcmp(remote_host, "") == 0) || (inet_addr(remote_host) != -1))
             {
                 temp = pmlist_FindSpecific(remote_host, ext_port, proto);
-                if (temp)
+                if (temp && (AuthorizeControlPoint(ca_event) == CONTROL_POINT_AUTHORIZED || ControlPointIP_equals_InternalClientIP(temp->m_InternalClient, &ca_event->CtrlPtIPAddr)))
+                {
                     result = pmlist_Delete(temp);
-
+                }
+                else if (!temp)
+                {
+                    trace(1, "Failure in DeletePortMapping: Remote Host:%s Proto:%s Port:%s\n",remote_host, proto, ext_port);
+                    addErrorData(ca_event, 714, "NoSuchEntryInArray");
+                }
+                else
+                {
+                    trace(1, "Failure in DeletePortMapping: Remote Host:%s Proto:%s Port:%s\n",remote_host, proto, ext_port);
+                    addErrorData(ca_event, 730, "ActionNotPermitted");
+                }
+                
                 if (result==1)
                 {
                     trace(2, "DeletePortMap: Remote Host: %s Proto:%s Port:%s\n", remote_host, proto, ext_port);
@@ -1028,36 +1306,23 @@ int DeletePortMapping(struct Upnp_Action_Request *ca_event)
                     ixmlDocument_free(propSet);
                     action_succeeded = 1;
                 }
-                else
-                {
-                    trace(1, "Failure in GateDeviceDeletePortMapping: DeletePortMap: Remote Host:%s Proto:%s Port:%s\n",remote_host, proto, ext_port);
-                    ca_event->ErrCode = 714;
-                    strcpy(ca_event->ErrStr, "NoSuchEntryInArray");
-                    ca_event->ActionResult = NULL;
-                }
             }
             else
             {
                 trace(1, "Failure in GateDeviceDeletePortMapping: Invalid NewRemoteHost=%s\n",remote_host);
-                ca_event->ErrCode = 402;
-                strcpy(ca_event->ErrStr, "Invalid Args");
-                ca_event->ActionResult = NULL;
+                addErrorData(ca_event, 402, "Invalid Args");
             }
         }
         else
         {
             trace(1, "Failure in GateDeviceDeletePortMapping: Invalid NewProtocol=%s\n",proto);
-            ca_event->ErrCode = 402;
-            strcpy(ca_event->ErrStr, "Invalid Args");
-            ca_event->ActionResult = NULL;
+            addErrorData(ca_event, 402, "Invalid Args");
         }
     }
     else
     {
         trace(1, "Failure in GateDeviceDeletePortMapping: Invalid Arguments!");
-        ca_event->ErrCode = 402;
-        strcpy(ca_event->ErrStr, "Invalid Args");
-        ca_event->ActionResult = NULL;
+        addErrorData(ca_event, 402, "Invalid Args");
     }
 
     if (action_succeeded)
@@ -1075,6 +1340,14 @@ int DeletePortMapping(struct Upnp_Action_Request *ca_event)
     return(ca_event->ErrCode);
 }
 
+/**
+ * WANIPConnection:2 Action: DeletePortMappingRange
+ * 
+ * This action deletes port mapping entries defined by a range.
+ * 
+ * @param ca_event Upnp event struct.
+ * @return Upnp error code.
+ */
 int DeletePortMappingRange(struct Upnp_Action_Request *ca_event)
 {
     char *start_port=NULL;
@@ -1110,18 +1383,13 @@ int DeletePortMappingRange(struct Upnp_Action_Request *ca_event)
     {
         if ((end = atoi(end_port)) < (start = atoi(start_port)))
         {
-            trace(1, "Failure in GateDeviceDeletePortMappingRange: DeletePortMappingRange: StartPort:%s EndPort:%s Proto:%s Manage:%s InconsistentParameters!\n", start_port,end_port,proto,bool_manage);
-            ca_event->ErrCode = 733;
-            strcpy(ca_event->ErrStr, "InconsistentParameters");
-            ca_event->ActionResult = NULL;        
+            trace(1, "Failure in DeletePortMappingRange: StartPort:%s EndPort:%s Proto:%s Manage:%s InconsistentParameters!\n", start_port,end_port,proto,bool_manage);
+            addErrorData(ca_event, 733, "InconsistentParameters");
         }
-        
         else if ((strcmp(proto, "TCP") != 0) && (strcmp(proto, "UDP") != 0))
         {
-            trace(1, "Failure in GateDeviceDeletePortMappingRange: Invalid NewProtocol=%s\n",proto);
-            ca_event->ErrCode = 402;
-            strcpy(ca_event->ErrStr, "Invalid Args");
-            ca_event->ActionResult = NULL;            
+            trace(1, "Failure in DeletePortMappingRange: Invalid NewProtocol=%s\n",proto);
+            addErrorData(ca_event, 402, "Invalid Args");       
         }
         
         // parameters OK, lets continue
@@ -1141,6 +1409,8 @@ int DeletePortMappingRange(struct Upnp_Action_Request *ca_event)
                     if (temp)
                     {
                         foundPortmapCount++;
+                        // portmapping can be deleted if control point IP is same as internal client of portmapping,
+                        // or if user is authorized and managed flag is up
                         if ((authorized && managed) || ControlPointIP_equals_InternalClientIP(temp->m_InternalClient, &ca_event->CtrlPtIPAddr))
                         {
                             // delete portmapping
@@ -1174,26 +1444,20 @@ int DeletePortMappingRange(struct Upnp_Action_Request *ca_event)
             // portmappings which are in area of deletion exists, but none has been deleted -> Action is not permitted
             if (foundPortmapCount > 0 && !action_succeeded)
             {
-                trace(1, "Failure in GateDeviceDeletePortMappingRange: DeletePortMappingRange: StartPort:%s EndPort:%s Proto:%s Manage:%s ActionNotPermitted!\n", start_port,end_port,proto,bool_manage);
-                ca_event->ErrCode = 730;
-                strcpy(ca_event->ErrStr, "ActionNotPermitted");
-                ca_event->ActionResult = NULL;
+                trace(1, "Failure in DeletePortMappingRange: StartPort:%s EndPort:%s Proto:%s Manage:%s ActionNotPermitted!\n", start_port,end_port,proto,bool_manage);
+                addErrorData(ca_event, 730, "ActionNotPermitted");
             }
             else if (!action_succeeded)
             {
-                trace(1, "Failure in GateDeviceDeletePortMappingRange: DeletePortMappingRange: StartPort:%s EndPort:%s Proto:%s Manage:%s NoSuchEntryInArray!\n", start_port,end_port,proto,bool_manage);
-                ca_event->ErrCode = 714;
-                strcpy(ca_event->ErrStr, "NoSuchEntryInArray");
-                ca_event->ActionResult = NULL;
+                trace(1, "Failure in DeletePortMappingRange: StartPort:%s EndPort:%s Proto:%s Manage:%s NoSuchEntryInArray!\n", start_port,end_port,proto,bool_manage);
+                addErrorData(ca_event, 714, "NoSuchEntryInArray"); 
             }
         }
     }
     else
     {
-        trace(1, "Failure in GateDeviceDeletePortMappingRange: Invalid Arguments!");
-        ca_event->ErrCode = 402;
-        strcpy(ca_event->ErrStr, "Invalid Args");
-        ca_event->ActionResult = NULL;
+        trace(1, "Failure in DeletePortMappingRange: Invalid Arguments!");
+        addErrorData(ca_event, 402, "Invalid Args"); 
     }
 
     if (action_succeeded)
@@ -1213,6 +1477,143 @@ int DeletePortMappingRange(struct Upnp_Action_Request *ca_event)
     return(ca_event->ErrCode);
 }
 
+/**
+ * WANIPConnection:2 Action: GetListOfPortmappings
+ * 
+ * This action returns a list of port mappings matching the arguments. 
+ * 
+ * @param ca_event Upnp event struct.
+ * @return Upnp error code.
+ */
+int GetListOfPortmappings(struct Upnp_Action_Request *ca_event)
+{
+    char *start_port = NULL;
+    char *end_port = NULL;
+    char *manage = NULL;
+    char *proto = NULL;
+    char *number_of_ports = NULL;
+    char cp_ip[INET_ADDRSTRLEN] = "";
+    char result_str[RESULT_LEN];
+
+    int start, end;
+    int max_entries;
+    int action_succeeded = 0;
+    int result_place = 0;
+    struct portMap *pm = NULL;
+
+    if ( (start_port = GetFirstDocumentItem(ca_event->ActionRequest, "NewStartPort") )
+            && (end_port = GetFirstDocumentItem(ca_event->ActionRequest, "NewEndPort") )
+            && (manage = GetFirstDocumentItem(ca_event->ActionRequest, "NewManage") )
+            && (number_of_ports = GetFirstDocumentItem(ca_event->ActionRequest, "NewNumberOfPorts") )
+            && (proto = GetFirstDocumentItem(ca_event->ActionRequest, "NewProtocol") ))
+    {
+        if ((end = atoi(end_port)) < (start = atoi(start_port)))
+        {
+            trace(1, "Failure in GetListOfPortmappings: StartPort:%s EndPort:%s Proto:%s Manage:%s InconsistentParameters!\n", start_port,end_port,proto,manage);
+            addErrorData(ca_event, 733, "InconsistentParameters");
+        }
+        else
+        {    
+            max_entries = atoi(number_of_ports);
+            if (max_entries == 0)
+                max_entries = INT_MAX;
+    
+            // If manage is not true or CP is not authorized, list only CP's port mappings
+            if ( !resolveBoolean(manage) || !AuthorizeControlPoint(ca_event) == CONTROL_POINT_AUTHORIZED )
+                inet_ntop(AF_INET, &ca_event->CtrlPtIPAddr, cp_ip, INET_ADDRSTRLEN);
+    
+            // Write XML header
+            result_place += snprintf(result_str, RESULT_LEN, xml_portmapListingHeader, ca_event->ActionName);
+    
+            // Loop through port mappings until we run out or max_entries reaches 0
+            while ( (pm = pmlist_FindRangeAfter(start, end, proto, cp_ip, pm)) != NULL && max_entries--)
+            {
+                result_place += sprintf(&result_str[result_place], xml_portmapEntry,
+                                       pm->m_RemoteHost, pm->m_ExternalPort, pm->m_PortMappingProtocol,
+                                       pm->m_InternalPort, pm->m_InternalClient, pm->m_PortMappingEnabled,
+                                       pm->m_PortMappingDescription, pm->m_PortMappingLeaseDuration);
+                action_succeeded = 1;
+            }
+    
+            if (action_succeeded)
+            {
+                ca_event->ErrCode = UPNP_E_SUCCESS;
+                result_place += sprintf(&result_str[result_place], xml_portmapListingFooter, ca_event->ActionName);
+                ca_event->ActionResult = ixmlParseBuffer(result_str);
+            }
+            else
+            {
+                trace(2, "GetListOfPortmappings: Portmapping does not exist");
+                addErrorData(ca_event, 714, "NoSuchEntryInArray");
+            }
+        }
+    }
+    else
+    {
+        trace(1, "GetListOfPortmappings: Invalid Arguments\n\tStartPort: %s EndPort: %s Proto: %s NumberOfPorts: %s Manage: %s",
+              start_port, end_port, proto, number_of_ports, manage);
+        addErrorData(ca_event, 402, "Invalid Args");
+    }
+
+    if (start_port) free(start_port);
+    if (end_port) free(end_port);
+    if (proto) free(proto);
+    if (manage) free(manage);
+    if (number_of_ports) free(number_of_ports);
+
+    return ca_event->ErrCode;
+}
+
+
+//-----------------------------------------------------------------------------
+//
+//                      WANEthernetLinkConfig:1 Service Actions
+//
+//-----------------------------------------------------------------------------
+
+/**
+ * WANEthernetLinkConfig:1 Action: GetEthernetLinkStatus
+ * 
+ * This action retrieves the link status of the external Ethernet connection.
+ * 
+ * @param ca_event Upnp event struct.
+ * @return Upnp error code.
+ */
+int GetEthernetLinkStatus (struct Upnp_Action_Request *ca_event)
+{
+    char resultStr[RESULT_LEN];
+    IXML_Document *result;
+
+
+    setEthernetLinkStatus(EthernetLinkStatus, g_vars.extInterfaceName);
+
+    snprintf(resultStr, RESULT_LEN,
+             "<u:GetEthernetLinkStatusResponse xmlns:u=\"urn:schemas-upnp-org:service:WANEthernetLinkConfig:1\">\n"
+             "<NewEthernetLinkStatus>%s</NewEthernetLinkStatus>\n"
+             "</u:GetEthernetLinkStatusResponse>",EthernetLinkStatus);
+
+    // Create a IXML_Document from resultStr and return with ca_event
+    if ((result = ixmlParseBuffer(resultStr)) != NULL)
+    {
+        ca_event->ActionResult = result;
+        ca_event->ErrCode = UPNP_E_SUCCESS;
+    }
+    else
+    {
+        trace(1, "Error parsing Response to GetEthernetLinkStatus: %s", resultStr);
+        ca_event->ActionResult = NULL;
+        ca_event->ErrCode = 501;
+    }
+
+    return(ca_event->ErrCode);
+}
+
+
+//-----------------------------------------------------------------------------
+//
+//                      Internal functionalities
+//
+//-----------------------------------------------------------------------------
 
 int ExpirationTimerThreadInit(void)
 {
@@ -1502,163 +1903,6 @@ void DeleteAllPortMappings(void)
     ithread_mutex_unlock(&DevMutex);
 }
 
-
-/*
-  AddAnyPortMapping
-  IGDv2 addition
-  TODO: Refactor common code with AddPortMapping...
-*/
-int AddAnyPortMapping(struct Upnp_Action_Request *ca_event)
-{
-    char *new_remote_host=NULL;
-    char *new_external_port=NULL;
-    char *new_protocol=NULL;
-    char *new_internal_port = NULL;
-    char *new_internal_client=NULL;
-    char *new_enabled=NULL;
-    char *new_port_mapping_description=NULL;
-    char *new_lease_duration=NULL;
-
-    long leaseDuration = 0;
-    int next_free_port = 0;
-
-    struct portMap *ret;
-
-    int result = 0;
-    char resultStr[RESULT_LEN];
-    char freePort[5];
-
-
-    if ( (new_remote_host = GetFirstDocumentItem(ca_event->ActionRequest, "NewRemoteHost") )
-            && (new_external_port = GetFirstDocumentItem(ca_event->ActionRequest, "NewExternalPort") )
-            && (new_protocol = GetFirstDocumentItem(ca_event->ActionRequest, "NewProtocol") )
-            && (new_internal_port = GetFirstDocumentItem(ca_event->ActionRequest, "NewInternalPort") )
-            && (new_internal_client = GetFirstDocumentItem(ca_event->ActionRequest, "NewInternalClient") )
-            && (new_enabled = GetFirstDocumentItem(ca_event->ActionRequest, "NewEnabled") )
-            && (new_port_mapping_description = GetFirstDocumentItem(ca_event->ActionRequest, "NewPortMappingDescription") )
-            && (new_lease_duration = GetFirstDocumentItem(ca_event->ActionRequest, "NewLeaseDuration") ) )
-    {
-        leaseDuration = atol(new_lease_duration);
-
-        // If ext_port or int_port is <1024 control point needs to be authorized
-        if ((atoi(new_external_port) < 1024 || atoi(new_internal_port) < 1024 || !ControlPointIP_equals_InternalClientIP(new_internal_client, &ca_event->CtrlPtIPAddr))
-             && AuthorizeControlPoint(ca_event) != CONTROL_POINT_AUTHORIZED)
-        {
-            trace(1, "Port numbers must be greater than 1023 and NewInternalClient must be same as IP of Control point \
-                        unless control port is authorized. external_port:%s, internal_port:%s internal_client:%s",
-                  new_external_port, new_internal_port, new_internal_client);
-            result = 729;
-            addErrorData(ca_event, result, "PortMappingNotAllowed");
-        }
-
-        // Check Internal client and Port parameters
-        else if (checkForWildCard(new_internal_client)) 
-        {
-            trace(1, "Wild cards not permitted in internal_client:%s", new_internal_client);
-            result = 715;
-            addErrorData(ca_event, result, "WildCardNotPermittedInSrcIp");
-        } 
-        // not sure if this is needed
-        // If wildcard ext_port (0) is supported, return value of NewReservedPort MUST be 0
-        else if (checkForWildCard(new_external_port)) 
-        {
-            trace(1, "Wild cards not permitted in external_port:%s", new_external_port);
-            result = 716;
-            addErrorData(ca_event, result, "WildCardNotPermittedInExtPort");
-        }
-        else if (checkForWildCard(new_internal_port)) 
-        {
-            trace(1, "Wild cards not permitted in internal_port:%s", new_internal_port);
-            result = 732;
-            addErrorData(ca_event, result, "WildCardNotPermittedInIntPort");
-        }        
-        // check that internal port == external port. Is this really needed?
-        else if (atoi(new_external_port) != atoi(new_internal_port))
-        {
-            trace(1, "Internal and External port values must be the same. external_port:%s, internal_port:%s",
-                  new_external_port, new_internal_port);
-            result = 724;
-            addErrorData(ca_event, result, "SamePortValuesRequired");
-        }
-        // check that leaseduration is between 0 and 604800
-        else if (leaseDuration < 0 || leaseDuration > 604800)
-        {
-            trace(1, "Duration must be between 0 and 604800");
-            result = 402;
-            addErrorData(ca_event, result, "Invalid Args");
-        }
-
-        // Parameters OK... proceed with adding port map
-        if (result == 0)
-            {
-                // If port map with the same External Port, Protocol, and Internal Client exists
-                // then get next free port map
-                if ((ret = pmlist_Find(new_remote_host, new_external_port, new_protocol, new_internal_client)) != NULL)
-                {
-                    // Find searches free external port...
-                    // TODO: free port mapping search
-                    trace(3, "Found port map to already exist.  Finding next free");
-                    next_free_port = pmlist_FindNextFreePort(new_protocol);
-                    if (next_free_port > 0)
-                    {
-                        trace(3, "Found free port:%d", next_free_port);
-                        sprintf(freePort, "%d", next_free_port);
-                        result = AddNewPortMapping(ca_event, new_enabled, leaseDuration, new_remote_host,
-                                                    freePort, new_internal_port, new_protocol,
-                                                    new_internal_client, new_port_mapping_description);
-                    }
-                    else 
-                    {
-                        result = 718; /* no free port found... use ConflictInMappingEntry error code */
-                    }
-                }
-                else 
-                {
-                    // Otherwise just add the port map
-                    result = AddNewPortMapping(ca_event, new_enabled, leaseDuration, new_remote_host,
-                                                new_external_port, new_internal_port, new_protocol,
-                                                new_internal_client, new_port_mapping_description);
-                }
-        }
-        if (result==718)
-        {
-            trace(1,"Failure in GateDeviceAddAnyPortMapping: RemoteHost: %s Protocol:%s ExternalPort: %s InternalClient: %s.%s\n",
-                    new_remote_host, new_protocol, new_external_port, new_internal_client, new_internal_port);
-
-            addErrorData(ca_event, 718, "ConflictInMappingEntry");
-        }
-
-    }
-    else
-    {
-        trace(1, "Failure in GateDeviceAddAnyPortMapping: Invalid Arguments!");
-        trace(1, "  RemoteHost: %s ExternalPort: %s Protocol: %s InternalClient: %s Enabled: %s PortMappingDesc: %s LeaseDuration: %s",
-                new_remote_host, new_external_port, new_protocol, new_internal_client, new_enabled, new_port_mapping_description, new_lease_duration);
-        addErrorData(ca_event, 402, "Invalid Args");
-    }
-
-    if (result == 1)
-    {
-        ca_event->ErrCode = UPNP_E_SUCCESS;
-        if (next_free_port == 0) next_free_port = atoi(new_external_port);
-
-        snprintf(resultStr, RESULT_LEN, "<u:%sResponse xmlns:u=\"%s\">\n%s%d%s\n</u:%sResponse>",
-                    ca_event->ActionName, "urn:schemas-upnp-org:service:WANIPConnection:2", "<NewReservedPort>",
-                    next_free_port, "</NewReservedPort>", ca_event->ActionName);
-        ca_event->ActionResult = ixmlParseBuffer(resultStr);
-    }
-
-    if (new_remote_host) free(new_remote_host);
-    if (new_external_port) free(new_external_port);
-    if (new_protocol) free(new_protocol);
-    if (new_internal_client) free(new_internal_client);
-    if (new_enabled) free(new_enabled);
-    if (new_port_mapping_description) free(new_port_mapping_description);
-    if (new_lease_duration) free(new_lease_duration);
-
-    return(ca_event->ErrCode);
-}
-
 int AddNewPortMapping(struct Upnp_Action_Request *ca_event, char* new_enabled, int leaseDuration,
                       char* new_remote_host, char* new_external_port, char* new_internal_port,
                       char* new_protocol, char* new_internal_client, char* new_port_mapping_description)
@@ -1704,127 +1948,6 @@ int AddNewPortMapping(struct Upnp_Action_Request *ca_event, char* new_enabled, i
     }
 
     return result;
-}
-
-/**
- * Action: Retrieves a list of all port mappings.
- */
-int GetListOfPortmappings(struct Upnp_Action_Request *ca_event)
-{
-    char *start_port = NULL;
-    char *end_port = NULL;
-    char *manage = NULL;
-    char *proto = NULL;
-    char *number_of_ports = NULL;
-    char cp_ip[INET_ADDRSTRLEN] = "";
-    char result_str[RESULT_LEN];
-
-    int start, end;
-    int max_entries;
-    int action_succeeded = 0;
-    int result_place = 0;
-    struct portMap *pm = NULL;
-
-    if ( (start_port = GetFirstDocumentItem(ca_event->ActionRequest, "NewStartPort") )
-            && (end_port = GetFirstDocumentItem(ca_event->ActionRequest, "NewEndPort") )
-            && (manage = GetFirstDocumentItem(ca_event->ActionRequest, "NewManage") )
-            && (number_of_ports = GetFirstDocumentItem(ca_event->ActionRequest, "NewNumberOfPorts") )
-            && (proto = GetFirstDocumentItem(ca_event->ActionRequest, "NewProtocol") ))
-    {
-        if ((end = atoi(end_port)) < (start = atoi(start_port)))
-        {
-            trace(1, "Failure in GetListOfPortmappings: StartPort:%s EndPort:%s Proto:%s Manage:%s InconsistentParameters!\n", start_port,end_port,proto,manage);
-            ca_event->ErrCode = 733;
-            strcpy(ca_event->ErrStr, "InconsistentParameters");
-            ca_event->ActionResult = NULL;        
-        }
-        else
-        {    
-            max_entries = atoi(number_of_ports);
-            if (max_entries == 0)
-                max_entries = INT_MAX;
-    
-            // If manage is not true or CP is not authorized, list only CP's port mappings
-            if ( !resolveBoolean(manage) || !AuthorizeControlPoint(ca_event) == CONTROL_POINT_AUTHORIZED )
-                inet_ntop(AF_INET, &ca_event->CtrlPtIPAddr, cp_ip, INET_ADDRSTRLEN);
-    
-            // Write XML header
-            result_place += snprintf(result_str, RESULT_LEN, xml_portmapListingHeader, ca_event->ActionName);
-    
-            // Loop through port mappings until we run out or max_entries reaches 0
-            while ( (pm = pmlist_FindRangeAfter(start, end, proto, cp_ip, pm)) != NULL && max_entries--)
-            {
-                result_place += sprintf(&result_str[result_place], xml_portmapEntry,
-                                       pm->m_RemoteHost, pm->m_ExternalPort, pm->m_PortMappingProtocol,
-                                       pm->m_InternalPort, pm->m_InternalClient, pm->m_PortMappingEnabled,
-                                       pm->m_PortMappingDescription, pm->m_PortMappingLeaseDuration);
-                action_succeeded = 1;
-            }
-    
-            if (action_succeeded)
-            {
-                ca_event->ErrCode = UPNP_E_SUCCESS;
-                result_place += sprintf(&result_str[result_place], xml_portmapListingFooter, ca_event->ActionName);
-                ca_event->ActionResult = ixmlParseBuffer(result_str);
-            }
-            else
-            {
-                trace(2, "GetListOfPortmappings: Portmapping does not exist");
-                ca_event->ErrCode = 714;
-                strcpy(ca_event->ErrStr, "NoSuchEntryInArray");
-                ca_event->ActionResult = NULL;
-            }
-        }
-    }
-    else
-    {
-        trace(1, "GetListOfPortmappings: Invalid Arguments\n\tStartPort: %s EndPort: %s Proto: %s NumberOfPorts: %s Manage: %s",
-              start_port, end_port, proto, number_of_ports, manage);
-        ca_event->ErrCode = 402;
-        strcpy(ca_event->ErrStr, "Invalid Args");
-        ca_event->ActionResult = NULL;
-    }
-
-    if (start_port) free(start_port);
-    if (end_port) free(end_port);
-    if (proto) free(proto);
-    if (manage) free(manage);
-    if (number_of_ports) free(number_of_ports);
-
-    return ca_event->ErrCode;
-}
-
-/**
- * WANEthernetLinkConfig Service
- *  GetEthernetLinkStatus Action
- */
-int GetEthernetLinkStatus (struct Upnp_Action_Request *ca_event)
-{
-    char resultStr[RESULT_LEN];
-    IXML_Document *result;
-
-
-    setEthernetLinkStatus(EthernetLinkStatus, g_vars.extInterfaceName);
-
-    snprintf(resultStr, RESULT_LEN,
-             "<u:GetEthernetLinkStatusResponse xmlns:u=\"urn:schemas-upnp-org:service:WANEthernetLinkConfig:1\">\n"
-             "<NewEthernetLinkStatus>%s</NewEthernetLinkStatus>\n"
-             "</u:GetEthernetLinkStatusResponse>",EthernetLinkStatus);
-
-    // Create a IXML_Document from resultStr and return with ca_event
-    if ((result = ixmlParseBuffer(resultStr)) != NULL)
-    {
-        ca_event->ActionResult = result;
-        ca_event->ErrCode = UPNP_E_SUCCESS;
-    }
-    else
-    {
-        trace(1, "Error parsing Response to GetEthernetLinkStatus: %s", resultStr);
-        ca_event->ActionResult = NULL;
-        ca_event->ErrCode = 501;
-    }
-
-    return(ca_event->ErrCode);
 }
 
 // Checks if control point is authorized

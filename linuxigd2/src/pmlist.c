@@ -214,7 +214,14 @@ int pmlist_FindNextFreePort(char *protocol)
 }
 
 /**
- * Find next port mapping in port range. If remote_host is not empty, returns only rules matching host.
+ *  Find next port mapping in port range. If remote_host is not empty, returns only rules matching host.
+ * 
+ * @param start_port Lower limit for port value in portmappings included in search.
+ * @param end_port Upper limit for port value in portmappings included in search.
+ * @param protocol Protocol of portmapping searched.
+ * @param internal_client Internal client IP value.
+ * @param pm Portmapping from where searching is started in list.
+ * @return Portmapping matching parameters or NULL if none found.
  */
 struct portMap* pmlist_FindRangeAfter(int start_port, int end_port, char *protocol, char *internal_client, struct portMap *pm)
 {

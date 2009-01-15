@@ -211,8 +211,15 @@ int GetDefaultGateway( char *gateway )
     return FALSE;
 }
 
+
+//-----------------------------------------------------------------------------
+//
+//                      LANHostConfigManagement:1 Service Actions
+//
+//-----------------------------------------------------------------------------
+
 /**
- * Action: SetDHCPServerConfigurable.
+ * LANHostConfigManagement:1 Action: SetDHCPServerConfigurable.
  *
  * Set dhcp server configuration flag.
  * It fails if CheckLanHostConfigFiles fails.
@@ -252,7 +259,7 @@ int SetDHCPServerConfigurable( struct Upnp_Action_Request *ca_event )
 }
 
 /**
- * Action: GetDHCPServerConfigurable.
+ * LANHostConfigManagement:1 Action: GetDHCPServerConfigurable.
  *
  * Returns the dhcp configuration flag.
  *
@@ -267,7 +274,7 @@ int GetDHCPServerConfigurable( struct Upnp_Action_Request *ca_event )
 }
 
 /**
- * Action: SetDHCPRelay.
+ * LANHostConfigManagement:1 Action: SetDHCPRelay.
  *
  * Change dhcp mode between relay server and normal dhcp server.
  * Start / Stop dhcrelay and dnsmasq accordingly.
@@ -317,7 +324,7 @@ int SetDHCPRelay( struct Upnp_Action_Request *ca_event )
 }
 
 /**
- * Action: GetDHCPRelay.
+ * LANHostConfigManagement:1 Action: GetDHCPRelay.
  *
  * Returns the state of dhcrelay server.
  *
@@ -332,7 +339,7 @@ int GetDHCPRelay( struct Upnp_Action_Request *ca_event )
 }
 
 /**
- * Action: SetSubnetMask.
+ * LANHostConfigManagement:1 Action: SetSubnetMask.
  *
  * Set the subnet mask of the LAN.
  * Uses uci option network.lan.netmask.
@@ -369,7 +376,7 @@ int SetSubnetMask( struct Upnp_Action_Request *ca_event )
 }
 
 /**
- * Action: GetSubnetMask.
+ * LANHostConfigManagement:1 Action: GetSubnetMask.
  *
  * Returns subnet mask using uci option
  * network.lan.netmask.
@@ -409,7 +416,7 @@ int GetSubnetMask( struct Upnp_Action_Request *ca_event )
 }
 
 /**
- * Action: SetIPRouter.
+ * LANHostConfigManagement:1 Action: SetIPRouter.
  *
  * Sets the default router.
  * This action only affects the default router, not all routers like defined in the spec.
@@ -469,7 +476,7 @@ int SetIPRouter( struct Upnp_Action_Request *ca_event )
 }
 
 /**
- * Action: DeleteIPRouter.
+ * LANHostConfigManagement:1 Action: DeleteIPRouter.
  *
  * Deletes the default router.
  * This action only affects the default router, not all routers like defined in the spec.
@@ -506,7 +513,7 @@ int DeleteIPRouter( struct Upnp_Action_Request *ca_event )
 }
 
 /**
- * Action: GetIPRoutersList.
+ * LANHostConfigManagement:1 Action: GetIPRoutersList.
  *
  * Returns the default router.
  * This action returns only the default router, not all routers like defined in the spec.
@@ -530,7 +537,7 @@ int GetIPRoutersList( struct Upnp_Action_Request *ca_event )
 }
 
 /**
- * Action: SetDomainName.
+ * LANHostConfigManagement:1 Action: SetDomainName.
  *
  * Uses uci option dhcp.@dnsmasq[0].domain
  *
@@ -573,7 +580,7 @@ int SetDomainName( struct Upnp_Action_Request *ca_event )
 }
 
 /**
- * Action: GetDomainName.
+ * LANHostConfigManagement:1 Action: GetDomainName.
  *
  * @param ca_event Upnp event struct.
  * @return Upnp error code.
@@ -707,7 +714,7 @@ int ParseAddressRange( struct Upnp_Action_Request *ca_event,
 }
 
 /**
- * Action: SetAddressRange.
+ * LANHostConfigManagement:1 Action: SetAddressRange.
  *
  * Sets the address range dhcp server will give out.
  *
@@ -760,7 +767,7 @@ int SetAddressRange( struct Upnp_Action_Request *ca_event )
 }
 
 /**
- * Action: GetAddressRange.
+ * LANHostConfigManagement:1 Action: GetAddressRange.
  *
  * Gets the address range dhcp server will give out.
  *
@@ -805,7 +812,7 @@ int GetAddressRange( struct Upnp_Action_Request *ca_event )
 }
 
 /**
- * Action: SetReservedAddress.
+ * LANHostConfigManagement:1 Action: SetReservedAddress.
  *
  * Sets the reserved addesses, that dhcp server won't give to clients.
  * Old values will be deleted before the new list is applied.
@@ -889,7 +896,7 @@ int SetReservedAddress( struct Upnp_Action_Request *ca_event )
 }
 
 /**
- * Action: DeleteReservedAddress.
+ * LANHostConfigManagement:1 Action: DeleteReservedAddress.
  *
  * Deletes specified ip-address from reserved addresses if it can be found.
  * This action only takes one ip-address at a time, not a comma separated list.
@@ -981,7 +988,7 @@ int DeleteReservedAddress( struct Upnp_Action_Request *ca_event )
 }
 
 /**
- * Action: GetReservedAddresses.
+ * LANHostConfigManagement:1 Action: GetReservedAddresses.
  *
  * Returns all reserved addresses in a comma separated list.
  *
@@ -1046,7 +1053,7 @@ int GetReservedAddresses( struct Upnp_Action_Request *ca_event )
 }
 
 /**
- * Action: SetDNSServer.
+ * LANHostConfigManagement:1 Action: SetDNSServer.
  *
  * Sets dns servers.
  * Opens resolv.conf file and a temp file. Copies all but nameservers from original
@@ -1147,7 +1154,7 @@ int SetDNSServer( struct Upnp_Action_Request *ca_event )
 }
 
 /**
- * Action: DeleteDNSServer.
+ * LANHostConfigManagement:1 Action: DeleteDNSServer.
  *
  * Deletes one dns server.
  * Opens resolv.conf file and a temp file. Copies everything except the deleted nameserver from original
@@ -1243,7 +1250,7 @@ int DeleteDNSServer( struct Upnp_Action_Request *ca_event )
 }
 
 /**
- * Action: GetDNSServers.
+ * LANHostConfigManagement:1 Action: GetDNSServers.
  *
  * Returns all dns servers as a comma separated list.
  *
