@@ -129,7 +129,8 @@ void trace(int debuglevel, const char *format, ...)
 }
 
 /**
- * Check if parameter string has a wildcard character, meaning '*'.
+ * Check if parameter string has a wildcard character '*', or if string is '0' which might be used as wildcard
+ * for port number, or if string is empty string which wildcard form of ip addresses.
  * 
  * @param str String to check.
  * @return 1 if found, 0 else.
@@ -138,8 +139,8 @@ int checkForWildCard(const char *str)
 {
     int retVal = 0;
 
-    if (strchr(str, '*') != NULL)
-	retVal = 1;
+    if ((strchr(str, '*') != NULL) || (strcmp(str,"0") == 0) || (strcmp(str,"") == 0))
+	   retVal = 1;
 
     return retVal;
 }

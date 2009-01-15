@@ -723,30 +723,50 @@ int AddPortMapping(struct Upnp_Action_Request *ca_event)
             && (bool_enabled = GetFirstDocumentItem(ca_event->ActionRequest, "NewEnabled") )
             && (desc = GetFirstDocumentItem(ca_event->ActionRequest, "NewPortMappingDescription") ))
     {
-        // If ext_port is <1024 control point needs to be authorized
-        if (atoi(ext_port) < 1024 && AuthorizeControlPoint(ca_event) != CONTROL_POINT_AUTHORIZED)
+        // If ext_port or int_port is <1024 control point needs to be authorized
+        if ((atoi(ext_port) < 1024 || atoi(int_port) < 1024 || !ControlPointIP_equals_InternalClientIP(int_ip, &ca_event->CtrlPtIPAddr))
+             && AuthorizeControlPoint(ca_event) != CONTROL_POINT_AUTHORIZED)
         {
-            return ca_event->ErrCode;
+            trace(1, "Port numbers must be greater than 1023 and NewInternalClient must be same as IP of Control point \
+                        unless control port is authorized. external_port:%s, internal_port:%s internal_client:%s",
+                  ext_port, int_port, int_ip);
+            result = 729;
+            addErrorData(ca_event, result, "PortMappingNotAllowed");
         }
 
         // Check RemoteHost and ExternalPort parameters
-        if (checkForWildCard(remote_host)) {
-            trace(1, "Wild cards not permitted in remote_host:%s", remote_host);
-            addErrorData(ca_event, 715, "WildCardNotPermittedInSrcIp");
+        else if (checkForWildCard(int_ip)) 
+        {
+            trace(1, "Wild cards not permitted in internal_client:%s", int_ip);
             result = 715;
-        } else
-        if (checkForWildCard(ext_port)) {
+            addErrorData(ca_event, result, "WildCardNotPermittedInSrcIp");
+        } 
+        else if (checkForWildCard(ext_port)) // Not sure if this is really needed
+        {
             trace(1, "Wild cards not permitted in external_port:%s", ext_port);
-            addErrorData(ca_event, 716, "WildCardNotPermittedInExtPort");
             result = 716;
-        } else
-        // check that internal port == external port
-        if (atoi(ext_port) != atoi(int_port))
+            addErrorData(ca_event, result, "WildCardNotPermittedInExtPort");
+        }
+        else if (checkForWildCard(int_port)) 
+        {
+            trace(1, "Wild cards not permitted in internal_port:%s", int_port);
+            result = 732;
+            addErrorData(ca_event, result, "WildCardNotPermittedInIntPort");
+        }        
+        // check that internal port == external port. Is this really needed?
+        else if (atoi(ext_port) != atoi(int_port))
         {
             trace(1, "Internal and External port values must be the same. external_port:%s, internal_port:%s",
                   ext_port, int_port);
-            addErrorData(ca_event, 724, "SamePortValueRequired");
             result = 724;
+            addErrorData(ca_event, result, "SamePortValuesRequired");
+        }
+        // check that leaseduration is between 0 and 604800
+        else if ((atoi(int_duration) < 0) || (atoi(int_duration) > 604800))
+        {
+            trace(1, "Duration must be between 0 and 604800");
+            result = 402;
+            addErrorData(ca_event, result, "Invalid Args");
         }
 
         if (result == 0)
@@ -777,9 +797,7 @@ int AddPortMapping(struct Upnp_Action_Request *ca_event)
         trace(1, "Failure in GateDeviceAddPortMapping: Invalid Arguments!");
         trace(1, "  ExtPort: %s RemHost: %s Proto: %s IntPort: %s IntIP: %s Dur: %s Ena: %s Desc: %s",
               ext_port, remote_host, proto, int_port, int_ip, int_duration, bool_enabled, desc);
-        ca_event->ErrCode = 402;
-        strcpy(ca_event->ErrStr, "Invalid Args");
-        ca_event->ActionResult = NULL;
+        addErrorData(ca_event, 402, "Invalid Args");
     }
 
     if (ext_port) free(ext_port);
@@ -1098,7 +1116,7 @@ int DeletePortMappingRange(struct Upnp_Action_Request *ca_event)
             ca_event->ActionResult = NULL;        
         }
         
-        if ((strcmp(proto, "TCP") != 0) && (strcmp(proto, "UDP") != 0))
+        else if ((strcmp(proto, "TCP") != 0) && (strcmp(proto, "UDP") != 0))
         {
             trace(1, "Failure in GateDeviceDeletePortMappingRange: Invalid NewProtocol=%s\n",proto);
             ca_event->ErrCode = 402;
@@ -1490,10 +1508,8 @@ void DeleteAllPortMappings(void)
   IGDv2 addition
   TODO: Refactor common code with AddPortMapping...
 */
-int AddAnyPortMapping
-(struct Upnp_Action_Request *ca_event)
+int AddAnyPortMapping(struct Upnp_Action_Request *ca_event)
 {
-
     char *new_remote_host=NULL;
     char *new_external_port=NULL;
     char *new_protocol=NULL;
@@ -1522,65 +1538,94 @@ int AddAnyPortMapping
             && (new_port_mapping_description = GetFirstDocumentItem(ca_event->ActionRequest, "NewPortMappingDescription") )
             && (new_lease_duration = GetFirstDocumentItem(ca_event->ActionRequest, "NewLeaseDuration") ) )
     {
-    // Check RemoteHost and ExternalPort parameters
-    if (checkForWildCard(new_remote_host)) {
-        trace(1, "Wild cards not permitted in remote_host:%s", new_remote_host);
-        addErrorData(ca_event, 715, "WildCardNotPermittedInSrcIP");
-                result = 715;
-    } else
-    if (checkForWildCard(new_external_port)) {
-        trace(1, "Wild cards not permitted in external_port:%s", new_external_port);
-        addErrorData(ca_event, 716, "WildCardNotPermittedInExtPort");
-                result = 716;
-    } else
-    // check that internal port == external port
-    if (atoi(new_external_port) != atoi(new_internal_port))
-    {
-        trace(1, "Internal and External port values must be the same. external_port:%s, internal_port:%s",
-              new_external_port, new_internal_port);
-        addErrorData(ca_event, 724, "SamePortValueRequired");
-        result = 724;
-    }
-    leaseDuration = atol(new_lease_duration);
+        leaseDuration = atol(new_lease_duration);
 
-    // TODO: SecurityChecks here...
-
-    // Parameters OK... proceed with adding port map
-    if (result == 0)
+        // If ext_port or int_port is <1024 control point needs to be authorized
+        if ((atoi(new_external_port) < 1024 || atoi(new_internal_port) < 1024 || !ControlPointIP_equals_InternalClientIP(new_internal_client, &ca_event->CtrlPtIPAddr))
+             && AuthorizeControlPoint(ca_event) != CONTROL_POINT_AUTHORIZED)
         {
-            // If port map with the same External Port, Protocol, and Internal Client exists
-            // then get next free port map
-            if ((ret = pmlist_Find(new_remote_host, new_external_port, new_protocol, new_internal_client)) != NULL)
+            trace(1, "Port numbers must be greater than 1023 and NewInternalClient must be same as IP of Control point \
+                        unless control port is authorized. external_port:%s, internal_port:%s internal_client:%s",
+                  new_external_port, new_internal_port, new_internal_client);
+            result = 729;
+            addErrorData(ca_event, result, "PortMappingNotAllowed");
+        }
+
+        // Check Internal client and Port parameters
+        else if (checkForWildCard(new_internal_client)) 
+        {
+            trace(1, "Wild cards not permitted in internal_client:%s", new_internal_client);
+            result = 715;
+            addErrorData(ca_event, result, "WildCardNotPermittedInSrcIp");
+        } 
+        // not sure if this is needed
+        // If wildcard ext_port (0) is supported, return value of NewReservedPort MUST be 0
+        else if (checkForWildCard(new_external_port)) 
+        {
+            trace(1, "Wild cards not permitted in external_port:%s", new_external_port);
+            result = 716;
+            addErrorData(ca_event, result, "WildCardNotPermittedInExtPort");
+        }
+        else if (checkForWildCard(new_internal_port)) 
+        {
+            trace(1, "Wild cards not permitted in internal_port:%s", new_internal_port);
+            result = 732;
+            addErrorData(ca_event, result, "WildCardNotPermittedInIntPort");
+        }        
+        // check that internal port == external port. Is this really needed?
+        else if (atoi(new_external_port) != atoi(new_internal_port))
+        {
+            trace(1, "Internal and External port values must be the same. external_port:%s, internal_port:%s",
+                  new_external_port, new_internal_port);
+            result = 724;
+            addErrorData(ca_event, result, "SamePortValuesRequired");
+        }
+        // check that leaseduration is between 0 and 604800
+        else if (leaseDuration < 0 || leaseDuration > 604800)
+        {
+            trace(1, "Duration must be between 0 and 604800");
+            result = 402;
+            addErrorData(ca_event, result, "Invalid Args");
+        }
+
+        // Parameters OK... proceed with adding port map
+        if (result == 0)
             {
-            // Find searches free external port...
-            // TODO: free port mapping search
+                // If port map with the same External Port, Protocol, and Internal Client exists
+                // then get next free port map
+                if ((ret = pmlist_Find(new_remote_host, new_external_port, new_protocol, new_internal_client)) != NULL)
+                {
+                    // Find searches free external port...
+                    // TODO: free port mapping search
                     trace(3, "Found port map to already exist.  Finding next free");
                     next_free_port = pmlist_FindNextFreePort(new_protocol);
-            if (next_free_port > 0)
-                {
-                trace(3, "Found free port:%d", next_free_port);
-                sprintf(freePort, "%d", next_free_port);
+                    if (next_free_port > 0)
+                    {
+                        trace(3, "Found free port:%d", next_free_port);
+                        sprintf(freePort, "%d", next_free_port);
                         result = AddNewPortMapping(ca_event, new_enabled, leaseDuration, new_remote_host,
-                                  freePort, new_internal_port, new_protocol,
-                                                  new_internal_client, new_port_mapping_description);
+                                                    freePort, new_internal_port, new_protocol,
+                                                    new_internal_client, new_port_mapping_description);
                     }
-                    else {
-                result = 718; /* no free port found... use ConflictInMappingEntry error code */
+                    else 
+                    {
+                        result = 718; /* no free port found... use ConflictInMappingEntry error code */
                     }
-            }
-            else {
-            // Otherwise just add the port map
-                result = AddNewPortMapping(ca_event, new_enabled, leaseDuration, new_remote_host,
-                              new_external_port, new_internal_port, new_protocol,
-                                              new_internal_client, new_port_mapping_description);
-            }
-    }
-    if (result==718)
+                }
+                else 
+                {
+                    // Otherwise just add the port map
+                    result = AddNewPortMapping(ca_event, new_enabled, leaseDuration, new_remote_host,
+                                                new_external_port, new_internal_port, new_protocol,
+                                                new_internal_client, new_port_mapping_description);
+                }
+        }
+        if (result==718)
         {
             trace(1,"Failure in GateDeviceAddAnyPortMapping: RemoteHost: %s Protocol:%s ExternalPort: %s InternalClient: %s.%s\n",
-                  new_remote_host, new_protocol, new_external_port, new_internal_client, new_internal_port);
+                    new_remote_host, new_protocol, new_external_port, new_internal_client, new_internal_port);
 
-        addErrorData(ca_event, 718, "ConflictInMappingEntry");
+            addErrorData(ca_event, 718, "ConflictInMappingEntry");
         }
 
     }
@@ -1588,9 +1633,8 @@ int AddAnyPortMapping
     {
         trace(1, "Failure in GateDeviceAddAnyPortMapping: Invalid Arguments!");
         trace(1, "  RemoteHost: %s ExternalPort: %s Protocol: %s InternalClient: %s Enabled: %s PortMappingDesc: %s LeaseDuration: %s",
-              new_remote_host, new_external_port, new_protocol, new_internal_client, new_enabled,
-          new_port_mapping_description, new_lease_duration);
-    addErrorData(ca_event, 402, "Invalid Args");
+                new_remote_host, new_external_port, new_protocol, new_internal_client, new_enabled, new_port_mapping_description, new_lease_duration);
+        addErrorData(ca_event, 402, "Invalid Args");
     }
 
     if (result == 1)
@@ -1598,10 +1642,10 @@ int AddAnyPortMapping
         ca_event->ErrCode = UPNP_E_SUCCESS;
         if (next_free_port == 0) next_free_port = atoi(new_external_port);
 
-    snprintf(resultStr, RESULT_LEN, "<u:%sResponse xmlns:u=\"%s\">\n%s%d%s\n</u:%sResponse>",
-                 ca_event->ActionName, "urn:schemas-upnp-org:service:WANIPConnection:2", "<NewReservedPort>",
-         next_free_port, "</NewReservedPort>", ca_event->ActionName);
-    ca_event->ActionResult = ixmlParseBuffer(resultStr);
+        snprintf(resultStr, RESULT_LEN, "<u:%sResponse xmlns:u=\"%s\">\n%s%d%s\n</u:%sResponse>",
+                    ca_event->ActionName, "urn:schemas-upnp-org:service:WANIPConnection:2", "<NewReservedPort>",
+                    next_free_port, "</NewReservedPort>", ca_event->ActionName);
+        ca_event->ActionResult = ixmlParseBuffer(resultStr);
     }
 
     if (new_remote_host) free(new_remote_host);
@@ -1625,9 +1669,15 @@ int AddNewPortMapping(struct Upnp_Action_Request *ca_event, char* new_enabled, i
     struct portMap *new;
     char tmp[11];
 
+    // if duration is 0, it must be interpreted as 604800
+    if (leaseDuration == 0)
+    {
+        leaseDuration = 604800;
+    }
+
     new = pmlist_NewNode(atoi(new_enabled), leaseDuration, new_remote_host,
                   new_external_port, new_internal_port, new_protocol,
-                          new_internal_client, new_port_mapping_description);
+                  new_internal_client, new_port_mapping_description);
 
     result = pmlist_PushBack(new);
 
