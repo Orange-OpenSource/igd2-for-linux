@@ -61,8 +61,8 @@ void Test_AddAnyPortMapping(void)
     port = GetFirstDocumentItem(event.ActionResult, "NewReservedPort");
     CU_ASSERT(strcmp(port, "100") != 0);
 
-    // Wildcard in remote host
-    event.ActionRequest = ixmlParseBuffer(add_any_port_mapping_wild_card_in_remote_host_xml);
+    // Wildcard in internal client
+    event.ActionRequest = ixmlParseBuffer(add_any_port_mapping_wild_card_in_internal_client_xml);
     CU_ASSERT(AddAnyPortMapping(&event) == 715);
 
     // Wildcard in external port
@@ -133,7 +133,23 @@ void Test_AddPortMapping(void)
     // Add with wildcarded remotehost
     event.ActionRequest = ixmlParseBuffer(add_portmapping_request_wildcard_remotehost_xml);
     CU_ASSERT(AddPortMapping(&event) == 0);
+    
+    // Add with wildcarded internalclient
+    event.ActionRequest = ixmlParseBuffer(add_portmapping_request_wildcard_internalclient_xml);
+    CU_ASSERT(AddPortMapping(&event) == 715);
 
+    // Add with wildcarded external port
+    event.ActionRequest = ixmlParseBuffer(add_portmapping_request_wildcard_extport_xml);
+    CU_ASSERT(AddPortMapping(&event) == 716);
+    
+    // Add with wildcarded internal port
+    event.ActionRequest = ixmlParseBuffer(add_portmapping_request_wildcard_intport_xml);
+    CU_ASSERT(AddPortMapping(&event) == 732);    
+
+    // Add with different port values
+    event.ActionRequest = ixmlParseBuffer(add_portmapping_request_diff_ports_xml);
+    CU_ASSERT(AddPortMapping(&event) == 724);   
+    
     // Invalid args
     event.ActionRequest = ixmlParseBuffer(add_portmapping_request_missing_parameter_xml);
     CU_ASSERT(AddPortMapping(&event) == 402);
