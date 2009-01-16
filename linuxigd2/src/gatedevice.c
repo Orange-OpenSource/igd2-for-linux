@@ -28,8 +28,16 @@ static const char xml_portmapEntry[] = "<p:PortmapEntry NewRemoteHost=\"%s\" New
 static const char xml_portmapListingHeader[] = "<u:%sResponse xmlns:u=\"urn:schemas-upnp-org:service:WANIPConnection:2\"><p:PortMappingList xmlns:p=\"http://www.upnp.org/schemas/GWPortMappingList.xsd\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:schemaLocation=\"http://www.upnp.org/schemas/GWPortMappingList.xsd GwPortMappingList-V0.5.xsd\">\n";
 static const char xml_portmapListingFooter[] = "</p:PortMappingList></u:%sResponse>";
 
-// Main event handler for callbacks from the SDK.  Determine type of event
-// and dispatch to the appropriate handler (Note: Get Var Request deprecated
+
+/**
+ * Main event handler for callbacks from the SDK.  Determine type of event
+ * and dispatch to the appropriate handler (Note: Get Var Request deprecated)
+ *  
+ * @param EventType Type of event (UPNP_EVENT_SUBSCRIPTION_REQUEST, UPNP_CONTROL_GET_VAR_REQUEST, UPNP_CONTROL_ACTION_REQUEST).
+ * @param Event Upnp event struct.
+ * @param Cookie This parameter is not used.
+ * @return 0
+ */
 int EventHandler(Upnp_EventType EventType, void *Event, void *Cookie)
 {
     switch (EventType)
@@ -50,8 +58,13 @@ int EventHandler(Upnp_EventType EventType, void *Event, void *Cookie)
     return (0);
 }
 
-// Grab our UDN from the Description Document.  This may not be needed,
-// the UDN comes with the request, but we leave this for other device initializations
+/**
+ * Initialize state variables and parse device UDN's for InternetGatewayDevice, 
+ * WANDevice and WANConnectionDevice.
+ *  
+ * @param descDocUrl Url of device description document.
+ * @return Upnp error code.
+ */
 int StateTableInit(char *descDocUrl)
 {
     IXML_Document *ixmlDescDoc;
@@ -93,7 +106,12 @@ int StateTableInit(char *descDocUrl)
     return (ret);
 }
 
-// Handles subscription request for state variable notifications
+/**
+ * Handles subscription request for state variable notifications.
+ *  
+ * @param sr_event Upnp Subscription Request struct
+ * @return 1
+ */
 int HandleSubscriptionRequest(struct Upnp_Subscription_Request *sr_event)
 {
     IXML_Document *propSet = NULL;
@@ -167,15 +185,28 @@ int HandleSubscriptionRequest(struct Upnp_Subscription_Request *sr_event)
     return(1);
 }
 
+/**
+ * Handles GetVar request for state variables.
+ * GET VAR REQUEST DEPRECATED FROM UPnP SPECIFICATIONS!
+ * Report this in debug and ignore requests.
+ *  
+ * @param sr_event Upnp GetVar Request struct
+ * @return 1
+ */
 int HandleGetVarRequest(struct Upnp_State_Var_Request *gv_request)
 {
-    // GET VAR REQUEST DEPRECATED FROM UPnP SPECIFICATIONS
-    // Report this in debug and ignore requests.  If anyone experiences problems
-    // please let us know.
+    //If anyone experiences problems please let us know.
     trace(3, "Deprecated Get Variable Request received. Ignoring.");
     return 1;
 }
 
+/**
+ * Handles action requests for WANCommonIFC1, WANIPConn2, LANHostConfig1 and
+ * WANEthLinkC1 services.
+ *  
+ * @param sr_event Upnp Action Request struct
+ * @return Upnp error code.
+ */
 int HandleActionRequest(struct Upnp_Action_Request *ca_event)
 {
     int result = 0;
@@ -349,7 +380,12 @@ int HandleActionRequest(struct Upnp_Action_Request *ca_event)
     return (result);
 }
 
-// Default Action when we receive unknown Action Requests
+/**
+ * Default Action when we receive unknown Action Requests
+ *  
+ * @param sr_event Upnp Action Request struct
+ * @return Upnp error code 401.
+ */
 int InvalidAction(struct Upnp_Action_Request *ca_event)
 {
     ca_event->ErrCode = 401;
@@ -1118,7 +1154,7 @@ int GetGenericPortMappingEntry(struct Upnp_Action_Request *ca_event)
     return (ca_event->ErrCode);
 }
 
- /**
+/**
  * WANIPConnection:2 Action: GetSpecificPortMappingEntry
  * 
  * This action reports the port mapping specified by the unique tuple of RemoteHost, 
@@ -1615,6 +1651,11 @@ int GetEthernetLinkStatus (struct Upnp_Action_Request *ca_event)
 //
 //-----------------------------------------------------------------------------
 
+/**
+ * Initialize expiration timer thread, which maintains expirations of portmappings.
+ * 
+ * @return Upnp error code.
+ */
 int ExpirationTimerThreadInit(void)
 {
     int retVal;
@@ -1642,11 +1683,21 @@ int ExpirationTimerThreadInit(void)
     return 0;
 }
 
+/**
+ * Quit expiration timer thread.
+ * 
+ * @return Upnp error code.
+ */
 int ExpirationTimerThreadShutdown(void)
 {
     return TimerThreadShutdown(&gExpirationTimerThread);
 }
 
+/**
+ * Set expiration event free.
+ * 
+ * @param event Expiration event.
+ */
 void free_expiration_event(expiration_event *event)
 {
     if (event->mapping!=NULL)
@@ -1657,6 +1708,8 @@ void free_expiration_event(expiration_event *event)
 /**
  * This timer is used to check periodically if values of some state variables have changed.
  * If some has chandeg then event is sent to control points which has subscribed those events.
+ * 
+ * @return Upnp error code.
  */
 int createEventUpdateTimer(void)
 {
@@ -1669,6 +1722,7 @@ int createEventUpdateTimer(void)
 
     // Add event update job
     TPJobInit( &gEventUpdateJob, ( start_routine ) UpdateEvents, event );
+    // timerthreads could be persistent also, but didn't get it working...
     TimerThreadSchedule( &gExpirationTimerThread,
                          g_vars.eventUpdateInterval,
                          REL_SEC, &gEventUpdateJob, SHORT_TERM,
@@ -1677,7 +1731,10 @@ int createEventUpdateTimer(void)
 }
 
 /**
- * Send event for control point that state variable has changed
+ * UpdateEventTimer calls this to check if state variables, which may change on they own,
+ * have changed. These variables are EthernetLinkStatus, ExternalIPAddress and ConnectionStatus.
+ * 
+ * @param input This parameter not used.
  */
 void UpdateEvents(void *input)
 {
@@ -1699,7 +1756,13 @@ void UpdateEvents(void *input)
     createEventUpdateTimer();
 }
 
-// return 0 if no change
+/**
+ * Check if EthernetLinkStatus state variable has changed since last check.
+ * Update value and send notification for control points if it has changed.
+ * 
+ * @param propSet IXML_Document used for notification.
+ * @return 1 if EthernetLinkStatus has changed, 0 if not.
+ */
 int EthernetLinkStatusEventing(IXML_Document *propSet)
 {
     char prevStatus[12];
@@ -1719,7 +1782,13 @@ int EthernetLinkStatusEventing(IXML_Document *propSet)
     return 0;
 }
 
-// return 0 if no change
+/**
+ * Check if ExternalIPAddress state variable has changed since last check.
+ * Update value and send notification for control points if it has changed.
+ * 
+ * @param propSet IXML_Document used for notification.
+ * @return 1 if ExternalIPAddress has changed, 0 if not.
+ */
 int ExternalIPAddressEventing(IXML_Document *propSet)
 {
     char prevStatus[INET6_ADDRSTRLEN];
@@ -1739,6 +1808,13 @@ int ExternalIPAddressEventing(IXML_Document *propSet)
     return 0;
 }
 
+/**
+ * Check if ConnectionStatus state variable has changed since last check.
+ * Update value and send notification for control points if it has changed.
+ * 
+ * @param propSet IXML_Document used for notification.
+ * @return 1 if ConnectionStatus has changed, 0 if not.
+ */
 int ConnectionStatusEventing(IXML_Document *propSet)
 {
     char prevStatus[20];
@@ -1758,6 +1834,12 @@ int ConnectionStatusEventing(IXML_Document *propSet)
     return 0;
 }
 
+/**
+ * Expire portmapping when expiration time of portmapping has expired.
+ * Delete portmapping and send notifications.
+ * 
+ * @param input Expiration event struct.
+ */
 void ExpireMapping(void *input)
 {
     char num[5]; // Maximum number of port mapping entries 9999
@@ -1789,6 +1871,14 @@ void ExpireMapping(void *input)
     ithread_mutex_unlock(&DevMutex);
 }
 
+/**
+ * Schedule expiration event for new portmapping into ExpirationTimer
+ * 
+ * @param mapping portMap struct of new portmapping.
+ * @param DevUDN Device UDN.
+ * @param ServiceID ID of service.
+ * @return eventID if success, 0 else.
+ */
 int ScheduleMappingExpiration(struct portMap *mapping, char *DevUDN, char *ServiceID)
 {
     int retVal = 0;
@@ -1866,6 +1956,12 @@ int ScheduleMappingExpiration(struct portMap *mapping, char *DevUDN, char *Servi
     return event->eventId;
 }
 
+/**
+ * Cancel given expiration event.
+ * 
+ * @param expirationEventId ID of mappingExpiration.
+ * @return 1
+ */
 int CancelMappingExpiration(int expirationEventId)
 {
     ThreadPoolJob job;
@@ -1883,6 +1979,9 @@ int CancelMappingExpiration(int expirationEventId)
     return 1;
 }
 
+/**
+ * Delete all portmappings.
+ */
 void DeleteAllPortMappings(void)
 {
     IXML_Document *propSet = NULL;
@@ -1903,6 +2002,21 @@ void DeleteAllPortMappings(void)
     ithread_mutex_unlock(&DevMutex);
 }
 
+/**
+ * Create new portmapping.
+ * AddPortMapping and AddAnyPortMapping actions use this function.
+ * 
+ * @param ca_event Upnp_Action_Request struct.
+ * @param new_enabled Is rule enabled. Rule is added only if it is enabled (1).
+ * @param leaseDuration Lease duration of portmapping. Value between 0 and 604800.
+ * @param new_remote_host WAN IP address (destination) of connections initiated by a client in the local network.
+ * @param new_external_port TCP or UDP port number of the Client as seen by the remote host.
+ * @param new_internal_port The local TCP or UDP port number of the client.
+ * @param new_protocol Portmapping protocol, either TCP or UDP.
+ * @param new_internal_client The local IP address of the client.
+ * @param new_port_mapping_description Textual description of portmapping.
+ * @return Upnp error code.
+ */
 int AddNewPortMapping(struct Upnp_Action_Request *ca_event, char* new_enabled, int leaseDuration,
                       char* new_remote_host, char* new_external_port, char* new_internal_port,
                       char* new_protocol, char* new_internal_client, char* new_port_mapping_description)
@@ -1950,8 +2064,13 @@ int AddNewPortMapping(struct Upnp_Action_Request *ca_event, char* new_enabled, i
     return result;
 }
 
-// Checks if control point is authorized
-// NOT YET IMPLEMENTED
+/**
+ * Checks if control point is authorized
+ * NOT YET IMPLEMENTED!
+ * 
+ * @param ca_event Upnp_Action_Request struct.
+ * @return Is authorized
+ */
 int AuthorizeControlPoint(struct Upnp_Action_Request *ca_event)
 {
     return CONTROL_POINT_AUTHORIZED;
