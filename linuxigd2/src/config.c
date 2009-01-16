@@ -7,6 +7,15 @@
 
 #define NMATCH 3
 
+/**
+ * Get value for argument found in config file.
+ *  
+ * @param var Target string for argument value.
+ * @param varlen Max length of argument value.
+ * @param line Line as string from config file where config option locates.
+ * @param submatch Regexp location of found value.
+ * @return 0
+ */
 int getConfigOptionArgument(char var[],int varlen, char line[], regmatch_t *submatch)
 {
     /* limit buffer operations to varlen - 1 */
@@ -18,6 +27,14 @@ int getConfigOptionArgument(char var[],int varlen, char line[], regmatch_t *subm
     return 0;
 }
 
+/**
+ * Get value for default duration of portmapping found in config file.
+ *  
+ * @param duration Target long int for argument value.
+ * @param line Line as string from config file where config option locates.
+ * @param submatch Regexp location of found value.
+ * @return 0
+ */
 int getConfigOptionDuration(long int *duration,char line[], regmatch_t *submatch)
 {
     long int dur;
@@ -49,6 +66,12 @@ int getConfigOptionDuration(long int *duration,char line[], regmatch_t *submatch
     return 0;
 }
 
+/**
+ * Parse config file (upnpd.conf) and set default values for global values.
+ *  
+ * @param vars Struct of global default values.
+ * @return -1 if error, else 0.
+ */
 int parseConfigFile(globals_p vars)
 {
     FILE *conf_file;
