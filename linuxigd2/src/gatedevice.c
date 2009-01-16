@@ -25,8 +25,8 @@ static ithread_mutex_t DevMutex = PTHREAD_MUTEX_INITIALIZER;
 
 // XML string definitions
 static const char xml_portmapEntry[] = "<p:PortmapEntry NewRemoteHost=\"%s\" NewExternalPort=\"%s\" NewProtocol=\"%s\" NewInternalPort=\"%s\" NewInternalClient=\"%s\" NewEnabled=\"%d\" NewDescription=\"%s\" NewLeaseTime=\"%ld\"></p:PortmapEntry>\n";
-static const char xml_portmapListingHeader[] = "<u:%sResponse xmlns:u=\"urn:schemas-upnp-org:service:WANIPConnection:2\"><p:PortMappingList xmlns:p=\"http://www.upnp.org/schemas/GWPortMappingList.xsd\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:schemaLocation=\"http://www.upnp.org/schemas/GWPortMappingList.xsd GwPortMappingList-V0.5.xsd\">\n";
-static const char xml_portmapListingFooter[] = "</p:PortMappingList></u:%sResponse>";
+static const char xml_portmapListingHeader[] = "<u:%sResponse xmlns:u=\"urn:schemas-upnp-org:service:WANIPConnection:2\"><p:NewPortListing xmlns:p=\"http://www.upnp.org/schemas/GWPortMappingList.xsd\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:schemaLocation=\"http://www.upnp.org/schemas/GWPortMappingList.xsd GwPortMappingList-V0.5.xsd\">\n";
+static const char xml_portmapListingFooter[] = "</p:NewPortListing></u:%sResponse>";
 
 
 /**

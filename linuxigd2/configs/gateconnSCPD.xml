@@ -267,7 +267,7 @@
             </argumentList>
         </action>
         <action>
-            <name>GetListOfPortmappings</name>
+            <name>GetListOfPortMappings</name>
             <argumentList>
                 <argument>
                     <name>NewStartPort</name>
@@ -295,7 +295,7 @@
                     <relatedStateVariable>ExternalPort</relatedStateVariable>
                 </argument>
                 <argument>
-                    <name>PortMappingList</name>
+                    <name>NewPortListing</name>
                     <direction>out</direction>
                     <relatedStateVariable>A_ARG_TYPE_PortListing</relatedStateVariable>
                 </argument>
