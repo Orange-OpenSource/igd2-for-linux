@@ -847,32 +847,29 @@ readFromSSDPSocket( SOCKET socket )
 }
 
 /************************************************************************
- * Function : get_ssdp_sockets								
+ * Function : get_ssdp_sockets                              
  *
  * Parameters:
- *	OUT MiniServerSockArray *out: Arrays of SSDP sockets
+ *  OUT MiniServerSockArray *out: Arrays of SSDP sockets
  *
  * Description:
- *	This function creates the ssdp sockets. It set their option to listen
- *	for multicast traffic.
+ *  This function creates the ssdp sockets. It set their option to listen
+ *  for multicast traffic.
  *
  * Returns: int
- *	return UPNP_E_SUCCESS if successful else returns appropriate error
+ *  return UPNP_E_SUCCESS if successful else returns appropriate error
  ***************************************************************************/
 int
 get_ssdp_sockets( MiniServerSockArray * out )
 {
     char errorBuffer[ERROR_BUFFER_LEN];
     int onOff = 1;
-    u_char ttl = 4;
-    struct ip_mreq ssdpMcastAddr;
-    struct sockaddr_in ssdpAddr;
-    int option = 1;
     int ret = 0;
-    struct in_addr addr;
+    struct sockaddr_in ssdpAddr;
     SOCKET ssdpSock;
 #if INCLUDE_CLIENT_APIS
     SOCKET ssdpReqSock;
+    u_char ttl = 4;
 
     ssdpReqSock = socket( AF_INET, SOCK_DGRAM, 0 );
     if ( ssdpReqSock == -1 ) {
@@ -950,6 +947,47 @@ get_ssdp_sockets( MiniServerSockArray * out )
         return UPNP_E_SOCKET_BIND;
     }
 
+
+    // set multicast and broadcast options
+    ret = set_ssdp_socket_options(ssdpSock);
+    if( ret == -1) {
+        shutdown( ssdpSock, SD_BOTH );
+        CLIENTONLY( shutdown( ssdpReqSock, SD_BOTH ); )
+        UpnpCloseSocket( ssdpSock );
+        CLIENTONLY( UpnpCloseSocket( ssdpReqSock ); )
+
+        return UPNP_E_NETWORK_ERROR;
+    }
+
+    CLIENTONLY( out->ssdpReqSock = ssdpReqSock; )
+    out->ssdpSock = ssdpSock;
+
+    return UPNP_E_SUCCESS;
+}
+
+/************************************************************************
+ * Function : set_ssdp_socket_options                              
+ *
+ * Parameters:
+ *  INOUT SOCKET ssdpSock: SSDP socket
+ *
+ * Description:
+ *  This function sets multicast and broadcast options for SSDP socket.
+ *  Those options won't survive over network restart and they must be 
+ *  reset after network restart.
+ *
+ * Returns: int
+ *  return UPNP_E_SUCCESS if successful else returns appropriate error
+ ***************************************************************************/
+int set_ssdp_socket_options( SOCKET ssdpSock )
+{
+    char errorBuffer[ERROR_BUFFER_LEN];
+    u_char ttl = 4;
+    struct ip_mreq ssdpMcastAddr;
+    struct in_addr addr;
+    int option = 1;
+    int ret = 0;
+
     memset( (void *)&ssdpMcastAddr, 0, sizeof (struct ip_mreq) );
     ssdpMcastAddr.imr_interface.s_addr = inet_addr( LOCAL_HOST );
     ssdpMcastAddr.imr_multiaddr.s_addr = inet_addr( SSDP_IP );
@@ -960,10 +998,6 @@ get_ssdp_sockets( MiniServerSockArray * out )
         UpnpPrintf( UPNP_CRITICAL, SSDP, __FILE__, __LINE__,
             "Error in setsockopt() IP_ADD_MEMBERSHIP (join multicast group): %s\n",
             errorBuffer );
-        shutdown( ssdpSock, SD_BOTH );
-        CLIENTONLY( shutdown( ssdpReqSock, SD_BOTH ); )
-        UpnpCloseSocket( ssdpSock );
-        CLIENTONLY( UpnpCloseSocket( ssdpReqSock ); )
 
         return UPNP_E_SOCKET_ERROR;
     }
@@ -992,17 +1026,10 @@ get_ssdp_sockets( MiniServerSockArray * out )
         UpnpPrintf( UPNP_CRITICAL, SSDP, __FILE__, __LINE__,
             "Error in setsockopt() SO_BROADCAST (set broadcast): %s\n",
             errorBuffer );
-        shutdown( ssdpSock, SD_BOTH );
-        CLIENTONLY( shutdown( ssdpReqSock, SD_BOTH ); )
-        UpnpCloseSocket( ssdpSock );
-        CLIENTONLY( UpnpCloseSocket( ssdpReqSock ); )
 
         return UPNP_E_NETWORK_ERROR;
     }
-
-    CLIENTONLY( out->ssdpReqSock = ssdpReqSock; )
-    out->ssdpSock = ssdpSock;
-
+    
     return UPNP_E_SUCCESS;
 }
 

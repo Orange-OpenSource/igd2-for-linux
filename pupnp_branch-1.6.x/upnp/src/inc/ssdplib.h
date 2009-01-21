@@ -282,6 +282,23 @@ int get_ssdp_sockets(MiniServerSockArray *out);
 
 
 /************************************************************************
+ * Function : set_ssdp_socket_options                              
+ *
+ * Parameters:
+ *  INOUT SOCKET ssdpSock: SSDP socket
+ *
+ * Description:
+ *  This function sets multicast and broadcast options for SSDP socket.
+ *  Those options won't survive over network restart and they must be 
+ *  reset after network restart.
+ *
+ * Returns: int
+ *  return UPNP_E_SUCCESS if successful else returns appropriate error
+ ***************************************************************************/
+int set_ssdp_socket_options( SOCKET ssdpSock );
+
+
+/************************************************************************
 * Function : readFromSSDPSocket	
 *
 * Parameters:
