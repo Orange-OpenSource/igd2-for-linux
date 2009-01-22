@@ -33,7 +33,7 @@
 #define GENLIB_NET_SOCK_H
 
 #include "util.h"
-#include <openssl/ssl.h>
+#include <gnutls/gnutls.h>
 
 #ifndef WIN32
  #include <netinet/in.h>
@@ -56,7 +56,7 @@ typedef struct
     unsigned short foreign_ip_port;
     
     // https
-    SSL *ssl;
+    gnutls_session_t ssl;
     
 } SOCKINFO;
 

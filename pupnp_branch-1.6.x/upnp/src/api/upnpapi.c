@@ -309,12 +309,11 @@ int UpnpInit( IN const char *HostIP,
     LOCAL_PORT = DestPort;
 
 #if EXCLUDE_HTTPSSERVER == 0
-    if( ( retVal = StartHttpsServer( DestPort+1, "newreq.pem", "newreq.pem" ) ) <= 0 ) { // TODO: fix this stupid port numbering and file naming
+    if( ( retVal = StartHttpsServer( 443, "newreq.pem", "newreq.pem" ) ) <= 0 ) { // TODO: fix this stupid file naming
         UpnpPrintf( UPNP_CRITICAL, API, __FILE__, __LINE__,
             "Https server failed to start" );
         UpnpFinish();
         UpnpSdkInit = 0;
-        printf("FAILED WITH %d\n",retVal);
         if( retVal != -1 )
             return retVal;
         else                    // if httpsserver is already running for unknown reasons!

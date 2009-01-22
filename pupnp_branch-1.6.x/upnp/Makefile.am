@@ -158,4 +158,4 @@ CLEANFILES = \
 	IUpnpErrFile.txt \
 	IUpnpInfoFile.txt
 
-libupnp_la_LIBADD = -lssl
+libupnp_la_LIBADD = -lgnutls

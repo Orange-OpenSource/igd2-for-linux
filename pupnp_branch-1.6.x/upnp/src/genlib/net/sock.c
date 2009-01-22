@@ -253,7 +253,7 @@ sock_read_write( IN SOCKINFO * info,
                     send( sockfd, buffer + bytes_sent, byte_left,
                           MSG_DONTROUTE|MSG_NOSIGNAL);                        
             } else  {
-                num_written = SSL_write(info->ssl, buffer, strlen(buffer));
+                num_written = gnutls_record_send(info->ssl, buffer, strlen(buffer));
                 if (num_written < 1) {
                     return num_written;
                 }
