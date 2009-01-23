@@ -174,9 +174,9 @@ generate_dh_params (void)
  *  char *buf - String containing HTTP packet
  *  int buflen - Length of buf
  *  http_parser_t *parser - Parser
- *  http_method_t request_method - 
- *  int *timeout_secs - 
- *  int *http_error_code - 
+ *  http_method_t request_method - HTTP method
+ *  int *timeout_secs - Timeout
+ *  int *http_error_code - HTTP error code
  *
  * Description:
  *  Parse http message from string into parser.
@@ -251,7 +251,7 @@ ExitFunction:
  * Function: free_handle_https_request_arg
  *
  * Parameters:
- *  void *args ; Request Message to be freed
+ *  void *args - Request Message to be freed
  *
  * Description:
  *  Free memory assigned for handling request and unitialize socket
@@ -443,8 +443,7 @@ RunHttpsServer( SOCKET listen_sd )
  * Function: StartHttpsServer
  *
  * Parameters :
- *  unsigned short listen_port - Port on which the server listens for 
- *      incoming connections
+ *  unsigned short listen_port - Port on which the server listens for incoming connections
  *  char* CertFile - Certification file os server
  *  char* PrivKeyFile - Private key -file os server
  *
