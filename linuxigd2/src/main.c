@@ -56,7 +56,7 @@ int main (int argc, char** argv)
     // Get the internal ip address to start the daemon on
     if (GetIpAddressStr(intIpAddress, g_vars.intInterfaceName) == 0)
     {
-        // Check if IP has been set by avahi-autoipd which uses aliases :avahi or :3 (eth0.1:3)
+        // Check if IP has been set by avahi-autoipd which uses aliases :avahi or :3 (br-lan:3)
         char tempIface[IFNAMSIZ];
         strncpy(tempIface, g_vars.intInterfaceName, IFNAMSIZ);
         strncat(tempIface,":3",IFNAMSIZ);
@@ -201,8 +201,8 @@ int main (int argc, char** argv)
      * the previous device instance will safely discard state information about the previous 
      * device instance before communicating with the new device instance.
      * 
-     * LOCATION header field value might be false because portnumber might have changed since 
-     * last shutdown. LOCATION is not needed in byebye's... 
+     * NOTE: LOCATION header field value might be false because portnumber might have changed since 
+     * last shutdown. But LOCATION is not needed in byebye's... 
      */
     trace(3, "Send initial sspd:byebye messages");
     UpnpUnRegisterRootDevice(deviceHandle); // this will send byebye's
