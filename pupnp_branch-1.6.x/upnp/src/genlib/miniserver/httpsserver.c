@@ -29,22 +29,36 @@
 
 static gnutls_certificate_credentials_t x509_cred;
 static gnutls_priority_t priority_cache;
+static gnutls_dh_params_t dh_params;
 
-//static SSL *ssl = NULL;
 static int RUNNING = 0;
-
 static int PORT = 0;
 
 // Static function declarations
 static SOCKET get_listener_socket(int port);
 static gnutls_session_t initialize_tls_session (void);
 static int generate_dh_params (void);
-static void Servlet(gnutls_session_t session, SOCKET sock);
 static void RunHttpsServer( SOCKET listen_sd );
 static int parseHttpMessage(char *buf, int buflen, http_parser_t *parser, http_method_t request_method, int *timeout_secs, int *http_error_code);
 static int tcp_connect (void);
 static void tcp_close (int sd);
 
+/************************************************************************
+ * Function: get_listener_socket
+ *
+ * Parameters:
+ *  IN int port - Port number which is binded for socket
+ *
+ * Description:
+ *  Create listener socket for https-server. 
+ *
+ * Return: int
+ *  Created socket on success, else:
+ *  UPNP_E_OUTOF_SOCKET - Failed to create a socket
+ *  UPNP_E_SOCKET_BIND - Bind() failed
+ *  UPNP_E_LISTEN   - Listen() failed   
+ *  UPNP_E_SOCKET_ERROR - Setsockopt() failed
+ ************************************************************************/
 static SOCKET get_listener_socket(int port)
 {
     struct sockaddr_in sa_serv;
@@ -91,15 +105,34 @@ static SOCKET get_listener_socket(int port)
     return listen_sd;
 }
 
+/************************************************************************
+ * Function: get_listener_socket
+ *
+ * Parameters:
+ *  void
+ *
+ * Description:
+ *  Create and initialize new gnutls session object for https-server
+ *
+ * Return: gnutls_session_t
+ *  Created session.
+ ************************************************************************/
 static gnutls_session_t initialize_tls_session (void)
 {
     gnutls_session_t session;
+    int ret;
 
-    gnutls_init (&session, GNUTLS_SERVER);
+    ret = gnutls_init (&session, GNUTLS_SERVER);
+    if (ret != GNUTLS_E_SUCCESS)
+        return ret;
 
-    gnutls_priority_set (session, priority_cache);
-
-    gnutls_credentials_set (session, GNUTLS_CRD_CERTIFICATE, x509_cred);
+    ret = gnutls_priority_set (session, priority_cache);
+    if (ret != GNUTLS_E_SUCCESS)
+        return ret;
+        
+    ret = gnutls_credentials_set (session, GNUTLS_CRD_CERTIFICATE, x509_cred);
+    if (ret != GNUTLS_E_SUCCESS)
+        return ret;
 
     /* request client certificate if any. */
     gnutls_certificate_server_set_request (session, GNUTLS_CERT_REQUEST);
@@ -107,104 +140,31 @@ static gnutls_session_t initialize_tls_session (void)
     return session;
 }
 
-static gnutls_dh_params_t dh_params;
 
+/************************************************************************
+ * Function: generate_dh_params
+ *
+ * Parameters:
+ *  void
+ *
+ * Description:
+ *  Generate Diffie Hellman parameters - for use with DHE
+ *  kx algorithms. When short bit length is used, it might
+ *  be wise to regenerate parameters.
+ *
+ *  Check the ex-serv-export.c example for using static
+ *  parameters.
+ *
+ * Return: int
+ *  Return alway 0.
+ ************************************************************************/
 static int
 generate_dh_params (void)
 {
-    /* Generate Diffie Hellman parameters - for use with DHE
-    * kx algorithms. When short bit length is used, it might
-    * be wise to regenerate parameters.
-    *
-    * Check the ex-serv-export.c example for using static
-    * parameters.
-    */
     gnutls_dh_params_init (&dh_params);
     gnutls_dh_params_generate2 (dh_params, DH_BITS);
 
     return 0;
-}
-
-
-/*---------------------------------------------------------------------*/
-/*--- Servlet - SSL servlet (contexts can be shared) ---*/
-/*---------------------------------------------------------------------*/
-static void 
-Servlet(gnutls_session_t session, SOCKET sock)
-{   
-    char buffer[MAX_BUF];
-    char reply[MAX_BUF];
-    int bytes;
-    
-    int http_error_code;
-    int ret_code;
-    int major = 1;
-    int minor = 1;
-    http_parser_t parser;
-    http_message_t *hmsg = NULL;
-    int timeout = HTTP_DEFAULT_TIMEOUT;
-
-    SOCKINFO info;
-    info.ssl = session;
-    info.socket = sock;
-
-    while (TRUE)
-    {
-        memset (buffer, 0, MAX_BUF + 1);
-        bytes = gnutls_record_recv (session, buffer, MAX_BUF);
-
-        if (bytes == 0)
-        {
-            printf ("\n- Peer has closed the GNUTLS connection\n");
-            break;
-        }
-        else if (bytes < 0)
-        {
-            fprintf (stderr, "\n*** Received corrupted "
-                "data(%d). Closing the connection.\n\n", bytes);
-            break;
-        }
-         else if (bytes > 0)
-        {
-            /* echo data back to the client
-            */
-            printf("%s\n",buffer);
-            //gnutls_record_send (session, buffer, strlen (buffer));
-                                              
-            if ( bytes > 0 && NULL == strstr( buffer, "ShutDown" )) // if buf is ShutDown, then program is exiting
-            {
-                ret_code = parseHttpMessage(buffer, bytes, &parser, HTTPMETHOD_UNKNOWN, &timeout, &http_error_code);
-                // dispatch
-                http_error_code = dispatch_request( &info, &parser );
-                if( http_error_code != 0 ) {
-                    goto error_handler;
-                }
-                http_error_code = 0;
-            }
-            else
-                break;
-        }
-    }
-
-error_handler:
-    if( http_error_code > 0 ) {
-        if( hmsg ) {
-            major = hmsg->major_version;
-            minor = hmsg->minor_version;
-        }
-        handle_error( &info, http_error_code, major, minor );
-    }
-
-    //printf("Shutdown\n");
-    //SSL_shutdown(ssl);
-    //SSL_set_shutdown(con,SSL_SENT_SHUTDOWN|SSL_RECEIVED_SHUTDOWN);
-    
-    //sd = SSL_get_fd(ssl);                           
-/* get socket connection */
-    //SSL_free(ssl);                                  
-/* release SSL state */
-    //close(sd);                                      
-/* close connection */
 }
 
 /************************************************************************
@@ -288,10 +248,163 @@ ExitFunction:
 }
 
 /************************************************************************
+ * Function: free_handle_https_request_arg
+ *
+ * Parameters:
+ *  void *args ; Request Message to be freed
+ *
+ * Description:
+ *  Free memory assigned for handling request and unitialize socket
+ *  functionality
+ *
+ * Return: void
+ ************************************************************************/
+static void
+free_handle_https_request_arg( void *args )
+{
+    SOCKET sock = ( SOCKET )args;
+    shutdown( sock, SD_BOTH );
+    UpnpCloseSocket( sock );
+}
+
+/************************************************************************
+ * Function: handle_https_request
+ *
+ * Parameters:
+ *  void *args - Socket Descriptor on which connection is accepted
+ *
+ * Description:
+ *  Create tls session, receive the request and dispatch it for handling
+ *
+ * Return: void
+ ************************************************************************/
+static void 
+handle_https_request(void *args)
+{   
+    char buffer[MAX_BUF];
+    int bytes;
+    int http_error_code;
+    int ret_code;
+    int major = 1;
+    int minor = 1;
+    http_parser_t parser;
+    http_message_t *hmsg = NULL;
+    int timeout = HTTP_DEFAULT_TIMEOUT;
+    int ret;
+    gnutls_session_t session;
+    SOCKET sock = ( SOCKET )args;
+    
+    // create session
+    session = initialize_tls_session();
+    if (session < 0)
+    {
+        UpnpPrintf( UPNP_CRITICAL, MSERV, __FILE__, __LINE__,
+            "Error initialising tls session: %s\n", gnutls_strerror(session) );
+        goto error_handler;        
+    }
+    
+    gnutls_transport_set_ptr (session, (gnutls_transport_ptr_t) sock);
+    ret = gnutls_handshake (session);
+
+    if (ret < 0) {
+        UpnpPrintf( UPNP_CRITICAL, MSERV, __FILE__, __LINE__,
+            "Handshake has failed: %s\n", gnutls_strerror(ret) );
+        goto error_handler;
+    }
+
+    SOCKINFO info;
+    info.ssl = session;
+    info.socket = sock;
+
+    while (TRUE)
+    {
+        memset (buffer, 0, MAX_BUF + 1);
+        bytes = gnutls_record_recv (session, buffer, MAX_BUF);
+
+        if (bytes == 0)
+        {
+            UpnpPrintf( UPNP_INFO, MSERV, __FILE__, __LINE__,
+                "Peer has closed the GNUTLS connection\n");
+            break;
+        }
+        else if (bytes < 0)
+        {
+            UpnpPrintf( UPNP_INFO, MSERV, __FILE__, __LINE__,
+                "Https Received corrupted data. Closing the connection.\n");
+            break;
+        }
+         else if (bytes > 0)
+        {                                              
+            if ( bytes > 0 && NULL == strstr( buffer, "ShutDown" )) // if buf is ShutDown, then program is exiting
+            {
+                ret_code = parseHttpMessage(buffer, bytes, &parser, HTTPMETHOD_UNKNOWN, &timeout, &http_error_code);
+                // dispatch as normal http packet, which it is
+                http_error_code = dispatch_request( &info, &parser );
+                if( http_error_code != 0 ) {
+                    goto error_handler;
+                }
+                http_error_code = 0;
+            }
+            else
+                break;
+        }
+    }
+
+error_handler:
+    if( http_error_code > 0 ) {
+        if( hmsg ) {
+            major = hmsg->major_version;
+            minor = hmsg->minor_version;
+        }
+        handle_error( &info, http_error_code, major, minor );
+    }
+
+    gnutls_bye (session, GNUTLS_SHUT_WR);
+    close (sock);
+    gnutls_deinit (session);       
+}
+
+/************************************************************************
+ * Function: schedule_https_request_job
+ *
+ * Parameters:
+ *  IN int sock - Socket Descriptor on which connection is accepted
+ *
+ * Description:
+ *  Initilize the thread pool to handle a request.
+ *  Sets priority for the job and adds the job to the thread pool
+ *
+ * Return: void
+ ************************************************************************/
+static UPNP_INLINE void
+schedule_https_request_job( IN SOCKET sock )
+{
+    handle_https_request(( void * ) sock); // do the fork here is you want server to serve multiple connections. Should work?
+    free_handle_https_request_arg(( void * ) sock);
+    /* ThreadPooling doesn't help creating true support for multiple simultaneous connections.
+     * Will only block all other trafic until session ends.
+    ThreadPoolJob job;
+    
+    printf("SOCKET: %d, %X\n",sock, &job);
+    TPJobInit( &job, ( start_routine ) handle_https_request, ( void * ) sock );
+    TPJobSetFreeFunction( &job, free_handle_https_request_arg );
+    TPJobSetPriority( &job, MED_PRIORITY );
+
+    if( ThreadPoolAdd( &gMiniServerThreadPool, &job, NULL ) != 0 ) {
+        UpnpPrintf( UPNP_INFO, MSERV, __FILE__, __LINE__,
+            "https: cannot schedule request\n" );
+        shutdown( sock, SD_BOTH );
+        UpnpCloseSocket( sock );
+        return;
+    }
+    */
+}
+
+/************************************************************************
  * Function: RunHttpsServer
  *
  * Parameters:
- *  SSL_CTX *ctx - SSL_CTX object as framework for TLS/SSL enabled functions 
+ *  SOCKET listen_sd - Socket Descriptor on which Https-server is listening
  *
  * Description:
  *  Function runs the https server. The HttpsServer accepts a 
@@ -306,31 +419,16 @@ RunHttpsServer( SOCKET listen_sd )
 {
     struct sockaddr_in addr;
     int len = sizeof(addr);
-    int ret;
     SOCKET sd;
-    gnutls_session_t session;
         
     RUNNING = 1;
    
     while (RUNNING) {
-        session = initialize_tls_session();
         sd = accept(listen_sd, &addr, &len);
-        printf("Connection: %s:%d\n",inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));
-        gnutls_transport_set_ptr (session, (gnutls_transport_ptr_t) sd);
-        ret = gnutls_handshake (session);
-
-        if (ret < 0) {
-            close (sd);
-            gnutls_deinit (session);
-            fprintf (stderr, "*** Handshake has failed (%s)\n\n", gnutls_strerror (ret));
-            continue;
-        }
-
-        Servlet(session, sd);
-        
-        gnutls_bye (session, GNUTLS_SHUT_WR);
-        close (sd);
-        gnutls_deinit (session);        
+        UpnpPrintf( UPNP_INFO, MSERV, __FILE__, __LINE__,
+            "Https Connection: %s:%d\n",inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));
+                    
+        schedule_https_request_job(sd);
     } 
 
     close (listen_sd);
@@ -347,15 +445,12 @@ RunHttpsServer( SOCKET listen_sd )
  * Parameters :
  *  unsigned short listen_port - Port on which the server listens for 
  *      incoming connections
+ *  char* CertFile - Certification file os server
+ *  char* PrivKeyFile - Private key -file os server
  *
  * Description:
- *  Initialize the sockets functionality for the 
- *  Miniserver. Initialize a thread pool job to run the MiniServer
- *  and the job to the thread pool. If listen port is 0, port is 
- *  dynamically picked
- *
- *  Use timer mechanism to start the MiniServer, failure to meet the 
- *  allowed delay aborts the attempt to launch the MiniServer.
+ *  Initialize gnutls for the https server. Initialize a thread pool job to run the server
+ *  and the job to the thread pool.
  *
  * Return: int
  *  Actual port socket is bound to - On Success
@@ -366,17 +461,16 @@ StartHttpsServer( unsigned short listen_port, char* CertFile, char* PrivKeyFile 
 {   
     // for shutdown purposes
     PORT = listen_port;
-        
+       
     SOCKET listen_sd;
     int ret;    
-
 
     /* to disallow usage of the blocking /dev/random  */
     gcry_control (GCRYCTL_ENABLE_QUICK_RANDOM, 0);
 
     /* this must be called once in the program */
     gnutls_global_init ();
-
+    
     gnutls_certificate_allocate_credentials (&x509_cred);
     /*
     ret = gnutls_certificate_set_x509_trust_file (x509_cred, CAFILE, GNUTLS_X509_FMT_PEM); // white list?
@@ -393,12 +487,14 @@ StartHttpsServer( unsigned short listen_port, char* CertFile, char* PrivKeyFile 
     ret = gnutls_certificate_set_x509_key_file (x509_cred, CertFile, PrivKeyFile, GNUTLS_X509_FMT_PEM);
                     
     if (ret != GNUTLS_E_SUCCESS)
-        fprintf (stderr, "*** Cert and priv key failed (%s)\n\n", gnutls_strerror (ret));
+    {
+        UpnpPrintf( UPNP_INFO, MSERV, __FILE__, __LINE__,
+            "Https Cert and priv key failed (%s)\n\n", gnutls_strerror (ret));
+        return UPNP_E_INTERNAL_ERROR;    
+    }
                         
     generate_dh_params ();
-
     gnutls_priority_init (&priority_cache, "NORMAL", NULL);
-
     gnutls_certificate_set_dh_params (x509_cred, dh_params);
 
     // create listen socket
@@ -430,21 +526,19 @@ StartHttpsServer( unsigned short listen_port, char* CertFile, char* PrivKeyFile 
  *  void
  *
  * Description:
- *  Stop and Shutdown the HttpsServer and free socket 
- *  resources.
+ *  Send ShutDown message for local https server.
  *
  * Return: int
  *      Always returns 0 
  ************************************************************************/
 int
-StopHttpsServer()
+StopHttpsServer(void)
 {
     RUNNING = 0;
     
     char *msg = "ShutDown";
-     int ret, sd, ii;
+    int ret, sd;
     gnutls_session_t session;
-    char buffer[MAX_BUF + 1];
     const char *err;
     
     gnutls_init (&session, GNUTLS_CLIENT);
@@ -457,6 +551,10 @@ StopHttpsServer()
 
     /* connect to the peer */
     sd = tcp_connect ();
+    if (sd < 0)
+    {
+        goto end;   
+    }
 
     gnutls_transport_set_ptr (session, (gnutls_transport_ptr_t) sd);
 
@@ -465,8 +563,8 @@ StopHttpsServer()
 
     if (ret < 0)
     {
-        fprintf (stderr, "*** Handshake failed\n");
-        gnutls_perror (ret);
+        UpnpPrintf( UPNP_INFO, MSERV, __FILE__, __LINE__,
+            "Https shutdown client handshake failed: %s\n", gnutls_strerror(ret));
         goto end;
     }
 
@@ -482,6 +580,19 @@ end:
     return 0;
 }
 
+/************************************************************************
+ * Function: StopHttpsServer
+ *
+ * Parameters:
+ *  void
+ *
+ * Description:
+ *  Create socket and connect it to local https server.
+ *  Code from gnutls examples.
+ *
+ * Return: int
+ *      Created socket descriptor 
+ ************************************************************************/
 static int
 tcp_connect (void)
 {
@@ -500,15 +611,26 @@ tcp_connect (void)
     err = connect (sd, (struct sockaddr *) & sa, sizeof (sa));
     if (err < 0)
     {
-        fprintf (stderr, "Connect error\n");
-        exit (1);
+        UpnpPrintf( UPNP_INFO, MSERV, __FILE__, __LINE__,
+            "Https shutdown client failed to create socket\n");
+        return UPNP_E_OUTOF_SOCKET;
     }
 
     return sd;
 }
 
-/* closes the given socket descriptor.
- */
+/************************************************************************
+ * Function: tcp_close
+ *
+ * Parameters:
+ *  int sd - Socket descriptor
+ *
+ * Description:
+ *  Close given socket descriptor.
+ *  Code from gnutls examples.
+ *
+ * Return: void 
+ ************************************************************************/
 static void
 tcp_close (int sd)
 {
