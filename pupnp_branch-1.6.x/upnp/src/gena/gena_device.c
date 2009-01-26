@@ -185,7 +185,7 @@ static UPNP_INLINE int notify_send_and_recv(
     int err_code;
     int timeout;
     SOCKINFO info;
-    info.ssl = NULL;
+    info.tls_session = NULL;
 
     // connect
     UpnpPrintf( UPNP_ALL, GENA, __FILE__, __LINE__,

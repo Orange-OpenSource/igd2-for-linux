@@ -549,7 +549,7 @@ http_RequestAndResponse( IN uri_type * destination,
     int ret_code;
     int http_error_code;
     SOCKINFO info;
-    info.ssl = NULL;
+    info.tls_session = NULL;
 
     tcp_connection = socket( AF_INET, SOCK_STREAM, 0 );
     if( tcp_connection == -1 ) {
@@ -877,7 +877,7 @@ http_WriteHttpPost( IN void *Handle,
                     IN int timeout )
 {
     http_post_handle_t *handle = ( http_post_handle_t * ) Handle;
-    handle->sock_info.ssl = NULL;
+    handle->sock_info.tls_session = NULL;
     char *tempbuf = NULL;
     int tempbufSize = 0;
     int freeTempbuf = 0;
@@ -955,7 +955,7 @@ http_CloseHttpPost( IN void *Handle,
     int http_error_code;
 
     http_post_handle_t *handle = Handle;
-    handle->sock_info.ssl = NULL;
+    handle->sock_info.tls_session = NULL;
 
     if( ( !handle ) || ( !httpStatus ) ) {
         return UPNP_E_INVALID_PARAM;
@@ -1015,7 +1015,7 @@ http_OpenHttpPost( IN const char *url_str,
     int tcp_connection;
     membuffer request;
     http_post_handle_t *handle = NULL;
-    handle->sock_info.ssl = NULL;
+    handle->sock_info.tls_session = NULL;
     uri_type url;
 
     if( ( !url_str ) || ( !Handle ) || ( !contentType ) ) {
@@ -1038,7 +1038,7 @@ http_OpenHttpPost( IN const char *url_str,
     }
 
     handle->contentLength = contentLength;
-    handle->sock_info.ssl = NULL;
+    handle->sock_info.tls_session = NULL;
     
     tcp_connection = socket( AF_INET, SOCK_STREAM, 0 );
     if( tcp_connection == -1 ) {
@@ -1325,7 +1325,7 @@ http_ReadHttpGet( IN void *Handle,
                   IN int timeout )
 {
     http_get_handle_t *handle = Handle;
-    handle->sock_info.ssl = NULL;
+    handle->sock_info.tls_session = NULL;
 
     parse_status_t status;
     int num_read;
@@ -1443,7 +1443,7 @@ int http_HttpGetProgress( IN void *Handle,
                       OUT unsigned int *total )
 {
     http_get_handle_t *handle = Handle;
-    handle->sock_info.ssl = NULL;
+    handle->sock_info.tls_session = NULL;
 
     if( ( !handle ) || ( !length ) || ( !total ) ) {
         return UPNP_E_INVALID_PARAM;
@@ -1470,7 +1470,7 @@ int
 http_CancelHttpGet( IN void *Handle )
 {
     http_get_handle_t *handle = Handle;
-    handle->sock_info.ssl = NULL;
+    handle->sock_info.tls_session = NULL;
 
     if( !handle ) {
         return UPNP_E_INVALID_PARAM;
@@ -1500,7 +1500,7 @@ int
 http_CloseHttpGet( IN void *Handle )
 {
     http_get_handle_t *handle = Handle;
-    handle->sock_info.ssl = NULL;
+    handle->sock_info.tls_session = NULL;
     
     if( !handle ) {
         return UPNP_E_INVALID_PARAM;
@@ -1590,7 +1590,7 @@ http_OpenHttpGetProxy( IN const char *url_str,
     int tcp_connection;
     membuffer request;
     http_get_handle_t *handle = NULL;
-    handle->sock_info.ssl = NULL;
+    handle->sock_info.tls_session = NULL;
     uri_type url;
     uri_type proxy;
     uri_type *peer;
@@ -1623,7 +1623,7 @@ http_OpenHttpGetProxy( IN const char *url_str,
         return UPNP_E_OUTOF_MEMORY;
     }
 
-    handle->sock_info.ssl = NULL;
+    handle->sock_info.tls_session = NULL;
     handle->entity_offset = 0;
     handle->cancel = 0;
     parser_response_init( &handle->response, HTTPMETHOD_GET );
@@ -2228,7 +2228,7 @@ http_OpenHttpGetEx( IN const char *url_str,
     int tcp_connection;
     membuffer request;
     http_get_handle_t *handle = NULL;
-    handle->sock_info.ssl = NULL;
+    handle->sock_info.tls_session = NULL;
     uri_type url;
     parse_status_t status;
     int errCode = UPNP_E_SUCCESS;
@@ -2275,7 +2275,7 @@ http_OpenHttpGetEx( IN const char *url_str,
 
         memset( handle, 0, sizeof( *handle ) );
         
-        handle->sock_info.ssl = NULL;
+        handle->sock_info.tls_session = NULL;
         handle->entity_offset = 0;
         parser_response_init( &handle->response, HTTPMETHOD_GET );
 

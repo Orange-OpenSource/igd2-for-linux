@@ -256,7 +256,7 @@ static void
 handle_request( void *args )
 {
     SOCKINFO info;
-    info.ssl = NULL;
+    info.tls_session = NULL;
     int http_error_code;
     int ret_code;
     int major = 1;

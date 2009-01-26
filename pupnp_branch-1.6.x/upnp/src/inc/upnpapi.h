@@ -128,6 +128,7 @@ extern TimerThread gTimerThread;
 extern ThreadPool gRecvThreadPool;
 extern ThreadPool gSendThreadPool;
 extern ThreadPool gMiniServerThreadPool;
+extern ThreadPool gHttpsServerThreadPool;
 
 typedef enum {
     FUN_SUBSCRIBE,

@@ -248,12 +248,12 @@ sock_read_write( IN SOCKINFO * info,
         bytes_sent = 0;
         while( byte_left > 0 ) {
             // write data
-            if (info->ssl == NULL) {
+            if (info->tls_session == NULL) {
                 num_written =
                     send( sockfd, buffer + bytes_sent, byte_left,
                           MSG_DONTROUTE|MSG_NOSIGNAL);                        
             } else  {
-                num_written = gnutls_record_send(info->ssl, buffer, strlen(buffer));
+                num_written = gnutls_record_send(info->tls_session, buffer, strlen(buffer));
                 if (num_written < 1) {
                     return num_written;
                 }

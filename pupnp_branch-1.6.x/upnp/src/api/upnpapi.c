@@ -103,6 +103,7 @@ CLIENTONLY( ithread_mutex_t GlobalClientSubscribeMutex; )
     ThreadPool gSendThreadPool;
     ThreadPool gRecvThreadPool;
     ThreadPool gMiniServerThreadPool;
+    ThreadPool gHttpsServerThreadPool;
 
 //Flag to indicate the state of web server
      WebServerState bWebServerState = WEB_SERVER_DISABLED;
@@ -278,6 +279,17 @@ int UpnpInit( IN const char *HostIP,
         return UPNP_E_INIT_FAILED;
     }
 
+    // Threadpool for httpsServer may have only one job so that all simultaneus
+    // connections can be served. Else they would be inserted in row and executed
+    // when first tls session (job) would receive tlsbye.  
+    TPAttrSetJobsPerThread( &attr, 1 );
+    if( ThreadPoolInit( &gHttpsServerThreadPool, &attr ) != UPNP_E_SUCCESS ) {
+        UpnpSdkInit = 0;
+        UpnpFinish();
+        return UPNP_E_INIT_FAILED;
+    }
+
+
     UpnpSdkInit = 1;
 #if EXCLUDE_SOAP == 0
     SetSoapCallback( soap_device_callback );
@@ -437,6 +449,7 @@ UpnpFinish()
     PrintThreadPoolStats(&gSendThreadPool, __FILE__, __LINE__, "Send Thread Pool");
     PrintThreadPoolStats(&gRecvThreadPool, __FILE__, __LINE__, "Recv Thread Pool");
     PrintThreadPoolStats(&gMiniServerThreadPool, __FILE__, __LINE__, "MiniServer Thread Pool");
+    PrintThreadPoolStats(&gHttpsServerThreadPool, __FILE__, __LINE__, "HttpsServer Thread Pool");
 
 #ifdef INCLUDE_DEVICE_APIS
     if( GetDeviceHandleInfo( &device_handle, &temp ) == HND_DEVICE )
@@ -456,6 +469,7 @@ UpnpFinish()
     web_server_destroy();
 #endif
 
+    ThreadPoolShutdown(&gHttpsServerThreadPool);
     ThreadPoolShutdown(&gMiniServerThreadPool);
     ThreadPoolShutdown(&gRecvThreadPool);
     ThreadPoolShutdown(&gSendThreadPool);
@@ -463,6 +477,7 @@ UpnpFinish()
     PrintThreadPoolStats(&gSendThreadPool, __FILE__, __LINE__, "Send Thread Pool");
     PrintThreadPoolStats(&gRecvThreadPool, __FILE__, __LINE__, "Recv Thread Pool");
     PrintThreadPoolStats(&gMiniServerThreadPool, __FILE__, __LINE__, "MiniServer Thread Pool");
+    PrintThreadPoolStats(&gHttpsServerThreadPool, __FILE__, __LINE__, "HttpsServer Thread Pool");
 
 #ifdef INCLUDE_CLIENT_APIS
     ithread_mutex_destroy(&GlobalClientSubscribeMutex);

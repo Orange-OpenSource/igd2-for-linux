@@ -56,7 +56,7 @@ typedef struct
     unsigned short foreign_ip_port;
     
     // https
-    gnutls_session_t ssl;
+    gnutls_session_t tls_session;
     
 } SOCKINFO;
 

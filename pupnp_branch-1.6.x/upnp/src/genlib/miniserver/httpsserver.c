@@ -8,6 +8,8 @@
  * notice and this notice are preserved.
  */
 
+// TODO: find and fix memoryleaks
+
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
@@ -313,7 +315,7 @@ handle_https_request(void *args)
     }
 
     SOCKINFO info;
-    info.ssl = session;
+    info.tls_session = session;
     info.socket = sock;
 
     while (TRUE)
@@ -379,25 +381,19 @@ error_handler:
 static UPNP_INLINE void
 schedule_https_request_job( IN SOCKET sock )
 {
-    handle_https_request(( void * ) sock); // do the fork here is you want server to serve multiple connections. Should work?
-    free_handle_https_request_arg(( void * ) sock);
-    /* ThreadPooling doesn't help creating true support for multiple simultaneous connections.
-     * Will only block all other trafic until session ends.
     ThreadPoolJob job;
     
-    printf("SOCKET: %d, %X\n",sock, &job);
     TPJobInit( &job, ( start_routine ) handle_https_request, ( void * ) sock );
     TPJobSetFreeFunction( &job, free_handle_https_request_arg );
     TPJobSetPriority( &job, MED_PRIORITY );
 
-    if( ThreadPoolAdd( &gMiniServerThreadPool, &job, NULL ) != 0 ) {
+    if( ThreadPoolAdd( &gHttpsServerThreadPool, &job, NULL ) != 0 ) {
         UpnpPrintf( UPNP_INFO, MSERV, __FILE__, __LINE__,
             "https: cannot schedule request\n" );
         shutdown( sock, SD_BOTH );
         UpnpCloseSocket( sock );
         return;
     }
-    */
 }
 
 /************************************************************************
@@ -432,11 +428,6 @@ RunHttpsServer( SOCKET listen_sd )
     } 
 
     close (listen_sd);
-
-    gnutls_certificate_free_credentials (x509_cred);
-    gnutls_priority_deinit (priority_cache);
-
-    gnutls_global_deinit ();
 }
 
 /************************************************************************
@@ -509,7 +500,7 @@ StartHttpsServer( unsigned short listen_port, char* CertFile, char* PrivKeyFile 
     TPJobSetPriority( &job, MED_PRIORITY );
     TPJobSetFreeFunction( &job, ( free_routine ) free );
 
-    int success = ThreadPoolAddPersistent( &gMiniServerThreadPool, &job, NULL );
+    int success = ThreadPoolAddPersistent( &gHttpsServerThreadPool, &job, NULL );
     if ( success < 0 ) {
         StopHttpsServer();
         return UPNP_E_OUTOF_MEMORY;
@@ -532,9 +523,8 @@ StartHttpsServer( unsigned short listen_port, char* CertFile, char* PrivKeyFile 
  ************************************************************************/
 int
 StopHttpsServer(void)
-{
-    RUNNING = 0;
-    
+{  
+    RUNNING = 0; // stop RunHttpsServer()
     char *msg = "ShutDown";
     int ret, sd;
     gnutls_session_t session;
@@ -571,10 +561,12 @@ StopHttpsServer(void)
 
     gnutls_bye (session, GNUTLS_SHUT_RDWR);
 
-end:
-
+end:    
     tcp_close (sd);
-    gnutls_deinit (session);
+    
+    gnutls_certificate_free_credentials (x509_cred);
+    gnutls_priority_deinit (priority_cache);
+    gnutls_global_deinit ();
 
     return 0;
 }
