@@ -126,15 +126,15 @@ static gnutls_session_t initialize_tls_session (void)
 
     ret = gnutls_init (&session, GNUTLS_SERVER);
     if (ret != GNUTLS_E_SUCCESS)
-        return ret;
+        return ( gnutls_session_t ) ret;
 
     ret = gnutls_priority_set (session, priority_cache);
     if (ret != GNUTLS_E_SUCCESS)
-        return ret;
+        return ( gnutls_session_t ) ret;
         
     ret = gnutls_credentials_set (session, GNUTLS_CRD_CERTIFICATE, x509_cred);
     if (ret != GNUTLS_E_SUCCESS)
-        return ret;
+        return ( gnutls_session_t ) ret;
 
     /* request client certificate if any. */
     gnutls_certificate_server_set_request (session, GNUTLS_CERT_REQUEST);
@@ -285,7 +285,7 @@ handle_https_request(void *args)
 {   
     char buffer[MAX_BUF];
     int bytes;
-    int http_error_code;
+    int http_error_code = 0;
     int ret_code;
     int major = 1;
     int minor = 1;
@@ -301,7 +301,7 @@ handle_https_request(void *args)
     if (session < 0)
     {
         UpnpPrintf( UPNP_CRITICAL, MSERV, __FILE__, __LINE__,
-            "Error initialising tls session: %s\n", gnutls_strerror(session) );
+            "Error initialising tls session: %s\n", gnutls_strerror(( int )session) );
         goto error_handler;        
     }
     
@@ -413,14 +413,15 @@ schedule_https_request_job( IN SOCKET sock )
 static void
 RunHttpsServer( SOCKET listen_sd )
 {
+    
     struct sockaddr_in addr;
-    int len = sizeof(addr);
+    socklen_t len = sizeof(addr);
     SOCKET sd;
         
     RUNNING = 1;
    
     while (RUNNING) {
-        sd = accept(listen_sd, &addr, &len);
+        sd = accept(listen_sd, ( struct sockaddr * )&addr, &len);
         UpnpPrintf( UPNP_INFO, MSERV, __FILE__, __LINE__,
             "Https Connection: %s:%d\n",inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));
                     
