@@ -861,14 +861,6 @@ int AddPortMapping(struct Upnp_Action_Request *ca_event)
             result = 732;
             addErrorData(ca_event, result, "WildCardNotPermittedInIntPort");
         }        
-        // check that internal port == external port. Is this really needed?
-        else if (atoi(ext_port) != atoi(int_port))
-        {
-            trace(1, "Internal and External port values must be the same. external_port:%s, internal_port:%s",
-                  ext_port, int_port);
-            result = 724;
-            addErrorData(ca_event, result, "SamePortValuesRequired");
-        }
         // check that leaseduration is between 0 and 604800
         else if ((atoi(int_duration) < 0) || (atoi(int_duration) > 604800))
         {
@@ -994,14 +986,6 @@ int AddAnyPortMapping(struct Upnp_Action_Request *ca_event)
             result = 732;
             addErrorData(ca_event, result, "WildCardNotPermittedInIntPort");
         }        
-        // check that internal port == external port. Is this really needed?
-        else if (atoi(new_external_port) != atoi(new_internal_port))
-        {
-            trace(1, "Internal and External port values must be the same. external_port:%s, internal_port:%s",
-                  new_external_port, new_internal_port);
-            result = 724;
-            addErrorData(ca_event, result, "SamePortValuesRequired");
-        }
         // check that leaseduration is between 0 and 604800
         else if (leaseDuration < 0 || leaseDuration > 604800)
         {
