@@ -20,26 +20,26 @@
         <url>/ligd.gif</url>
       </icon>
     </iconList>
-        <serviceList>
-            <service>
-                <serviceType>urn:schemas-dummy-com:service:Dummy:1</serviceType>
-                <serviceId>urn:dummy-com:serviceId:dummy1</serviceId>
-                <controlURL>/dummy</controlURL>
-                <eventSubURL>/dummy</eventSubURL>
-                <SCPDURL>/dummy.xml</SCPDURL>
-            </service>
-        </serviceList>
+    <serviceList>
+        <service>
+            <serviceType>urn:schemas-dummy-com:service:Dummy:1</serviceType>
+            <serviceId>urn:dummy-com:serviceId:dummy1</serviceId>
+            <controlURL>/dummy</controlURL>
+            <eventSubURL>/dummy</eventSubURL>
+            <SCPDURL>/dummy.xml</SCPDURL>
+        </service>
+    </serviceList>
     <deviceList>
       <device>
-        <deviceType>urn:schemas-upnp-org:device:WANDevice:2</deviceType>
+        <deviceType>urn:schemas-upnp-org:device:WANDevice:1</deviceType>
         <friendlyName>WANDevice</friendlyName>
         <manufacturer>Linux UPnP IGD Project</manufacturer>
         <manufacturerURL>http://linux-igd.sourceforge.net</manufacturerURL>
         <modelDescription>WAN Device on Linux IGD</modelDescription>
         <modelName>Linux IGD</modelName>
-        <modelNumber>2.00</modelNumber>
+        <modelNumber>1.00</modelNumber>
         <modelURL>http://linux-igd.sourceforge.net</modelURL>
-        <serialNumber>2.00</serialNumber>
+        <serialNumber>1.00</serialNumber>
         <UDN>uuid:75802409-bccb-40e7-8e6c-fa095ecce13f</UDN>
         <UPC>Linux IGD</UPC>
         <serviceList>
@@ -53,15 +53,15 @@
         </serviceList>
         <deviceList>
           <device>
-            <deviceType>urn:schemas-upnp-org:device:WANConnectionDevice:2</deviceType>
+            <deviceType>urn:schemas-upnp-org:device:WANConnectionDevice:1</deviceType>
             <friendlyName>WANConnectionDevice</friendlyName>
             <manufacturer>Linux UPnP IGD Project</manufacturer>
             <manufacturerURL>http://linux-igd.sourceforge.net</manufacturerURL>
             <modelDescription>WanConnectionDevice on Linux IGD</modelDescription>
             <modelName>Linux IGD</modelName>
-            <modelNumber>2.0</modelNumber>
+            <modelNumber>1.0</modelNumber>
             <modelURL>http://linux-igd.sourceforge.net</modelURL>
-            <serialNumber>2.0</serialNumber>
+            <serialNumber>1.0</serialNumber>
             <UDN>uuid:75802409-bccb-40e7-8e6c-fa095ecce140</UDN>
             <UPC>Linux IGD</UPC>
             <serviceList>
