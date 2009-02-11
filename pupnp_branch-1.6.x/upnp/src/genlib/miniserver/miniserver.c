@@ -160,7 +160,6 @@ dispatch_request( IN SOCKINFO * info,
                   http_parser_t * hparser )
 {
     MiniServerCallback callback;
-
     switch ( hparser->msg.method ) {
             //Soap Call
         case SOAPMETHOD_POST:

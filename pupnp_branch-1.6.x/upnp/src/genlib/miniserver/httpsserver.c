@@ -36,7 +36,7 @@ static gnutls_dh_params_t dh_params;
 static int RUNNING = 0;
 static int PORT = 0;
 
-// Static function declarations
+/* Static function declarations */
 static SOCKET get_listener_socket(int port);
 static gnutls_session_t initialize_tls_session (void);
 static int generate_dh_params (void);
@@ -44,6 +44,14 @@ static void RunHttpsServer( SOCKET listen_sd );
 static int parseHttpMessage(char *buf, int buflen, http_parser_t *parser, http_method_t request_method, int *timeout_secs, int *http_error_code);
 static int tcp_connect (void);
 static void tcp_close (int sd);
+
+
+/* Make libgrypt (gnutls) thread save. This assumes that we are using pthred for threading.
+ * Check http://www.gnu.org/software/gnutls/manual/gnutls.html#Multi_002dthreaded-applications
+ * Also see StartHttpsServer
+ */
+GCRY_THREAD_OPTION_PTHREAD_IMPL;
+
 
 /************************************************************************
  * Function: get_listener_socket
@@ -229,10 +237,10 @@ parseHttpMessage(
         ret = UPNP_E_BAD_HTTPMSG;
         goto ExitFunction;
     } else if (status == PARSE_INCOMPLETE_ENTITY) {
-        // read until close
+        /* read until close */
         ok_on_close = TRUE;
     } else if (status == PARSE_CONTINUE_1) {
-        // Web post request.
+        /* Web post request. */
         line = __LINE__;
         ret = PARSE_SUCCESS;
         goto ExitFunction;
@@ -296,7 +304,7 @@ handle_https_request(void *args)
     gnutls_session_t session;
     SOCKET sock = ( SOCKET )args;
     
-    // create session
+    /* create session */
     session = initialize_tls_session();
     if (session < 0)
     {
@@ -337,10 +345,10 @@ handle_https_request(void *args)
         }
          else if (bytes > 0)
         {                                              
-            if ( bytes > 0 && NULL == strstr( buffer, "ShutDown" )) // if buf is ShutDown, then program is exiting
+            if ( bytes > 0 && NULL == strstr( buffer, "ShutDown" )) /* if buf is ShutDown, then program is exiting */
             {
                 ret_code = parseHttpMessage(buffer, bytes, &parser, HTTPMETHOD_UNKNOWN, &timeout, &http_error_code);
-                // dispatch as normal http packet, which it is
+                /* dispatch as normal http packet, which it is */
                 http_error_code = dispatch_request( &info, &parser );
                 if( http_error_code != 0 ) {
                     goto error_handler;
@@ -450,12 +458,17 @@ RunHttpsServer( SOCKET listen_sd )
 int
 StartHttpsServer( unsigned short listen_port, char* CertFile, char* PrivKeyFile )
 {   
-    // for shutdown purposes
+    /* for shutdown purposes */
     PORT = listen_port;
        
     SOCKET listen_sd;
     int ret;    
-
+    
+    /* Make libgrypt (gnutls) thread save. This assumes that we are using pthred for threading.
+     * Check http://www.gnu.org/software/gnutls/manual/gnutls.html#Multi_002dthreaded-applications
+     */
+    gcry_control (GCRYCTL_SET_THREAD_CBS, &gcry_threads_pthread);
+    
     /* to disallow usage of the blocking /dev/random  */
     gcry_control (GCRYCTL_ENABLE_QUICK_RANDOM, 0);
 
@@ -463,12 +476,13 @@ StartHttpsServer( unsigned short listen_port, char* CertFile, char* PrivKeyFile 
     gnutls_global_init ();
     
     gnutls_certificate_allocate_credentials (&x509_cred);
-    /*
-    ret = gnutls_certificate_set_x509_trust_file (x509_cred, CAFILE, GNUTLS_X509_FMT_PEM); // white list?
+    
+    ret = gnutls_certificate_set_x509_trust_file (x509_cred, CertFile, GNUTLS_X509_FMT_PEM); // white list?
 
     if (ret < 0)
         fprintf (stderr, "*** Trust file failed (%s)\n\n", gnutls_strerror (ret)); 
 
+    /*
     ret = gnutls_certificate_set_x509_crl_file (x509_cred, CRLFILE, GNUTLS_X509_FMT_PEM); // black list, certificate revocation list
 
     if (ret < 0)
@@ -488,11 +502,11 @@ StartHttpsServer( unsigned short listen_port, char* CertFile, char* PrivKeyFile 
     gnutls_priority_init (&priority_cache, "NORMAL", NULL);
     gnutls_certificate_set_dh_params (x509_cred, dh_params);
 
-    // create listen socket
+    /* create listen socket */
     listen_sd = get_listener_socket(listen_port);
 
     if (listen_sd < 0) {
-        return listen_sd; // failure in creating socket   
+        return listen_sd; /* failure in creating socket */   
     }
    
     ThreadPoolJob job;
@@ -525,16 +539,15 @@ StartHttpsServer( unsigned short listen_port, char* CertFile, char* PrivKeyFile 
 int
 StopHttpsServer(void)
 {  
-    RUNNING = 0; // stop RunHttpsServer()
+    RUNNING = 0; /* this stops RunHttpsServer() */
     char *msg = "ShutDown";
     int ret, sd;
     gnutls_session_t session;
-    const char *err;
-    
+    const char *err;  
+
     gnutls_init (&session, GNUTLS_CLIENT);
     /* Use default priorities. Don't care errors anymore. */
     ret = gnutls_priority_set_direct (session, "PERFORMANCE", &err);
-
 
     /* put the x509 credentials to the current session */
     gnutls_credentials_set (session, GNUTLS_CRD_CERTIFICATE, x509_cred);
