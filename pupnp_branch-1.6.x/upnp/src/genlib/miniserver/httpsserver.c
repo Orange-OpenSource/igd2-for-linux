@@ -444,8 +444,10 @@ RunHttpsServer( SOCKET listen_sd )
  *
  * Parameters :
  *  unsigned short listen_port - Port on which the server listens for incoming connections
- *  char* CertFile - Certification file os server
- *  char* PrivKeyFile - Private key -file os server
+ *  char* CertFile - Certification file of server
+ *  char* PrivKeyFile - Private key file of server
+ *  char* TrustFile - Trust list of certificates we trust. May be NULL
+ *  char* CRLFile - Certificate Revocation List, aka. Blacklist of certificates which we don't trust (use PEM format...). May be NULL
  *
  * Description:
  *  Initialize gnutls for the https server. Initialize a thread pool job to run the server
@@ -456,7 +458,11 @@ RunHttpsServer( SOCKET listen_sd )
  *  A negative number UPNP_E_XXX - On Error
  ************************************************************************/
 int
-StartHttpsServer( unsigned short listen_port, char* CertFile, char* PrivKeyFile )
+StartHttpsServer( IN unsigned short listen_port,
+                  IN const char *CertFile,
+                  IN const char *PrivKeyFile,
+                  IN const char *TrustFile,
+                  IN const char *CRLFile)
 {   
     /* for shutdown purposes */
     PORT = listen_port;
@@ -477,17 +483,29 @@ StartHttpsServer( unsigned short listen_port, char* CertFile, char* PrivKeyFile 
     
     gnutls_certificate_allocate_credentials (&x509_cred);
     
-    ret = gnutls_certificate_set_x509_trust_file (x509_cred, CertFile, GNUTLS_X509_FMT_PEM); // white list?
-
-    if (ret < 0)
-        fprintf (stderr, "*** Trust file failed (%s)\n\n", gnutls_strerror (ret)); 
-
-    /*
-    ret = gnutls_certificate_set_x509_crl_file (x509_cred, CRLFILE, GNUTLS_X509_FMT_PEM); // black list, certificate revocation list
-
-    if (ret < 0)
-        fprintf (stderr, "*** CRL file failed (%s)\n\n", gnutls_strerror (ret));
-    */
+    if (TrustFile)
+    {
+        ret = gnutls_certificate_set_x509_trust_file (x509_cred, TrustFile, GNUTLS_X509_FMT_PEM); // white list
+    
+        if (ret < 0)
+        {
+            UpnpPrintf( UPNP_INFO, MSERV, __FILE__, __LINE__,
+                "Https Trust file failed (%s)\n\n", gnutls_strerror (ret));
+            return UPNP_E_INTERNAL_ERROR;       
+        }
+    }
+    
+    if (CRLFile)
+    {
+        ret = gnutls_certificate_set_x509_crl_file (x509_cred, CRLFile, GNUTLS_X509_FMT_PEM); // black list
+    
+        if (ret < 0)
+        {
+            UpnpPrintf( UPNP_INFO, MSERV, __FILE__, __LINE__,
+                "Https CRL file failed (%s)\n\n", gnutls_strerror (ret));
+            return UPNP_E_INTERNAL_ERROR;                   
+        }
+    }
 
     ret = gnutls_certificate_set_x509_key_file (x509_cred, CertFile, PrivKeyFile, GNUTLS_X509_FMT_PEM);
                     

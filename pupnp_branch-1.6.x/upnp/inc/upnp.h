@@ -1032,7 +1032,39 @@ EXPORT_SPEC int UpnpInit(
 	 * \c NULL will pick an arbitrary free port. */
 	unsigned short DestPort);
 
-
+/*!
+ * \brief Start HTTPS server for UPnP Devices.
+ *
+ * This function starts HTTPS server which is used for network trafic when
+ * control point is registered for device with ALS. It should be called only 
+ * once. Subsequent calls to this API return a \c UPNP_E_INIT error code.
+ * 
+ * Server is created with GNUTls.
+ *
+ * This call is synchronous.
+ *
+ * \return An integer representing one of the following:
+ *     \li \c UPNP_E_SUCCESS: The operation completed successfully.
+ *     \li \c UPNP_E_INIT: HTTPS server is already started. 
+ *     \li \c UPNP_E_INIT_FAILED: HTTPS server starting 
+ *             failed for an unknown reason.
+ *     \li \c UPNP_E_SOCKET_BIND: An error occurred binding a socket.
+ *     \li \c UPNP_E_LISTEN: An error occurred listening to a socket.
+ *     \li \c UPNP_E_OUTOF_SOCKET: An error ocurred creating a socket.
+ *     \li \c UPNP_E_SOCKET_ERROR: An error occured setting socket options.
+ *     \li \c UPNP_E_INTERNAL_ERROR: An internal error ocurred.
+ */
+EXPORT_SPEC int UpnpStartHttpsServer(
+    /*! [in] Listening port number for HTTPS server. */
+    unsigned short port,
+    /*! [in] Name of selfsigned certificate file of server. */
+    const char *CertFile,
+    /*! [in] Private key file of server. */
+    const char *PrivKeyFile,
+    /*! [in]  File containing trusted certificates. (PEM format). */
+    const char *TrustFile,
+    /*! [in] Certificate revocation list. Untrusted certificates. (PEM format). */
+    const char *CRLFile);
 
 /*!
  * \brief Terminates the Linux SDK for UPnP Devices.
@@ -1044,6 +1076,7 @@ EXPORT_SPEC int UpnpInit(
  * \li Uninitializes the Thread Pool
  * \li For Win32 cleans up Winsock Interface 
  * \li Cleans up mutex objects
+ * \li Stops HTTPS server if it is running
  *
  * This function must be the last API function called. It should be called only
  * once. Subsequent calls to this API return a \c UPNP_E_FINISH error code.

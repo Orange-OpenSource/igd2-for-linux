@@ -131,6 +131,10 @@ size_t g_maxContentLength = DEFAULT_SOAP_CONTENT_LENGTH; // in bytes
 // Global variable to denote the state of Upnp SDK 
 //    = 0 if uninitialized, = 1 if initialized.
      int UpnpSdkInit = 0;
+     
+// Global variable to denote the state of Https server 
+//    = 0 if uninitialized, = 1 if initialized.
+     int HttpsServerInit = 0;     
 
 // Global variable to denote the state of Upnp SDK device registration.
 // = 0 if unregistered, = 1 if registered.
@@ -320,19 +324,6 @@ int UpnpInit( IN const char *HostIP,
     DestPort = retVal;
     LOCAL_PORT = DestPort;
 
-#if EXCLUDE_HTTPSSERVER == 0
-    if( ( retVal = StartHttpsServer( 443, "newreq.pem", "newreq.pem" ) ) <= 0 ) { // TODO: fix this stupid file naming
-        UpnpPrintf( UPNP_CRITICAL, API, __FILE__, __LINE__,
-            "Https server failed to start" );
-        UpnpFinish();
-        UpnpSdkInit = 0;
-        if( retVal != -1 )
-            return retVal;
-        else                    // if httpsserver is already running for unknown reasons!
-            return UPNP_E_INIT_FAILED;
-    }
-#endif
-
 #if EXCLUDE_WEB_SERVER == 0
     if( ( retVal =
           UpnpEnableWebserver( WEB_SERVER_ENABLED ) ) != UPNP_E_SUCCESS ) {
@@ -351,6 +342,50 @@ int UpnpInit( IN const char *HostIP,
     return UPNP_E_SUCCESS;
 
 } /***************** end of UpnpInit ******************/
+
+/****************************************************************************
+ * Function: UpnpStartHttpsServer
+ *
+ * Starts HTTPS server.
+ * 
+ * Parameters:      
+ *  IN unsigned short port: HTTPS server listening port
+ *  IN const char *CertFile: Selfsigned certificate file of server
+ *  IN const char *PrivKeyFile: Private key file of server.
+ *  IN const char *TrustFile: File containing trusted certificates. (PEM format)
+ *  IN const char *CRLFile: Certificate revocation list. Untrusted certificates. (PEM format)
+ * 
+ * Returns:
+ *  UPNP_E_SUCCESS on success, nonzero on failure. 
+ *  UPNP_E_INIT_FAILED if starting fails.
+ *  UPNP_E_INIT if HTTPS server is already started
+ *****************************************************************************/
+#if EXCLUDE_HTTPSSERVER == 0
+int UpnpStartHttpsServer( IN unsigned short port,
+                          IN const char *CertFile,
+                          IN const char *PrivKeyFile,
+                          IN const char *TrustFile,
+                          IN const char *CRLFile ) 
+{
+    if ( HttpsServerInit ) return UPNP_E_INIT;
+    
+    int retVal;
+    HttpsServerInit = 1;
+
+    if( ( retVal = StartHttpsServer(port, CertFile, PrivKeyFile, TrustFile, CRLFile) ) <= 0 ) {
+        UpnpPrintf( UPNP_CRITICAL, API, __FILE__, __LINE__,
+            "Https server failed to start" );
+        HttpsServerInit = 0;
+        return retVal;
+    }
+    else if (retVal == port)
+        return UPNP_E_SUCCESS;
+    else 
+        return UPNP_E_INIT_FAILED;        
+}
+#endif
+ /***************** end of UpnpStartHttpsServer ******************/
+
 
 #ifdef DEBUG
 static void 
@@ -463,7 +498,9 @@ UpnpFinish()
 
     TimerThreadShutdown( &gTimerThread );
     StopMiniServer();
-    StopHttpsServer();
+    
+    if ( HttpsServerInit )
+        StopHttpsServer();
 
 #if EXCLUDE_WEB_SERVER == 0
     web_server_destroy();
