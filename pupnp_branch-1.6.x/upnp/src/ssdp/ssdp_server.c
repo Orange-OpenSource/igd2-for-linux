@@ -987,7 +987,10 @@ int set_ssdp_socket_options( SOCKET ssdpSock )
     struct in_addr addr;
     int option = 1;
     int ret = 0;
-
+    
+    /* maybe here could be some sort of check if address is already in use,
+     * then we wouldn't try to set these again? Not sure would it work...
+     */
     memset( (void *)&ssdpMcastAddr, 0, sizeof (struct ip_mreq) );
     ssdpMcastAddr.imr_interface.s_addr = inet_addr( LOCAL_HOST );
     ssdpMcastAddr.imr_multiaddr.s_addr = inet_addr( SSDP_IP );

@@ -17,6 +17,7 @@
 
 #include <resolv.h>
 #include <gnutls/gnutls.h>
+#include <gnutls/x509.h>
 #include <gcrypt.h>
 
 #include "httpsserver.h"
@@ -51,6 +52,133 @@ static void tcp_close (int sd);
  * Also see StartHttpsServer
  */
 GCRY_THREAD_OPTION_PTHREAD_IMPL;
+
+
+
+ 
+/************************************************************************
+ * Function: verify_certificate
+ *
+ * Parameters:
+ *  IN gnutls_session_t session - Gnutls session
+ *  IN const char *hostname - Value of Common Name (CN) element in peer certificate.
+ *
+ * Description:
+ *  This function will try to verify the peer's certificate, and
+ *  also check if the hostname matches, and the activation, expiration dates.
+ *
+ * Return: int
+ *  GNU TLS error codes or -1
+ *  GNUTLS_E_SUCCESS - on success
+ ************************************************************************/ 
+static int verify_certificate (gnutls_session_t session, const char *hostname)
+{
+    unsigned int status;
+    const gnutls_datum_t *cert_list;
+    unsigned int cert_list_size;
+    int ret;
+    gnutls_x509_crt_t cert;
+
+
+    /* This verification function uses the trusted CAs in the credentials
+     * structure. So you must have installed one or more CA certificates.
+     */
+    ret = gnutls_certificate_verify_peers2 (session, &status);
+
+    if (ret != GNUTLS_E_SUCCESS)
+    {
+        UpnpPrintf( UPNP_CRITICAL, MSERV, __FILE__, __LINE__,
+            "Error verifying peer certificates: %s\n", gnutls_strerror(ret) );
+        return ret;
+    }
+
+    if (status & GNUTLS_CERT_INVALID)
+    {
+        UpnpPrintf( UPNP_CRITICAL, MSERV, __FILE__, __LINE__,
+            "Peer certificate is not trusted\n");        
+        return -1;
+    }
+
+    if (status & GNUTLS_CERT_SIGNER_NOT_FOUND)
+    {
+        UpnpPrintf( UPNP_CRITICAL, MSERV, __FILE__, __LINE__,
+            "Peer certificate hasn't got a known issuer\n");           
+        return -1;
+    }
+
+    if (status & GNUTLS_CERT_REVOKED)
+    {
+        UpnpPrintf( UPNP_CRITICAL, MSERV, __FILE__, __LINE__,
+            "Peer certificate has been revoked\n");       
+        return -1;
+    }
+
+
+    /* Up to here the process is the same for X.509 certificates and
+     * OpenPGP keys. From now on X.509 certificates are assumed. This can
+     * be easily extended to work with openpgp keys as well.
+     */
+    if (gnutls_certificate_type_get (session) != GNUTLS_CRT_X509)
+    {
+        UpnpPrintf( UPNP_CRITICAL, MSERV, __FILE__, __LINE__,
+            "Peer certificate type must be X.509. Wrong type received.\n");          
+        return -1;
+    }
+
+    if ((ret = gnutls_x509_crt_init (&cert)) != GNUTLS_E_SUCCESS)
+    {
+        UpnpPrintf( UPNP_CRITICAL, MSERV, __FILE__, __LINE__,
+            "Peer certificate failed to initialize: %s\n",gnutls_strerror(ret) );
+        return ret;
+    }
+
+    cert_list = gnutls_certificate_get_peers (session, &cert_list_size);
+    if (cert_list == NULL)
+    {
+        UpnpPrintf( UPNP_CRITICAL, MSERV, __FILE__, __LINE__,
+            "No Peer certificate was found\n");
+        return -1;
+    }
+
+    int i;
+    for (i = 0; i < cert_list_size; i++)
+    {   
+        if ((ret = gnutls_x509_crt_import (cert, &cert_list[0], GNUTLS_X509_FMT_DER)) != GNUTLS_E_SUCCESS)
+        {
+            UpnpPrintf( UPNP_CRITICAL, MSERV, __FILE__, __LINE__,
+                "Error parsing Peer certificate: %s\n",gnutls_strerror(ret) );
+            return ret;
+        }
+    
+        /* Beware here we do not check for errors.
+         */
+        if (gnutls_x509_crt_get_expiration_time (cert) < time (0))
+        {
+            UpnpPrintf( UPNP_CRITICAL, MSERV, __FILE__, __LINE__,
+                "Peer certificate has expired\n");
+            return -1;
+        }
+    
+        if (gnutls_x509_crt_get_activation_time (cert) > time (0))
+        {
+            UpnpPrintf( UPNP_CRITICAL, MSERV, __FILE__, __LINE__,
+                "Peer certificate is not yet activated\n");
+            return -1;
+        }
+    
+        if (!gnutls_x509_crt_check_hostname (cert, hostname))
+        {
+            UpnpPrintf( UPNP_CRITICAL, MSERV, __FILE__, __LINE__,
+                "Peer certificate's owner does not match hostname '%s'\n",hostname);
+            return -1;
+        }
+    
+        gnutls_x509_crt_deinit (cert);
+    }
+
+    return GNUTLS_E_SUCCESS;
+}
+
 
 
 /************************************************************************
@@ -312,15 +440,23 @@ handle_https_request(void *args)
             "Error initialising tls session: %s\n", gnutls_strerror(( int )session) );
         goto error_handler;        
     }
+
+    /* require that client provide a certificate */
+    gnutls_certificate_server_set_request(session, GNUTLS_CERT_REQUIRE);
     
     gnutls_transport_set_ptr (session, (gnutls_transport_ptr_t) sock);
+
     ret = gnutls_handshake (session);
 
-    if (ret < 0) {
+    if (ret != GNUTLS_E_SUCCESS) {
         UpnpPrintf( UPNP_CRITICAL, MSERV, __FILE__, __LINE__,
             "Handshake has failed: %s\n", gnutls_strerror(ret) );
         goto error_handler;
     }
+
+    // TODO: what is hostname value?????????! Is this even needed?
+    // check client certificate. Is it trusted and such
+    verify_certificate(session, "TestDevice");
 
     SOCKINFO info;
     info.tls_session = session;
@@ -483,16 +619,13 @@ StartHttpsServer( IN unsigned short listen_port,
     
     gnutls_certificate_allocate_credentials (&x509_cred);
     
-    if (TrustFile)
+    ret = gnutls_certificate_set_x509_trust_file (x509_cred, TrustFile, GNUTLS_X509_FMT_PEM); // white list
+
+    if (ret < 0)
     {
-        ret = gnutls_certificate_set_x509_trust_file (x509_cred, TrustFile, GNUTLS_X509_FMT_PEM); // white list
-    
-        if (ret < 0)
-        {
-            UpnpPrintf( UPNP_INFO, MSERV, __FILE__, __LINE__,
-                "Https Trust file failed (%s)\n\n", gnutls_strerror (ret));
-            return UPNP_E_INTERNAL_ERROR;       
-        }
+        UpnpPrintf( UPNP_INFO, MSERV, __FILE__, __LINE__,
+            "Https Trust file failed (%s)\n\n", gnutls_strerror (ret));
+        return UPNP_E_INTERNAL_ERROR;       
     }
     
     if (CRLFile)
