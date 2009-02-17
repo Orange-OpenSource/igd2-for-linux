@@ -302,7 +302,18 @@ int AdvertiseAndReply( IN int AdFlag,
         UpnpPrintf( UPNP_INFO, API, __FILE__, __LINE__,
             "Sending service Advertisement\n" );
 
-        tmpNode = ixmlNodeList_item( SInfo->ServiceList, i );
+        /* not necessarely i:th item. Some device may not have any services.
+        tmpNode = ixmlNodeList_item( SInfo->ServiceList, i ); */ 
+        
+        // check if device has serviceList-element
+        tmpNode = ixmlNode_getFirstChild(tmpNode); // tmpNode is device-node
+        while(tmpNode != NULL) {
+            if ( strcmp(ixmlNode_getNodeName(tmpNode), "serviceList") == 0 ) {
+                break;   
+            }
+            tmpNode = ixmlNode_getNextSibling(tmpNode);          
+        } 
+        
         if( tmpNode == NULL ) {
             continue;
         }
