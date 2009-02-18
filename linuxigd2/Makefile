@@ -6,7 +6,7 @@ LIBUPNP_PREFIX=/usr
 
 CC=gcc
 INCLUDES= -I$(LIBUPNP_PREFIX)/include -I../include -I$(COMMON_DIR)/inc
-LIBS= -lpthread -lupnp -lixml -lthreadutil -L$(LIBUPNP_PREFIX)/lib -L../libs
+LIBS= -lpthread -lupnp -lixml -lthreadutil -lgnutls -lgcrypt -lgpg-error -lz -L$(LIBUPNP_PREFIX)/lib -L../libs
 FILES= gatedevice.o pmlist.o util.o config.o lanhostconfig.o 
 #applicationlevelsecurity.o \ 
 #	$(COMMON_DIR)/scmessage.o \
