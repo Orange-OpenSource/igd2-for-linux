@@ -4,10 +4,15 @@ LIBUPNP_PREFIX=/usr
 
 #COMMON_DIR = ./sc_common
 
+PACKAGE = linuxigd2
+VERSION = 1.0
+DISTDIR = $(PACKAGE)-$(VERSION)
+DISTFILES = Makefile Doxyfile bin/ configs/ doc/ inc/ lib/ src/ 
+
 CC=gcc
 INCLUDES= -I$(LIBUPNP_PREFIX)/include -I../include -I$(COMMON_DIR)/inc
 LIBS= -lpthread -lupnp -lixml -lthreadutil -lgnutls -lgcrypt -lgpg-error -lz -L$(LIBUPNP_PREFIX)/lib -L../libs
-FILES= gatedevice.o pmlist.o util.o config.o lanhostconfig.o 
+FILES= gatedevice.o pmlist.o util.o config.o lanhostconfig.o
 #applicationlevelsecurity.o \ 
 #	$(COMMON_DIR)/scmessage.o \
 #	$(COMMON_DIR)/message_utilities.o \
@@ -25,6 +30,7 @@ FILES= gatedevice.o pmlist.o util.o config.o lanhostconfig.o
 #	$(COMMON_DIR)/debug.o \
 #	$(COMMON_DIR)/crypto.o
 BIN=bin/
+DOC=doc/
 
 CFLAGS += -Wall -g -O2
 
@@ -55,7 +61,11 @@ test: $(FILES)
 	$(CC) $(CFLAGS) $^ unittest.o $(LIBS) -lcunit -o $(BIN)$@
 
 clean:
-	rm -f *.o $(COMMON_DIR)/*.o $(BIN)upnpd
+	rm -f *.o $(COMMON_DIR)/*.o $(BIN)upnpd $(BIN)test
+	rm -rf $(DOC)doxygen
+
+dist: clean
+	tar --transform 's,^,/$(DISTDIR)/,' --exclude=*.o --exclude=.* --exclude=*.tar.gz -pzcf $(DISTDIR).tar.gz $(DISTFILES)
 
 install: upnpd
 	install -d /etc/linuxigd
