@@ -525,6 +525,7 @@ end:
  *	IN size_t request_length;	Length of the request
  *	IN http_method_t req_method;	HTTP Request method
  *	IN int timeout_secs;		time out value
+ *  IN gnutls_session_t session,    gnutls TLS session to use. If NULL, won't use TLS
  *	OUT http_parser_t* response;	Parser object to receive the repsonse
  *
  * Description:
@@ -543,13 +544,13 @@ http_RequestAndResponse( IN uri_type * destination,
                          IN size_t request_length,
                          IN http_method_t req_method,
                          IN int timeout_secs,
+                         IN gnutls_session_t session,
                          OUT http_parser_t * response )
 {
     int tcp_connection;
     int ret_code;
     int http_error_code;
     SOCKINFO info;
-    info.tls_session = NULL;
 
     tcp_connection = socket( AF_INET, SOCK_STREAM, 0 );
     if( tcp_connection == -1 ) {
@@ -566,13 +567,16 @@ http_RequestAndResponse( IN uri_type * destination,
     ret_code = connect( info.socket,
                         ( struct sockaddr * )&destination->hostport.
                         IPv4address, sizeof( struct sockaddr_in ) );
-
+                        
     if( ret_code == -1 ) {
         sock_destroy( &info, SD_BOTH );
         parser_response_init( response, req_method );
         return UPNP_E_SOCKET_CONNECT;
     }
-    // send request
+    
+    info.tls_session = session;
+    // send request 
+    
     ret_code = http_SendMessage( &info, &timeout_secs, "b",
                                  request, request_length );
     if( ret_code != 0 ) {
@@ -678,7 +682,7 @@ http_Download( IN const char *url_str,
     // get doc msg
     ret_code =
         http_RequestAndResponse( &url, request.buf, request.length,
-                                 HTTPMETHOD_GET, timeout_secs, &response );
+                                 HTTPMETHOD_GET, timeout_secs, NULL, &response );
 
     if( ret_code != 0 ) {
         httpmsg_destroy( &response.msg );

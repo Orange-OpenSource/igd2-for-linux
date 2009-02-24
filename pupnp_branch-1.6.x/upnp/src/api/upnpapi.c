@@ -40,6 +40,7 @@
 #include <signal.h>
 #include <stdlib.h>
 #include <string.h>
+#include <gnutls/gnutls.h>
 
 
 #ifndef WIN32
@@ -2403,10 +2404,205 @@ UpnpSendAction( IN UpnpClient_Handle Hnd,
         return UPNP_E_INVALID_PARAM;
     }
 
-    retVal = SoapSendAction( ActionURL, ServiceType, Action, RespNodePtr );
+    retVal = SoapSendAction( ActionURL, ServiceType, Action, NULL, RespNodePtr );
 
     UpnpPrintf( UPNP_ALL, API, __FILE__, __LINE__,
         "Exiting UpnpSendAction \n" );
+
+    return retVal;
+
+}  /****************** End of UpnpSendAction *********************/
+
+
+
+
+#include <netinet/in.h>
+
+#define SA struct sockaddr
+
+extern int
+tcp_connect (void)
+{
+  const char *PORT = "443";
+  const char *SERVER = "127.0.0.1";
+  int err, sd;
+  struct sockaddr_in sa;
+
+  /* connects to server
+   */
+  sd = socket (AF_INET, SOCK_STREAM, 0);
+
+  memset (&sa, '\0', sizeof (sa));
+  sa.sin_family = AF_INET;
+  sa.sin_port = htons (atoi (PORT));
+  inet_pton (AF_INET, SERVER, &sa.sin_addr);
+
+  err = connect (sd, (SA *) & sa, sizeof (sa));
+  if (err < 0)
+    {
+      fprintf (stderr, "Connect error\n");
+      exit (1);
+    }
+
+  return sd;
+}
+
+/* closes the given socket descriptor.
+ */
+extern void
+tcp_close (int sd)
+{
+  shutdown (sd, SHUT_RDWR); /* no more receptions */
+  close (sd);
+}
+
+
+
+/**************************************************************************
+ * Function: UpnpSendActionSSL 
+ *
+ * Parameters:  
+ *  IN UpnpClient_Handle Hnd: The handle of the control point 
+ *      sending the action. 
+ *  IN const char *ActionURL: The action URL of the service. 
+ *  IN const char *ServiceType: The type of the service. 
+ *  IN const char *DevUDN: This parameter is ignored. 
+ *  IN IXML_Document *Action: The DOM document for the action. 
+ *  OUT IXML_Document **RespNode: The DOM document for the response 
+ *      to the action.  The UPnP Library allocates this document
+ *      and the caller needs to free it.  
+ *  
+ * Description:
+ *  This function sends a message to change a state variable in a service.
+ *  Message is sent using SSL.
+ *  This is a synchronous call that does not return until the action is
+ *  complete.
+ * 
+ *  Note that a positive return value indicates a SOAP-protocol error code.
+ *  In this case,  the error description can be retrieved from RespNode.
+ *  A negative return value indicates a UPnP Library error.
+ *
+ * Return Values: int
+ *  UPNP_E_SUCCESS if successful else sends appropriate error.
+ ***************************************************************************/
+int
+UpnpSendActionSSL( IN UpnpClient_Handle Hnd,
+                   IN const char *ActionURL_const,
+                   IN const char *ServiceType_const,
+                   IN const char *DevUDN_const,
+                   IN IXML_Document * Action,
+                   OUT IXML_Document ** RespNodePtr )
+{
+    struct Handle_Info *SInfo = NULL;
+    int retVal = 0;
+    char *ActionURL = ( char * )ActionURL_const;
+    char *ServiceType = ( char * )ServiceType_const;
+    gnutls_session_t session;
+
+    //char *DevUDN = (char *)DevUDN_const;  // udn not used?
+
+    if( UpnpSdkInit != 1 ) {
+        return UPNP_E_FINISH;
+    }
+
+    UpnpPrintf( UPNP_ALL, API, __FILE__, __LINE__,
+        "Inside UpnpSendActionSSL \n" );
+    if(DevUDN_const !=NULL) {
+    UpnpPrintf(UPNP_ALL,API,__FILE__,__LINE__,"non NULL DevUDN is ignored\n");
+    }
+    DevUDN_const = NULL;
+
+    HandleReadLock();
+    if( GetHandleInfo( Hnd, &SInfo ) != HND_CLIENT ) {
+        HandleUnlock();
+        return UPNP_E_INVALID_HANDLE;
+    }
+    HandleUnlock();
+
+    if( ActionURL == NULL ) {
+        return UPNP_E_INVALID_PARAM;
+    }
+
+    if( ServiceType == NULL || Action == NULL || RespNodePtr == NULL
+        || DevUDN_const != NULL ) {
+
+        return UPNP_E_INVALID_PARAM;
+    }
+
+
+
+    // create gnutls session
+  gnutls_certificate_credentials_t xcred;
+  int ret, sd;
+  const char *err;
+
+  gnutls_global_init ();
+
+  /* X509 stuff */
+  gnutls_certificate_allocate_credentials (&xcred);
+
+  /* sets the trusted cas file
+   */
+  gnutls_certificate_set_x509_trust_file (xcred, "newreq.pem", GNUTLS_X509_FMT_PEM);
+
+
+    ret = gnutls_certificate_set_x509_key_file (xcred, "newreq.pem", "newreq.pem", GNUTLS_X509_FMT_PEM);
+                    
+    if (ret != GNUTLS_E_SUCCESS)
+    {
+      fprintf (stderr, "*** cert set failed\n");
+      gnutls_perror (ret);
+      return -1;
+    }
+
+
+  /* Initialize TLS session 
+   */
+  gnutls_init (&session, GNUTLS_CLIENT);
+
+  /* Use default priorities */
+  ret = gnutls_priority_set_direct (session, "PERFORMANCE", &err);
+  if (ret < 0)
+    {
+      if (ret == GNUTLS_E_INVALID_REQUEST)
+    {
+      fprintf (stderr, "Syntax error at: %s\n", err);
+    }
+      return -1;
+    }
+
+  /* put the x509 credentials to the current session
+   */
+  gnutls_credentials_set (session, GNUTLS_CRD_CERTIFICATE, xcred);
+
+  /* connect to the peer
+   */
+  sd = tcp_connect ();
+
+  gnutls_transport_set_ptr (session, (gnutls_transport_ptr_t) sd);
+
+  /* Perform the TLS handshake
+   */
+  ret = gnutls_handshake (session);
+
+  if (ret < 0)
+    {
+      fprintf (stderr, "*** Handshake failed\n");
+      gnutls_perror (ret);
+      return -1;
+    }
+  else
+    {
+      printf ("- Handshake was completed\n");
+    }
+    
+    
+    
+
+    retVal = SoapSendAction( ActionURL, ServiceType, Action, session, RespNodePtr );
+
+    UpnpPrintf( UPNP_ALL, API, __FILE__, __LINE__,
+        "Exiting UpnpSendActionSSL \n" );
 
     return retVal;
 
@@ -2485,7 +2681,7 @@ UpnpSendActionEx( IN UpnpClient_Handle Hnd,
     }
 
     retVal = SoapSendActionEx( ActionURL, ServiceType, Header,
-                               Action, RespNodePtr );
+                               Action, NULL, RespNodePtr );
 
     UpnpPrintf( UPNP_ALL, API, __FILE__, __LINE__,
         "Exiting UpnpSendAction \n" );
@@ -3273,7 +3469,7 @@ UpnpThreadDistribution( struct UpnpNonblockParam *Param )
             Evt.ActionResult = NULL;
                 Evt.ErrCode =
                     SoapSendAction( Param->Url, Param->ServiceType,
-                                    Param->Act, &Evt.ActionResult );
+                                    Param->Act, NULL, &Evt.ActionResult );
                 Evt.ActionRequest = Param->Act;
                 strcpy( Evt.CtrlUrl, Param->Url );
                 Param->Fun( UPNP_CONTROL_ACTION_COMPLETE, &Evt,

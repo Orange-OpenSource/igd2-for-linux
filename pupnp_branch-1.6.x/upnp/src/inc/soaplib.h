@@ -32,6 +32,7 @@
 #ifndef SOAPLIB_H
 #define SOAPLIB_H 
 
+#include <gnutls/gnutls.h>
 
 // SOAP module API to be called in Upnp-Dk API
 /****************************************************************************
@@ -64,6 +65,7 @@ void soap_device_callback(
 *		IN char* action_url :	device contrl URL 
 *		IN char *service_type :	device service type
 *		IN IXML_Document *action_node : SOAP action node	
+*       IN gnutls_session_t session :   gnutls TLS session to use. If NULL, won't use TLS
 *		OUT IXML_Document **response_node :	SOAP response node
 *
 *	Description :	This function is called by UPnP API to send the SOAP 
@@ -78,6 +80,7 @@ int SoapSendAction(
 		IN char* action_url, 
 		IN char *service_type,
 		IN IXML_Document *action_node,
+        IN gnutls_session_t session,
 		OUT IXML_Document **response_node );
 
 /****************************************************************************
@@ -86,8 +89,9 @@ int SoapSendAction(
 *	Parameters :
 *		IN char* action_url :	device contrl URL 
 *		IN char *service_type :	device service type
-		IN IXML_Document *Header: Soap header
-*		IN IXML_Document *action_node : SOAP action node ( SOAP body)	
+*		IN IXML_Document *Header: Soap header
+*		IN IXML_Document *action_node : SOAP action node ( SOAP body)
+*       IN gnutls_session_t session :   gnutls TLS session to use. If NULL, won't use TLS
 *		OUT IXML_Document **response_node :	SOAP response node
 *
 *	Description :	This function is called by UPnP API to send the SOAP 
@@ -104,7 +108,8 @@ int SoapSendActionEx(
 		IN char * ActionURL, 
 		IN char *ServiceType, 
 		IN IXML_Document *Header,
-		IN IXML_Document *ActNode , 
+		IN IXML_Document *ActNode,
+        IN gnutls_session_t session, 
 		OUT IXML_Document **RespNode) ;
 
 /****************************************************************************
@@ -125,7 +130,7 @@ int SoapSendActionEx(
 ****************************************************************************/
 int SoapGetServiceVarStatus(
 				IN char * ActionURL, 
-				IN DOMString VarName, 
+				IN DOMString VarName,
 				OUT DOMString *StVar) ;   
 
 extern const char* ContentTypeHeader;

@@ -32,6 +32,8 @@
 #ifndef GENLIB_NET_HTTP_HTTPREADWRITE_H
 #define GENLIB_NET_HTTP_HTTPREADWRITE_H
 
+//#include <gnutls/gnutls.h>
+
 #include "config.h"
 #include "util.h"
 #include "sock.h"
@@ -170,6 +172,7 @@ int http_SendMessage(
  *	IN size_t request_length;	Length of the request
  *	IN http_method_t req_method;	HTTP Request method
  *	IN int timeout_secs;		time out value
+ *  IN gnutls_session_t session,    gnutls TLS session to use. If NULL, won't use TLS
  *	OUT http_parser_t* response;	Parser object to receive the repsonse
  *
  * Description:
@@ -187,7 +190,8 @@ int http_RequestAndResponse(
 	IN const char* request,
 	IN size_t request_length,
 	IN http_method_t req_method,
-	IN int timeout_secs, 
+	IN int timeout_secs,
+    IN gnutls_session_t session,
 	OUT http_parser_t* response );
 
 

@@ -226,7 +226,7 @@ static int gena_unsubscribe(
 	// send request and get reply
 	return_code = http_RequestAndResponse(
 		&dest_url, request.buf, request.length,
-		HTTPMETHOD_UNSUBSCRIBE, HTTP_DEFAULT_TIMEOUT, response);
+		HTTPMETHOD_UNSUBSCRIBE, HTTP_DEFAULT_TIMEOUT, NULL, response);
 	membuffer_destroy(&request);
 	if (return_code != 0) {
 		httpmsg_destroy(&response->msg);
@@ -317,6 +317,7 @@ static int gena_subscribe(
 		request.length,
 		HTTPMETHOD_SUBSCRIBE,
 		HTTP_DEFAULT_TIMEOUT,
+        NULL, 
 		&response);
 	membuffer_destroy(&request);
 

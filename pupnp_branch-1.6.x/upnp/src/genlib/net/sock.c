@@ -33,6 +33,10 @@
 * Purpose: This file implements the sockets functionality 
 ************************************************************************/
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
 #include "config.h"
 #include <assert.h>
 #include <errno.h>
@@ -199,38 +203,40 @@ sock_read_write( IN SOCKINFO * info,
         return UPNP_E_TIMEDOUT;
     }
 
-    FD_ZERO( &readSet );
-    FD_ZERO( &writeSet );
-    if( bRead ) {
-        FD_SET( ( unsigned )sockfd, &readSet );
-    } else {
-        FD_SET( ( unsigned )sockfd, &writeSet );
-    }
-
-    timeout.tv_sec = *timeoutSecs;
-    timeout.tv_usec = 0;
-
-    while( TRUE ) {
-        if( *timeoutSecs == 0 ) {
-            retCode =
-                select( sockfd + 1, &readSet, &writeSet, NULL, NULL );
+    if (info->tls_session == NULL) {
+        FD_ZERO( &readSet );
+        FD_ZERO( &writeSet );
+        if( bRead ) {
+            FD_SET( ( unsigned )sockfd, &readSet );
         } else {
-            retCode =
-                select( sockfd + 1, &readSet, &writeSet, NULL, &timeout );
+            FD_SET( ( unsigned )sockfd, &writeSet );
         }
-
-        if( retCode == 0 ) {
-            return UPNP_E_TIMEDOUT;
+    
+        timeout.tv_sec = *timeoutSecs;
+        timeout.tv_usec = 0;
+    
+        while( TRUE && info->tls_session == NULL ) {
+            if( *timeoutSecs == 0 ) {
+                retCode =
+                    select( sockfd + 1, &readSet, &writeSet, NULL, NULL );
+            } else {
+                retCode =
+                    select( sockfd + 1, &readSet, &writeSet, NULL, &timeout );
+            }
+    
+            if( retCode == 0 ) {
+                return UPNP_E_TIMEDOUT;
+            }
+            if( retCode == -1 ) {
+                if( errno == EINTR )
+                    continue;
+                return UPNP_E_SOCKET_ERROR; // error
+            } else {
+                break;              // read or write
+            }
         }
-        if( retCode == -1 ) {
-            if( errno == EINTR )
-                continue;
-            return UPNP_E_SOCKET_ERROR; // error
-        } else {
-            break;              // read or write
-        }
-    }
-
+    } 
+         
 #ifdef SO_NOSIGPIPE
     {
 	int old;
@@ -242,7 +248,11 @@ sock_read_write( IN SOCKINFO * info,
 
     if( bRead ) {
         // read data
-        numBytes = recv( sockfd, buffer, bufsize,MSG_NOSIGNAL);
+        if (info->tls_session == NULL) {
+            numBytes = recv( sockfd, buffer, bufsize,MSG_NOSIGNAL);
+        } else {
+            numBytes = gnutls_record_recv (info->tls_session, buffer, strlen(buffer));
+        }
     } else {
         byte_left = bufsize;
         bytes_sent = 0;

@@ -32,104 +32,107 @@
 #ifndef SOAPLIB_H
 #define SOAPLIB_H 
 
+#include <gnutls/gnutls.h>
 
-//SOAP module API to be called in Upnp-Dk API
+// SOAP module API to be called in Upnp-Dk API
 /****************************************************************************
-*	Function :	soap_device_callback
+* Function :    soap_device_callback
 *
-*	Parameters :
-*		  IN http_parser_t *parser : Parsed request received by the device
-*		  IN http_message_t* request :	HTTP request 
-*		  INOUT SOCKINFO *info :	socket info
+* Parameters :
+*   IN http_parser_t *parser :  Parsed request received by the device
+*   IN http_message_t* request :    HTTP request 
+*   INOUT SOCKINFO *info :      socket info
 *
-*	Description :	This is a callback called by minisever after receiving 
-*		the request from the control point. This function will start 
-*		processing the request. It calls handle_invoke_action to handle the
-*		SOAP action
+* Description : This is a callback called by minisever after receiving 
+*   the request from the control point. This function will start 
+*   processing the request. It calls handle_invoke_action to handle the
+*   SOAP action
 *
-*	Return :	void
+* Return : void
 *
-*	Note :
+* Note :
 ****************************************************************************/
-void soap_device_callback( 
-						  IN http_parser_t *parser, 
-						  IN http_message_t* request, 
-						  INOUT SOCKINFO *info );
+void soap_device_callback(
+    IN http_parser_t *parser, 
+    IN http_message_t* request, 
+    INOUT SOCKINFO *info );
 
 
 /****************************************************************************
-*	Function :	SoapSendAction
+*   Function :  SoapSendAction
 *
-*	Parameters :
-*		IN char* action_url :	device contrl URL 
-*		IN char *service_type :	device service type
-*		IN IXML_Document *action_node : SOAP action node	
-*		OUT IXML_Document **response_node :	SOAP response node
+*   Parameters :
+*       IN char* action_url :   device contrl URL 
+*       IN char *service_type : device service type
+*       IN IXML_Document *action_node : SOAP action node    
+*       IN gnutls_session_t session :   gnutls TLS session to use. If NULL, won't use TLS
+*       OUT IXML_Document **response_node : SOAP response node
 *
-*	Description :	This function is called by UPnP API to send the SOAP 
-*		action request and waits till it gets the response from the device
-*		pass the response to the API layer
+*   Description :   This function is called by UPnP API to send the SOAP 
+*       action request and waits till it gets the response from the device
+*       pass the response to the API layer
 *
-*	Return :	int
-*		returns UPNP_E_SUCCESS if successful else returns appropriate error
-*	Note :
+*   Return :    int
+*       returns UPNP_E_SUCCESS if successful else returns appropriate error
+*   Note :
 ****************************************************************************/
 int SoapSendAction( 
-		IN char* action_url, 
-		IN char *service_type,
-		IN IXML_Document *action_node,
-		OUT IXML_Document **response_node );
+        IN char* action_url, 
+        IN char *service_type,
+        IN IXML_Document *action_node,
+        IN gnutls_session_t session,
+        OUT IXML_Document **response_node );
 
 /****************************************************************************
-*	Function :	SoapSendActionEx
+*   Function :  SoapSendActionEx
 *
-*	Parameters :
-*		IN char* action_url :	device contrl URL 
-*		IN char *service_type :	device service type
-		IN IXML_Document *Header: Soap header
-*		IN IXML_Document *action_node : SOAP action node ( SOAP body)	
-*		OUT IXML_Document **response_node :	SOAP response node
+*   Parameters :
+*       IN char* action_url :   device contrl URL 
+*       IN char *service_type : device service type
+*       IN IXML_Document *Header: Soap header
+*       IN IXML_Document *action_node : SOAP action node ( SOAP body)
+*       IN gnutls_session_t session :   gnutls TLS session to use. If NULL, won't use TLS
+*       OUT IXML_Document **response_node : SOAP response node
 *
-*	Description :	This function is called by UPnP API to send the SOAP 
-*		action request and waits till it gets the response from the device
-*		pass the response to the API layer. This action is similar to the 
-*		the SoapSendAction with only difference that it allows users to 
-*		pass the SOAP header along the SOAP body ( soap action request)
+*   Description :   This function is called by UPnP API to send the SOAP 
+*       action request and waits till it gets the response from the device
+*       pass the response to the API layer. This action is similar to the 
+*       the SoapSendAction with only difference that it allows users to 
+*       pass the SOAP header along the SOAP body ( soap action request)
 *
-*	Return :	int
-*		returns UPNP_E_SUCCESS if successful else returns appropriate error
-*	Note :
+*   Return :    int
+*       returns UPNP_E_SUCCESS if successful else returns appropriate error
+*   Note :
 ****************************************************************************/
 int SoapSendActionEx(
-		IN char * ActionURL, 
-		IN char *ServiceType, 
-		IN IXML_Document *Header,
-		IN IXML_Document *ActNode , 
-		OUT IXML_Document **RespNode) ;
+        IN char * ActionURL, 
+        IN char *ServiceType, 
+        IN IXML_Document *Header,
+        IN IXML_Document *ActNode,
+        IN gnutls_session_t session, 
+        OUT IXML_Document **RespNode) ;
 
 /****************************************************************************
-*	Function :	SoapGetServiceVarStatus
+*   Function :  SoapGetServiceVarStatus
 *
-*	Parameters :
-*			IN  char * action_url :	Address to send this variable 
-*									query message.
-*			IN  char *var_name : Name of the variable.
-*			OUT char **var_value :	Output value.
+*   Parameters :
+*           IN  char * action_url : Address to send this variable 
+*                                   query message.
+*           IN  char *var_name : Name of the variable.
+*           OUT char **var_value :  Output value.
 *
-*	Description :	This function creates a status variable query message 
-*		send it to the specified URL. It also collect the response.
+*   Description :   This function creates a status variable query message 
+*       send it to the specified URL. It also collect the response.
 *
-*	Return :	int
+*   Return :    int
 *
-*	Note :
+*   Note :
 ****************************************************************************/
 int SoapGetServiceVarStatus(
-				IN char * ActionURL, 
-				IN DOMString VarName, 
-				OUT DOMString *StVar) ;   
+                IN char * ActionURL, 
+                IN DOMString VarName,
+                OUT DOMString *StVar) ;   
 
-
-// extern form the HTTP parser.
 extern const char* ContentTypeHeader;
 
 #endif //SOAPLIB_H

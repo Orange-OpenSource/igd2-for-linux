@@ -1561,6 +1561,45 @@ EXPORT_SPEC int UpnpSendAction(
 
 
 /*!
+ * \brief Sends a message to change a state variable in a service through SSL.
+ *
+ * This is a synchronous call that does not return until the action is complete.
+ * 
+ * Note that a positive return value indicates a SOAP-protocol error code.
+ * In this case,  the error description can be retrieved from \b RespNode.
+ * A negative return value indicates an SDK error.
+ *
+ * \return An integer representing one of the following:
+ *     \li \c UPNP_E_SUCCESS: The operation completed successfully.
+ *     \li \c UPNP_E_INVALID_HANDLE: The handle is not a valid control 
+ *             point handle.
+ *     \li \c UPNP_E_INVALID_URL: \b ActionUrl is not a valid URL.
+ *     \li \c UPNP_E_INVALID_ACTION: This action is not valid.
+ *     \li \c UPNP_E_INVALID_DEVICE: \b DevUDN is not a 
+ *             valid device.
+ *     \li \c UPNP_E_INVALID_PARAM: \b ServiceType, \b Action, 
+ *             \b ActionUrl, or 
+ *             \b RespNode is not a valid pointer.
+ *     \li \c UPNP_E_OUTOF_MEMORY: Insufficient resources exist to 
+ *             complete this operation.
+ */
+EXPORT_SPEC int UpnpSendActionSSL(
+    /*! [in] The handle of the control point sending the action. */
+    UpnpClient_Handle Hnd,
+    /*! [in] The action URL of the service. */
+    const char *ActionURL,
+    /*! [in] The type of the service. */
+    const char *ServiceType,
+    /*! [in] This parameter is ignored and must be \c NULL. */
+    const char *DevUDN,
+    /*! [in] The DOM document for the action. */
+    IXML_Document *Action,
+    /*! [out] The DOM document for the response to the action. The SDK allocates
+     * this document and the caller needs to free it. */
+    IXML_Document **RespNode);
+    
+
+/*!
  * \brief Sends a message to change a state variable in a service.
  *
  * This is a synchronous call that does not return until the action is complete.

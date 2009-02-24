@@ -333,6 +333,7 @@ add_man_header( INOUT membuffer * headers )
 *	Parameters :
 *		IN membuffer* request :	request that will be sent to the device
 *		IN uri_type* destination_url :	destination address string
+*       IN gnutls_session_t session :   gnutls TLS session to use. If NULL, won't use TLS
 *		OUT http_parser_t *response :	response from the device
 *
 *	Description :	This function sends the control point's request to the 
@@ -345,6 +346,7 @@ add_man_header( INOUT membuffer * headers )
 static int
 soap_request_and_response( IN membuffer * request,
                            IN uri_type * destination_url,
+                           IN gnutls_session_t session,
                            OUT http_parser_t * response )
 {
     int ret_code;
@@ -352,7 +354,7 @@ soap_request_and_response( IN membuffer * request,
     ret_code = http_RequestAndResponse( destination_url, request->buf,
                                         request->length,
                                         SOAPMETHOD_POST,
-                                        UPNP_TIMEOUT, response );
+                                        UPNP_TIMEOUT, session, response );
     if( ret_code != 0 ) {
         httpmsg_destroy( &response->msg );
         return ret_code;
@@ -370,7 +372,7 @@ soap_request_and_response( IN membuffer * request,
         ret_code = http_RequestAndResponse( destination_url, request->buf,
                                             HTTPMETHOD_MPOST,
                                             request->length, UPNP_TIMEOUT,
-                                            response );
+                                            session, response );
         if( ret_code != 0 ) {
             httpmsg_destroy( &response->msg );
         }
@@ -573,7 +575,8 @@ get_response_value( IN http_message_t * hmsg,
 *	Parameters :
 *		IN char* action_url :	device contrl URL 
 *		IN char *service_type :	device service type
-*		IN IXML_Document *action_node : SOAP action node	
+*		IN IXML_Document *action_node : SOAP action node
+*       IN gnutls_session_t session :   gnutls TLS session to use. If NULL, won't use TLS
 *		OUT IXML_Document **response_node :	SOAP response node
 *
 *	Description :	This function is called by UPnP API to send the SOAP 
@@ -588,6 +591,7 @@ int
 SoapSendAction( IN char *action_url,
                 IN char *service_type,
                 IN IXML_Document * action_node,
+                IN gnutls_session_t session,
                 OUT IXML_Document ** response_node )
 {
     char *action_str = NULL;
@@ -601,7 +605,6 @@ SoapSendAction( IN char *action_url,
     int upnp_error_code;
     char *upnp_error_str;
     xboolean got_response = FALSE;
-
     off_t content_length;
     char *xml_start =
         "<s:Envelope "
@@ -641,6 +644,10 @@ SoapSendAction( IN char *action_url,
         goto error_handler;
     }
 
+    // if session exists, use port 443. Nicely hard coded here. Fix this when know more how it should be Should this even exist
+    if (session != NULL)
+        url.hostport.IPv4address.sin_port = htons( 443 );
+
     UpnpPrintf( UPNP_INFO, SOAP, __FILE__, __LINE__,
         "path=%.*s, hostport=%.*s\n",
         (int)url.pathquery.size,
@@ -668,7 +675,7 @@ SoapSendAction( IN char *action_url,
         goto error_handler;
     }
 
-    ret_code = soap_request_and_response( &request, &url, &response );
+    ret_code = soap_request_and_response( &request, &url, session, &response );
     got_response = TRUE;
     if( ret_code != UPNP_E_SUCCESS ) {
         err_code = ret_code;
@@ -710,8 +717,9 @@ error_handler:
 *	Parameters :
 *		IN char* action_url :	device contrl URL 
 *		IN char *service_type :	device service type
-		IN IXML_Document *Header: Soap header
+*		IN IXML_Document *Header: Soap header
 *		IN IXML_Document *action_node : SOAP action node ( SOAP body)	
+*       IN gnutls_session_t session :   gnutls TLS session to use. If NULL, won't use TLS
 *		OUT IXML_Document **response_node :	SOAP response node
 *
 *	Description :	This function is called by UPnP API to send the SOAP 
@@ -729,6 +737,7 @@ SoapSendActionEx( IN char *action_url,
                   IN char *service_type,
                   IN IXML_Document * header,
                   IN IXML_Document * action_node,
+                  IN gnutls_session_t session,
                   OUT IXML_Document ** response_node )
 {
     char *xml_header_str = NULL;
@@ -836,7 +845,7 @@ SoapSendActionEx( IN char *action_url,
         goto error_handler;
     }
 
-    ret_code = soap_request_and_response( &request, &url, &response );
+    ret_code = soap_request_and_response( &request, &url, session, &response );
     got_response = TRUE;
     if( ret_code != UPNP_E_SUCCESS ) {
         err_code = ret_code;
@@ -881,6 +890,7 @@ SoapSendActionEx( IN char *action_url,
 *			IN  char * action_url :	Address to send this variable 
 *									query message.
 *			IN  char *var_name : Name of the variable.
+*           IN gnutls_session_t session :   gnutls TLS session to use. If NULL, won't use TLS
 *			OUT char **var_value :	Output value.
 *
 *	Description :	This function creates a status variable query message 
@@ -941,7 +951,7 @@ SoapGetServiceVarStatus( IN char *action_url,
         return UPNP_E_OUTOF_MEMORY;
     }
     // send msg and get reply
-    ret_code = soap_request_and_response( &request, &url, &response );
+    ret_code = soap_request_and_response( &request, &url, NULL, &response );
     membuffer_destroy( &request );
     if( ret_code != UPNP_E_SUCCESS ) {
         return ret_code;
