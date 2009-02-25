@@ -353,13 +353,24 @@ int SetSubnetMask( struct Upnp_Action_Request *ca_event )
     char *subnet_mask;
     char command[INET6_ADDRSTRLEN];
     char *args[] = { g_vars.uciCmd, "set", NULL, NULL };
+    regex_t reg_ip;
 
     if ( CheckDHCPServerConfigurable( ca_event ) )
         return ca_event->ErrCode;
 
     if ( ( subnet_mask = GetFirstDocumentItem( ca_event->ActionRequest, "NewSubnetMask" ) ) )
     {
-        /** @todo Check that the new netmask is valid before applying it */
+        // sanitize input
+        regcomp(&reg_ip, REGEX_IP_LASTBYTE, REG_EXTENDED);
+        if( regexec( &reg_ip, subnet_mask, 0, 0, 0 ) != 0 )
+        {
+            trace( 1, "SetDomainName: subnet mask contains invalid characters: '%s'.", subnet_mask );
+            InvalidArgs( ca_event );
+            regfree( &reg_ip );
+            return ca_event->ErrCode;
+        }
+        regfree( &reg_ip );
+        
         snprintf( command, INET6_ADDRSTRLEN, "network.lan.netmask=%s", subnet_mask );
         args[2] = command;
         RunCommand( g_vars.uciCmd, args );
@@ -549,13 +560,24 @@ int SetDomainName( struct Upnp_Action_Request *ca_event )
     FILE *cmd = NULL;
     char *domainName;
     char setdomain_cmd[LINE_LEN];
+    regex_t reg_domain;
 
     if ( CheckDHCPServerConfigurable( ca_event ) )
         return ca_event->ErrCode;
 
     if ( ( domainName = GetFirstDocumentItem( ca_event->ActionRequest, "NewDomainName" ) ) )
     {
-        // try to run uci command
+        // sanitize input
+        regcomp(&reg_domain, REGEX_DOMAIN_NAME, REG_EXTENDED);
+        if( regexec( &reg_domain, domainName, 0, 0, 0 ) != 0 )
+        {
+            trace( 1, "SetDomainName: Domain Name contains invalid characters: '%s'.", domainName );
+            InvalidArgs( ca_event );
+            regfree(&reg_domain);
+            return ca_event->ErrCode;
+        }
+        regfree(&reg_domain);
+        
         snprintf( setdomain_cmd, LINE_LEN, "uci set dhcp.@dnsmasq[0].domain=%s", domainName );
         cmd = popen( setdomain_cmd, "r" );
         if ( cmd == NULL )
@@ -719,7 +741,7 @@ int ParseAddressRange( struct Upnp_Action_Request *ca_event,
  * Sets the address range dhcp server will give out.
  *
  * @todo Maybe we should use the 3 first parts of the ip address to set the ip address of this router?
- * Now they are just being ignored.
+ * Now they are just ignored.
  *
  * @param ca_event Upnp event struct.
  * @return Upnp error code.
