@@ -2057,7 +2057,7 @@ int AddNewPortMapping(struct Upnp_Action_Request *ca_event, char* new_enabled, i
  */
 int AuthorizeControlPoint(struct Upnp_Action_Request *ca_event)
 {
-    return CONTROL_POINT_AUTHORIZED;
-    //return 0;
+    //return CONTROL_POINT_AUTHORIZED;
+    return 0;
 }
 
