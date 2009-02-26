@@ -462,6 +462,8 @@ handle_https_request(void *args)
     info.tls_session = session;
     info.socket = sock;
 
+    // serve session until peer closes connection or corrupted data is received
+    // should here be some sort of expiration time, if no bye is received?
     while (TRUE)
     {
         memset (buffer, 0, MAX_BUF + 1);

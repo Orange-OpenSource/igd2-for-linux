@@ -32,7 +32,6 @@
 #ifndef SOAPLIB_H
 #define SOAPLIB_H 
 
-#include <gnutls/gnutls.h>
 
 // SOAP module API to be called in Upnp-Dk API
 /****************************************************************************

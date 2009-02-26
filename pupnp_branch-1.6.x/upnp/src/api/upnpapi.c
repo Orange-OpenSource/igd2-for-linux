@@ -34,14 +34,12 @@
 
 
 #include <sys/stat.h>
-
+#include <netinet/in.h>
 
 #include <assert.h>
 #include <signal.h>
 #include <stdlib.h>
 #include <string.h>
-#include <gnutls/gnutls.h>
-
 
 #ifndef WIN32
     #include <arpa/inet.h>
@@ -1245,6 +1243,7 @@ UpnpRegisterClient( IN Upnp_FunPtr Fun,
                     OUT UpnpClient_Handle * Hnd )
 {
     struct Handle_Info *HInfo;
+    struct SSL_Info *SslInfo;
 
     if( UpnpSdkInit != 1 ) {
         return UPNP_E_FINISH;
@@ -1270,12 +1269,20 @@ UpnpRegisterClient( IN Upnp_FunPtr Fun,
         HandleUnlock();
         return UPNP_E_OUTOF_MEMORY;
     }
+    SslInfo = ( struct SSL_Info * )malloc( sizeof( struct SSL_Info ) );
+    if( SslInfo == NULL ) {
+        HandleUnlock();
+        return UPNP_E_OUTOF_MEMORY;
+    }
 
     HInfo->HType = HND_CLIENT;
     HInfo->Callback = Fun;
     HInfo->Cookie = ( void * )Cookie;
     HInfo->ClientSubList = NULL;
     ListInit( &HInfo->SsdpSearchList, NULL, NULL );
+    SslInfo->tls_session = NULL;
+    SslInfo->tls_cred = NULL;
+    HInfo->SSLInfo = SslInfo;
 #ifdef INCLUDE_DEVICE_APIS
     HInfo->MaxAge = 0;
     HInfo->MaxSubscriptions = UPNP_INFINITE;
@@ -1362,6 +1369,197 @@ UpnpUnRegisterClient( IN UpnpClient_Handle Hnd )
     return UPNP_E_SUCCESS;
 
 }  /****************** End of UpnpUnRegisterClient *********************/
+#endif // INCLUDE_CLIENT_APIS
+
+#ifdef INCLUDE_CLIENT_APIS
+/**************************************************************************
+ * Function: UpnpRegisterClientSSLSession
+ *
+ * Parameters:  
+ *  IN const char *CertFile: Selfsigned certificate file of server
+ *  IN const char *PrivKeyFile: Private key file of server.
+ *  IN const char *TrustFile: File containing trusted certificates. (PEM format)
+ *  IN const char *CRLFile: Certificate revocation list. Untrusted certificates. (PEM format)
+ *  IN const char *ActionURL_const: The action URL of the service. Target IP is parsed from this.
+ *  INOUT UpnpClient_Handle Hnd: Handle to add the SSL Session.
+ *
+ * Description:
+ *  This function creates new SSL session which client can use for secure
+ *  data trasmission with secured device. Created SSL session can be terminated 
+ *  with UpnpUnRegisterClientSSLSession.
+ *
+ * Return Values: int
+ *      
+ ***************************************************************************/
+int
+UpnpRegisterClientSSLSession( IN const char *CertFile,
+                              IN const char *PrivKeyFile,
+                              IN const char *TrustFile,
+                              IN const char *CRLFile,
+                              IN const char *ActionURL_const,
+                              INOUT UpnpClient_Handle Hnd )
+{
+    struct Handle_Info *SInfo = NULL;
+    int retVal = 0;
+    int ret, sd;
+    const char *err;
+    uri_type url;
+    gnutls_certificate_credentials_t xcred;
+    gnutls_session_t session;
+
+    if( UpnpSdkInit != 1 ) {
+        return UPNP_E_FINISH;
+    }
+
+    UpnpPrintf( UPNP_ALL, API, __FILE__, __LINE__,
+        "Inside UpnpRegisterClientSSLSession \n" );
+
+    HandleReadLock();
+    if( GetHandleInfo( Hnd, &SInfo ) != HND_CLIENT ) {
+        HandleUnlock();
+        return UPNP_E_INVALID_HANDLE;
+    }
+    HandleUnlock();
+
+    // parse url
+    if( http_FixStrUrl( ActionURL_const, strlen( ActionURL_const ), &url ) != 0 ) {
+        return UPNP_E_INVALID_URL;
+    }
+    // if session exists, use port 443. Nicely hard coded here. Fix this when know more how it should be Should this even exist
+    url.hostport.IPv4address.sin_port = htons( 443 );
+
+    /* connects to server */
+    sd = socket (AF_INET, SOCK_STREAM, 0);
+
+    err = connect (sd, ( struct sockaddr * )&url.hostport.IPv4address, sizeof( struct sockaddr_in ));
+    if (err < 0)
+    {
+        fprintf (stderr, "Connect error\n");
+        exit (1);
+    }
+
+    // create gnutls session
+    gnutls_global_init ();
+
+    /* X509 stuff */
+    gnutls_certificate_allocate_credentials (&xcred);
+
+    /* sets the trusted cas file */
+    gnutls_certificate_set_x509_trust_file (xcred, TrustFile, GNUTLS_X509_FMT_PEM);
+
+    ret = gnutls_certificate_set_x509_key_file (xcred, CertFile, PrivKeyFile, GNUTLS_X509_FMT_PEM);
+
+    // TODO error codes                    
+    if (ret != GNUTLS_E_SUCCESS)
+    {
+        fprintf (stderr, "*** cert set failed\n");
+        gnutls_perror (ret);
+        return -1;
+    }
+
+    /* Initialize TLS session */
+    gnutls_init (&session, GNUTLS_CLIENT);
+
+    /* Use default priorities */
+    ret = gnutls_priority_set_direct (session, "PERFORMANCE", &err);
+    if (ret < 0)
+    {
+        if (ret == GNUTLS_E_INVALID_REQUEST)
+        {
+            fprintf (stderr, "Syntax error at: %s\n", err);
+        }
+        return -1;
+    }
+
+    /* put the x509 credentials to the current session */
+    gnutls_credentials_set (session, GNUTLS_CRD_CERTIFICATE, xcred);
+
+    gnutls_transport_set_ptr (session, (gnutls_transport_ptr_t) sd);
+
+    /* Perform the TLS handshake  */
+    ret = gnutls_handshake (session);
+
+    if (ret < 0)
+    {
+        fprintf (stderr, "*** Handshake failed\n");
+        gnutls_perror (ret);
+        return -1;
+    }
+    else
+    {
+        printf ("- Handshake was completed\n");
+    }
+ 
+    // put session into handle
+    SInfo->SSLInfo->tls_session = session;
+    SInfo->SSLInfo->tls_cred = xcred;
+    
+    UpnpPrintf( UPNP_ALL, API, __FILE__, __LINE__,
+        "Exiting UpnpRegisterClientSSLSession \n" );
+
+    return UPNP_E_SUCCESS;
+
+}  /****************** End of UpnpRegisterClientSSLSession   *********************/
+#endif // INCLUDE_CLIENT_APIS
+
+#ifdef INCLUDE_CLIENT_APIS
+/**************************************************************************
+ * Function: UpnpUnRegisterClient
+ *
+ * Parameters:
+ *  INOUT UpnpClient_Handle Hnd: Handle to add the SSL Session.
+ *
+ * Description:
+ *  This function terminates SSL session which client can use for secure
+ *  data trasmission with secured device.
+ *
+ * Return Values: int
+ *      
+ ***************************************************************************/
+int
+UpnpUnRegisterClientSSLSession( INOUT UpnpClient_Handle Hnd )
+{
+    struct Handle_Info *SInfo = NULL;
+    int retVal = 0;
+    int sd;
+
+    if( UpnpSdkInit != 1 ) {
+        return UPNP_E_FINISH;
+    }
+
+    UpnpPrintf( UPNP_ALL, API, __FILE__, __LINE__,
+        "Inside UpnpUnRegisterClientSSLSession \n" );
+
+    HandleReadLock();
+    if( GetHandleInfo( Hnd, &SInfo ) != HND_CLIENT ) {
+        HandleUnlock();
+        return UPNP_E_INVALID_HANDLE;
+    }
+    HandleUnlock();
+
+    //TODO handle error codes
+    gnutls_bye (SInfo->SSLInfo->tls_session, GNUTLS_SHUT_RDWR);
+    
+    // close socket
+    sd = (int)gnutls_transport_get_ptr(SInfo->SSLInfo->tls_session);
+    shutdown (sd, SHUT_RDWR); /* no more receptions */
+    close (sd);
+    
+    gnutls_deinit (SInfo->SSLInfo->tls_session);
+
+    gnutls_certificate_free_credentials (SInfo->SSLInfo->tls_cred);
+
+    gnutls_global_deinit ();
+ 
+    SInfo->SSLInfo->tls_session = NULL;
+    SInfo->SSLInfo->tls_cred = NULL;
+    
+    UpnpPrintf( UPNP_ALL, API, __FILE__, __LINE__,
+        "Exiting UpnpUnRegisterClientSSLSession \n" );
+
+    return UPNP_E_SUCCESS;
+
+}  /****************** End of UpnpUnRegisterClientSSLSession   *********************/
 #endif // INCLUDE_CLIENT_APIS
 
 //-----------------------------------------------------------------------------
@@ -2414,50 +2612,6 @@ UpnpSendAction( IN UpnpClient_Handle Hnd,
 }  /****************** End of UpnpSendAction *********************/
 
 
-
-
-#include <netinet/in.h>
-
-#define SA struct sockaddr
-
-extern int
-tcp_connect (void)
-{
-  const char *PORT = "443";
-  const char *SERVER = "127.0.0.1";
-  int err, sd;
-  struct sockaddr_in sa;
-
-  /* connects to server
-   */
-  sd = socket (AF_INET, SOCK_STREAM, 0);
-
-  memset (&sa, '\0', sizeof (sa));
-  sa.sin_family = AF_INET;
-  sa.sin_port = htons (atoi (PORT));
-  inet_pton (AF_INET, SERVER, &sa.sin_addr);
-
-  err = connect (sd, (SA *) & sa, sizeof (sa));
-  if (err < 0)
-    {
-      fprintf (stderr, "Connect error\n");
-      exit (1);
-    }
-
-  return sd;
-}
-
-/* closes the given socket descriptor.
- */
-extern void
-tcp_close (int sd)
-{
-  shutdown (sd, SHUT_RDWR); /* no more receptions */
-  close (sd);
-}
-
-
-
 /**************************************************************************
  * Function: UpnpSendActionSSL 
  *
@@ -2465,8 +2619,7 @@ tcp_close (int sd)
  *  IN UpnpClient_Handle Hnd: The handle of the control point 
  *      sending the action. 
  *  IN const char *ActionURL: The action URL of the service. 
- *  IN const char *ServiceType: The type of the service. 
- *  IN const char *DevUDN: This parameter is ignored. 
+ *  IN const char *ServiceType: The type of the service.
  *  IN IXML_Document *Action: The DOM document for the action. 
  *  OUT IXML_Document **RespNode: The DOM document for the response 
  *      to the action.  The UPnP Library allocates this document
@@ -2489,7 +2642,6 @@ int
 UpnpSendActionSSL( IN UpnpClient_Handle Hnd,
                    IN const char *ActionURL_const,
                    IN const char *ServiceType_const,
-                   IN const char *DevUDN_const,
                    IN IXML_Document * Action,
                    OUT IXML_Document ** RespNodePtr )
 {
@@ -2499,18 +2651,12 @@ UpnpSendActionSSL( IN UpnpClient_Handle Hnd,
     char *ServiceType = ( char * )ServiceType_const;
     gnutls_session_t session;
 
-    //char *DevUDN = (char *)DevUDN_const;  // udn not used?
-
     if( UpnpSdkInit != 1 ) {
         return UPNP_E_FINISH;
     }
 
     UpnpPrintf( UPNP_ALL, API, __FILE__, __LINE__,
         "Inside UpnpSendActionSSL \n" );
-    if(DevUDN_const !=NULL) {
-    UpnpPrintf(UPNP_ALL,API,__FILE__,__LINE__,"non NULL DevUDN is ignored\n");
-    }
-    DevUDN_const = NULL;
 
     HandleReadLock();
     if( GetHandleInfo( Hnd, &SInfo ) != HND_CLIENT ) {
@@ -2523,81 +2669,11 @@ UpnpSendActionSSL( IN UpnpClient_Handle Hnd,
         return UPNP_E_INVALID_PARAM;
     }
 
-    if( ServiceType == NULL || Action == NULL || RespNodePtr == NULL
-        || DevUDN_const != NULL ) {
-
+    if( ServiceType == NULL || Action == NULL || RespNodePtr == NULL ) {
         return UPNP_E_INVALID_PARAM;
     }
 
-
-
-    // create gnutls session
-  gnutls_certificate_credentials_t xcred;
-  int ret, sd;
-  const char *err;
-
-  gnutls_global_init ();
-
-  /* X509 stuff */
-  gnutls_certificate_allocate_credentials (&xcred);
-
-  /* sets the trusted cas file
-   */
-  gnutls_certificate_set_x509_trust_file (xcred, "newreq.pem", GNUTLS_X509_FMT_PEM);
-
-
-    ret = gnutls_certificate_set_x509_key_file (xcred, "newreq.pem", "newreq.pem", GNUTLS_X509_FMT_PEM);
-                    
-    if (ret != GNUTLS_E_SUCCESS)
-    {
-      fprintf (stderr, "*** cert set failed\n");
-      gnutls_perror (ret);
-      return -1;
-    }
-
-
-  /* Initialize TLS session 
-   */
-  gnutls_init (&session, GNUTLS_CLIENT);
-
-  /* Use default priorities */
-  ret = gnutls_priority_set_direct (session, "PERFORMANCE", &err);
-  if (ret < 0)
-    {
-      if (ret == GNUTLS_E_INVALID_REQUEST)
-    {
-      fprintf (stderr, "Syntax error at: %s\n", err);
-    }
-      return -1;
-    }
-
-  /* put the x509 credentials to the current session
-   */
-  gnutls_credentials_set (session, GNUTLS_CRD_CERTIFICATE, xcred);
-
-  /* connect to the peer
-   */
-  sd = tcp_connect ();
-
-  gnutls_transport_set_ptr (session, (gnutls_transport_ptr_t) sd);
-
-  /* Perform the TLS handshake
-   */
-  ret = gnutls_handshake (session);
-
-  if (ret < 0)
-    {
-      fprintf (stderr, "*** Handshake failed\n");
-      gnutls_perror (ret);
-      return -1;
-    }
-  else
-    {
-      printf ("- Handshake was completed\n");
-    }
-    
-    
-    
+    session = SInfo->SSLInfo->tls_session;
 
     retVal = SoapSendAction( ActionURL, ServiceType, Action, session, RespNodePtr );
 

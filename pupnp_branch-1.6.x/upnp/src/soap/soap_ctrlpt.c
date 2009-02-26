@@ -644,10 +644,6 @@ SoapSendAction( IN char *action_url,
         goto error_handler;
     }
 
-    // if session exists, use port 443. Nicely hard coded here. Fix this when know more how it should be Should this even exist
-    if (session != NULL)
-        url.hostport.IPv4address.sin_port = htons( 443 );
-
     UpnpPrintf( UPNP_INFO, SOAP, __FILE__, __LINE__,
         "path=%.*s, hostport=%.*s\n",
         (int)url.pathquery.size,

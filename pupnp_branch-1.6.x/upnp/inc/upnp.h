@@ -1301,6 +1301,43 @@ EXPORT_SPEC int UpnpRegisterClient(
 
 
 /*!
+ * \brief Create new SSL Session and add it for client handle.
+ * 
+ *  This function creates new SSL session which client can use for secure
+ *  data trasmission with secured device. Created SSL session can be terminated 
+ *  with UpnpUnRegisterClientSSLSession.
+ *
+ * \return An integer
+ */
+EXPORT_SPEC int UpnpRegisterClientSSLSession( 
+    /*! [in] Selfsigned certificate file of server. */
+    IN const char *CertFile,
+    /*! [in]  Private key file of server. */
+    IN const char *PrivKeyFile,
+    /*! [in] File containing trusted certificates. (PEM format) */
+    IN const char *TrustFile,
+    /*! [in] Certificate revocation list. Untrusted certificates. (PEM format) */
+    IN const char *CRLFile,
+    /*! [in] The action URL of the service. Target IP is parsed from this. */
+    IN const char *ActionURL_const,
+    /*! [inout] Handle to add the SSL Session. */
+    INOUT UpnpClient_Handle Hnd );
+
+
+/*!
+ * \brief Terminate SSL Session and remove it from client handle.
+ * 
+ *  This function terminates SSL session which client can use for secure
+ *  data trasmission with secured device.
+ *
+ * \return An integer
+ */    
+EXPORT_SPEC int UpnpUnRegisterClientSSLSession(
+    /*! [inout] Handle to add the SSL Session. */ 
+    INOUT UpnpClient_Handle Hnd );    
+
+
+/*!
  * \brief Unregisters a control point application, unsubscribing all active
  * subscriptions.
  *
@@ -1575,8 +1612,6 @@ EXPORT_SPEC int UpnpSendAction(
  *             point handle.
  *     \li \c UPNP_E_INVALID_URL: \b ActionUrl is not a valid URL.
  *     \li \c UPNP_E_INVALID_ACTION: This action is not valid.
- *     \li \c UPNP_E_INVALID_DEVICE: \b DevUDN is not a 
- *             valid device.
  *     \li \c UPNP_E_INVALID_PARAM: \b ServiceType, \b Action, 
  *             \b ActionUrl, or 
  *             \b RespNode is not a valid pointer.
@@ -1590,8 +1625,6 @@ EXPORT_SPEC int UpnpSendActionSSL(
     const char *ActionURL,
     /*! [in] The type of the service. */
     const char *ServiceType,
-    /*! [in] This parameter is ignored and must be \c NULL. */
-    const char *DevUDN,
     /*! [in] The DOM document for the action. */
     IXML_Document *Action,
     /*! [out] The DOM document for the response to the action. The SDK allocates

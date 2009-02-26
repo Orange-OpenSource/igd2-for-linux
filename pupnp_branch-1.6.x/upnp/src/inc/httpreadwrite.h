@@ -32,8 +32,6 @@
 #ifndef GENLIB_NET_HTTP_HTTPREADWRITE_H
 #define GENLIB_NET_HTTP_HTTPREADWRITE_H
 
-//#include <gnutls/gnutls.h>
-
 #include "config.h"
 #include "util.h"
 #include "sock.h"

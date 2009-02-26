@@ -34,6 +34,7 @@
 #ifndef UPNPDK_H
 #define UPNPDK_H
 
+#include <gnutls/gnutls.h>
 #include "upnp.h"
 #include "client_table.h"
 //#include "../ssdp/ssdplib.h"
@@ -59,6 +60,13 @@ extern size_t g_maxContentLength;
 #define UPNP_TIMEOUT	30
 
 typedef enum {HND_INVALID=-1,HND_CLIENT,HND_DEVICE} Upnp_Handle_Type;
+
+// data used for SSL sessions
+struct SSL_Info
+{
+    gnutls_session_t tls_session; // tls session
+    gnutls_certificate_credentials_t tls_cred;
+};
 
 // Data to be stored in handle table for
 struct Handle_Info
@@ -89,7 +97,8 @@ struct Handle_Info
     // Client only
 #ifdef INCLUDE_CLIENT_APIS
     client_subscription *ClientSubList; //client subscription list
-    LinkedList SsdpSearchList; // active ssdp searches   
+    LinkedList SsdpSearchList; // active ssdp searches  
+    struct SSL_Info *SSLInfo;
 #endif
     int   aliasInstalled;       // 0 = not installed; otherwise installed
 };
