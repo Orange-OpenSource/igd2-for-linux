@@ -96,21 +96,21 @@ static int verify_certificate (gnutls_session_t session, const char *hostname)
     {
         UpnpPrintf( UPNP_CRITICAL, MSERV, __FILE__, __LINE__,
             "Peer certificate is not trusted\n");        
-        return -1;
+        return GNUTLS_CERT_INVALID;
     }
 
     if (status & GNUTLS_CERT_SIGNER_NOT_FOUND)
     {
         UpnpPrintf( UPNP_CRITICAL, MSERV, __FILE__, __LINE__,
             "Peer certificate hasn't got a known issuer\n");           
-        return -1;
+        return GNUTLS_CERT_SIGNER_NOT_FOUND;
     }
 
     if (status & GNUTLS_CERT_REVOKED)
     {
         UpnpPrintf( UPNP_CRITICAL, MSERV, __FILE__, __LINE__,
             "Peer certificate has been revoked\n");       
-        return -1;
+        return GNUTLS_CERT_REVOKED;
     }
 
 
@@ -118,11 +118,11 @@ static int verify_certificate (gnutls_session_t session, const char *hostname)
      * OpenPGP keys. From now on X.509 certificates are assumed. This can
      * be easily extended to work with openpgp keys as well.
      */
-    if (gnutls_certificate_type_get (session) != GNUTLS_CRT_X509)
+    if ((ret = gnutls_certificate_type_get (session)) != GNUTLS_CRT_X509)
     {
         UpnpPrintf( UPNP_CRITICAL, MSERV, __FILE__, __LINE__,
             "Peer certificate type must be X.509. Wrong type received.\n");          
-        return -1;
+        return GNUTLS_E_UNSUPPORTED_CERTIFICATE_TYPE;
     }
 
     if ((ret = gnutls_x509_crt_init (&cert)) != GNUTLS_E_SUCCESS)
@@ -137,7 +137,7 @@ static int verify_certificate (gnutls_session_t session, const char *hostname)
     {
         UpnpPrintf( UPNP_CRITICAL, MSERV, __FILE__, __LINE__,
             "No Peer certificate was found\n");
-        return -1;
+        return GNUTLS_E_NO_CERTIFICATE_FOUND;
     }
 
     int i;
@@ -147,6 +147,7 @@ static int verify_certificate (gnutls_session_t session, const char *hostname)
         {
             UpnpPrintf( UPNP_CRITICAL, MSERV, __FILE__, __LINE__,
                 "Error parsing Peer certificate: %s\n",gnutls_strerror(ret) );
+            gnutls_x509_crt_deinit (cert);    
             return ret;
         }
     
@@ -156,21 +157,24 @@ static int verify_certificate (gnutls_session_t session, const char *hostname)
         {
             UpnpPrintf( UPNP_CRITICAL, MSERV, __FILE__, __LINE__,
                 "Peer certificate has expired\n");
-            return -1;
+            gnutls_x509_crt_deinit (cert);
+            return GNUTLS_E_X509_CERTIFICATE_ERROR;
         }
     
         if (gnutls_x509_crt_get_activation_time (cert) > time (0))
         {
             UpnpPrintf( UPNP_CRITICAL, MSERV, __FILE__, __LINE__,
                 "Peer certificate is not yet activated\n");
-            return -1;
+            gnutls_x509_crt_deinit (cert);
+            return GNUTLS_E_X509_CERTIFICATE_ERROR;
         }
     
         if (!gnutls_x509_crt_check_hostname (cert, hostname))
         {
             UpnpPrintf( UPNP_CRITICAL, MSERV, __FILE__, __LINE__,
                 "Peer certificate's owner does not match hostname '%s'\n",hostname);
-            return -1;
+            gnutls_x509_crt_deinit (cert);
+            return GNUTLS_E_X509_CERTIFICATE_ERROR;
         }
     
         gnutls_x509_crt_deinit (cert);
@@ -456,7 +460,10 @@ handle_https_request(void *args)
 
     // TODO: what is hostname value?????????! Is this even needed?
     // check client certificate. Is it trusted and such
-    verify_certificate(session, "TestDevice");
+    if ((ret = verify_certificate(session, "TestDevice")) != GNUTLS_E_SUCCESS) {
+        
+        //goto error_handler;
+    }
 
     SOCKINFO info;
     info.tls_session = session;
@@ -593,7 +600,7 @@ RunHttpsServer( SOCKET listen_sd )
  *
  * Return: int
  *  Actual port socket is bound to - On Success
- *  A negative number UPNP_E_XXX - On Error
+ *  A negative number, either UPNP or gnutls error - On Error
  ************************************************************************/
 int
 StartHttpsServer( IN unsigned short listen_port,
@@ -617,42 +624,53 @@ StartHttpsServer( IN unsigned short listen_port,
     gcry_control (GCRYCTL_ENABLE_QUICK_RANDOM, 0);
 
     /* this must be called once in the program */
-    gnutls_global_init ();
-    
-    gnutls_certificate_allocate_credentials (&x509_cred);
-    
-    ret = gnutls_certificate_set_x509_trust_file (x509_cred, TrustFile, GNUTLS_X509_FMT_PEM); // white list
-
-    if (ret < 0)
-    {
+    // create gnutls session
+    ret = gnutls_global_init ();
+    if ( ret != GNUTLS_E_SUCCESS ) {
         UpnpPrintf( UPNP_INFO, MSERV, __FILE__, __LINE__,
-            "Https Trust file failed (%s)\n\n", gnutls_strerror (ret));
-        return UPNP_E_INTERNAL_ERROR;       
+            "StartHttpsServer: gnutls_global_init failed. (%s) \n\n", gnutls_strerror(ret) );        
+        return ret;       
     }
     
-    if (CRLFile)
-    {
-        ret = gnutls_certificate_set_x509_crl_file (x509_cred, CRLFile, GNUTLS_X509_FMT_PEM); // black list
+    ret = gnutls_certificate_allocate_credentials (&x509_cred);
+    if ( ret != GNUTLS_E_SUCCESS ) {
+        UpnpPrintf( UPNP_INFO, MSERV, __FILE__, __LINE__,
+            "StartHttpsServer: gnutls_certificate_allocate_credentials failed. (%s) \n\n", gnutls_strerror(ret) );        
+        return ret;    
+    }    
     
-        if (ret < 0)
-        {
+    ret = gnutls_certificate_set_x509_trust_file (x509_cred, TrustFile, GNUTLS_X509_FMT_PEM); // white list
+    if (ret < 0) {
+        UpnpPrintf( UPNP_INFO, MSERV, __FILE__, __LINE__,
+            "StartHttpsServer: gnutls_certificate_set_x509_trust_file failed (%s)\n\n", gnutls_strerror (ret));
+        return ret;       
+    }
+    
+    if (CRLFile) {
+        ret = gnutls_certificate_set_x509_crl_file (x509_cred, CRLFile, GNUTLS_X509_FMT_PEM); // black list    
+        if (ret < 0) {
             UpnpPrintf( UPNP_INFO, MSERV, __FILE__, __LINE__,
-                "Https CRL file failed (%s)\n\n", gnutls_strerror (ret));
-            return UPNP_E_INTERNAL_ERROR;                   
+                "StartHttpsServer: gnutls_certificate_set_x509_crl_file failed. (%s)\n\n", gnutls_strerror (ret));
+            return ret;                   
         }
     }
 
-    ret = gnutls_certificate_set_x509_key_file (x509_cred, CertFile, PrivKeyFile, GNUTLS_X509_FMT_PEM);
-                    
-    if (ret != GNUTLS_E_SUCCESS)
-    {
+    ret = gnutls_certificate_set_x509_key_file (x509_cred, CertFile, PrivKeyFile, GNUTLS_X509_FMT_PEM);                    
+    if (ret != GNUTLS_E_SUCCESS) {
         UpnpPrintf( UPNP_INFO, MSERV, __FILE__, __LINE__,
-            "Https Cert and priv key failed (%s)\n\n", gnutls_strerror (ret));
-        return UPNP_E_INTERNAL_ERROR;    
+            "StartHttpsServer: gnutls_certificate_set_x509_key_file failed. (%s)\n\n", gnutls_strerror (ret));
+        return ret;    
     }
                         
     generate_dh_params ();
-    gnutls_priority_init (&priority_cache, "NORMAL", NULL);
+    
+    ret = gnutls_priority_init (&priority_cache, "NORMAL", NULL);
+    if (ret != GNUTLS_E_SUCCESS) {
+        UpnpPrintf( UPNP_INFO, MSERV, __FILE__, __LINE__,
+            "StartHttpsServer: gnutls_priority_init failed. (%s)\n\n", gnutls_strerror (ret));
+        return ret;    
+    }  
+      
     gnutls_certificate_set_dh_params (x509_cred, dh_params);
 
     /* create listen socket */
@@ -684,7 +702,8 @@ StartHttpsServer( IN unsigned short listen_port,
  *  void
  *
  * Description:
- *  Send ShutDown message for local https server.
+ *  Send ShutDown message for local https server. Creates ssl session for
+ *  message sending.
  *
  * Return: int
  *      Always returns 0 

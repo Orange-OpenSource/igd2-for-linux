@@ -356,7 +356,7 @@ int UpnpInit( IN const char *HostIP,
  * 
  * Returns:
  *  UPNP_E_SUCCESS on success, nonzero on failure. 
- *  UPNP_E_INIT_FAILED if starting fails.
+ *  upnps or gnutls error code if starting fails.
  *  UPNP_E_INIT if HTTPS server is already started
  *****************************************************************************/
 #if EXCLUDE_HTTPSSERVER == 0
@@ -380,7 +380,7 @@ int UpnpStartHttpsServer( IN unsigned short port,
     else if (retVal == port)
         return UPNP_E_SUCCESS;
     else 
-        return UPNP_E_INIT_FAILED;        
+        return retVal;        
 }
 #endif
  /***************** end of UpnpStartHttpsServer ******************/
@@ -1389,6 +1389,8 @@ UpnpUnRegisterClient( IN UpnpClient_Handle Hnd )
  *  with UpnpUnRegisterClientSSLSession.
  *
  * Return Values: int
+ *  UPNP_E_SUCCESS on success, nonzero on failure. Less than zero values
+ *  may be either libupnp own error codes, or gnutls error codes.
  *      
  ***************************************************************************/
 int
@@ -1401,7 +1403,7 @@ UpnpRegisterClientSSLSession( IN const char *CertFile,
 {
     struct Handle_Info *SInfo = NULL;
     int retVal = 0;
-    int ret, sd;
+    int sd;
     const char *err;
     uri_type url;
     gnutls_certificate_credentials_t xcred;
@@ -1414,6 +1416,7 @@ UpnpRegisterClientSSLSession( IN const char *CertFile,
     UpnpPrintf( UPNP_ALL, API, __FILE__, __LINE__,
         "Inside UpnpRegisterClientSSLSession \n" );
 
+    // get client handle information
     HandleReadLock();
     if( GetHandleInfo( Hnd, &SInfo ) != HND_CLIENT ) {
         HandleUnlock();
@@ -1428,67 +1431,90 @@ UpnpRegisterClientSSLSession( IN const char *CertFile,
     // if session exists, use port 443. Nicely hard coded here. Fix this when know more how it should be Should this even exist
     url.hostport.IPv4address.sin_port = htons( 443 );
 
-    /* connects to server */
+    // connects to server
     sd = socket (AF_INET, SOCK_STREAM, 0);
-
-    err = connect (sd, ( struct sockaddr * )&url.hostport.IPv4address, sizeof( struct sockaddr_in ));
-    if (err < 0)
-    {
-        fprintf (stderr, "Connect error\n");
-        exit (1);
+    if (sd == -1) {
+        return UPNP_E_SOCKET_ERROR;   
     }
 
-    // create gnutls session
-    gnutls_global_init ();
-
-    /* X509 stuff */
-    gnutls_certificate_allocate_credentials (&xcred);
-
-    /* sets the trusted cas file */
-    gnutls_certificate_set_x509_trust_file (xcred, TrustFile, GNUTLS_X509_FMT_PEM);
-
-    ret = gnutls_certificate_set_x509_key_file (xcred, CertFile, PrivKeyFile, GNUTLS_X509_FMT_PEM);
-
-    // TODO error codes                    
-    if (ret != GNUTLS_E_SUCCESS)
-    {
-        fprintf (stderr, "*** cert set failed\n");
-        gnutls_perror (ret);
-        return -1;
+    retVal = connect (sd, ( struct sockaddr * )&url.hostport.IPv4address, sizeof( struct sockaddr_in ));
+    if (retVal < 0) {
+        close (sd);        
+        return UPNP_E_SOCKET_CONNECT;
     }
 
-    /* Initialize TLS session */
-    gnutls_init (&session, GNUTLS_CLIENT);
-
-    /* Use default priorities */
-    ret = gnutls_priority_set_direct (session, "PERFORMANCE", &err);
-    if (ret < 0)
-    {
-        if (ret == GNUTLS_E_INVALID_REQUEST)
-        {
-            fprintf (stderr, "Syntax error at: %s\n", err);
-        }
-        return -1;
+    // initialize gnutls
+    retVal = gnutls_global_init ();
+    if ( retVal != GNUTLS_E_SUCCESS ) {
+        UpnpPrintf( UPNP_ALL, API, __FILE__, __LINE__,
+            "UpnpUnRegisterClient: gnutls_global_init failed. %s \n", gnutls_strerror(retVal) );
+        return retVal;    
     }
 
-    /* put the x509 credentials to the current session */
-    gnutls_credentials_set (session, GNUTLS_CRD_CERTIFICATE, xcred);
+    // set certificate credentials
+    retVal = gnutls_certificate_allocate_credentials (&xcred);
+    if ( retVal != GNUTLS_E_SUCCESS ) {
+        UpnpPrintf( UPNP_ALL, API, __FILE__, __LINE__,
+            "UpnpUnRegisterClient: gnutls_certificate_allocate_credentials failed. %s \n", gnutls_strerror(retVal) );        
+        return retVal;    
+    }
 
+    // sets the trusted cas file 
+    retVal = gnutls_certificate_set_x509_trust_file (xcred, TrustFile, GNUTLS_X509_FMT_PEM);
+    if ( retVal < 0 ) {
+        UpnpPrintf( UPNP_ALL, API, __FILE__, __LINE__,
+            "UpnpUnRegisterClient: gnutls_certificate_set_x509_trust_file failed. %s \n", gnutls_strerror(retVal) );
+        return retVal;    
+    }    
+
+    // set the client certificate and private key
+    retVal = gnutls_certificate_set_x509_key_file (xcred, CertFile, PrivKeyFile, GNUTLS_X509_FMT_PEM);                   
+    if (retVal != GNUTLS_E_SUCCESS)
+    {
+        UpnpPrintf( UPNP_ALL, API, __FILE__, __LINE__,
+            "UpnpUnRegisterClient: gnutls_certificate_set_x509_key_file failed. %s \n", gnutls_strerror(retVal) );
+        return retVal;  
+    }
+
+    // Initialize and create TLS session 
+    retVal = gnutls_init (&session, GNUTLS_CLIENT);
+    if (retVal != GNUTLS_E_SUCCESS)
+    {
+        UpnpPrintf( UPNP_ALL, API, __FILE__, __LINE__,
+            "UpnpUnRegisterClient: gnutls_init failed. %s \n", gnutls_strerror(retVal) );
+        return retVal;  
+    }
+
+    // Use default priorities 
+    retVal = gnutls_priority_set_direct (session, "PERFORMANCE", &err);
+    if (retVal < 0)
+    {
+        UpnpPrintf( UPNP_ALL, API, __FILE__, __LINE__,
+            "UpnpUnRegisterClient: gnutls_priority_set_direct failed. %s \nError at: %s\n", 
+            gnutls_strerror(retVal), err );
+        return retVal;
+    }
+
+    // put the x509 credentials to the current session 
+    retVal = gnutls_credentials_set (session, GNUTLS_CRD_CERTIFICATE, xcred);
+    if (retVal != GNUTLS_E_SUCCESS)
+    {
+        UpnpPrintf( UPNP_ALL, API, __FILE__, __LINE__,
+            "UpnpUnRegisterClient: gnutls_credentials_set failed. %s \n", gnutls_strerror(retVal) );
+        return retVal;  
+    }    
+
+    // set socket for current session
     gnutls_transport_set_ptr (session, (gnutls_transport_ptr_t) sd);
 
-    /* Perform the TLS handshake  */
-    ret = gnutls_handshake (session);
-
-    if (ret < 0)
+    // Perform the TLS handshake 
+    retVal = gnutls_handshake (session);
+    if (retVal != GNUTLS_E_SUCCESS)
     {
-        fprintf (stderr, "*** Handshake failed\n");
-        gnutls_perror (ret);
-        return -1;
-    }
-    else
-    {
-        printf ("- Handshake was completed\n");
-    }
+        UpnpPrintf( UPNP_ALL, API, __FILE__, __LINE__,
+            "UpnpUnRegisterClient: gnutls_handshake failed. %s \n", gnutls_strerror(retVal) );
+        return retVal;  
+    }  
  
     // put session into handle
     SInfo->SSLInfo->tls_session = session;
@@ -1537,8 +1563,14 @@ UpnpUnRegisterClientSSLSession( INOUT UpnpClient_Handle Hnd )
     }
     HandleUnlock();
 
-    //TODO handle error codes
-    gnutls_bye (SInfo->SSLInfo->tls_session, GNUTLS_SHUT_RDWR);
+    // send bye to peer
+    retVal = gnutls_bye (SInfo->SSLInfo->tls_session, GNUTLS_SHUT_RDWR);
+    if (retVal != GNUTLS_E_SUCCESS)
+    {
+        UpnpPrintf( UPNP_ALL, API, __FILE__, __LINE__,
+            "UpnpUnRegisterClientSSLSession: gnutls_bye failed. %s \n", gnutls_strerror(retVal) );
+        return retVal;  
+    }     
     
     // close socket
     sd = (int)gnutls_transport_get_ptr(SInfo->SSLInfo->tls_session);
@@ -2649,7 +2681,6 @@ UpnpSendActionSSL( IN UpnpClient_Handle Hnd,
     int retVal = 0;
     char *ActionURL = ( char * )ActionURL_const;
     char *ServiceType = ( char * )ServiceType_const;
-    gnutls_session_t session;
 
     if( UpnpSdkInit != 1 ) {
         return UPNP_E_FINISH;
@@ -2673,9 +2704,7 @@ UpnpSendActionSSL( IN UpnpClient_Handle Hnd,
         return UPNP_E_INVALID_PARAM;
     }
 
-    session = SInfo->SSLInfo->tls_session;
-
-    retVal = SoapSendAction( ActionURL, ServiceType, Action, session, RespNodePtr );
+    retVal = SoapSendAction( ActionURL, ServiceType, Action, SInfo->SSLInfo->tls_session, RespNodePtr );
 
     UpnpPrintf( UPNP_ALL, API, __FILE__, __LINE__,
         "Exiting UpnpSendActionSSL \n" );
