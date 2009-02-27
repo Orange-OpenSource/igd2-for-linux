@@ -2681,6 +2681,7 @@ UpnpSendActionSSL( IN UpnpClient_Handle Hnd,
     int retVal = 0;
     char *ActionURL = ( char * )ActionURL_const;
     char *ServiceType = ( char * )ServiceType_const;
+    gnutls_session_t session;
 
     if( UpnpSdkInit != 1 ) {
         return UPNP_E_FINISH;
@@ -2704,7 +2705,12 @@ UpnpSendActionSSL( IN UpnpClient_Handle Hnd,
         return UPNP_E_INVALID_PARAM;
     }
 
-    retVal = SoapSendAction( ActionURL, ServiceType, Action, SInfo->SSLInfo->tls_session, RespNodePtr );
+    session = SInfo->SSLInfo->tls_session;
+    if (session != NULL) {
+        retVal = SoapSendAction( ActionURL, ServiceType, Action, session, RespNodePtr );
+    } else {
+        retVal = GNUTLS_E_INVALID_SESSION;
+    }
 
     UpnpPrintf( UPNP_ALL, API, __FILE__, __LINE__,
         "Exiting UpnpSendActionSSL \n" );
