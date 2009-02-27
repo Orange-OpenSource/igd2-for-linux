@@ -1563,6 +1563,13 @@ UpnpUnRegisterClientSSLSession( INOUT UpnpClient_Handle Hnd )
     }
     HandleUnlock();
 
+    // check if session even exist
+    if (SInfo->SSLInfo->tls_session == NULL) {
+        UpnpPrintf( UPNP_ALL, API, __FILE__, __LINE__,
+            "UpnpUnRegisterClientSSLSession: tls_session already NULL \n" );
+        return UPNP_E_SUCCESS;             
+    }
+
     // send bye to peer
     retVal = gnutls_bye (SInfo->SSLInfo->tls_session, GNUTLS_SHUT_RDWR);
     if (retVal != GNUTLS_E_SUCCESS)
