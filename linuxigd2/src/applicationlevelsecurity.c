@@ -5,17 +5,14 @@
 #include "lanhostconfig.h"
 #include "globals.h"
 #include "util.h"
-#include "enrollee_state_machine.h"
-#include "generic_debug.h"
-#include "statectl.h"
-#include "StateMachineInterface.h"
-#include "base64mem.h"
+#include <wpsutil/enrollee_state_machine.h>
+#include <wpsutil/base64mem.h>
 
 // TODO Should these be in main? Or somewhere else. 
-EnrolleeSM* esm;
+WPSuEnrolleeSM* esm;
 unsigned char* Enrollee_send_msg;
 int Enrollee_send_msg_len;
-struct SCEnrolleeInput input;
+struct WPSuEnrolleeInput input;
 
 int reactor_loop = 1;
 
@@ -51,7 +48,7 @@ int InitALS()
     input.AppsList[2].DataLen = strlen("C data from STA") + 1;
 
     // create enrollee state machine
-    esm = create_enrollee_sm_station(&input);
+    esm = wpsu_create_enrollee_sm_station(&input);
     
     return 0;
 }
@@ -60,7 +57,7 @@ void FreeALS()
 {
     free(input.AppsList[1].Data);
     free(input.AppsList[2].Data);
-    cleanup_enrollee_sm(esm);
+    wpsu_cleanup_enrollee_sm(esm);
 }
 
 /**
@@ -76,18 +73,18 @@ int message_received(int error, unsigned char *data, int len, void* control)
         return error;
     }
 
-    update_enrollee_sm(esm, data, len, &Enrollee_send_msg, &Enrollee_send_msg_len, &status);
+    wpsu_update_enrollee_sm(esm, data, len, &Enrollee_send_msg, &Enrollee_send_msg_len, &status);
 
     switch (status)
     {
-        case E_SUCCESS:
+        case WPSU_E_SUCCESS:
         {
             trace(3,"Last message received!\n");
             FreeALS();
             reactor_loop = 0;
             break;
         }
-        case E_SUCCESSINFO:
+        case WPSU_E_SUCCESSINFO:
         {
             trace(3,"Last message received M2D!\n");
             FreeALS();
@@ -95,7 +92,7 @@ int message_received(int error, unsigned char *data, int len, void* control)
             break;
         }
 
-        case E_FAILURE:
+        case WPSU_E_FAILURE:
         {
             trace(3,"Error in state machine. Terminating...\n");
             FreeALS();
@@ -103,7 +100,7 @@ int message_received(int error, unsigned char *data, int len, void* control)
             break;
         }
 
-        case E_FAILUREEXIT:
+        case WPSU_E_FAILUREEXIT:
         {
             trace(3,"Error in state machine. Terminating...\n");
             FreeALS();
@@ -131,14 +128,14 @@ int GetDeviceInfo(struct Upnp_Action_Request *ca_event)
     // temporarly this is here. This should probably be somewhere else?
     InitALS();
     // start the state machine and create M1
-    start_enrollee_sm(esm, &Enrollee_send_msg, &Enrollee_send_msg_len);
+    wpsu_start_enrollee_sm(esm, &Enrollee_send_msg, &Enrollee_send_msg_len);
       
     // to base64   
     int maxb64len=2*Enrollee_send_msg_len; 
     int b64len=0;    
     unsigned char *pB64Msg=(unsigned char *)malloc(maxb64len); 
 
-    bin_to_base64(Enrollee_send_msg_len,Enrollee_send_msg, &b64len, pB64Msg,maxb64len);
+    wpsu_bin_to_base64(Enrollee_send_msg_len,Enrollee_send_msg, &b64len, pB64Msg,maxb64len);
     // return M1 as base64 encoded
     trace(3,"Send M1 as response for GetDeviceInfo request\n");
     //printf("M1 in base64: %s\n",pB64Msg);
@@ -170,7 +167,7 @@ int PutMessage(struct Upnp_Action_Request *ca_event)
     unsigned char *pBinMsg=(unsigned char *)malloc(b64msglen);
     int outlen;
     
-    base64_to_bin(b64msglen,(const unsigned char *)message,&outlen,pBinMsg,b64msglen);
+    wpsu_base64_to_bin(b64msglen,(const unsigned char *)message,&outlen,pBinMsg,b64msglen);
     
     //printf("Message in bin: %s\n",pBinMsg);
     // update state machine
@@ -180,7 +177,7 @@ int PutMessage(struct Upnp_Action_Request *ca_event)
     int maxb64len=2*Enrollee_send_msg_len; 
     int b64len=0;    
     unsigned char *pB64Msg=(unsigned char *)malloc(maxb64len); 
-    bin_to_base64(Enrollee_send_msg_len,Enrollee_send_msg, &b64len, pB64Msg,maxb64len);
+    wpsu_bin_to_base64(Enrollee_send_msg_len,Enrollee_send_msg, &b64len, pB64Msg,maxb64len);
     
     trace(3,"Send response for PutMessage request\n");
     
