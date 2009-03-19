@@ -16,6 +16,7 @@
   <property name="type_hint">GDK_WINDOW_TYPE_HINT_NORMAL</property>
   <property name="gravity">GDK_GRAVITY_NORTH_WEST</property>
   <property name="focus_on_map">True</property>
+  <property name="urgency_hint">False</property>
   <signal name="delete_event" handler="on_delete_event"/>
 
   <child>
@@ -27,6 +28,8 @@
       <child>
 	<widget class="GtkMenuBar" id="menubar">
 	  <property name="visible">True</property>
+	  <property name="pack_direction">GTK_PACK_DIRECTION_LTR</property>
+	  <property name="child_pack_direction">GTK_PACK_DIRECTION_LTR</property>
 
 	  <child>
 	    <widget class="GtkMenuItem" id="file_menuitem">
@@ -70,6 +73,28 @@
 		      <property name="label">gtk-quit</property>
 		      <property name="use_stock">True</property>
 		      <signal name="activate" handler="application_exit" last_modification_time="Mon, 17 Sep 2007 20:48:55 GMT"/>
+		    </widget>
+		  </child>
+		</widget>
+	      </child>
+	    </widget>
+	  </child>
+
+	  <child>
+	    <widget class="GtkMenuItem" id="connection_menuitem">
+	      <property name="visible">True</property>
+	      <property name="label" translatable="yes">Connection</property>
+	      <property name="use_underline">True</property>
+
+	      <child>
+		<widget class="GtkMenu" id="connection_menuitem_menu">
+
+		  <child>
+		    <widget class="GtkMenuItem" id="start_wps_setup">
+		      <property name="visible">True</property>
+		      <property name="label" translatable="yes">Start wps setup</property>
+		      <property name="use_underline">True</property>
+		      <signal name="activate" handler="on_start_wps_setup_activate" last_modification_time="Fri, 13 Mar 2009 08:28:39 GMT"/>
 		    </widget>
 		  </child>
 		</widget>
@@ -138,7 +163,7 @@
 		      <property name="visible">True</property>
 		      <property name="label">gtk-about</property>
 		      <property name="use_stock">True</property>
-		      <signal name="activate" handler="gtk_widget_show" object="about-dialog"/>
+		      <signal name="activate" handler="gtk_widget_show"/>
 		    </widget>
 		  </child>
 		</widget>
@@ -269,17 +294,31 @@
 	  <property name="fill">True</property>
 	</packing>
       </child>
+
+      <child>
+	<widget class="GtkStatusbar" id="statusbar">
+	  <property name="visible">True</property>
+	  <property name="has_resize_grip">True</property>
+	</widget>
+	<packing>
+	  <property name="padding">0</property>
+	  <property name="expand">False</property>
+	  <property name="fill">False</property>
+	</packing>
+      </child>
     </widget>
   </child>
 </widget>
 
 <widget class="GtkAboutDialog" id="about-dialog">
+  <property name="border_width">5</property>
   <property name="destroy_with_parent">False</property>
   <property name="name">GUPnP Universal Control Point</property>
   <property name="copyright" translatable="yes">Copyright (C) 2007 Zeeshan Ali (Khattak)</property>
   <property name="comments" translatable="yes">A Generic Control Point based on GUPnP framework.
 Inspired by Intel Tools for UPnP.</property>
   <property name="license" translatable="yes">GPL</property>
+  <property name="wrap_license">False</property>
   <property name="website">http://www.gupnp.org</property>
   <property name="website_label" translatable="yes">GUPnP homepage</property>
   <property name="authors">Zeeshan Ali (Khattak) &lt;zeeshanak@gnome.org&gt;</property>
@@ -336,6 +375,21 @@ Inspired by Intel Tools for UPnP.</property>
   </child>
 
   <child>
+    <widget class="GtkMenuItem" id="start_wps_setup">
+      <property name="visible">True</property>
+      <property name="label" translatable="yes">Start wps setup</property>
+      <property name="use_underline">True</property>
+      <signal name="activate" handler="on_start_wps_setup_activate" last_modification_time="Fri, 13 Mar 2009 08:37:13 GMT"/>
+    </widget>
+  </child>
+
+  <child>
+    <widget class="GtkSeparatorMenuItem" id="separator7">
+      <property name="visible">True</property>
+    </widget>
+  </child>
+
+  <child>
     <widget class="GtkMenuItem" id="expand_all_devices">
       <property name="visible">True</property>
       <property name="label" translatable="yes">Expand all devices</property>
@@ -370,6 +424,7 @@ Inspired by Intel Tools for UPnP.</property>
   <property name="type_hint">GDK_WINDOW_TYPE_HINT_DIALOG</property>
   <property name="gravity">GDK_GRAVITY_NORTH_WEST</property>
   <property name="focus_on_map">True</property>
+  <property name="urgency_hint">False</property>
   <property name="has_separator">False</property>
 
   <child internal-child="vbox">
