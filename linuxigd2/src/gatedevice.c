@@ -24,8 +24,15 @@ static ThreadPoolJob gEventUpdateJob;
 static ithread_mutex_t DevMutex = PTHREAD_MUTEX_INITIALIZER;
 
 // XML string definitions
-static const char xml_portmapEntry[] = "<p:PortmapEntry NewRemoteHost=\"%s\" NewExternalPort=\"%s\" NewProtocol=\"%s\" NewInternalPort=\"%s\" NewInternalClient=\"%s\" NewEnabled=\"%d\" NewDescription=\"%s\" NewLeaseTime=\"%ld\"></p:PortmapEntry>\n";
-static const char xml_portmapListingHeader[] = "<u:%sResponse xmlns:u=\"urn:schemas-upnp-org:service:WANIPConnection:2\"><NewPortListing><p:PortMappingList xmlns:p=\"http://www.upnp.org/schemas/GWPortMappingList.xsd\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:schemaLocation=\"http://www.upnp.org/schemas/GWPortMappingList.xsd GwPortMappingList-V0.5.xsd\">\n";
+static const char xml_portmapEntry[] =
+        "<p:PortmapEntry><NewRemoteHost>%s</NewRemoteHost><NewExternalPort>%s</NewExternalPort><NewProtocol>%s</NewProtocol>"
+        "<NewInternalPort>%s</NewInternalPort><NewInternalClient>%s</NewInternalClient><NewEnabled>%d</NewEnabled>"
+        "<NewDescription>%s</NewDescription><NewLeaseTime>%ld</NewLeaseTime></p:PortmapEntry>\n";
+static const char xml_portmapListingHeader[] =
+        "<u:%sResponse xmlns:u=\"urn:schemas-upnp-org:service:WANIPConnection:2\"><NewPortListing>"
+        "<p:PortMappingList xmlns:p=\"http://www.upnp.org/schemas/GWPortMappingList.xsd\""
+        "xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:schemaLocation=\""
+        "http://www.upnp.org/schemas/GWPortMappingList.xsd GwPortMappingList-V0.5.xsd\">\n";
 static const char xml_portmapListingFooter[] = "</p:PortMappingList></NewPortListing></u:%sResponse>";
 
 
@@ -1124,6 +1131,8 @@ int GetGenericPortMappingEntry(struct Upnp_Action_Request *ca_event)
             snprintf(resultStr, RESULT_LEN, "<u:%sResponse xmlns:u=\"%s\">\n%s\n</u:%sResponse>", ca_event->ActionName,
                      "urn:schemas-upnp-org:service:WANIPConnection:2",result_param, ca_event->ActionName);
             ca_event->ActionResult = ixmlParseBuffer(resultStr);
+            trace(3, ixmlPrintDocument(ca_event->ActionResult));
+           
         }
 
     }
@@ -1560,6 +1569,7 @@ int GetListOfPortmappings(struct Upnp_Action_Request *ca_event)
                 ca_event->ErrCode = UPNP_E_SUCCESS;
                 result_place += sprintf(&result_str[result_place], xml_portmapListingFooter, ca_event->ActionName);
                 ca_event->ActionResult = ixmlParseBuffer(result_str);
+                trace(3, ixmlPrintDocument(ca_event->ActionResult));
             }
             else
             {
