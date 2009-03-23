@@ -843,7 +843,7 @@ int AddPortMapping(struct Upnp_Action_Request *ca_event)
              && AuthorizeControlPoint(ca_event) != CONTROL_POINT_AUTHORIZED)
         {
             trace(1, "Port numbers must be greater than 1023 and NewInternalClient must be same as IP of Control point \
-                        unless control port is authorized. external_port:%s, internal_port:%s internal_client:%s",
+unless control port is authorized. external_port:%s, internal_port:%s internal_client:%s",
                   ext_port, int_port, int_ip);
             result = 729;
             addErrorData(ca_event, result, "PortMappingNotAllowed");
@@ -875,7 +875,13 @@ int AddPortMapping(struct Upnp_Action_Request *ca_event)
             result = 402;
             addErrorData(ca_event, result, "Invalid Args");
         }
-
+        else if ((strcmp(proto, "TCP") != 0) && (strcmp(proto, "UDP") != 0))
+        {
+            trace(1, "Protocol must be either TCP or UDP: Invalid NewProtocol=%s\n",proto);
+            result = 402;
+            addErrorData(ca_event, result, "Invalid Args");       
+        }
+        
         if (result == 0)
         {
             // If port map with the same External Port, Protocol, and Internal Client exists
@@ -966,7 +972,7 @@ int AddAnyPortMapping(struct Upnp_Action_Request *ca_event)
              && AuthorizeControlPoint(ca_event) != CONTROL_POINT_AUTHORIZED)
         {
             trace(1, "Port numbers must be greater than 1023 and NewInternalClient must be same as IP of Control point \
-                        unless control port is authorized. external_port:%s, internal_port:%s internal_client:%s",
+unless control port is authorized. external_port:%s, internal_port:%s internal_client:%s",
                   new_external_port, new_internal_port, new_internal_client);
             result = 729;
             addErrorData(ca_event, result, "PortMappingNotAllowed");
@@ -1000,7 +1006,13 @@ int AddAnyPortMapping(struct Upnp_Action_Request *ca_event)
             result = 402;
             addErrorData(ca_event, result, "Invalid Args");
         }
-
+        else if ((strcmp(new_protocol, "TCP") != 0) && (strcmp(new_protocol, "UDP") != 0))
+        {
+            trace(1, "Protocol must be either TCP or UDP: Invalid NewProtocol=%s\n",new_protocol);
+            result = 402;
+            addErrorData(ca_event, result, "Invalid Args");       
+        }
+        
         // Parameters OK... proceed with adding port map
         if (result == 0)
             {
