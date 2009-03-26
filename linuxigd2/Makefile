@@ -1,8 +1,7 @@
 PREFIX=/usr
-LIBUPNP_PREFIX=/usr
+LIBUPNP_PREFIX=/usr/local
 #LIBIPTC_PREFIX=/usr
 
-#COMMON_DIR = ./sc_common
 
 PACKAGE = linuxigd2
 VERSION = 1.0
@@ -10,25 +9,10 @@ DISTDIR = $(PACKAGE)-$(VERSION)
 DISTFILES = Makefile Doxyfile bin/ configs/ doc/ inc/ lib/ src/ 
 
 CC=gcc
-INCLUDES= -I$(LIBUPNP_PREFIX)/include -I../include -I$(COMMON_DIR)/inc
-LIBS= -lpthread -lupnp -lixml -lthreadutil -lgnutls -lgcrypt -lgpg-error -lz -L$(LIBUPNP_PREFIX)/lib -L../libs
-FILES= gatedevice.o pmlist.o util.o config.o lanhostconfig.o
-#applicationlevelsecurity.o \
-#	$(COMMON_DIR)/scmessage.o \
-#	$(COMMON_DIR)/message_utilities.o \
-#	$(COMMON_DIR)/sccryptoutil.o \
-#	$(COMMON_DIR)/dh.o \
-#	$(COMMON_DIR)/base64mem.o \
-#	$(COMMON_DIR)/sha256.o \
-#	$(COMMON_DIR)/common.o \
-#	$(COMMON_DIR)/statectl.o \
-#	$(COMMON_DIR)/list.o \
-#	$(COMMON_DIR)/hexprint.o \
-#	$(COMMON_DIR)/enrollee_state_machine.o \
-#	$(COMMON_DIR)/enrollee_states.o \
-#	$(COMMON_DIR)/enrollee_utilities.o \
-#	$(COMMON_DIR)/debug.o \
-#	$(COMMON_DIR)/crypto.o
+INCLUDES= -I$(LIBUPNP_PREFIX)/include -I../include 
+LIBS= -lpthread -lupnp -lixml -lthreadutil -lwpsutil -lgnutls -lgcrypt -lgpg-error -lz -L$(LIBUPNP_PREFIX)/lib -L../libs
+FILES= gatedevice.o pmlist.o util.o config.o lanhostconfig.o deviceprotection.o 
+
 BIN=bin/
 DOC=doc/
 
@@ -74,6 +58,7 @@ install: upnpd
 	install configs/gateicfgSCPD.xml /etc/linuxigd
 	install configs/lanhostconfigSCPD.xml /etc/linuxigd
 	install configs/gateEthlcfgSCPD.xml /etc/linuxigd
+	install configs/deviceprotectionSCPD.xml /etc/linuxigd	
 	install configs/dummy.xml /etc/linuxigd
 	install $(BIN)upnpd $(PREFIX)/sbin
 	install doc/upnpd.8 $(PREFIX)/share/man/man8
