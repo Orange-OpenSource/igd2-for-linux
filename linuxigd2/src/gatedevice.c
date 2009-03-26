@@ -13,7 +13,7 @@
 #include "pmlist.h"
 #include "util.h"
 #include "lanhostconfig.h"
-//#include "applicationlevelsecurity.h"
+#include "deviceprotection.h"
 
 //Definitions for mapping expiration timer thread
 static TimerThread gExpirationTimerThread;
@@ -110,6 +110,9 @@ int StateTableInit(char *descDocUrl)
     // only supported type at the moment
     strcpy(ConnectionType,"IP_Routed");
 
+    // DeviceProtection is ready for introduction
+    SetupReady = 1;
+
     return (ret);
 }
 
@@ -125,7 +128,21 @@ int HandleSubscriptionRequest(struct Upnp_Subscription_Request *sr_event)
 
     ithread_mutex_lock(&DevMutex);
 
-    if (strcmp(sr_event->UDN, wanUDN) == 0)
+    if (strcmp(sr_event->UDN, gateUDN) == 0)
+    {
+        if (strcmp(sr_event->ServiceId, "urn:upnp-org:serviceId:DeviceProtection1") == 0)
+        {
+            char tmp[2];
+            snprintf(tmp,2,"%d",SetupReady);
+            
+            trace(3, "Received request to subscribe to DeviceProtection1");
+            UpnpAddToPropertySet(&propSet, "SetupReady", tmp);
+            UpnpAcceptSubscriptionExt(deviceHandle, sr_event->UDN, sr_event->ServiceId,
+                                      propSet, sr_event->Sid);
+            ixmlDocument_free(propSet);
+        }
+    }
+    else if (strcmp(sr_event->UDN, wanUDN) == 0)
     {
         // WAN Common Interface Config Device Notifications
         if (strcmp(sr_event->ServiceId, "urn:upnp-org:serviceId:WANCommonIFC1") == 0)
@@ -175,18 +192,7 @@ int HandleSubscriptionRequest(struct Upnp_Subscription_Request *sr_event)
             UpnpAcceptSubscriptionExt(deviceHandle, sr_event->UDN, sr_event->ServiceId,
                                       propSet, sr_event->Sid);
             ixmlDocument_free(propSet);
-        }
-        /*
-        // TODO change service id to right value ALS, add statevariables if there is any 
-        else if (strcmp(sr_event->ServiceId, "urn:upnp-org:serviceId:WFAWLANConfig1") == 0)
-        {
-            trace(3, "Received request to subscribe to WFAWLANConfig");
-            // No state variable requires eventing, is next step needed?
-            UpnpAcceptSubscriptionExt(deviceHandle, sr_event->UDN, sr_event->ServiceId,
-                                      propSet, sr_event->Sid);
-            ixmlDocument_free(propSet);
-        }
-        */   
+        }           
     }
     ithread_mutex_unlock(&DevMutex);
     return(1);
@@ -220,8 +226,42 @@ int HandleActionRequest(struct Upnp_Action_Request *ca_event)
 
     ithread_mutex_lock(&DevMutex);
 
-
-    if (strcmp(ca_event->DevUDN, wanUDN) == 0)
+    if (strcmp(ca_event->DevUDN, gateUDN) == 0)
+    {
+        if (strcmp(ca_event->ServiceID,"urn:upnp-org:serviceId:DeviceProtection1") == 0)
+        {
+            if (strcmp(ca_event->ActionName,"SendSetupMessage") == 0)
+                result = SendSetupMessage(ca_event);
+            else if (strcmp(ca_event->ActionName,"GetSupportedProtocols") == 0)
+                result = GetSupportedProtocols(ca_event);
+            else if (strcmp(ca_event->ActionName,"GetSessionLoginChallenge") == 0)
+                result = GetSessionLoginChallenge(ca_event);
+            else if (strcmp(ca_event->ActionName,"SessionLogin") == 0)
+                result = SessionLogin(ca_event);
+            else if (strcmp(ca_event->ActionName,"SessionLogout") == 0)
+                result = SessionLogout(ca_event);
+            else if (strcmp(ca_event->ActionName,"GetACLData") == 0)
+                result = GetACLData(ca_event);
+            else if (strcmp(ca_event->ActionName,"AddRolesForIdentity") == 0)
+                result = AddRolesForIdentity(ca_event);
+            else if (strcmp(ca_event->ActionName,"RemoveRolesForIdentity") == 0)
+                result = RemoveRolesForIdentity(ca_event); 
+            else if (strcmp(ca_event->ActionName,"AddLoginData") == 0)
+                result = AddLoginData(ca_event); 
+            else if (strcmp(ca_event->ActionName,"RemoveLoginData") == 0)
+                result = RemoveLoginData(ca_event); 
+            else if (strcmp(ca_event->ActionName,"AddIdentityData") == 0)
+                result = AddIdentityData(ca_event); 
+            else if (strcmp(ca_event->ActionName,"RemoveIdentityData") == 0)
+                result = RemoveIdentityData(ca_event);
+            else
+            {
+                trace(1, "Invalid Action Request : %s",ca_event->ActionName);
+                result = InvalidAction(ca_event);
+            }
+        }
+    }
+    else if (strcmp(ca_event->DevUDN, wanUDN) == 0)
     {
         if (strcmp(ca_event->ServiceID,"urn:upnp-org:serviceId:WANCommonIFC1") == 0)
         {
@@ -350,36 +390,7 @@ int HandleActionRequest(struct Upnp_Action_Request *ca_event)
                 trace(1, "Invalid Action Request : %s",ca_event->ActionName);
                 result = InvalidAction(ca_event);
             }
-        }
-        /*
-        // TODO change id and move block under rigth device ALS
-        else if (strcmp(ca_event->ServiceID,"urn:upnp-org:serviceId:WFAWLANConfig1") == 0)
-        {
-            // Public interface
-            if (strcmp(ca_event->ActionName,"GetDeviceInfo") == 0)
-                result = GetDeviceInfo(ca_event);
-            else if (strcmp(ca_event->ActionName,"PutMessage") == 0)
-                result = PutMessage(ca_event);
-            else if (strcmp(ca_event->ActionName,"RequestCert") == 0)
-                result = RequestCert(ca_event);
-            else if (strcmp(ca_event->ActionName,"GetRoles") == 0)
-                result = GetRoles(ca_event);
-            else if (strcmp(ca_event->ActionName,"GetCACert") == 0)
-                result = GetCACert(ca_event);
-            else if (strcmp(ca_event->ActionName,"GetKnownCAs") == 0)
-                result = GetKnownCAs(ca_event);
-            // Admin Interface
-            else if (strcmp(ca_event->ActionName,"AddACLEntry") == 0)
-                result = AddACLEntry(ca_event);
-            else if (strcmp(ca_event->ActionName,"AddCACertHash") == 0)
-                result = AddCACertHash(ca_event); 
-            else
-            {
-                trace(1, "Invalid Action Request : %s",ca_event->ActionName);
-                result = InvalidAction(ca_event);
-            }
-        }
-        */
+        }        
     }
 
     ithread_mutex_unlock(&DevMutex);

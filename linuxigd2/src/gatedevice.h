@@ -38,6 +38,7 @@ int PortMappingEnabled;
 char RemoteHost[INET6_ADDRSTRLEN];    // updated IPv6 addrss length 16 -> 46
 long int SystemUpdateID;
 
+// WANEthLinkConfig state variables
 char EthernetLinkStatus[12];
 
 // Linked list for portmapping entries
