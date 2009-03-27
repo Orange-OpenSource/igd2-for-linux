@@ -28,8 +28,8 @@ static int InitDP()
     // TODO: Should start new thread for multiple simultanious registration processes?
     int err;
     
-    unsigned char MAC[SC_MAC_LEN];
-    memset(MAC, 0xAB, SC_MAC_LEN);
+    unsigned char MAC[WPSU_MAC_LEN];
+    memset(MAC, 0xAB, WPSU_MAC_LEN);
 
     err = wpsu_enrollee_station_input_add_device_info(&input, 
                                         "stasecret",
@@ -41,40 +41,40 @@ static int InitDP()
                                         NULL,
                                         0,
                                         MAC,
-                                        SC_MAC_LEN,
+                                        WPSU_MAC_LEN,
                                         "TestUUID",
                                         8,
                                         NULL,
                                         0,
                                         NULL,
                                         0,
-                                        SC_CONF_METHOD_LABEL, 
-                                        SC_RFBAND_2_4GHZ);
+                                        WPSU_CONF_METHOD_LABEL, 
+                                        WPSU_RFBAND_2_4GHZ);
                                         
     // station has applications A, B and C
     //input.Apps = 3;
 
-    unsigned char UUID[SC_MAX_UUID_LEN];
+    unsigned char UUID[WPSU_MAX_UUID_LEN];
 
-    memset(UUID, 0xAA, SC_MAX_UUID_LEN);
+    memset(UUID, 0xAA, WPSU_MAX_UUID_LEN);
 
     err =  wpsu_enrollee_station_input_add_app(&input,
-        UUID,SC_MAX_UUID_LEN,
+        UUID,WPSU_MAX_UUID_LEN,
         NULL,0,
         NULL,0);
     
-    memset(UUID, 0xBB, SC_MAX_UUID_LEN);
+    memset(UUID, 0xBB, WPSU_MAX_UUID_LEN);
 
     err =  wpsu_enrollee_station_input_add_app(&input,
-        UUID,SC_MAX_UUID_LEN,
+        UUID,WPSU_MAX_UUID_LEN,
         "B data from STA",strlen("B data from STA") + 1,
         NULL,0);
 
-    memset(UUID, 0xCC, SC_MAX_UUID_LEN);
+    memset(UUID, 0xCC, WPSU_MAX_UUID_LEN);
     
 
     err =  wpsu_enrollee_station_input_add_app(&input,
-        UUID,SC_MAX_UUID_LEN,
+        UUID,WPSU_MAX_UUID_LEN,
         "C data from STA",strlen("C data from STA") + 1,
         NULL,0);
 
@@ -128,6 +128,7 @@ static int message_received(int error, unsigned char *data, int len, void* contr
     {
         case WPSU_SM_E_SUCCESS:
         {
+            // Now we should create SSL Session or something
             trace(3,"DeviceProtection introduction last message received!\n");
             FreeDP();
             break;
