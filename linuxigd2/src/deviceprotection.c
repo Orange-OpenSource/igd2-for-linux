@@ -3,24 +3,25 @@
 #include <stdlib.h>
 
 #include "deviceprotection.h"
+#include "gatedevice.h"
 #include "globals.h"
 #include "util.h"
 #include <wpsutil/enrollee_state_machine.h>
 #include <wpsutil/base64mem.h>
 
-
 static int InitDP();
 static void FreeDP();
 static int message_received(int error, unsigned char *data, int len, void* control);
 
-
-// TODO Should these be in main? Or somewhere else. 
+// WPS state machine related stuff
 WPSuEnrolleeSM* esm;
 unsigned char* Enrollee_send_msg;
 int Enrollee_send_msg_len;
 WPSuStationInput input;
 
-int InitDP()
+
+
+static int InitDP()
 {   
     // TODO these values. What those should be and move to config file 
     // TODO: Should start new thread for multiple simultanious registration processes?
@@ -50,7 +51,7 @@ int InitDP()
                                         SC_RFBAND_2_4GHZ);
                                         
     // station has applications A, B and C
-    input.Apps = 3;
+    //input.Apps = 3;
 
     unsigned char UUID[SC_MAX_UUID_LEN];
 
@@ -82,18 +83,29 @@ int InitDP()
 
     // set state variable SetupReady to false, meaning DP service is busy
     SetupReady = 0;
+    IXML_Document *propSet = NULL;
+    trace(3, "DeviceProtection SetupReady: %d", SetupReady);
+    UpnpAddToPropertySet(&propSet, "SetupReady", "0");
+    UpnpNotifyExt(deviceHandle, gateUDN, "urn:upnp-org:serviceId:DeviceProtection1", propSet);
+    ixmlDocument_free(propSet);
+    
     return 0;
 }
 
-void FreeDP()
+static void FreeDP()
 {
     int error;
-    free(input.AppsList[1].Data);
-    free(input.AppsList[2].Data);
+    
+    wpsu_enrollee_station_input_free(&input);
     wpsu_cleanup_enrollee_sm(esm, &error);
     
     // DP is free
     SetupReady = 1;
+    IXML_Document *propSet = NULL;
+    trace(3, "DeviceProtection SetupReady: %d", SetupReady);
+    UpnpAddToPropertySet(&propSet, "SetupReady", "1");
+    UpnpNotifyExt(deviceHandle, gateUDN, "urn:upnp-org:serviceId:DeviceProtection1", propSet);
+    ixmlDocument_free(propSet);
 }
 
 /**
@@ -170,7 +182,7 @@ int SendSetupMessage(struct Upnp_Action_Request *ca_event)
         addErrorData(ca_event, result, "Unknown Protocol Type");       
     }    
 
-
+    // check also IP, that still the same
     if (SetupReady)
     {
         // begin introduction

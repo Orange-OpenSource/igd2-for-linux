@@ -1757,8 +1757,6 @@ void UpdateEvents(void *input)
 {
     IXML_Document *propSet = NULL;
 
-    trace(3, "Update Events");
-
     ithread_mutex_lock(&DevMutex);
 
     EthernetLinkStatusEventing(propSet);
