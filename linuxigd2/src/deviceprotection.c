@@ -19,7 +19,8 @@ unsigned char* Enrollee_send_msg;
 int Enrollee_send_msg_len;
 WPSuStationInput input;
 
-
+// address of control point which is executin introduction process
+char prev_addr[INET6_ADDRSTRLEN];
 
 static int InitDP()
 {   
@@ -79,7 +80,6 @@ static int InitDP()
 
     // create enrollee state machine
     esm = wpsu_create_enrollee_sm_station(&input, &err);
-    printf ("wpsu_create_enrollee_sm_station %d\n",err);
 
     // set state variable SetupReady to false, meaning DP service is busy
     SetupReady = 0;
@@ -96,6 +96,7 @@ static void FreeDP()
 {
     int error;
     
+    trace(2,"Finished DeviceProtection pairwise introduction process\n");
     wpsu_enrollee_station_input_free(&input);
     wpsu_cleanup_enrollee_sm(esm, &error);
     
@@ -117,7 +118,7 @@ static int message_received(int error, unsigned char *data, int len, void* contr
 
     if (error)
     {
-        trace(2,"Message receive failure! Error = %d", error);
+        trace(2,"DeviceProtection introduction message receive failure! Error = %d", error);
         return error;
     }
 
@@ -125,29 +126,29 @@ static int message_received(int error, unsigned char *data, int len, void* contr
 
     switch (status)
     {
-        case SC_E_SUCCESS:
+        case WPSU_SM_E_SUCCESS:
         {
-            trace(3,"Last message received!\n");
+            trace(3,"DeviceProtection introduction last message received!\n");
             FreeDP();
             break;
         }
-        case SC_E_SUCCESSINFO:
+        case WPSU_SM_E_SUCCESSINFO:
         {
-            trace(3,"Last message received M2D!\n");
-            FreeDP();
-            break;
-        }
-
-        case SC_E_FAILURE:
-        {
-            trace(3,"Error in state machine. Terminating...\n");
+            trace(3,"DeviceProtection introduction last message received M2D!\n");
             FreeDP();
             break;
         }
 
-        case SC_E_FAILUREEXIT:
+        case WPSU_SM_E_FAILURE:
         {
-            trace(3,"Error in state machine. Terminating...\n");
+            trace(3,"DeviceProtection introduction error in state machine. Terminating...\n");
+            FreeDP();
+            break;
+        }
+
+        case WPSU_SM_E_FAILUREEXIT:
+        {
+            trace(3,"DeviceProtection introduction error in state machine. Terminating...\n");
             FreeDP();
             break;
         }
@@ -161,10 +162,20 @@ static int message_received(int error, unsigned char *data, int len, void* contr
 
 
 
+//-----------------------------------------------------------------------------
+//
+//                      DeviceProtection:1 Service Actions
+//
+//-----------------------------------------------------------------------------
+
 /**
- * Action: SendSetupMessage.
- *
- * Return M1 message for sender of action.
+ * DeviceProtection:1 Action: SendSetupMessage
+ * 
+ * This action is used transport for pairwise introduction protocol messages.
+ * Currently used protocol is WPS.
+ * 
+ * @param ca_event Upnp event struct.
+ * @return Upnp error code.
  */
 int SendSetupMessage(struct Upnp_Action_Request *ca_event)
 {
@@ -172,6 +183,7 @@ int SendSetupMessage(struct Upnp_Action_Request *ca_event)
     char resultStr[RESULT_LEN];
     char *protocoltype = NULL;
     char *inmessage = NULL;
+    char curr_addr[INET6_ADDRSTRLEN];
     
     protocoltype = GetFirstDocumentItem(ca_event->ActionRequest, "NewProtocolType");
     
@@ -180,12 +192,14 @@ int SendSetupMessage(struct Upnp_Action_Request *ca_event)
         trace(1, "Introduction protocol type must be DeviceProtection:1: Invalid NewProtocolType=%s\n",protocoltype);
         result = 703;
         addErrorData(ca_event, result, "Unknown Protocol Type");       
-    }    
-
-    // check also IP, that still the same
-    if (SetupReady)
+    } 
+    
+    inet_ntop(AF_INET, &ca_event->CtrlPtIPAddr, curr_addr, INET6_ADDRSTRLEN);
+    if (result == 0 && SetupReady) // ready to start introduction
     {
+        strcpy(prev_addr, curr_addr);
         // begin introduction
+        trace(2,"Begin DeviceProtection pairwise introduction process. IP %s\n",prev_addr);
         InitDP();
         // start the state machine and create M1
         wpsu_start_enrollee_sm(esm, &Enrollee_send_msg, &Enrollee_send_msg_len, &result);
@@ -196,8 +210,8 @@ int SendSetupMessage(struct Upnp_Action_Request *ca_event)
             addErrorData(ca_event, result, "Processing Error");               
         }
     }
-    else
-    {    
+    else if (!SetupReady && (strcmp(prev_addr, curr_addr) == 0)) // continue started introduction
+    {
         // continue introduction
         inmessage = GetFirstDocumentItem(ca_event->ActionRequest, "NewInMessage");
 
@@ -212,6 +226,12 @@ int SendSetupMessage(struct Upnp_Action_Request *ca_event)
         // update state machine
         message_received(0, pBinMsg, outlen, NULL);
         if (pBinMsg) free(pBinMsg);
+    }
+    else // must be busy doing someone else's introduction process 
+    {
+        trace(1, "Busy with someone else's introduction process. IP %s\n",curr_addr);
+        result = 708;
+        addErrorData(ca_event, result, "Busy");         
     }
 
     if (result == 0)
@@ -230,7 +250,7 @@ int SendSetupMessage(struct Upnp_Action_Request *ca_event)
         ca_event->ActionResult = ixmlParseBuffer(resultStr);
         if (pB64Msg) free(pB64Msg);     
     }
-    else
+    else if (result != 708)
     {
         FreeDP();       
     }
