@@ -185,55 +185,59 @@ int SendSetupMessage(struct Upnp_Action_Request *ca_event)
     char *inmessage = NULL;
     char curr_addr[INET6_ADDRSTRLEN];
     
-    protocoltype = GetFirstDocumentItem(ca_event->ActionRequest, "NewProtocolType");
-    
-    if (strcmp(protocoltype, "DeviceProtection:1") != 0)
-    {
-        trace(1, "Introduction protocol type must be DeviceProtection:1: Invalid NewProtocolType=%s\n",protocoltype);
-        result = 703;
-        addErrorData(ca_event, result, "Unknown Protocol Type");       
-    } 
-    
-    inet_ntop(AF_INET, &ca_event->CtrlPtIPAddr, curr_addr, INET6_ADDRSTRLEN);
-    if (result == 0 && SetupReady) // ready to start introduction
-    {
-        strcpy(prev_addr, curr_addr);
-        // begin introduction
-        trace(2,"Begin DeviceProtection pairwise introduction process. IP %s\n",prev_addr);
-        InitDP();
-        // start the state machine and create M1
-        wpsu_start_enrollee_sm(esm, &Enrollee_send_msg, &Enrollee_send_msg_len, &result);
-        if (result != WPSU_E_SUCCESS)
+    if ((protocoltype = GetFirstDocumentItem(ca_event->ActionRequest, "NewProtocolType")) &&
+            (inmessage = GetFirstDocumentItem(ca_event->ActionRequest, "NewInMessage")))
+    {    
+        if (strcmp(protocoltype, "DeviceProtection:1") != 0)
         {
-            trace(1, "Failed to start WPS state machine. Returned %d\n",result);
-            result = 704;
-            addErrorData(ca_event, result, "Processing Error");               
+            trace(1, "Introduction protocol type must be DeviceProtection:1: Invalid NewProtocolType=%s\n",protocoltype);
+            result = 703;
+            addErrorData(ca_event, result, "Unknown Protocol Type");       
+        } 
+        
+        inet_ntop(AF_INET, &ca_event->CtrlPtIPAddr, curr_addr, INET6_ADDRSTRLEN);
+        if (result == 0 && SetupReady) // ready to start introduction
+        {
+            strcpy(prev_addr, curr_addr);
+            // begin introduction
+            trace(2,"Begin DeviceProtection pairwise introduction process. IP %s\n",prev_addr);
+            InitDP();
+            // start the state machine and create M1
+            wpsu_start_enrollee_sm(esm, &Enrollee_send_msg, &Enrollee_send_msg_len, &result);
+            if (result != WPSU_E_SUCCESS)
+            {
+                trace(1, "Failed to start WPS state machine. Returned %d\n",result);
+                result = 704;
+                addErrorData(ca_event, result, "Processing Error");               
+            }
+        }
+        else if (!SetupReady && (strcmp(prev_addr, curr_addr) == 0)) // continue started introduction
+        {
+            // to bin
+            int b64msglen = strlen(inmessage);
+            unsigned char *pBinMsg=(unsigned char *)malloc(b64msglen);
+            int outlen;
+            
+            wpsu_base64_to_bin(b64msglen,(const unsigned char *)inmessage,&outlen,pBinMsg,b64msglen);
+
+            // update state machine
+            message_received(0, pBinMsg, outlen, NULL);
+            if (pBinMsg) free(pBinMsg);
+        }
+        else // must be busy doing someone else's introduction process 
+        {
+            trace(1, "Busy with someone else's introduction process. IP %s\n",curr_addr);
+            result = 708;
+            addErrorData(ca_event, result, "Busy");         
         }
     }
-    else if (!SetupReady && (strcmp(prev_addr, curr_addr) == 0)) // continue started introduction
+    else
     {
-        // continue introduction
-        inmessage = GetFirstDocumentItem(ca_event->ActionRequest, "NewInMessage");
-
-        // to bin
-        int b64msglen = strlen(inmessage);
-        unsigned char *pBinMsg=(unsigned char *)malloc(b64msglen);
-        int outlen;
-        
-        wpsu_base64_to_bin(b64msglen,(const unsigned char *)inmessage,&outlen,pBinMsg,b64msglen);
-        
-        //printf("Message in bin: %s\n",pBinMsg);
-        // update state machine
-        message_received(0, pBinMsg, outlen, NULL);
-        if (pBinMsg) free(pBinMsg);
+        trace(1, "Failure in SendSetupMessage: Invalid Arguments!");
+        result = 402;
+        addErrorData(ca_event, result, "Invalid Args");
     }
-    else // must be busy doing someone else's introduction process 
-    {
-        trace(1, "Busy with someone else's introduction process. IP %s\n",curr_addr);
-        result = 708;
-        addErrorData(ca_event, result, "Busy");         
-    }
-
+       
     if (result == 0)
     {
         // response (next message) to base64   
