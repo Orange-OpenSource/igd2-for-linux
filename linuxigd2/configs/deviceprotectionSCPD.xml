@@ -222,8 +222,12 @@
       <dataType>i4</dataType> 
     </stateVariable>
     <stateVariable sendEvents="yes">
-      <name>SetupStatus</name> 
-      <dataType>string</dataType> 
+      <name>SetupReady</name> 
+      <dataType>boolean</dataType> 
     </stateVariable>
+    <stateVariable sendEvents="no">
+      <name>SupportedProtocols</name> 
+      <dataType>string</dataType> 
+    </stateVariable>    
   </serviceStateTable>
 </scpd>

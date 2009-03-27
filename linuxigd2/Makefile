@@ -53,6 +53,7 @@ dist: clean
 
 install: upnpd
 	install -d /etc/linuxigd
+	install configs/ligd.gif /etc/linuxigd
 	install configs/gatedesc.xml /etc/linuxigd
 	install configs/gateconnSCPD.xml  /etc/linuxigd
 	install configs/gateicfgSCPD.xml /etc/linuxigd
