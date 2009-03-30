@@ -1309,7 +1309,7 @@ EXPORT_SPEC int UpnpRegisterClient(
  *
  * \return An integer
  */
-EXPORT_SPEC int UpnpRegisterClientSSLSession( 
+EXPORT_SPEC int UpnpCreateClientSSLSession( 
     /*! [in] Selfsigned certificate file of server. */
     IN const char *CertFile,
     /*! [in]  Private key file of server. */
@@ -1320,6 +1320,10 @@ EXPORT_SPEC int UpnpRegisterClientSSLSession(
     IN const char *CRLFile,
     /*! [in] The action URL of the service. Target IP is parsed from this. */
     IN const char *ActionURL_const,
+    /*! [inout] Pointer to space where SSL session data may be saved. */
+    INOUT void *SSLSessionData,
+    /*! [inout] Pointer to value which will tell how much size SSLSessionData uses. Value is automatically set. */
+    INOUT size_t *DataSize,    
     /*! [inout] Handle to add the SSL Session. */
     INOUT UpnpClient_Handle Hnd );
 
@@ -1332,9 +1336,29 @@ EXPORT_SPEC int UpnpRegisterClientSSLSession(
  *
  * \return An integer
  */    
-EXPORT_SPEC int UpnpUnRegisterClientSSLSession(
+EXPORT_SPEC int UpnpCloseClientSSLSession(
     /*! [inout] Handle to add the SSL Session. */ 
     INOUT UpnpClient_Handle Hnd );    
+
+
+/*!
+ * \brief initializes gnutls and gnutls certificate credentials
+ * 
+ *  This function initializes gnutls and gnutls certificate credentials for 
+ *  clients to use. Call before anything SSL specific is done. Call only once.
+ *
+ * \return An integer
+ */   
+EXPORT_SPEC int UpnpInitClientSSL();
+
+/*!
+ * \brief Deinitializes gnutls and gnutls certificate credentials.
+ * 
+ *  Call this when SSL is no more needed. Propably at the end of program.
+ *
+ * \return An integer
+ */   
+EXPORT_SPEC int UpnpFinishClientSSL();
 
 
 /*!

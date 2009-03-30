@@ -85,6 +85,9 @@
 #endif // INTERNAL_WEB_SERVER
 
 
+// creadentials for ssl clients
+gnutls_certificate_credentials_t xcred;
+
 //
 virtualDirList *pVirtualDirList;
 
@@ -1371,22 +1374,14 @@ UpnpUnRegisterClient( IN UpnpClient_Handle Hnd )
 }  /****************** End of UpnpUnRegisterClient *********************/
 #endif // INCLUDE_CLIENT_APIS
 
+
 #ifdef INCLUDE_CLIENT_APIS
 /**************************************************************************
- * Function: UpnpRegisterClientSSLSession
- *
- * Parameters:  
- *  IN const char *CertFile: Selfsigned certificate file of server
- *  IN const char *PrivKeyFile: Private key file of server.
- *  IN const char *TrustFile: File containing trusted certificates. (PEM format)
- *  IN const char *CRLFile: Certificate revocation list. Untrusted certificates. (PEM format)
- *  IN const char *ActionURL_const: The action URL of the service. Target IP is parsed from this.
- *  INOUT UpnpClient_Handle Hnd: Handle to add the SSL Session.
+ * Function: UpnpInitClientSSL
  *
  * Description:
- *  This function creates new SSL session which client can use for secure
- *  data trasmission with secured device. Created SSL session can be terminated 
- *  with UpnpUnRegisterClientSSLSession.
+ *  This function initializes gnutls and gnutls certificate credentials for 
+ *  clients to use.
  *
  * Return Values: int
  *  UPNP_E_SUCCESS on success, nonzero on failure. Less than zero values
@@ -1394,19 +1389,96 @@ UpnpUnRegisterClient( IN UpnpClient_Handle Hnd )
  *      
  ***************************************************************************/
 int
-UpnpRegisterClientSSLSession( IN const char *CertFile,
-                              IN const char *PrivKeyFile,
-                              IN const char *TrustFile,
-                              IN const char *CRLFile,
-                              IN const char *ActionURL_const,
-                              INOUT UpnpClient_Handle Hnd )
+UpnpInitClientSSL()
+{
+    int retVal;
+    
+    // initialize gnutls
+    retVal = gnutls_global_init ();
+    if ( retVal != GNUTLS_E_SUCCESS ) {
+        UpnpPrintf( UPNP_ALL, API, __FILE__, __LINE__,
+            "UpnpRegisterClientSSLSession: gnutls_global_init failed. %s \n", gnutls_strerror(retVal) );
+        return retVal;    
+    }
+
+    // set certificate credentials
+    retVal = gnutls_certificate_allocate_credentials (&xcred);
+    if ( retVal != GNUTLS_E_SUCCESS ) {
+        UpnpPrintf( UPNP_ALL, API, __FILE__, __LINE__,
+            "UpnpRegisterClientSSLSession: gnutls_certificate_allocate_credentials failed. %s \n", gnutls_strerror(retVal) );        
+        return retVal;    
+    } 
+    
+    return UPNP_E_SUCCESS;     
+}  /****************** End of UpnpInitClientSSL *********************/
+#endif // INCLUDE_CLIENT_APIS
+
+
+#ifdef INCLUDE_CLIENT_APIS
+/**************************************************************************
+ * Function: UpnpFinishClientSSL
+ *
+ * Description:
+ *  This function deinitializes gnutls and gnutls certificate credentials.
+ *  Call this when SSL is no more needed. Propably at then end of program.
+ *
+ * Return Values: int
+ *  UPNP_E_SUCCESS on success, nonzero on failure. Less than zero values
+ *  may be either libupnp own error codes, or gnutls error codes.
+ *      
+ ***************************************************************************/
+int
+UpnpFinishClientSSL()
+{
+    gnutls_certificate_free_credentials (xcred);
+    gnutls_global_deinit ();
+    
+    return UPNP_E_SUCCESS;
+}  /****************** End of UpnpFinishClientSSL *********************/
+#endif // INCLUDE_CLIENT_APIS
+
+
+#ifdef INCLUDE_CLIENT_APIS
+/**************************************************************************
+ * Function: UpnpCreateClientSSLSession
+ *
+ * Parameters:  
+ *  IN const char *CertFile: Selfsigned certificate file of server
+ *  IN const char *PrivKeyFile: Private key file of server.
+ *  IN const char *TrustFile: File containing trusted certificates. (PEM format)
+ *  IN const char *CRLFile: Certificate revocation list. Untrusted certificates. (PEM format)
+ *  IN const char *ActionURL_const: The action URL of the service. Target IP is parsed from this.
+ *  INOUT void *SSLSessionData:  Pointer to space where SSL session data may be saved.
+ *  INOUT size_t *DataSize:  Pointer to value which will tell how much size SSLSessionData uses. Value is automatically set.
+ *  INOUT UpnpClient_Handle Hnd: Handle to add the SSL Session.
+ *
+ * Description:
+ *  This function creates new SSL session which client can use for secure
+ *  data trasmission with secured device. Created SSL session can be terminated 
+ *  with UpnpCloseClientSSLSession.
+ *  Call UpnpInitClientSSL before using this function.
+ *
+ * Return Values: int
+ *  UPNP_E_SUCCESS on success, nonzero on failure. Less than zero values
+ *  may be either libupnp own error codes, or gnutls error codes.
+ *      
+ ***************************************************************************/
+int
+UpnpCreateClientSSLSession( IN const char *CertFile,
+                            IN const char *PrivKeyFile,
+                            IN const char *TrustFile,
+                            IN const char *CRLFile,
+                            IN const char *ActionURL_const,
+                            INOUT void *SSLSessionData,
+                            INOUT size_t *DataSize,
+                            INOUT UpnpClient_Handle Hnd )
 {
     struct Handle_Info *SInfo = NULL;
     int retVal = 0;
     int sd;
     const char *err;
     uri_type url;
-    gnutls_certificate_credentials_t xcred;
+    
     gnutls_session_t session;
 
     if( UpnpSdkInit != 1 ) {
@@ -1414,7 +1486,7 @@ UpnpRegisterClientSSLSession( IN const char *CertFile,
     }
 
     UpnpPrintf( UPNP_ALL, API, __FILE__, __LINE__,
-        "Inside UpnpRegisterClientSSLSession \n" );
+        "Inside UpnpCreateClientSSLSession \n" );
 
     // get client handle information
     HandleReadLock();
@@ -1443,97 +1515,115 @@ UpnpRegisterClientSSLSession( IN const char *CertFile,
         return UPNP_E_SOCKET_CONNECT;
     }
 
-    // initialize gnutls
-    retVal = gnutls_global_init ();
-    if ( retVal != GNUTLS_E_SUCCESS ) {
-        UpnpPrintf( UPNP_ALL, API, __FILE__, __LINE__,
-            "UpnpUnRegisterClient: gnutls_global_init failed. %s \n", gnutls_strerror(retVal) );
-        return retVal;    
-    }
-
-    // set certificate credentials
-    retVal = gnutls_certificate_allocate_credentials (&xcred);
-    if ( retVal != GNUTLS_E_SUCCESS ) {
-        UpnpPrintf( UPNP_ALL, API, __FILE__, __LINE__,
-            "UpnpUnRegisterClient: gnutls_certificate_allocate_credentials failed. %s \n", gnutls_strerror(retVal) );        
-        return retVal;    
-    }
-
     // sets the trusted cas file 
     retVal = gnutls_certificate_set_x509_trust_file (xcred, TrustFile, GNUTLS_X509_FMT_PEM);
     if ( retVal < 0 ) {
         UpnpPrintf( UPNP_ALL, API, __FILE__, __LINE__,
-            "UpnpUnRegisterClient: gnutls_certificate_set_x509_trust_file failed. %s \n", gnutls_strerror(retVal) );
+            "UpnpCreateClientSSLSession: gnutls_certificate_set_x509_trust_file failed. %s \n", gnutls_strerror(retVal) );
         return retVal;    
     }    
 
     // set the client certificate and private key
     retVal = gnutls_certificate_set_x509_key_file (xcred, CertFile, PrivKeyFile, GNUTLS_X509_FMT_PEM);                   
-    if (retVal != GNUTLS_E_SUCCESS)
-    {
+    if (retVal != GNUTLS_E_SUCCESS) {
         UpnpPrintf( UPNP_ALL, API, __FILE__, __LINE__,
-            "UpnpUnRegisterClient: gnutls_certificate_set_x509_key_file failed. %s \n", gnutls_strerror(retVal) );
+            "UpnpCreateClientSSLSession: gnutls_certificate_set_x509_key_file failed. %s \n", gnutls_strerror(retVal) );
         return retVal;  
     }
 
     // Initialize and create TLS session 
     retVal = gnutls_init (&session, GNUTLS_CLIENT);
-    if (retVal != GNUTLS_E_SUCCESS)
-    {
+    if (retVal != GNUTLS_E_SUCCESS) {
         UpnpPrintf( UPNP_ALL, API, __FILE__, __LINE__,
-            "UpnpUnRegisterClient: gnutls_init failed. %s \n", gnutls_strerror(retVal) );
+            "UpnpCreateClientSSLSession: gnutls_init failed. %s \n", gnutls_strerror(retVal) );
         return retVal;  
     }
 
     // Use default priorities 
-    retVal = gnutls_priority_set_direct (session, "PERFORMANCE", &err);
-    if (retVal < 0)
-    {
+    retVal = gnutls_priority_set_direct (session, "NORMAL", &err);
+    if (retVal < 0) {
         UpnpPrintf( UPNP_ALL, API, __FILE__, __LINE__,
-            "UpnpUnRegisterClient: gnutls_priority_set_direct failed. %s \nError at: %s\n", 
+            "UpnpCreateClientSSLSession: gnutls_priority_set_direct failed. %s \nError at: %s\n", 
             gnutls_strerror(retVal), err );
         return retVal;
     }
 
     // put the x509 credentials to the current session 
     retVal = gnutls_credentials_set (session, GNUTLS_CRD_CERTIFICATE, xcred);
-    if (retVal != GNUTLS_E_SUCCESS)
-    {
+    if (retVal != GNUTLS_E_SUCCESS) {
         UpnpPrintf( UPNP_ALL, API, __FILE__, __LINE__,
-            "UpnpUnRegisterClient: gnutls_credentials_set failed. %s \n", gnutls_strerror(retVal) );
+            "UpnpCreateClientSSLSession: gnutls_credentials_set failed. %s \n", gnutls_strerror(retVal) );
         return retVal;  
     }    
 
     // set socket for current session
     gnutls_transport_set_ptr (session, (gnutls_transport_ptr_t) sd);
 
+    // check if we can resume session
+    if (SSLSessionData && *DataSize > 0) {
+        retVal = gnutls_session_set_data(session, SSLSessionData, *DataSize);
+        
+        if (retVal != GNUTLS_E_SUCCESS) {
+            UpnpPrintf( UPNP_ALL, API, __FILE__, __LINE__,
+                "UpnpCreateClientSSLSession: Failed to set SSL session resumption data. %s \n", gnutls_strerror(retVal) );
+            printf("fail 1 %s \n", gnutls_strerror(retVal) );
+            return retVal;  
+        }  
+    }
+
     // Perform the TLS handshake 
     retVal = gnutls_handshake (session);
-    if (retVal != GNUTLS_E_SUCCESS)
-    {
+    if (retVal != GNUTLS_E_SUCCESS) {
         UpnpPrintf( UPNP_ALL, API, __FILE__, __LINE__,
-            "UpnpUnRegisterClient: gnutls_handshake failed. %s \n", gnutls_strerror(retVal) );
+            "UpnpCreateClientSSLSession: gnutls_handshake failed. %s \n", gnutls_strerror(retVal) );
         return retVal;  
     }  
+
+    // check if session is resumed. If not and new session is created, save session data for next time
+    if (gnutls_session_is_resumed(session) != 0)
+    {
+        UpnpPrintf( UPNP_ALL, API, __FILE__, __LINE__,
+            "UpnpCreateClientSSLSession: Previous session was resumed \n");
+    }
+    else
+    {
+        UpnpPrintf( UPNP_ALL, API, __FILE__, __LINE__,
+            "UpnpCreateClientSSLSession: Previous session was NOT resumed \n");
+        if (SSLSessionData) free(SSLSessionData);
+        // get the session data size 
+        gnutls_session_get_data(session, NULL, DataSize);
+        SSLSessionData = malloc(*DataSize);
+    
+        // put session data to the session variable
+        retVal = gnutls_session_get_data (session, SSLSessionData, DataSize);
+        if (retVal != GNUTLS_E_SUCCESS) {
+            UpnpPrintf( UPNP_ALL, API, __FILE__, __LINE__,
+                "UpnpCreateClientSSLSession: gnutls_session_get_data failed. %s \n", gnutls_strerror(retVal) );
+            return retVal;  
+        }                
+    }
  
     // put session into handle
+    HandleLock();
     SInfo->SSLInfo->tls_session = session;
     SInfo->SSLInfo->tls_cred = xcred;
+    HandleUnlock();
     
     UpnpPrintf( UPNP_ALL, API, __FILE__, __LINE__,
-        "Exiting UpnpRegisterClientSSLSession \n" );
+        "Exiting UpnpCreateClientSSLSession \n" );
 
     return UPNP_E_SUCCESS;
 
-}  /****************** End of UpnpRegisterClientSSLSession   *********************/
+}  /****************** End of UpnpCreateClientSSLSession   *********************/
 #endif // INCLUDE_CLIENT_APIS
+
 
 #ifdef INCLUDE_CLIENT_APIS
 /**************************************************************************
- * Function: UpnpUnRegisterClient
+ * Function: UpnpCloseClientSSLSession
  *
  * Parameters:
- *  INOUT UpnpClient_Handle Hnd: Handle to add the SSL Session.
+ *  INOUT UpnpClient_Handle Hnd: Client handle
  *
  * Description:
  *  This function terminates SSL session which client can use for secure
@@ -1543,7 +1633,7 @@ UpnpRegisterClientSSLSession( IN const char *CertFile,
  *      
  ***************************************************************************/
 int
-UpnpUnRegisterClientSSLSession( INOUT UpnpClient_Handle Hnd )
+UpnpCloseClientSSLSession( INOUT UpnpClient_Handle Hnd )
 {
     struct Handle_Info *SInfo = NULL;
     int retVal = 0;
@@ -1554,28 +1644,29 @@ UpnpUnRegisterClientSSLSession( INOUT UpnpClient_Handle Hnd )
     }
 
     UpnpPrintf( UPNP_ALL, API, __FILE__, __LINE__,
-        "Inside UpnpUnRegisterClientSSLSession \n" );
+        "Inside UpnpCloseClientSSLSession \n" );
 
-    HandleReadLock();
+    HandleLock();
     if( GetHandleInfo( Hnd, &SInfo ) != HND_CLIENT ) {
         HandleUnlock();
         return UPNP_E_INVALID_HANDLE;
     }
-    HandleUnlock();
 
     // check if session even exist
     if (SInfo->SSLInfo->tls_session == NULL) {
         UpnpPrintf( UPNP_ALL, API, __FILE__, __LINE__,
-            "UpnpUnRegisterClientSSLSession: tls_session already NULL \n" );
+            "UpnpCloseClientSSLSession: tls_session already NULL \n" );
+        HandleUnlock();
         return UPNP_E_SUCCESS;             
     }
 
     // send bye to peer
-    retVal = gnutls_bye (SInfo->SSLInfo->tls_session, GNUTLS_SHUT_RDWR);
+    retVal = gnutls_bye (SInfo->SSLInfo->tls_session, GNUTLS_SHUT_WR);
     if (retVal != GNUTLS_E_SUCCESS)
     {
         UpnpPrintf( UPNP_ALL, API, __FILE__, __LINE__,
-            "UpnpUnRegisterClientSSLSession: gnutls_bye failed. %s \n", gnutls_strerror(retVal) );
+            "UpnpCloseClientSSLSession: gnutls_bye failed. %s \n", gnutls_strerror(retVal) );
+        HandleUnlock();
         return retVal;  
     }     
     
@@ -1586,19 +1677,21 @@ UpnpUnRegisterClientSSLSession( INOUT UpnpClient_Handle Hnd )
     
     gnutls_deinit (SInfo->SSLInfo->tls_session);
 
-    gnutls_certificate_free_credentials (SInfo->SSLInfo->tls_cred);
+    //gnutls_certificate_free_credentials (SInfo->SSLInfo->tls_cred);
 
-    gnutls_global_deinit ();
+    //gnutls_global_deinit ();
  
     SInfo->SSLInfo->tls_session = NULL;
-    SInfo->SSLInfo->tls_cred = NULL;
+    //SInfo->SSLInfo->tls_cred = NULL;
+    
+    HandleUnlock();
     
     UpnpPrintf( UPNP_ALL, API, __FILE__, __LINE__,
         "Exiting UpnpUnRegisterClientSSLSession \n" );
 
     return UPNP_E_SUCCESS;
 
-}  /****************** End of UpnpUnRegisterClientSSLSession   *********************/
+}  /****************** End of UpnpCloseClientSSLSession   *********************/
 #endif // INCLUDE_CLIENT_APIS
 
 //-----------------------------------------------------------------------------
