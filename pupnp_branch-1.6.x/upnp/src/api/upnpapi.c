@@ -1379,6 +1379,12 @@ UpnpUnRegisterClient( IN UpnpClient_Handle Hnd )
 /**************************************************************************
  * Function: UpnpInitClientSSL
  *
+ * Parameters:  
+ *  IN const char *CertFile: Selfsigned certificate file of server
+ *  IN const char *PrivKeyFile: Private key file of server.
+ *  IN const char *TrustFile: File containing trusted certificates. (PEM format)
+ *  IN const char *CRLFile: Certificate revocation list. Untrusted certificates. (PEM format)
+ * 
  * Description:
  *  This function initializes gnutls and gnutls certificate credentials for 
  *  clients to use.
@@ -1389,7 +1395,10 @@ UpnpUnRegisterClient( IN UpnpClient_Handle Hnd )
  *      
  ***************************************************************************/
 int
-UpnpInitClientSSL()
+UpnpInitClientSSL( IN const char *CertFile,
+                   IN const char *PrivKeyFile,
+                   IN const char *TrustFile,
+                   IN const char *CRLFile)
 {
     int retVal;
     
@@ -1408,6 +1417,32 @@ UpnpInitClientSSL()
             "UpnpRegisterClientSSLSession: gnutls_certificate_allocate_credentials failed. %s \n", gnutls_strerror(retVal) );        
         return retVal;    
     } 
+
+    // sets the trusted cas file 
+    retVal = gnutls_certificate_set_x509_trust_file (xcred, TrustFile, GNUTLS_X509_FMT_PEM);
+    if ( retVal < 0 ) {
+        UpnpPrintf( UPNP_ALL, API, __FILE__, __LINE__,
+            "UpnpCreateClientSSLSession: gnutls_certificate_set_x509_trust_file failed. %s \n", gnutls_strerror(retVal) );
+        return retVal;    
+    }    
+
+    // set certificate revocation list
+    if (CRLFile) {
+        retVal = gnutls_certificate_set_x509_crl_file (xcred, CRLFile, GNUTLS_X509_FMT_PEM); // black list    
+        if (retVal < 0) {
+            UpnpPrintf( UPNP_ALL, API, __FILE__, __LINE__,
+                "UpnpCreateClientSSLSession: gnutls_certificate_set_x509_crl_file failed. %s \n", gnutls_strerror(retVal));
+            return retVal;                   
+        }
+    }
+
+    // set the client certificate and private key
+    retVal = gnutls_certificate_set_x509_key_file (xcred, CertFile, PrivKeyFile, GNUTLS_X509_FMT_PEM);                   
+    if (retVal != GNUTLS_E_SUCCESS) {
+        UpnpPrintf( UPNP_ALL, API, __FILE__, __LINE__,
+            "UpnpCreateClientSSLSession: gnutls_certificate_set_x509_key_file failed. %s \n", gnutls_strerror(retVal) );
+        return retVal;  
+    }
     
     return UPNP_E_SUCCESS;     
 }  /****************** End of UpnpInitClientSSL *********************/
@@ -1443,10 +1478,6 @@ UpnpFinishClientSSL()
  * Function: UpnpCreateClientSSLSession
  *
  * Parameters:  
- *  IN const char *CertFile: Selfsigned certificate file of server
- *  IN const char *PrivKeyFile: Private key file of server.
- *  IN const char *TrustFile: File containing trusted certificates. (PEM format)
- *  IN const char *CRLFile: Certificate revocation list. Untrusted certificates. (PEM format)
  *  IN const char *ActionURL_const: The action URL of the service. Target IP is parsed from this.
  *  INOUT void *SSLSessionData:  Pointer to space where SSL session data may be saved.
  *  INOUT size_t *DataSize:  Pointer to value which will tell how much size SSLSessionData uses. Value is automatically set.
@@ -1464,11 +1495,7 @@ UpnpFinishClientSSL()
  *      
  ***************************************************************************/
 int
-UpnpCreateClientSSLSession( IN const char *CertFile,
-                            IN const char *PrivKeyFile,
-                            IN const char *TrustFile,
-                            IN const char *CRLFile,
-                            IN const char *ActionURL_const,
+UpnpCreateClientSSLSession( IN const char *ActionURL_const,
                             INOUT void *SSLSessionData,
                             INOUT size_t *DataSize,
                             INOUT UpnpClient_Handle Hnd )
@@ -1513,22 +1540,6 @@ UpnpCreateClientSSLSession( IN const char *CertFile,
     if (retVal < 0) {
         close (sd);        
         return UPNP_E_SOCKET_CONNECT;
-    }
-
-    // sets the trusted cas file 
-    retVal = gnutls_certificate_set_x509_trust_file (xcred, TrustFile, GNUTLS_X509_FMT_PEM);
-    if ( retVal < 0 ) {
-        UpnpPrintf( UPNP_ALL, API, __FILE__, __LINE__,
-            "UpnpCreateClientSSLSession: gnutls_certificate_set_x509_trust_file failed. %s \n", gnutls_strerror(retVal) );
-        return retVal;    
-    }    
-
-    // set the client certificate and private key
-    retVal = gnutls_certificate_set_x509_key_file (xcred, CertFile, PrivKeyFile, GNUTLS_X509_FMT_PEM);                   
-    if (retVal != GNUTLS_E_SUCCESS) {
-        UpnpPrintf( UPNP_ALL, API, __FILE__, __LINE__,
-            "UpnpCreateClientSSLSession: gnutls_certificate_set_x509_key_file failed. %s \n", gnutls_strerror(retVal) );
-        return retVal;  
     }
 
     // Initialize and create TLS session 

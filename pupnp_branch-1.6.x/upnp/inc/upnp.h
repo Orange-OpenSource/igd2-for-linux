@@ -1310,14 +1310,7 @@ EXPORT_SPEC int UpnpRegisterClient(
  * \return An integer
  */
 EXPORT_SPEC int UpnpCreateClientSSLSession( 
-    /*! [in] Selfsigned certificate file of server. */
-    IN const char *CertFile,
-    /*! [in]  Private key file of server. */
-    IN const char *PrivKeyFile,
-    /*! [in] File containing trusted certificates. (PEM format) */
-    IN const char *TrustFile,
-    /*! [in] Certificate revocation list. Untrusted certificates. (PEM format) */
-    IN const char *CRLFile,
+
     /*! [in] The action URL of the service. Target IP is parsed from this. */
     IN const char *ActionURL_const,
     /*! [inout] Pointer to space where SSL session data may be saved. */
@@ -1345,11 +1338,19 @@ EXPORT_SPEC int UpnpCloseClientSSLSession(
  * \brief initializes gnutls and gnutls certificate credentials
  * 
  *  This function initializes gnutls and gnutls certificate credentials for 
- *  clients to use. Call before anything SSL specific is done. Call only once.
+ *  clients to use. Call before anything SSL specific is done.
  *
  * \return An integer
  */   
-EXPORT_SPEC int UpnpInitClientSSL();
+EXPORT_SPEC int UpnpInitClientSSL(
+    /*! [in] Selfsigned certificate file of server. */
+    IN const char *CertFile,
+    /*! [in]  Private key file of server. */
+    IN const char *PrivKeyFile,
+    /*! [in] File containing trusted certificates. (PEM format) */
+    IN const char *TrustFile,
+    /*! [in] Certificate revocation list. Untrusted certificates. (PEM format) */
+    IN const char *CRLFile);
 
 /*!
  * \brief Deinitializes gnutls and gnutls certificate credentials.
