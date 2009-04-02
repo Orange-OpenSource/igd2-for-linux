@@ -97,6 +97,7 @@ libupnp_la_SOURCES += \
 	src/genlib/util/strintmap.c \
 	src/genlib/util/upnp_timeout.c \
 	src/genlib/util/util.c \
+	src/genlib/util/pki.c \
 	src/genlib/client_table/client_table.c \
 	src/genlib/net/sock.c \
 	src/genlib/net/http/httpparser.c \

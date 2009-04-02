@@ -18,13 +18,13 @@
 #include <resolv.h>
 #include <gnutls/gnutls.h>
 #include <gnutls/x509.h>
-#include <gcrypt.h>
 
 #include "httpsserver.h"
 #include "httpreadwrite.h"
 #include "upnpapi.h"
 #include "miniserver.h"
 #include "statcodes.h"
+#include "pki.h"
 
 
 #define MAX_BUF 1024
@@ -45,15 +45,6 @@ static void RunHttpsServer( SOCKET listen_sd );
 static int parseHttpMessage(char *buf, int buflen, http_parser_t *parser, http_method_t request_method, int *timeout_secs, int *http_error_code);
 static int tcp_connect (void);
 static void tcp_close (int sd);
-
-
-/* Make libgrypt (gnutls) thread save. This assumes that we are using pthred for threading.
- * Check http://www.gnu.org/software/gnutls/manual/gnutls.html#Multi_002dthreaded-applications
- * Also see StartHttpsServer
- */
-GCRY_THREAD_OPTION_PTHREAD_IMPL;
-
-
 
  
 /************************************************************************
@@ -615,13 +606,7 @@ StartHttpsServer( IN unsigned short listen_port,
     SOCKET listen_sd;
     int ret;    
     
-    /* Make libgrypt (gnutls) thread save. This assumes that we are using pthred for threading.
-     * Check http://www.gnu.org/software/gnutls/manual/gnutls.html#Multi_002dthreaded-applications
-     */
-    gcry_control (GCRYCTL_SET_THREAD_CBS, &gcry_threads_pthread);
-    
-    /* to disallow usage of the blocking /dev/random  */
-    gcry_control (GCRYCTL_ENABLE_QUICK_RANDOM, 0);
+    init_gcrypt();
 
     /* this must be called once in the program */
     // create gnutls session
@@ -639,11 +624,13 @@ StartHttpsServer( IN unsigned short listen_port,
         return ret;    
     }    
     
-    ret = gnutls_certificate_set_x509_trust_file (x509_cred, TrustFile, GNUTLS_X509_FMT_PEM); // white list
-    if (ret < 0) {
-        UpnpPrintf( UPNP_INFO, MSERV, __FILE__, __LINE__,
-            "StartHttpsServer: gnutls_certificate_set_x509_trust_file failed (%s)\n\n", gnutls_strerror (ret));
-        return ret;       
+    if (TrustFile) {
+        ret = gnutls_certificate_set_x509_trust_file (x509_cred, TrustFile, GNUTLS_X509_FMT_PEM); // white list
+        if (ret < 0) {
+            UpnpPrintf( UPNP_INFO, MSERV, __FILE__, __LINE__,
+                "StartHttpsServer: gnutls_certificate_set_x509_trust_file failed (%s)\n\n", gnutls_strerror (ret));
+            return ret;       
+        }
     }
     
     if (CRLFile) {
