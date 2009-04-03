@@ -1453,11 +1453,11 @@ UpnpInitClientSSL( IN const char *CertFile,
         }
         
         // put certificate and private key in global variables for use in tls handshake
-        
+        load_x509_self_signed_certificate(&client_crt, &client_privkey, "certi.pem", "TestingDevice444", 1024, 7*24*60*60);
     }
     else {
         // create own private key and self signed certificate 
-        create_x509_self_signed_certificate(&client_crt, &client_privkey, "certi2.pem", "TestingDevice444", 1024, 7*24*60*60);
+        load_x509_self_signed_certificate(&client_crt, &client_privkey, "certi2.pem", "TestingDevice444", 1024, 7*24*60*60);
     }
     
     // set callback function for returning client certificate. (in default case server says in 

@@ -72,34 +72,13 @@ void init_gcrypt()
 int clientCertCallback(gnutls_session_t session, const gnutls_datum_t* req_ca_dn, int nreqs, gnutls_pk_algorithm_t* pk_algos, int pk_algos_length, gnutls_retr_st* st)
 {
     gnutls_certificate_type type;
-    gnutls_x509_crt_t crt;
-    gnutls_x509_privkey_t key;
-
        
     type = gnutls_certificate_type_get(session);
-    if (type == GNUTLS_CRT_X509) {
-        gnutls_datum_t pem_data;
-        size_t size = 0;
-        
-        //tää ny poies täältä ja globaalit käyttöön...
-        char *data = read_binary_file("certi.pem",&size);
-        
-        pem_data.data = (unsigned char *)data;
-        pem_data.size = (unsigned int)size;
-        
-        
-        gnutls_x509_privkey_init (&key);
-        gnutls_x509_crt_init (&crt);
-        
-        
+    if (type == GNUTLS_CRT_X509) {         
         st->type = type;
-        st->ncerts = 1;
-        
-        gnutls_x509_crt_import(crt, &pem_data, GNUTLS_X509_FMT_PEM);
-        gnutls_x509_privkey_import(key, &pem_data, GNUTLS_X509_FMT_PEM);
-        
-        st->cert.x509 = &crt;
-        st->key.x509 = key;
+        st->ncerts = 1;        
+        st->cert.x509 = &client_crt;  // these two are globals 
+        st->key.x509 = client_privkey;// 
         st->deinit_all = 0;
     } 
     else {
@@ -109,7 +88,21 @@ int clientCertCallback(gnutls_session_t session, const gnutls_datum_t* req_ca_dn
     return 0;
 }
 
-
+int read_pem_data_file(const char *filename, gnutls_datum_t *pem_data)
+{
+    size_t size = 0;
+    char *data = read_binary_file(filename,&size);
+    
+    if (data && size > 0) {
+        pem_data->data = (unsigned char *)data;
+        pem_data->size = (unsigned int)size; 
+    }
+    else {
+        return -1;
+    }
+    
+    return 0;
+}
 
 /************************************************************************
 *   Function :  read_binary_file
@@ -175,49 +168,15 @@ char* read_binary_file(const char *filename, size_t * length)
 }
 
 
-/************************************************************************
-*   Function :  create_x509_self_signed_certificate
-*
-*   Parameters :
-*       OUT gnutls_x509_crt_t *crt ;    
-*       OUT gnutls_x509_privkey_t *key ;
-*       IN char *file    ;
-*       IN char *CN      ;
-*       IN int modulusBits   ;
-*       IN int lifetime     ;
-*
-*   Description :   Create self signed certificate. For this private key is also created.
-*           If file already contains certificate, function uses that certificate.
-*
-*   Return : int ;
-*       UPNP or gnutls error code.
-*
-*   Note :
-************************************************************************/
-int create_x509_self_signed_certificate(gnutls_x509_crt_t *crt, gnutls_x509_privkey_t *key, char *file, char *CN, int modulusBits, int lifetime)
-{    
-    size_t size;
+int create_new_certificate(gnutls_x509_crt_t *crt, gnutls_x509_privkey_t *key, char *file, char *CN, int modulusBits, int lifetime)
+{
     unsigned char buffer[10 * 1024];
     size_t buffer_size = sizeof (buffer);
     int ret, serial;
     
-    // create private key
-    ret = gnutls_x509_privkey_init (key);
-    if (ret < 0) {
-        printf("error %d %d\n",1,ret);
-        // do something
-    }
-     
     ret = gnutls_x509_privkey_generate (*key, GNUTLS_PK_RSA, modulusBits, 0);
     if (ret < 0) {
         printf("error %d %d\n",2,ret);
-        // do something
-    }           
-    
-    //create certificate
-    ret = gnutls_x509_crt_init (crt);
-    if (ret < 0) {
-        printf("error %d %d\n",3,ret);
         // do something
     }
 
@@ -226,15 +185,7 @@ int create_x509_self_signed_certificate(gnutls_x509_crt_t *crt, gnutls_x509_priv
     if (ret < 0) {
         printf("error %d %d\n",4,ret);
         // do something
-    }
-    
-    
-    ret = gnutls_x509_crt_set_dn_by_oid (*crt, GNUTLS_OID_X520_COMMON_NAME, 0, CN, strlen(CN));
-    if (ret < 0) {
-        printf("error %d %d\n",4,ret);
-        // do something
-    }
-    
+    }  
         
     // set private key for cert
     ret = gnutls_x509_crt_set_key (*crt, *key);
@@ -315,8 +266,69 @@ int create_x509_self_signed_certificate(gnutls_x509_crt_t *crt, gnutls_x509_priv
     printf("%s\n",buffer);
     
     fclose(fp);
-        
-    return 0;   
+    
+    return 0;        
+}
+
+/************************************************************************
+*   Function :  load_x509_self_signed_certificate
+*
+*   Parameters :
+*       OUT gnutls_x509_crt_t *crt ;    
+*       OUT gnutls_x509_privkey_t *key ;
+*       IN char *file    ;
+*       IN char *CN      ;
+*       IN int modulusBits   ;
+*       IN int lifetime     ;
+*
+*   Description :   Create self signed certificate. For this private key is also created.
+*           If file already contains certificate, function uses that certificate.
+*
+*   Return : int ;
+*       UPNP or gnutls error code.
+*
+*   Note :
+************************************************************************/
+int load_x509_self_signed_certificate(gnutls_x509_crt_t *crt, gnutls_x509_privkey_t *key, char *file, char *CN, int modulusBits, int lifetime)
+{    
+    int ret = 0;
+    gnutls_datum_t pem_data;
+    
+    
+    // init private key
+    ret = gnutls_x509_privkey_init (key);
+    if (ret < 0) {
+        printf("error %d %d\n",1,ret);
+        // do something
+    }
+    
+    //init certificate
+    ret = gnutls_x509_crt_init (crt);
+    if (ret < 0) {
+        printf("error %d %d\n",3,ret);
+        // do something
+    }
+    
+    
+    // check if file already exists and if it contains data
+    ret = read_pem_data_file(file, &pem_data);
+    if (ret == 0) { 
+        ret = gnutls_x509_crt_import(*crt, &pem_data, GNUTLS_X509_FMT_PEM); //TODO check if still in force, is CN same?
+        if (ret < 0) {
+            printf("error %d %d\n",30,ret);
+            // do something
+        }        
+        ret = gnutls_x509_privkey_import(*key, &pem_data, GNUTLS_X509_FMT_PEM);
+          if (ret < 0) {
+            printf("error %d %d\n",31,ret);
+            // do something
+        }        
+    }
+    else {
+        ret = create_new_certificate(crt, key, file, CN, modulusBits, lifetime);
+    }
+       
+    return ret;   
 }
 
 

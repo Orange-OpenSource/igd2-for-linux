@@ -50,6 +50,6 @@ int clientCertCallback(gnutls_session_t session, const gnutls_datum_t* req_ca_dn
 char* read_binary_file(const char *filename, size_t * length);
 
 
-int create_x509_self_signed_certificate(gnutls_x509_crt_t *crt, gnutls_x509_privkey_t *key, char *file, char *CN, int modulusBits, int lifetime);
+int load_x509_self_signed_certificate(gnutls_x509_crt_t *crt, gnutls_x509_privkey_t *key, char *file, char *CN, int modulusBits, int lifetime);
 
 #endif /*PKI_H_*/
