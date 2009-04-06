@@ -3,6 +3,21 @@
 
 #include <gnutls/gnutls.h>
 
+/* default file for certificate and private key storing */
+#ifndef UPNP_X509_CLIENT_CERT_FILE
+#define UPNP_X509_CLIENT_CERT_FILE      "libupnpX509.pem"
+#endif
+
+/* default bit size of used modulus in created certificate */
+#ifndef UPNP_X509_CERT_MODULUS_SIZE
+#define UPNP_X509_CERT_MODULUS_SIZE      1024
+#endif
+
+/* how many seconds created certificate should last */
+#ifndef UPNP_X509_CERT_LIFETIME
+#define UPNP_X509_CERT_LIFETIME      7*24*60*60
+#endif
+
 /************************************************************************
 *   Function :  init_gcrypt
 *
@@ -31,25 +46,26 @@ void init_gcrypt();
 int clientCertCallback(gnutls_session_t session, const gnutls_datum_t* req_ca_dn, int nreqs, gnutls_pk_algorithm_t* pk_algos, int pk_algos_length, gnutls_retr_st* st);
 
 /************************************************************************
-*   Function :  read_binary_file
+*   Function :  load_x509_self_signed_certificate
 *
 *   Parameters :
-*       IN const char* filename ;    Name of the file to read
-*       OUT size_t length       ;    Length of read data 
+*       OUT gnutls_x509_crt_t *crt     ;  Pointer to gnutls_x509_crt_t where certificate is created
+*       OUT gnutls_x509_privkey_t *key ;  Pointer to gnutls_x509_privkey_t where private key is created
+*       IN const char *certfile        ;  Name of file where certificate is exported in PEM format
+*       IN const char *privkeyfile     ;  Name of file where private key is exported in PEM format
+*       IN char *CN                    ;  Common Name velue in certificate
+*       IN int modulusBits             ;  Size of modulus in certificate
+*       IN int lifetime                ;  How many seconds until certificate will expire. Counted from now.
+* 
+*   Description :   Create self signed certificate. For this private key is also created.
+*           If certfile already contains certificate and privkeyfile contains privatekey,
+*           function uses that certificate. If only other is defined, then both will be created.
 *
-*   Description :   Read file contents and return contents as string.
-*                   Size of content is returned in second function parameter.
-*                   Copied and modified from gnutls read-file.c
-*
-*   Return : char* ;
-*       Pointer to the string containing file contents.
-*       NULL if failed to read file.
+*   Return : int ;
+*       UPNP or gnutls error code.
 *
 *   Note :
 ************************************************************************/
-char* read_binary_file(const char *filename, size_t * length);
-
-
-int load_x509_self_signed_certificate(gnutls_x509_crt_t *crt, gnutls_x509_privkey_t *key, char *file, char *CN, int modulusBits, int lifetime);
+int load_x509_self_signed_certificate(gnutls_x509_crt_t *crt, gnutls_x509_privkey_t *key, const char *certfile, const char *privkeyfile, const char *CN, const int modulusBits, const int lifetime);
 
 #endif /*PKI_H_*/

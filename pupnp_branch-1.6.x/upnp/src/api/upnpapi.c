@@ -1453,11 +1453,18 @@ UpnpInitClientSSL( IN const char *CertFile,
         }
         
         // put certificate and private key in global variables for use in tls handshake
-        load_x509_self_signed_certificate(&client_crt, &client_privkey, "certi.pem", "TestingDevice444", 1024, 7*24*60*60);
+        retVal = load_x509_self_signed_certificate(&client_crt, &client_privkey, CertFile, PrivKeyFile, "TestingDevice444", UPNP_X509_CERT_MODULUS_SIZE, UPNP_X509_CERT_LIFETIME);
     }
     else {
         // create own private key and self signed certificate 
-        load_x509_self_signed_certificate(&client_crt, &client_privkey, "certi2.pem", "TestingDevice444", 1024, 7*24*60*60);
+        retVal = load_x509_self_signed_certificate(&client_crt, &client_privkey, UPNP_X509_CLIENT_CERT_FILE, UPNP_X509_CLIENT_CERT_FILE, "TestingDevice444", UPNP_X509_CERT_MODULUS_SIZE, UPNP_X509_CERT_LIFETIME);
+      
+        retVal = gnutls_certificate_set_x509_key_file (xcred, UPNP_X509_CLIENT_CERT_FILE, UPNP_X509_CLIENT_CERT_FILE, GNUTLS_X509_FMT_PEM);                   
+        if (retVal != GNUTLS_E_SUCCESS) {
+            UpnpPrintf( UPNP_ALL, API, __FILE__, __LINE__,
+                "UpnpCreateClientSSLSession: gnutls_certificate_set_x509_key_file failed. %s \n", gnutls_strerror(retVal) );
+            return retVal;  
+        }
     }
     
     // set callback function for returning client certificate. (in default case server says in 
