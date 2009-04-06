@@ -134,7 +134,7 @@ static int verify_certificate (gnutls_session_t session, const char *hostname)
     int i;
     for (i = 0; i < cert_list_size; i++)
     {   
-        if ((ret = gnutls_x509_crt_import (cert, &cert_list[0], GNUTLS_X509_FMT_DER)) != GNUTLS_E_SUCCESS)
+        if ((ret = gnutls_x509_crt_import (cert, &cert_list[i], GNUTLS_X509_FMT_DER)) != GNUTLS_E_SUCCESS)
         {
             UpnpPrintf( UPNP_CRITICAL, MSERV, __FILE__, __LINE__,
                 "Error parsing Peer certificate: %s\n",gnutls_strerror(ret) );
@@ -142,33 +142,11 @@ static int verify_certificate (gnutls_session_t session, const char *hostname)
             return ret;
         }
     
-        /* Beware here we do not check for errors.
-         */
-        if (gnutls_x509_crt_get_expiration_time (cert) < time (0))
-        {
-            UpnpPrintf( UPNP_CRITICAL, MSERV, __FILE__, __LINE__,
-                "Peer certificate has expired\n");
-            gnutls_x509_crt_deinit (cert);
-            return GNUTLS_E_X509_CERTIFICATE_ERROR;
-        }
-    
-        if (gnutls_x509_crt_get_activation_time (cert) > time (0))
-        {
-            UpnpPrintf( UPNP_CRITICAL, MSERV, __FILE__, __LINE__,
-                "Peer certificate is not yet activated\n");
-            gnutls_x509_crt_deinit (cert);
-            return GNUTLS_E_X509_CERTIFICATE_ERROR;
-        }
-    
-        if (!gnutls_x509_crt_check_hostname (cert, hostname))
-        {
-            UpnpPrintf( UPNP_CRITICAL, MSERV, __FILE__, __LINE__,
-                "Peer certificate's owner does not match hostname '%s'\n",hostname);
-            gnutls_x509_crt_deinit (cert);
-            return GNUTLS_E_X509_CERTIFICATE_ERROR;
-        }
-    
+        // validate expiration times and hostname
+        ret = validate_x509_certificate(&cert, hostname, NULL);
         gnutls_x509_crt_deinit (cert);
+        
+        if (ret != 0) return ret;
     }
 
     return GNUTLS_E_SUCCESS;

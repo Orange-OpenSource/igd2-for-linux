@@ -262,6 +262,7 @@ static int export_certificate_to_file(const gnutls_x509_crt_t *crt, const gnutls
 *       IN int lifetime                ;  How many seconds until certificate will expire. Counted from now.
 *
 *   Description :   Create new self signed certificate. Creates also new private key.
+*           Some inspiration for this code is took from gnutls certtool.
 *
 *   Return : int ;
 *       UPNP or gnutls error code.
@@ -402,12 +403,18 @@ int load_x509_self_signed_certificate(gnutls_x509_crt_t *crt, gnutls_x509_privke
         // import certificate from file
         ret = read_pem_data_file(certfile, &pem_data);
         if (ret == 0) { 
-            ret = gnutls_x509_crt_import(*crt, &pem_data, GNUTLS_X509_FMT_PEM); //TODO check if still in force, is CN same?
+            ret = gnutls_x509_crt_import(*crt, &pem_data, GNUTLS_X509_FMT_PEM);
             if (ret < 0) {
                 UpnpPrintf( UPNP_CRITICAL, X509, __FILE__, __LINE__,
                     "gnutls_x509_crt_import failed. %s \n", gnutls_strerror(ret) );
                 return ret;
-            }           
+            }
+            ret = validate_x509_certificate(crt, NULL, CN);
+            if (ret < 0) {
+                UpnpPrintf( UPNP_CRITICAL, X509, __FILE__, __LINE__,
+                    "X.509 certificate validation failed. %s \n", gnutls_strerror(ret) );
+                return ret;
+            }      
         }
         else {
             ret = create_new_certificate(crt, key, certfile, privkeyfile, CN, modulusBits, lifetime);
@@ -420,4 +427,68 @@ int load_x509_self_signed_certificate(gnutls_x509_crt_t *crt, gnutls_x509_privke
     return ret;   
 }
 
+
+/************************************************************************
+*   Function :  validate_x509_certificate
+*
+*   Parameters :
+*       IN const gnutls_x509_crt_t *crt  ;  Pointer to certificate which is validated
+*       IN const char *hostname          ;  Hostname to compare with certificates subject
+*       IN const char *commonname        ;  CN value which is compared with subject CN value of certificate 
+* 
+*   Description :   Check that given certificate is activated (not before > now), certificate 
+*       has not expired (not after < now). If hostname or commonname are defined check that
+*       those values match values found from certificate. Hostname check is "a basic implementation 
+*       of the matching described in RFC2818 (HTTPS), which takes into account wildcards, and the 
+*       DNSName/IPAddress subject alternative name PKIX extension." (gnutls)
+*       Commonname check just checks if commonname value equals CN found from certificates subject.
+*
+*   Return : int ;
+*       UPNP or gnutls error code.
+*
+*   Note :
+************************************************************************/
+int validate_x509_certificate(const gnutls_x509_crt_t *crt, const char *hostname, const char *commonname)
+{
+    int ret = 0;
+    size_t buf_size = 20;
+    char buf[buf_size];
+    
+    if (gnutls_x509_crt_get_expiration_time (*crt) < time (NULL)) {
+        UpnpPrintf( UPNP_CRITICAL, X509, __FILE__, __LINE__,
+            "Certificate has expired\n");
+        return GNUTLS_E_X509_CERTIFICATE_ERROR;
+    }
+
+    if (gnutls_x509_crt_get_activation_time (*crt) > time (NULL))  {
+        UpnpPrintf( UPNP_CRITICAL, X509, __FILE__, __LINE__,
+            "Certificate is not yet activated\n");
+        return GNUTLS_E_X509_CERTIFICATE_ERROR;
+    }
+
+    if (hostname && (strlen(hostname) > 0)) {
+        if (!gnutls_x509_crt_check_hostname (*crt, hostname)) {
+            UpnpPrintf( UPNP_CRITICAL, X509, __FILE__, __LINE__,
+                "Certificate's owner does not match hostname '%s'\n",hostname);
+            return GNUTLS_E_X509_CERTIFICATE_ERROR;
+        }
+    }
+    
+    if (commonname) {
+        ret = gnutls_x509_crt_get_dn_by_oid (*crt, GNUTLS_OID_X520_COMMON_NAME, 0, 0, buf, &buf_size);
+        if (ret != 0) {
+            UpnpPrintf( UPNP_CRITICAL, X509, __FILE__, __LINE__,
+                "Failed to get certificates Common Name value\n"); 
+            return ret; 
+        }
+        
+        if (strcmp(buf, commonname) != 0) {
+            UpnpPrintf( UPNP_CRITICAL, X509, __FILE__, __LINE__,
+                "Certificate's Common Name '%s' isn't what expected '%s'\n",buf,commonname);
+            return GNUTLS_E_X509_CERTIFICATE_ERROR;
+        }
+    }
+    
+    return ret;  
+}
 

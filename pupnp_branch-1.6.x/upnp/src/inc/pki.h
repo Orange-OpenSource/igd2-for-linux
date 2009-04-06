@@ -68,4 +68,27 @@ int clientCertCallback(gnutls_session_t session, const gnutls_datum_t* req_ca_dn
 ************************************************************************/
 int load_x509_self_signed_certificate(gnutls_x509_crt_t *crt, gnutls_x509_privkey_t *key, const char *certfile, const char *privkeyfile, const char *CN, const int modulusBits, const int lifetime);
 
+
+/************************************************************************
+*   Function :  validate_x509_certificate
+*
+*   Parameters :
+*       IN const gnutls_x509_crt_t *crt  ;  Pointer to certificate which is validated
+*       IN const char *hostname          ;  Hostname to compare with certificates subject
+*       IN const char *commonname        ;  CN value which is compared with subject CN value of certificate 
+* 
+*   Description :   Check that given certificate is activated (not before > now), certificate 
+*       has not expired (not after < now). If hostname or commonname are defined check that
+*       those values match values found from certificate. Hostname check is "a basic implementation 
+*       of the matching described in RFC2818 (HTTPS), which takes into account wildcards, and the 
+*       DNSName/IPAddress subject alternative name PKIX extension." (gnutls)
+*       Commonname check just checks if commonname value equals CN found from certificates subject.
+*
+*   Return : int ;
+*       UPNP or gnutls error code.
+*
+*   Note :
+************************************************************************/
+int validate_x509_certificate(const gnutls_x509_crt_t *crt, const char *hostname, const char *commonname);
+
 #endif /*PKI_H_*/
