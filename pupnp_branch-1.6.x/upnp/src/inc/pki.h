@@ -3,9 +3,24 @@
 
 #include <gnutls/gnutls.h>
 
-/* default file for certificate and private key storing */
+/* default file for client certificate storing */
 #ifndef UPNP_X509_CLIENT_CERT_FILE
 #define UPNP_X509_CLIENT_CERT_FILE      "libupnpX509.pem"
+#endif
+
+/* default file for client private key storing */
+#ifndef UPNP_X509_CLIENT_PRIVKEY_FILE
+#define UPNP_X509_CLIENT_PRIVKEY_FILE      "libupnpX509.pem"
+#endif
+
+/* default file for server certificate storing */
+#ifndef UPNP_X509_SERVER_CERT_FILE
+#define UPNP_X509_SERVER_CERT_FILE      "libupnpX509server.pem"
+#endif
+
+/* default file for server private key storing */
+#ifndef UPNP_X509_SERVER_PRIVKEY_FILE
+#define UPNP_X509_SERVER_PRIVKEY_FILE      "libupnpX509server.pem"
 #endif
 
 /* default bit size of used modulus in created certificate */
@@ -19,17 +34,19 @@
 #endif
 
 /************************************************************************
-*   Function :  init_gcrypt
+*   Function :  init_crypto_libraries
 *
 *   Description :   Initialize libgcrypt for gnutls. Not sure should this rather 
 *        be done in final program using this UPnP library?
 *        Makes gcrypt thread save, and disables usage of blocking /dev/random.
+*        Initialize also gnutls.
 *
-*   Return : void
+*   Return : int ;
+*       0 on succes, gnutls error else
 *
 *   Note : assumes that libupnp uses pthreads.
 ************************************************************************/
-void init_gcrypt(); 
+int init_crypto_libraries(); 
 
 /************************************************************************
 *   Function :  clientCertCallback
@@ -44,6 +61,28 @@ void init_gcrypt();
 *   Note : Don't call this.
 ************************************************************************/
 int clientCertCallback(gnutls_session_t session, const gnutls_datum_t* req_ca_dn, int nreqs, gnutls_pk_algorithm_t* pk_algos, int pk_algos_length, gnutls_retr_st* st);
+
+
+/************************************************************************
+*   Function :  init_x509_certificate_credentials
+*
+*   Parameters :
+*       OUT gnutls_certificate_credentials_t *x509_cred     ;  Pointer to gnutls_certificate_credentials_t where certificate credentials are inserted
+*       IN const char *CertFile        ;  Selfsigned certificate file of client
+*       IN const char *PrivKeyFile     ;  Private key file of client.
+*       IN const char *TrustFile       ;  File containing trusted certificates. (PEM format)
+*       IN const char *CRLFile         ;  Certificate revocation list. Untrusted certificates. (PEM format)
+*
+*   Description :   Init gnutls_certificate_credentials_t structure for use with 
+*       input from given parameter files. All files may be NULL
+*
+*   Return : int ;
+*       UPNP or gnutls error code.
+*
+*   Note :
+************************************************************************/
+int init_x509_certificate_credentials(gnutls_certificate_credentials_t *x509_cred, const char *CertFile, const char *PrivKeyFile, const char *TrustFile, const char *CRLFile);
+
 
 /************************************************************************
 *   Function :  load_x509_self_signed_certificate

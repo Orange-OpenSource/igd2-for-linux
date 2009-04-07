@@ -36,24 +36,39 @@
 GCRY_THREAD_OPTION_PTHREAD_IMPL;
 
 /************************************************************************
-*   Function :  init_gcrypt
+*   Function :  init_crypto_libraries
 *
 *   Description :   Initialize libgcrypt for gnutls. Not sure should this rather 
 *        be done in final program using this UPnP library?
 *        Makes gcrypt thread save, and disables usage of blocking /dev/random.
+*        Initialize also gnutls.
 *
-*   Return : void
+*   Return : int ;
+*       0 on succes, gnutls error else
 *
 *   Note : assumes that libupnp uses pthreads.
 ************************************************************************/
-void init_gcrypt()
+int init_crypto_libraries()
 {
+    int ret;
+    
      /* Make libgrypt (gnutls) thread save. This assumes that we are using pthred for threading.
      * Check http://www.gnu.org/software/gnutls/manual/gnutls.html#Multi_002dthreaded-applications
      */
     gcry_control (GCRYCTL_SET_THREAD_CBS, &gcry_threads_pthread);    
     /* to disallow usage of the blocking /dev/random  */
     gcry_control (GCRYCTL_ENABLE_QUICK_RANDOM, 0);
+    
+    
+    /* this must be called once in the program */
+    ret = gnutls_global_init ();
+    if ( ret != GNUTLS_E_SUCCESS ) {
+        UpnpPrintf( UPNP_CRITICAL, X509, __FILE__, __LINE__,
+            "StartHttpsServer: gnutls_global_init failed. (%s) \n\n", gnutls_strerror(ret) );        
+        return ret;       
+    }
+    
+    return 0;
 }
 
 
@@ -346,6 +361,68 @@ static int create_new_certificate(gnutls_x509_crt_t *crt, gnutls_x509_privkey_t 
     
     return ret;        
 }
+
+
+/************************************************************************
+*   Function :  init_x509_certificate_credentials
+*
+*   Parameters :
+*       OUT gnutls_certificate_credentials_t *x509_cred     ;  Pointer to gnutls_certificate_credentials_t where certificate credentials are inserted
+*       IN const char *CertFile        ;  Selfsigned certificate file of client
+*       IN const char *PrivKeyFile     ;  Private key file of client.
+*       IN const char *TrustFile       ;  File containing trusted certificates. (PEM format)
+*       IN const char *CRLFile         ;  Certificate revocation list. Untrusted certificates. (PEM format)
+*
+*   Description :   Init gnutls_certificate_credentials_t structure for use with 
+*       input from given parameter files. All files may be NULL
+*
+*   Return : int ;
+*       UPNP or gnutls error code.
+*
+*   Note :
+************************************************************************/
+int init_x509_certificate_credentials(gnutls_certificate_credentials_t *x509_cred, const char *CertFile, const char *PrivKeyFile, const char *TrustFile, const char *CRLFile)
+{
+    int ret;
+
+    ret = gnutls_certificate_allocate_credentials (x509_cred);
+    if ( ret != GNUTLS_E_SUCCESS ) {
+        UpnpPrintf( UPNP_CRITICAL, X509, __FILE__, __LINE__,
+            "StartHttpsServer: gnutls_certificate_allocate_credentials failed. (%s) \n\n", gnutls_strerror(ret) );        
+        return ret;    
+    }    
+    
+    if (TrustFile) {
+        ret = gnutls_certificate_set_x509_trust_file (*x509_cred, TrustFile, GNUTLS_X509_FMT_PEM); // white list
+        if (ret < 0) {
+            UpnpPrintf( UPNP_CRITICAL, X509, __FILE__, __LINE__,
+                "StartHttpsServer: gnutls_certificate_set_x509_trust_file failed (%s)\n\n", gnutls_strerror (ret));
+            return ret;       
+        }
+    }
+    
+    if (CRLFile) {
+        ret = gnutls_certificate_set_x509_crl_file (*x509_cred, CRLFile, GNUTLS_X509_FMT_PEM); // black list    
+        if (ret < 0) {
+            UpnpPrintf( UPNP_CRITICAL, X509, __FILE__, __LINE__,
+                "StartHttpsServer: gnutls_certificate_set_x509_crl_file failed. (%s)\n\n", gnutls_strerror (ret));
+            return ret;                   
+        }
+    }
+
+    if (CertFile && PrivKeyFile) {
+        ret = gnutls_certificate_set_x509_key_file (*x509_cred, CertFile, PrivKeyFile, GNUTLS_X509_FMT_PEM);                    
+        if (ret != GNUTLS_E_SUCCESS) {
+            UpnpPrintf( UPNP_CRITICAL, X509, __FILE__, __LINE__,
+                "StartHttpsServer: gnutls_certificate_set_x509_key_file failed. (%s)\n\n", gnutls_strerror (ret));
+            return ret;    
+        } 
+    }
+    
+    return 0;
+}
+
+
 
 /************************************************************************
 *   Function :  load_x509_self_signed_certificate

@@ -1064,7 +1064,9 @@ EXPORT_SPEC int UpnpStartHttpsServer(
     /*! [in]  File containing trusted certificates. (PEM format). */
     const char *TrustFile,
     /*! [in] Certificate revocation list. Untrusted certificates. (PEM format). */
-    const char *CRLFile);
+    const char *CRLFile,
+    /*! [in] Name of device. This is used as CN (common name) in certificate */
+    const char *devName);
 
 /*!
  * \brief Terminates the Linux SDK for UPnP Devices.
@@ -1338,7 +1340,9 @@ EXPORT_SPEC int UpnpCloseClientSSLSession(
  * \brief initializes gnutls and gnutls certificate credentials
  * 
  *  This function initializes gnutls and gnutls certificate credentials for 
- *  clients to use. Call before anything SSL specific is done.
+ *  clients to use. If trust or CRL files are NULL, then they won't be used.
+ *  If either certificate or private key file is NULL, then both will be
+ *  neglected and new prvate key and certificate are created in upnp default files. 
  *
  * \return An integer
  */   
@@ -1350,7 +1354,9 @@ EXPORT_SPEC int UpnpInitClientSSL(
     /*! [in] File containing trusted certificates. (PEM format) */
     IN const char *TrustFile,
     /*! [in] Certificate revocation list. Untrusted certificates. (PEM format) */
-    IN const char *CRLFile);
+    IN const char *CRLFile,
+    /*! [in] Name of device. This is used as CN (common name) in certificate */
+    const char *devName);
 
 /*!
  * \brief Deinitializes gnutls and gnutls certificate credentials.

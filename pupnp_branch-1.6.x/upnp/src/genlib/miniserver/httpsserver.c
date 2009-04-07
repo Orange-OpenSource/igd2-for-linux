@@ -33,6 +33,8 @@
 static gnutls_certificate_credentials_t x509_cred;
 static gnutls_priority_t priority_cache;
 static gnutls_dh_params_t dh_params;
+static gnutls_x509_crt_t server_crt;
+static gnutls_x509_privkey_t server_privkey;
 
 static int RUNNING = 0;
 static int PORT = 0;
@@ -45,6 +47,7 @@ static void RunHttpsServer( SOCKET listen_sd );
 static int parseHttpMessage(char *buf, int buflen, http_parser_t *parser, http_method_t request_method, int *timeout_secs, int *http_error_code);
 static int tcp_connect (void);
 static void tcp_close (int sd);
+static int shutdownClientCertCallback(gnutls_session_t session, const gnutls_datum_t* req_ca_dn, int nreqs, gnutls_pk_algorithm_t* pk_algos, int pk_algos_length, gnutls_retr_st* st);
 
  
 /************************************************************************
@@ -562,7 +565,8 @@ RunHttpsServer( SOCKET listen_sd )
  *  char* PrivKeyFile - Private key file of server
  *  char* TrustFile - Trust list of certificates we trust. May be NULL
  *  char* CRLFile - Certificate Revocation List, aka. Blacklist of certificates which we don't trust (use PEM format...). May be NULL
- *
+ *  char* cn - Common name value used in certificate, name of device or something similar
+ * 
  * Description:
  *  Initialize gnutls for the https server. Initialize a thread pool job to run the server
  *  and the job to the thread pool.
@@ -576,64 +580,59 @@ StartHttpsServer( IN unsigned short listen_port,
                   IN const char *CertFile,
                   IN const char *PrivKeyFile,
                   IN const char *TrustFile,
-                  IN const char *CRLFile)
+                  IN const char *CRLFile,
+                  IN const char *cn)
 {   
     /* for shutdown purposes */
-    PORT = listen_port;
-       
+    PORT = listen_port;  
     SOCKET listen_sd;
-    int ret;    
+    int retVal;
     
-    init_gcrypt();
+    retVal = init_crypto_libraries();
+    if (retVal != 0) {
+        UpnpPrintf( UPNP_INFO, MSERV, __FILE__, __LINE__,
+            "StartHttpsServer: Crypto library initialization failed\n");
+        return retVal;    
+    }  
 
-    /* this must be called once in the program */
-    // create gnutls session
-    ret = gnutls_global_init ();
-    if ( ret != GNUTLS_E_SUCCESS ) {
-        UpnpPrintf( UPNP_INFO, MSERV, __FILE__, __LINE__,
-            "StartHttpsServer: gnutls_global_init failed. (%s) \n\n", gnutls_strerror(ret) );        
-        return ret;       
-    }
-    
-    ret = gnutls_certificate_allocate_credentials (&x509_cred);
-    if ( ret != GNUTLS_E_SUCCESS ) {
-        UpnpPrintf( UPNP_INFO, MSERV, __FILE__, __LINE__,
-            "StartHttpsServer: gnutls_certificate_allocate_credentials failed. (%s) \n\n", gnutls_strerror(ret) );        
-        return ret;    
-    }    
-    
-    if (TrustFile) {
-        ret = gnutls_certificate_set_x509_trust_file (x509_cred, TrustFile, GNUTLS_X509_FMT_PEM); // white list
-        if (ret < 0) {
+    if (CertFile && PrivKeyFile) {
+        // put certificate and private key in global variables for use in tls handshake
+        retVal = load_x509_self_signed_certificate(&server_crt, &server_privkey, CertFile, PrivKeyFile, cn, UPNP_X509_CERT_MODULUS_SIZE, UPNP_X509_CERT_LIFETIME);
+        if ( retVal != GNUTLS_E_SUCCESS ) {
             UpnpPrintf( UPNP_INFO, MSERV, __FILE__, __LINE__,
-                "StartHttpsServer: gnutls_certificate_set_x509_trust_file failed (%s)\n\n", gnutls_strerror (ret));
-            return ret;       
-        }
-    }
-    
-    if (CRLFile) {
-        ret = gnutls_certificate_set_x509_crl_file (x509_cred, CRLFile, GNUTLS_X509_FMT_PEM); // black list    
-        if (ret < 0) {
+                "StartHttpsServer: Certificate loading failed \n" );
+            return retVal;    
+        }        
+        retVal = init_x509_certificate_credentials(&x509_cred, CertFile, PrivKeyFile, TrustFile, CRLFile);
+        if ( retVal != GNUTLS_E_SUCCESS ) {
             UpnpPrintf( UPNP_INFO, MSERV, __FILE__, __LINE__,
-                "StartHttpsServer: gnutls_certificate_set_x509_crl_file failed. (%s)\n\n", gnutls_strerror (ret));
-            return ret;                   
-        }
+                "StartHttpsServer: Certificate credentials creating failed \n" );
+            return retVal;    
+        }          
     }
-
-    ret = gnutls_certificate_set_x509_key_file (x509_cred, CertFile, PrivKeyFile, GNUTLS_X509_FMT_PEM);                    
-    if (ret != GNUTLS_E_SUCCESS) {
-        UpnpPrintf( UPNP_INFO, MSERV, __FILE__, __LINE__,
-            "StartHttpsServer: gnutls_certificate_set_x509_key_file failed. (%s)\n\n", gnutls_strerror (ret));
-        return ret;    
+    else {
+        // create own private key and self signed certificate or use default file
+        retVal = load_x509_self_signed_certificate(&server_crt, &server_privkey, UPNP_X509_SERVER_CERT_FILE, UPNP_X509_SERVER_PRIVKEY_FILE, cn, UPNP_X509_CERT_MODULUS_SIZE, UPNP_X509_CERT_LIFETIME);
+        if ( retVal != GNUTLS_E_SUCCESS ) {
+            UpnpPrintf( UPNP_INFO, MSERV, __FILE__, __LINE__,
+                "StartHttpsServer: Certificate loading failed \n" );
+            return retVal;    
+        }          
+        retVal = init_x509_certificate_credentials(&x509_cred, UPNP_X509_SERVER_CERT_FILE, UPNP_X509_SERVER_PRIVKEY_FILE, TrustFile, CRLFile);
+        if ( retVal != GNUTLS_E_SUCCESS ) {
+            UpnpPrintf( UPNP_INFO, MSERV, __FILE__, __LINE__,
+                "StartHttpsServer: Certificate credentials creating failed \n" );
+            return retVal;    
+        }   
     }
                         
     generate_dh_params ();
     
-    ret = gnutls_priority_init (&priority_cache, "NORMAL", NULL);
-    if (ret != GNUTLS_E_SUCCESS) {
+    retVal = gnutls_priority_init (&priority_cache, "NORMAL", NULL);
+    if (retVal != GNUTLS_E_SUCCESS) {
         UpnpPrintf( UPNP_INFO, MSERV, __FILE__, __LINE__,
-            "StartHttpsServer: gnutls_priority_init failed. (%s)\n\n", gnutls_strerror (ret));
-        return ret;    
+            "StartHttpsServer: gnutls_priority_init failed. (%s)\n\n", gnutls_strerror (retVal));
+        return retVal;    
     }  
       
     gnutls_certificate_set_dh_params (x509_cred, dh_params);
@@ -683,6 +682,10 @@ StopHttpsServer(void)
     const char *err;  
 
     gnutls_init (&session, GNUTLS_CLIENT);
+
+    // set certificate callbackfunction
+    gnutls_certificate_client_set_retrieve_function(x509_cred, (gnutls_certificate_client_retrieve_function *)shutdownClientCertCallback);    
+
     /* Use default priorities. Don't care errors anymore. */
     ret = gnutls_priority_set_direct (session, "PERFORMANCE", &err);
 
@@ -714,11 +717,46 @@ StopHttpsServer(void)
 
 end:    
     tcp_close (sd);
-    
+
+    gnutls_x509_crt_deinit(server_crt);
+    gnutls_x509_privkey_deinit(server_privkey);    
     gnutls_certificate_free_credentials (x509_cred);
     gnutls_priority_deinit (priority_cache);
     gnutls_global_deinit ();
 
+    return 0;
+}
+
+
+/************************************************************************
+*   Function :  shutdownClientCertCallback
+*
+*   Description :   Callback function which is called by gnutls when 
+*         server asks client certificate at the tls handshake.
+*         Function sets certificate and private key used by client for 
+*         response. 
+*         Uses servers certificate and private key. 
+*
+*   Return : int
+*
+*   Note : Don't call this. Gnutls will.
+************************************************************************/
+static int shutdownClientCertCallback(gnutls_session_t session, const gnutls_datum_t* req_ca_dn, int nreqs, gnutls_pk_algorithm_t* pk_algos, int pk_algos_length, gnutls_retr_st* st)
+{
+    gnutls_certificate_type type;
+       
+    type = gnutls_certificate_type_get(session);
+    if (type == GNUTLS_CRT_X509) {         
+        st->type = type;
+        st->ncerts = 1;        
+        st->cert.x509 = &server_crt;  
+        st->key.x509 = server_privkey; 
+        st->deinit_all = 0;
+    } 
+    else {
+        return -1;
+    }
+    
     return 0;
 }
 
