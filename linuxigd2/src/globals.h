@@ -4,6 +4,7 @@
 #include <net/if.h>
 #include <arpa/inet.h>
 
+#define PIN_SIZE 32
 #define CHAIN_NAME_LEN 32
 #define BITRATE_LEN 32
 #define OPTION_LEN 64
@@ -18,6 +19,7 @@
 
 struct GLOBALS
 {
+    char pinCode[PIN_SIZE];  // Device Protection PIN code of device
     char extInterfaceName[IFNAMSIZ]; // The name of the external interface, picked up from the
     // command line
     char intInterfaceName[IFNAMSIZ]; // The name of the internal interface, picked from command line

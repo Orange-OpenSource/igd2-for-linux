@@ -79,6 +79,7 @@ int parseConfigFile(globals_p vars)
 
     regex_t re_comment;
     regex_t re_empty_row;
+    regex_t re_pin_code;
     regex_t re_iptables_location;
     regex_t re_debug_mode;
     regex_t re_create_forward_rules;
@@ -105,6 +106,7 @@ int parseConfigFile(globals_p vars)
     vars->debug = 0;
     vars->createForwardRules = 0;
     vars->forwardRulesAppend = 0;
+    strcpy(vars->pinCode,"");
     strcpy(vars->iptables,"");
     strcpy(vars->forwardChainName,"");
     strcpy(vars->preroutingChainName,"");
@@ -129,6 +131,7 @@ int parseConfigFile(globals_p vars)
     regcomp(&re_empty_row,"^[[:blank:]]*\r?\n$",REG_EXTENDED);
 
     // Regexps to match configuration file settings
+    regcomp(&re_pin_code,"pin_code[[:blank:]]*=[[:blank:]]*([[:alpha:]_/.]{1,50})",REG_EXTENDED);
     regcomp(&re_iptables_location,"iptables_location[[:blank:]]*=[[:blank:]]*\"([^\"]+)\"",REG_EXTENDED);
     regcomp(&re_debug_mode,"debug_mode[[:blank:]]*=[[:blank:]]*([[:digit:]])",REG_EXTENDED);
     regcomp(&re_forward_chain_name,"forward_chain_name[[:blank:]]*=[[:blank:]]*([[:alpha:]_-]+)",REG_EXTENDED);
@@ -161,8 +164,13 @@ int parseConfigFile(globals_p vars)
             if ( (0 != regexec(&re_comment,line,0,NULL,0)  )  &&
                     (0 != regexec(&re_empty_row,line,0,NULL,0))  )
             {
+                // Chec if pin_code
+                if (regexec(&re_pin_code,line,NMATCH,submatch,0) == 0)
+                {
+                    getConfigOptionArgument(vars->pinCode, PIN_SIZE, line, submatch);
+                }                
                 // Chec if iptables_location
-                if (regexec(&re_iptables_location,line,NMATCH,submatch,0) == 0)
+                else if (regexec(&re_iptables_location,line,NMATCH,submatch,0) == 0)
                 {
                     getConfigOptionArgument(vars->iptables, OPTION_LEN, line, submatch);
                 }
@@ -272,6 +280,7 @@ int parseConfigFile(globals_p vars)
     }
     regfree(&re_comment);
     regfree(&re_empty_row);
+    regfree(&re_pin_code);
     regfree(&re_iptables_location);
     regfree(&re_debug_mode);
     regfree(&re_create_forward_rules);
@@ -357,6 +366,12 @@ int parseConfigFile(globals_p vars)
         // indicate en error
         return -1;
     }
+    if (strnlen(vars->pinCode, PIN_SIZE) == 0)
+    {
+        // Can't find the PIN code, return -1 to
+        // indicate en error
+        return -1;
+    }    
     else
     {
         return 0;

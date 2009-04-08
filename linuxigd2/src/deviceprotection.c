@@ -8,6 +8,7 @@
 #include "util.h"
 #include <wpsutil/enrollee_state_machine.h>
 #include <wpsutil/base64mem.h>
+#include <upnp/upnptools.h>
 
 static int InitDP();
 static void FreeDP();
@@ -24,36 +25,50 @@ char prev_addr[INET6_ADDRSTRLEN];
 
 static int InitDP()
 {   
-    // TODO these values. What those should be and move to config file 
-    // TODO: Should start new thread for multiple simultanious registration processes?
     int err;
-    
+    char descDocFile[sizeof(g_vars.xmlPath)+sizeof(g_vars.descDocName)+2];
     unsigned char MAC[WPSU_MAC_LEN];
-    memset(MAC, 0xAB, WPSU_MAC_LEN);
+    memset(MAC, 0x00, WPSU_MAC_LEN);
+    GetMACAddressStr(MAC, WPSU_MAC_LEN, g_vars.intInterfaceName);
 
-    err = wpsu_enrollee_station_input_add_device_info(&input, 
-                                        "stasecret",
-                                        "TestManufacturer", 
-                                        "TestModelName",
-                                        "TestModelNumber", 
-                                        "TestSerialNumber", 
-                                        "TestDeviceName", 
-                                        NULL,
-                                        0,
-                                        MAC,
-                                        WPSU_MAC_LEN,
-                                        "TestUUID",
-                                        8,
-                                        NULL,
-                                        0,
-                                        NULL,
-                                        0,
-                                        WPSU_CONF_METHOD_LABEL, 
-                                        WPSU_RFBAND_2_4GHZ);
+    // manufacturer and device info is read from device description XML
+    sprintf(descDocFile, "%s/%s", g_vars.xmlPath, g_vars.descDocName);
+    IXML_Document *descDoc = ixmlLoadDocument(descDocFile);
+    
+    if (descDoc)
+    {
+        char *UUID = GetFirstDocumentItem(descDoc, "UDN");
+        if (strlen(UUID) > 5)
+        {
+            UUID = UUID + 5; // remove text uuid: from beginning of string
+        }
+        
+        err = wpsu_enrollee_station_input_add_device_info(&input, 
+                                            g_vars.pinCode,
+                                            GetFirstDocumentItem(descDoc, "manufacturer"),
+                                            GetFirstDocumentItem(descDoc, "modelName"),
+                                            GetFirstDocumentItem(descDoc, "modelNumber"),
+                                            GetFirstDocumentItem(descDoc, "serialNumber"),
+                                            GetFirstDocumentItem(descDoc, "friendlyName"),
+                                            NULL,
+                                            0,
+                                            MAC,
+                                            WPSU_MAC_LEN,
+                                            (unsigned char*)UUID,
+                                            strlen(UUID),
+                                            NULL,
+                                            0,
+                                            NULL,
+                                            0,
+                                            WPSU_CONF_METHOD_LABEL, 
+                                            WPSU_RFBAND_2_4GHZ);
+    }
+    else return -1;
+    
                                         
     // station has applications A, B and C
     //input.Apps = 3;
-
+/*
     unsigned char UUID[WPSU_MAX_UUID_LEN];
 
     memset(UUID, 0xAA, WPSU_MAX_UUID_LEN);
@@ -77,7 +92,7 @@ static int InitDP()
         UUID,WPSU_MAX_UUID_LEN,
         "C data from STA",strlen("C data from STA") + 1,
         NULL,0);
-
+*/
     // create enrollee state machine
     esm = wpsu_create_enrollee_sm_station(&input, &err);
 
