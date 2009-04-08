@@ -31,6 +31,37 @@ static int get_sockfd(void)
 }
 
 /**
+ * Get MAC address of given network interface.
+ *
+ * @param address MAC address is wrote into this.
+ * @param ifname Interface name.
+ * @return 1 if success, 0 if failure. MAC address is returned in address parameter.
+ */
+int GetMACAddressStr(unsigned char *address, int addressSize, char *ifname)
+{
+    struct ifreq ifr;
+    int fd;
+    int succeeded = 0;
+
+    fd = get_sockfd();
+    if (fd >= 0 )
+    {
+        strncpy(ifr.ifr_name, ifname, IFNAMSIZ);
+        if (ioctl(fd, SIOCGIFHWADDR, &ifr) == 0)
+        {    
+            memcpy(address, ifr.ifr_hwaddr.sa_data, addressSize);
+            succeeded = 1;
+        }
+        else
+        {
+            syslog(LOG_ERR, "Failure obtaining MAC address of interface %s", ifname);
+            succeeded = 0;
+        }
+    }
+    return succeeded;
+}
+
+/**
  * Get IP address assigned for given network interface.
  *
  * @param address IP address is wrote into this.
