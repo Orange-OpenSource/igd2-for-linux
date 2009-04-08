@@ -70,13 +70,13 @@
 #include "soaplib.h"
 #include "ThreadPool.h"
 #include "pki.h"
+#include "httpsserver.h"
 
 
 // Needed for GENA
 #include "gena.h"
 #include "miniserver.h"
 #include "service_table.h"
-#include "httpsserver.h"
 
 
 #ifdef INTERNAL_WEB_SERVER
@@ -84,10 +84,14 @@
     #include "urlconfig.h"
 #endif // INTERNAL_WEB_SERVER
 
-// creadentials for ssl clients
-gnutls_certificate_credentials_t xcred;
-gnutls_x509_crt_t client_crt;
-gnutls_x509_privkey_t client_privkey;
+
+#ifdef INCLUDE_CLIENT_APIS
+    #include <gnutls/x509.h>
+    // creadentials for ssl clients
+    gnutls_certificate_credentials_t xcred;
+    gnutls_x509_crt_t client_crt;
+    gnutls_x509_privkey_t client_privkey;
+#endif
 
 //
 virtualDirList *pVirtualDirList;

@@ -163,7 +163,7 @@ static char* read_binary_file(const char *filename, size_t * length)
         }
     }
 
-  free (buf);
+  if (buf) free (buf);
   return NULL;     
 }
 
@@ -448,7 +448,7 @@ int init_x509_certificate_credentials(gnutls_certificate_credentials_t *x509_cre
 int load_x509_self_signed_certificate(gnutls_x509_crt_t *crt, gnutls_x509_privkey_t *key, const char *certfile, const char *privkeyfile, const char *CN, const int modulusBits, const int lifetime)
 {    
     int ret = 0;
-    gnutls_datum_t pem_data;
+    gnutls_datum_t pem_data = {NULL, 0};
     
     
     // init private key
@@ -474,6 +474,7 @@ int load_x509_self_signed_certificate(gnutls_x509_crt_t *crt, gnutls_x509_privke
         if (ret < 0) {
             UpnpPrintf( UPNP_CRITICAL, X509, __FILE__, __LINE__,
                 "gnutls_x509_privkey_import failed. %s \n", gnutls_strerror(ret) );
+            if (pem_data.data) free(pem_data.data);
             return ret;
         }         
 
@@ -484,12 +485,14 @@ int load_x509_self_signed_certificate(gnutls_x509_crt_t *crt, gnutls_x509_privke
             if (ret < 0) {
                 UpnpPrintf( UPNP_CRITICAL, X509, __FILE__, __LINE__,
                     "gnutls_x509_crt_import failed. %s \n", gnutls_strerror(ret) );
+                if (pem_data.data) free(pem_data.data); 
                 return ret;
             }
             ret = validate_x509_certificate(crt, NULL, CN);
             if (ret < 0) {
                 UpnpPrintf( UPNP_CRITICAL, X509, __FILE__, __LINE__,
                     "X.509 certificate validation failed. %s \n", gnutls_strerror(ret) );
+                if (pem_data.data) free(pem_data.data); 
                 return ret;
             }      
         }
@@ -500,7 +503,8 @@ int load_x509_self_signed_certificate(gnutls_x509_crt_t *crt, gnutls_x509_privke
     else {
         ret = create_new_certificate(crt, key, certfile, privkeyfile, CN, modulusBits, lifetime);
     }
-       
+
+    if (pem_data.data) free(pem_data.data); 
     return ret;   
 }
 
