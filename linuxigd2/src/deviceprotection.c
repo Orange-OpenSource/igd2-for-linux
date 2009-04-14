@@ -42,6 +42,10 @@ static int InitDP()
         {
             UUID = UUID + 5; // remove text uuid: from beginning of string
         }
+        if (strlen(UUID) > WPSU_MAX_UUID_LEN) // if uuid is too long, crop only allowed length from beginning
+        {
+            UUID[WPSU_MAX_UUID_LEN] = '\0';
+        }
         
         err = wpsu_enrollee_station_input_add_device_info(&input, 
                                             g_vars.pinCode,
@@ -62,8 +66,10 @@ static int InitDP()
                                             0,
                                             WPSU_CONF_METHOD_LABEL, 
                                             WPSU_RFBAND_2_4GHZ);
+        if (err != WPSU_E_SUCCESS)
+            return err;                                                                             
     }
-    else return -1;
+    else return UPNP_E_FILE_NOT_FOUND;
     
                                         
     // station has applications A, B and C
@@ -95,6 +101,10 @@ static int InitDP()
 */
     // create enrollee state machine
     esm = wpsu_create_enrollee_sm_station(&input, &err);
+    if (err != WPSU_E_SUCCESS)
+    {
+        return err;
+    }
 
     // set state variable SetupReady to false, meaning DP service is busy
     SetupReady = 0;
