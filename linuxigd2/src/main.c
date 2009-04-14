@@ -159,7 +159,7 @@ int main (int argc, char** argv)
     trace(2, "UPnP SDK Successfully Initialized.");
     
     // start https server
-    if ( (ret = UpnpStartHttpsServer(443, NULL, NULL, NULL, NULL, "LinuxIGD 2.0") ) != UPNP_E_SUCCESS)
+    if ( (ret = UpnpStartHttpsServer(443, "./", NULL, NULL, NULL, NULL, "LinuxIGD 2.0") ) != UPNP_E_SUCCESS)
     {
         syslog (LOG_ERR, "Error Starting UPnP HTTPS server on IP %s port %d",intIpAddress,443);
         syslog (LOG_ERR, "  UpnpStartHttpsServer returned %d", ret);
