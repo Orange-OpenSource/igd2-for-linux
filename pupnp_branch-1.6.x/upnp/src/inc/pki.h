@@ -28,10 +28,23 @@
 #define UPNP_X509_CERT_MODULUS_SIZE      1024
 #endif
 
-/* how many seconds created certificate should last */
-#ifndef UPNP_X509_CERT_LIFETIME
-#define UPNP_X509_CERT_LIFETIME      7*24*60*60
+/* how many seconds created certificate should last. Lets use 100 years to make sure that
+ * no need for certificate renewal exists
+ */
+#ifndef UPNP_X509_CERT_LIFETIME   //(100*365*24*60*60)
+#define UPNP_X509_CERT_LIFETIME   3153600000UL
 #endif
+
+/* This tries to solve Year 2038 problem with "too big" unix timestamps, for which
+ * gnutls seems to be vulnerable.
+ * http://en.wikipedia.org/wiki/Year_2038_problem 
+ * 
+ * Remove this definition and UPNP_X509_CERT_LIFETIME value will be used for
+ * expiration time calculation.
+ */
+#ifndef UPNP_X509_CERT_ULTIMATE_EXPIRE_DATE   //Thu Dec 31 23:59:59 UTC 2037
+#define UPNP_X509_CERT_ULTIMATE_EXPIRE_DATE   2145916799
+#endif 
 
 /************************************************************************
 *   Function :  init_crypto_libraries
@@ -94,7 +107,7 @@ int init_x509_certificate_credentials(gnutls_certificate_credentials_t *x509_cre
 *       IN const char *privkeyfile     ;  Name of file where private key is exported in PEM format
 *       IN char *CN                    ;  Common Name velue in certificate
 *       IN int modulusBits             ;  Size of modulus in certificate
-*       IN int lifetime                ;  How many seconds until certificate will expire. Counted from now.
+*       IN unsigned long lifetime      ;  How many seconds until certificate will expire. Counted from now.
 * 
 *   Description :   Create self signed certificate. For this private key is also created.
 *           If certfile already contains certificate and privkeyfile contains privatekey,
@@ -105,7 +118,7 @@ int init_x509_certificate_credentials(gnutls_certificate_credentials_t *x509_cre
 *
 *   Note :
 ************************************************************************/
-int load_x509_self_signed_certificate(gnutls_x509_crt_t *crt, gnutls_x509_privkey_t *key, const char *certfile, const char *privkeyfile, const char *CN, const int modulusBits, const int lifetime);
+int load_x509_self_signed_certificate(gnutls_x509_crt_t *crt, gnutls_x509_privkey_t *key, const char *certfile, const char *privkeyfile, const char *CN, const int modulusBits, const unsigned long lifetime);
 
 
 /************************************************************************

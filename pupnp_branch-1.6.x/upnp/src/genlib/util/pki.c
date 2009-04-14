@@ -274,7 +274,7 @@ static int export_certificate_to_file(const gnutls_x509_crt_t *crt, const gnutls
 *       IN const char *privkeyfile     ;  Name of file where private key is exported in PEM format
 *       IN char *CN                    ;  Common Name velue in certificate
 *       IN int modulusBits             ;  Size of modulus in certificate
-*       IN int lifetime                ;  How many seconds until certificate will expire. Counted from now.
+*       IN unsigned long lifetime      ;  How many seconds until certificate will expire. Counted from now.
 *
 *   Description :   Create new self signed certificate. Creates also new private key.
 *           Some inspiration for this code is took from gnutls certtool.
@@ -284,7 +284,7 @@ static int export_certificate_to_file(const gnutls_x509_crt_t *crt, const gnutls
 *
 *   Note :
 ************************************************************************/
-static int create_new_certificate(gnutls_x509_crt_t *crt, gnutls_x509_privkey_t *key, const char *certfile, const char *privkeyfile, const char *CN, const int modulusBits, const int lifetime)
+static int create_new_certificate(gnutls_x509_crt_t *crt, gnutls_x509_privkey_t *key, const char *certfile, const char *privkeyfile, const char *CN, const int modulusBits, const unsigned long lifetime)
 {
     unsigned char buffer[10 * 1024];
     int ret, serial;
@@ -318,8 +318,13 @@ static int create_new_certificate(gnutls_x509_crt_t *crt, gnutls_x509_privkey_t 
             "gnutls_x509_crt_set_activation_time. %s \n", gnutls_strerror(ret) );
         return ret;  
     }
-    
-    ret = gnutls_x509_crt_set_expiration_time (*crt, time (NULL) + lifetime);        
+
+// this tries to solve Year 2038 problem with "too big" unix timestamps http://en.wikipedia.org/wiki/Year_2038_problem
+#ifdef UPNP_X509_CERT_ULTIMATE_EXPIRE_DATE
+    ret = gnutls_x509_crt_set_expiration_time (*crt, UPNP_X509_CERT_ULTIMATE_EXPIRE_DATE);
+#else
+    ret = gnutls_x509_crt_set_expiration_time (*crt, time (NULL) + lifetime);
+#endif      
     if (ret < 0) {
         UpnpPrintf( UPNP_CRITICAL, X509, __FILE__, __LINE__,
             "gnutls_x509_crt_set_expiration_time failed. %s \n", gnutls_strerror(ret) );
@@ -434,7 +439,7 @@ int init_x509_certificate_credentials(gnutls_certificate_credentials_t *x509_cre
 *       IN const char *privkeyfile     ;  Name of file where private key is exported in PEM format
 *       IN char *CN                    ;  Common Name velue in certificate
 *       IN int modulusBits             ;  Size of modulus in certificate
-*       IN int lifetime                ;  How many seconds until certificate will expire. Counted from now.
+*       IN unsigned long lifetime      ;  How many seconds until certificate will expire. Counted from now.
 * 
 *   Description :   Create self signed certificate. For this private key is also created.
 *           If certfile already contains certificate and privkeyfile contains privatekey,
@@ -445,7 +450,7 @@ int init_x509_certificate_credentials(gnutls_certificate_credentials_t *x509_cre
 *
 *   Note :
 ************************************************************************/
-int load_x509_self_signed_certificate(gnutls_x509_crt_t *crt, gnutls_x509_privkey_t *key, const char *certfile, const char *privkeyfile, const char *CN, const int modulusBits, const int lifetime)
+int load_x509_self_signed_certificate(gnutls_x509_crt_t *crt, gnutls_x509_privkey_t *key, const char *certfile, const char *privkeyfile, const char *CN, const int modulusBits, const unsigned long lifetime)
 {    
     int ret = 0;
     gnutls_datum_t pem_data = {NULL, 0};
