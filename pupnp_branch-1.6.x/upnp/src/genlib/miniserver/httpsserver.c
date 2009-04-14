@@ -561,15 +561,17 @@ RunHttpsServer( SOCKET listen_sd )
  *
  * Parameters :
  *  unsigned short listen_port - Port on which the server listens for incoming connections
- *  char* CertFile - Certification file of server
- *  char* PrivKeyFile - Private key file of server
- *  char* TrustFile - Trust list of certificates we trust. May be NULL
- *  char* CRLFile - Certificate Revocation List, aka. Blacklist of certificates which we don't trust (use PEM format...). May be NULL
+ *  const char *directory: Path to directory where files locate or where files are created
+ *  const char *CertFile: Selfsigned certificate file of server. If NULL, new certificate and private key is created
+ *  const char *PrivKeyFile: Private key file of server. If NULL, new private key is created
+ *  const char *TrustFile: File containing trusted certificates. (PEM format). May be NULL
+ *  const char *CRLFile: Certificate revocation list. Untrusted certificates. (PEM format). May be NULL
  *  char* cn - Common name value used in certificate, name of device or something similar
  * 
  * Description:
  *  Initialize gnutls for the https server. Initialize a thread pool job to run the server
  *  and the job to the thread pool.
+ *  All files must be in PEM format.
  *
  * Return: int
  *  Actual port socket is bound to - On Success
@@ -577,6 +579,7 @@ RunHttpsServer( SOCKET listen_sd )
  ************************************************************************/
 int
 StartHttpsServer( IN unsigned short listen_port,
+                  IN const char *directory,
                   IN const char *CertFile,
                   IN const char *PrivKeyFile,
                   IN const char *TrustFile,
@@ -597,13 +600,13 @@ StartHttpsServer( IN unsigned short listen_port,
 
     if (CertFile && PrivKeyFile) {
         // put certificate and private key in global variables for use in tls handshake
-        retVal = load_x509_self_signed_certificate(&server_crt, &server_privkey, CertFile, PrivKeyFile, cn, UPNP_X509_CERT_MODULUS_SIZE, UPNP_X509_CERT_LIFETIME);
+        retVal = load_x509_self_signed_certificate(&server_crt, &server_privkey, directory, CertFile, PrivKeyFile, cn, UPNP_X509_CERT_MODULUS_SIZE, UPNP_X509_CERT_LIFETIME);
         if ( retVal != GNUTLS_E_SUCCESS ) {
             UpnpPrintf( UPNP_INFO, MSERV, __FILE__, __LINE__,
                 "StartHttpsServer: Certificate loading failed \n" );
             return retVal;    
         }        
-        retVal = init_x509_certificate_credentials(&x509_cred, CertFile, PrivKeyFile, TrustFile, CRLFile);
+        retVal = init_x509_certificate_credentials(&x509_cred, directory, CertFile, PrivKeyFile, TrustFile, CRLFile);
         if ( retVal != GNUTLS_E_SUCCESS ) {
             UpnpPrintf( UPNP_INFO, MSERV, __FILE__, __LINE__,
                 "StartHttpsServer: Certificate credentials creating failed \n" );
@@ -612,13 +615,13 @@ StartHttpsServer( IN unsigned short listen_port,
     }
     else {
         // create own private key and self signed certificate or use default file
-        retVal = load_x509_self_signed_certificate(&server_crt, &server_privkey, UPNP_X509_SERVER_CERT_FILE, UPNP_X509_SERVER_PRIVKEY_FILE, cn, UPNP_X509_CERT_MODULUS_SIZE, UPNP_X509_CERT_LIFETIME);
+        retVal = load_x509_self_signed_certificate(&server_crt, &server_privkey, directory, UPNP_X509_SERVER_CERT_FILE, UPNP_X509_SERVER_PRIVKEY_FILE, cn, UPNP_X509_CERT_MODULUS_SIZE, UPNP_X509_CERT_LIFETIME);
         if ( retVal != GNUTLS_E_SUCCESS ) {
             UpnpPrintf( UPNP_INFO, MSERV, __FILE__, __LINE__,
                 "StartHttpsServer: Certificate loading failed \n" );
             return retVal;    
         }          
-        retVal = init_x509_certificate_credentials(&x509_cred, UPNP_X509_SERVER_CERT_FILE, UPNP_X509_SERVER_PRIVKEY_FILE, TrustFile, CRLFile);
+        retVal = init_x509_certificate_credentials(&x509_cred, directory, UPNP_X509_SERVER_CERT_FILE, UPNP_X509_SERVER_PRIVKEY_FILE, TrustFile, CRLFile);
         if ( retVal != GNUTLS_E_SUCCESS ) {
             UpnpPrintf( UPNP_INFO, MSERV, __FILE__, __LINE__,
                 "StartHttpsServer: Certificate credentials creating failed \n" );

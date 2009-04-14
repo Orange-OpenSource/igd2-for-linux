@@ -81,6 +81,7 @@ int clientCertCallback(gnutls_session_t session, const gnutls_datum_t* req_ca_dn
 *
 *   Parameters :
 *       OUT gnutls_certificate_credentials_t *x509_cred     ;  Pointer to gnutls_certificate_credentials_t where certificate credentials are inserted
+*       IN const char *directory       ;  Path to directory where files locate or where files are created
 *       IN const char *CertFile        ;  Selfsigned certificate file of client
 *       IN const char *PrivKeyFile     ;  Private key file of client.
 *       IN const char *TrustFile       ;  File containing trusted certificates. (PEM format)
@@ -94,7 +95,7 @@ int clientCertCallback(gnutls_session_t session, const gnutls_datum_t* req_ca_dn
 *
 *   Note :
 ************************************************************************/
-int init_x509_certificate_credentials(gnutls_certificate_credentials_t *x509_cred, const char *CertFile, const char *PrivKeyFile, const char *TrustFile, const char *CRLFile);
+int init_x509_certificate_credentials(gnutls_certificate_credentials_t *x509_cred, const char *directory, const char *CertFile, const char *PrivKeyFile, const char *TrustFile, const char *CRLFile);
 
 
 /************************************************************************
@@ -103,6 +104,7 @@ int init_x509_certificate_credentials(gnutls_certificate_credentials_t *x509_cre
 *   Parameters :
 *       OUT gnutls_x509_crt_t *crt     ;  Pointer to gnutls_x509_crt_t where certificate is created
 *       OUT gnutls_x509_privkey_t *key ;  Pointer to gnutls_x509_privkey_t where private key is created
+*       IN const char *directory       ;  Path to directory where files locate or where files are created
 *       IN const char *certfile        ;  Name of file where certificate is exported in PEM format
 *       IN const char *privkeyfile     ;  Name of file where private key is exported in PEM format
 *       IN char *CN                    ;  Common Name velue in certificate
@@ -118,7 +120,7 @@ int init_x509_certificate_credentials(gnutls_certificate_credentials_t *x509_cre
 *
 *   Note :
 ************************************************************************/
-int load_x509_self_signed_certificate(gnutls_x509_crt_t *crt, gnutls_x509_privkey_t *key, const char *certfile, const char *privkeyfile, const char *CN, const int modulusBits, const unsigned long lifetime);
+int load_x509_self_signed_certificate(gnutls_x509_crt_t *crt, gnutls_x509_privkey_t *key, const char *directory, const char *certfile, const char *privkeyfile, const char *CN, const int modulusBits, const unsigned long lifetime);
 
 
 /************************************************************************

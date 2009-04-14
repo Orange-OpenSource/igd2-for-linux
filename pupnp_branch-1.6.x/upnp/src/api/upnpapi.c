@@ -359,10 +359,11 @@ int UpnpInit( IN const char *HostIP,
  * 
  * Parameters:      
  *  IN unsigned short port: HTTPS server listening port
- *  IN const char *CertFile: Selfsigned certificate file of server
- *  IN const char *PrivKeyFile: Private key file of server.
- *  IN const char *TrustFile: File containing trusted certificates. (PEM format)
- *  IN const char *CRLFile: Certificate revocation list. Untrusted certificates. (PEM format)
+ *  IN const char *directory: Path to directory where files locate or where files are created
+ *  IN const char *CertFile: Selfsigned certificate file of server. If NULL, new certificate and private key is created
+ *  IN const char *PrivKeyFile: Private key file of server. If NULL, new private key is created
+ *  IN const char *TrustFile: File containing trusted certificates. (PEM format). May be NULL
+ *  IN const char *CRLFile: Certificate revocation list. Untrusted certificates. (PEM format). May be NULL
  *  IN const char *devName: Name of device. This is used as CN (common name) in certificate
  * 
  * Returns:
@@ -372,6 +373,7 @@ int UpnpInit( IN const char *HostIP,
  *****************************************************************************/
 #if EXCLUDE_HTTPSSERVER == 0
 int UpnpStartHttpsServer( IN unsigned short port,
+                          IN const char *directory,
                           IN const char *CertFile,
                           IN const char *PrivKeyFile,
                           IN const char *TrustFile,
@@ -383,7 +385,7 @@ int UpnpStartHttpsServer( IN unsigned short port,
     int retVal;
     HttpsServerInit = 1;
 
-    if( ( retVal = StartHttpsServer(port, CertFile, PrivKeyFile, TrustFile, CRLFile, devName) ) <= 0 ) {
+    if( ( retVal = StartHttpsServer(port, directory, CertFile, PrivKeyFile, TrustFile, CRLFile, devName) ) <= 0 ) {
         UpnpPrintf( UPNP_CRITICAL, API, __FILE__, __LINE__,
             "Https server failed to start" );
         HttpsServerInit = 0;
@@ -1388,11 +1390,12 @@ UpnpUnRegisterClient( IN UpnpClient_Handle Hnd )
 /**************************************************************************
  * Function: UpnpInitClientSSL
  *
- * Parameters:  
- *  IN const char *CertFile: Selfsigned certificate file of client
- *  IN const char *PrivKeyFile: Private key file of client.
- *  IN const char *TrustFile: File containing trusted certificates. (PEM format)
- *  IN const char *CRLFile: Certificate revocation list. Untrusted certificates. (PEM format)
+ * Parameters:
+ *  IN const char *directory: Path to directory where files locate or where files are created
+ *  IN const char *CertFile: Selfsigned certificate file of client. If NULL, new certificate and private key is created
+ *  IN const char *PrivKeyFile: Private key file of client. If NULL, new private key is created
+ *  IN const char *TrustFile: File containing trusted certificates. May be NULL
+ *  IN const char *CRLFile: Certificate revocation list. Untrusted certificates. May be NULL
  *  IN const char *devName: Name of device. This is used as CN (common name) in certificate
  * 
  * Description:
@@ -1400,6 +1403,7 @@ UpnpUnRegisterClient( IN UpnpClient_Handle Hnd )
  *  clients to use. If trust or CRL files are NULL, then they won't be used.
  *  If either certificate or private key file is NULL, then both will be
  *  neglected and new prvate key and certificate are created in upnp default files. 
+ *  All files must be in PEM-format.
  *
  * Return Values: int
  *  UPNP_E_SUCCESS on success, nonzero on failure. Less than zero values
@@ -1407,7 +1411,8 @@ UpnpUnRegisterClient( IN UpnpClient_Handle Hnd )
  *      
  ***************************************************************************/
 int
-UpnpInitClientSSL( IN const char *CertFile,
+UpnpInitClientSSL( IN const char *directory,
+                   IN const char *CertFile,
                    IN const char *PrivKeyFile,
                    IN const char *TrustFile,
                    IN const char *CRLFile,
@@ -1424,13 +1429,13 @@ UpnpInitClientSSL( IN const char *CertFile,
     
     if (CertFile && PrivKeyFile) {
         // put certificate and private key in global variables for use in tls handshake
-        retVal = load_x509_self_signed_certificate(&client_crt, &client_privkey, CertFile, PrivKeyFile, devName, UPNP_X509_CERT_MODULUS_SIZE, UPNP_X509_CERT_LIFETIME);
+        retVal = load_x509_self_signed_certificate(&client_crt, &client_privkey, directory, CertFile, PrivKeyFile, devName, UPNP_X509_CERT_MODULUS_SIZE, UPNP_X509_CERT_LIFETIME);
         if ( retVal != GNUTLS_E_SUCCESS ) {
             UpnpPrintf( UPNP_ALL, API, __FILE__, __LINE__,
                 "UpnpRegisterClientSSLSession: Certificate loading failed \n" );
             return retVal;    
         }        
-        retVal = init_x509_certificate_credentials(&xcred, CertFile, PrivKeyFile, TrustFile, CRLFile);
+        retVal = init_x509_certificate_credentials(&xcred, directory, CertFile, PrivKeyFile, TrustFile, CRLFile);
         if ( retVal != GNUTLS_E_SUCCESS ) {
             UpnpPrintf( UPNP_ALL, API, __FILE__, __LINE__,
                 "UpnpRegisterClientSSLSession: Certificate credentials creating failed \n" );
@@ -1439,13 +1444,13 @@ UpnpInitClientSSL( IN const char *CertFile,
     }
     else {
         // create own private key and self signed certificate or use default file
-        retVal = load_x509_self_signed_certificate(&client_crt, &client_privkey, UPNP_X509_CLIENT_CERT_FILE, UPNP_X509_CLIENT_PRIVKEY_FILE, devName, UPNP_X509_CERT_MODULUS_SIZE, UPNP_X509_CERT_LIFETIME);
+        retVal = load_x509_self_signed_certificate(&client_crt, &client_privkey, directory, UPNP_X509_CLIENT_CERT_FILE, UPNP_X509_CLIENT_PRIVKEY_FILE, devName, UPNP_X509_CERT_MODULUS_SIZE, UPNP_X509_CERT_LIFETIME);
         if ( retVal != GNUTLS_E_SUCCESS ) {
             UpnpPrintf( UPNP_ALL, API, __FILE__, __LINE__,
                 "UpnpRegisterClientSSLSession: Certificate loading failed \n" );
             return retVal;    
         }          
-        retVal = init_x509_certificate_credentials(&xcred, UPNP_X509_CLIENT_CERT_FILE, UPNP_X509_CLIENT_PRIVKEY_FILE, TrustFile, CRLFile);
+        retVal = init_x509_certificate_credentials(&xcred, directory, UPNP_X509_CLIENT_CERT_FILE, UPNP_X509_CLIENT_PRIVKEY_FILE, TrustFile, CRLFile);
         if ( retVal != GNUTLS_E_SUCCESS ) {
             UpnpPrintf( UPNP_ALL, API, __FILE__, __LINE__,
                 "UpnpRegisterClientSSLSession: Certificate credentials creating failed \n" );

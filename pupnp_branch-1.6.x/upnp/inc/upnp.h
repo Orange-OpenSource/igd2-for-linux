@@ -1057,6 +1057,8 @@ EXPORT_SPEC int UpnpInit(
 EXPORT_SPEC int UpnpStartHttpsServer(
     /*! [in] Listening port number for HTTPS server. */
     unsigned short port,
+    /*! [in] Path to directory where files locate or where files are created */
+    const char *directory,
     /*! [in] Name of selfsigned certificate file of server. */
     const char *CertFile,
     /*! [in] Private key file of server. */
@@ -1347,6 +1349,8 @@ EXPORT_SPEC int UpnpCloseClientSSLSession(
  * \return An integer
  */   
 EXPORT_SPEC int UpnpInitClientSSL(
+    /*! [in] Path to directory where files locate or where files are created */
+    IN const char *directory,
     /*! [in] Selfsigned certificate file of server. */
     IN const char *CertFile,
     /*! [in]  Private key file of server. */
@@ -1356,7 +1360,7 @@ EXPORT_SPEC int UpnpInitClientSSL(
     /*! [in] Certificate revocation list. Untrusted certificates. (PEM format) */
     IN const char *CRLFile,
     /*! [in] Name of device. This is used as CN (common name) in certificate */
-    const char *devName);
+    IN const char *devName);
 
 /*!
  * \brief Deinitializes gnutls and gnutls certificate credentials.

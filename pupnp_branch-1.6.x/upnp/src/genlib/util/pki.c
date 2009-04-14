@@ -22,6 +22,8 @@
 * Certificate and private key creation and such. 
 ************************************************************************/
 
+#include <sys/stat.h>
+
 #include <gnutls/gnutls.h>
 #include <gnutls/x509.h>
 #include <gcrypt.h>
@@ -270,8 +272,9 @@ static int export_certificate_to_file(const gnutls_x509_crt_t *crt, const gnutls
 *   Parameters :
 *       OUT gnutls_x509_crt_t *crt     ;  Pointer to gnutls_x509_crt_t where certificate is created
 *       OUT gnutls_x509_privkey_t *key ;  Pointer to gnutls_x509_privkey_t where private key is created
-*       IN const char *certfile        ;  Name of file where certificate is exported in PEM format
-*       IN const char *privkeyfile     ;  Name of file where private key is exported in PEM format
+*       IN const char directory        ;  Directory where files locate. If directory doesn't exist, tries to create
+*       IN const char *certfile        ;  Full path to file where certificate is exported in PEM format
+*       IN const char *privkeyfile     ;  Full path to file where private key is exported in PEM format
 *       IN char *CN                    ;  Common Name velue in certificate
 *       IN int modulusBits             ;  Size of modulus in certificate
 *       IN unsigned long lifetime      ;  How many seconds until certificate will expire. Counted from now.
@@ -284,10 +287,18 @@ static int export_certificate_to_file(const gnutls_x509_crt_t *crt, const gnutls
 *
 *   Note :
 ************************************************************************/
-static int create_new_certificate(gnutls_x509_crt_t *crt, gnutls_x509_privkey_t *key, const char *certfile, const char *privkeyfile, const char *CN, const int modulusBits, const unsigned long lifetime)
+static int create_new_certificate(gnutls_x509_crt_t *crt, gnutls_x509_privkey_t *key, const char *directory, const char *certfile, const char *privkeyfile, const char *CN, const int modulusBits, const unsigned long lifetime)
 {
     unsigned char buffer[10 * 1024];
     int ret, serial;
+    
+    // create dir if doesn't exist yet
+    ret = mkdir(directory, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
+    if (ret != 0 && errno != EEXIST) {
+        UpnpPrintf( UPNP_CRITICAL, X509, __FILE__, __LINE__,
+            "Failed to create certificate directory %s \n", directory );
+        return UPNP_E_FILE_NOT_FOUND;  
+    }
     
     ret = gnutls_x509_privkey_generate (*key, GNUTLS_PK_RSA, modulusBits, 0);
     if (ret < 0) {
@@ -373,6 +384,7 @@ static int create_new_certificate(gnutls_x509_crt_t *crt, gnutls_x509_privkey_t 
 *
 *   Parameters :
 *       OUT gnutls_certificate_credentials_t *x509_cred     ;  Pointer to gnutls_certificate_credentials_t where certificate credentials are inserted
+*       IN const char *directory       ;  Path to directory where files locate or where files are created      
 *       IN const char *CertFile        ;  Selfsigned certificate file of client
 *       IN const char *PrivKeyFile     ;  Private key file of client.
 *       IN const char *TrustFile       ;  File containing trusted certificates. (PEM format)
@@ -386,9 +398,10 @@ static int create_new_certificate(gnutls_x509_crt_t *crt, gnutls_x509_privkey_t 
 *
 *   Note :
 ************************************************************************/
-int init_x509_certificate_credentials(gnutls_certificate_credentials_t *x509_cred, const char *CertFile, const char *PrivKeyFile, const char *TrustFile, const char *CRLFile)
+int init_x509_certificate_credentials(gnutls_certificate_credentials_t *x509_cred, const char *directory, const char *CertFile, const char *PrivKeyFile, const char *TrustFile, const char *CRLFile)
 {
     int ret;
+    int dirlen = strlen(directory);
 
     ret = gnutls_certificate_allocate_credentials (x509_cred);
     if ( ret != GNUTLS_E_SUCCESS ) {
@@ -398,7 +411,11 @@ int init_x509_certificate_credentials(gnutls_certificate_credentials_t *x509_cre
     }    
     
     if (TrustFile) {
-        ret = gnutls_certificate_set_x509_trust_file (*x509_cred, TrustFile, GNUTLS_X509_FMT_PEM); // white list
+        char tmp_trustfile[dirlen+strlen(TrustFile)];
+        strcpy(tmp_trustfile, directory);
+        strcat(tmp_trustfile,TrustFile);
+                
+        ret = gnutls_certificate_set_x509_trust_file (*x509_cred, tmp_trustfile, GNUTLS_X509_FMT_PEM); // white list
         if (ret < 0) {
             UpnpPrintf( UPNP_CRITICAL, X509, __FILE__, __LINE__,
                 "StartHttpsServer: gnutls_certificate_set_x509_trust_file failed (%s)\n\n", gnutls_strerror (ret));
@@ -407,7 +424,11 @@ int init_x509_certificate_credentials(gnutls_certificate_credentials_t *x509_cre
     }
     
     if (CRLFile) {
-        ret = gnutls_certificate_set_x509_crl_file (*x509_cred, CRLFile, GNUTLS_X509_FMT_PEM); // black list    
+        char tmp_crlfile[dirlen+strlen(CRLFile)];
+        strcpy(tmp_crlfile, directory);
+        strcat(tmp_crlfile,CRLFile);
+        
+        ret = gnutls_certificate_set_x509_crl_file (*x509_cred, tmp_crlfile, GNUTLS_X509_FMT_PEM); // black list    
         if (ret < 0) {
             UpnpPrintf( UPNP_CRITICAL, X509, __FILE__, __LINE__,
                 "StartHttpsServer: gnutls_certificate_set_x509_crl_file failed. (%s)\n\n", gnutls_strerror (ret));
@@ -416,7 +437,16 @@ int init_x509_certificate_credentials(gnutls_certificate_credentials_t *x509_cre
     }
 
     if (CertFile && PrivKeyFile) {
-        ret = gnutls_certificate_set_x509_key_file (*x509_cred, CertFile, PrivKeyFile, GNUTLS_X509_FMT_PEM);                    
+        char tmp_certfile[dirlen+strlen(CertFile)];
+        char tmp_privkeyfile[dirlen+strlen(PrivKeyFile)];
+        
+        strcpy(tmp_certfile, directory);
+        strcat(tmp_certfile,CertFile);
+        
+        strcpy(tmp_privkeyfile, directory);
+        strcat(tmp_privkeyfile,PrivKeyFile);
+        
+        ret = gnutls_certificate_set_x509_key_file (*x509_cred, tmp_certfile, tmp_privkeyfile, GNUTLS_X509_FMT_PEM);                    
         if (ret != GNUTLS_E_SUCCESS) {
             UpnpPrintf( UPNP_CRITICAL, X509, __FILE__, __LINE__,
                 "StartHttpsServer: gnutls_certificate_set_x509_key_file failed. (%s)\n\n", gnutls_strerror (ret));
@@ -435,6 +465,7 @@ int init_x509_certificate_credentials(gnutls_certificate_credentials_t *x509_cre
 *   Parameters :
 *       OUT gnutls_x509_crt_t *crt     ;  Pointer to gnutls_x509_crt_t where certificate is created
 *       OUT gnutls_x509_privkey_t *key ;  Pointer to gnutls_x509_privkey_t where private key is created
+*       IN const char *directory       ;  Path to directory where files locate or where files are created. Must contain trailing '/' or '\'
 *       IN const char *certfile        ;  Name of file where certificate is exported in PEM format
 *       IN const char *privkeyfile     ;  Name of file where private key is exported in PEM format
 *       IN char *CN                    ;  Common Name velue in certificate
@@ -450,11 +481,19 @@ int init_x509_certificate_credentials(gnutls_certificate_credentials_t *x509_cre
 *
 *   Note :
 ************************************************************************/
-int load_x509_self_signed_certificate(gnutls_x509_crt_t *crt, gnutls_x509_privkey_t *key, const char *certfile, const char *privkeyfile, const char *CN, const int modulusBits, const unsigned long lifetime)
+int load_x509_self_signed_certificate(gnutls_x509_crt_t *crt, gnutls_x509_privkey_t *key, const char *directory, const char *certfile, const char *privkeyfile, const char *CN, const int modulusBits, const unsigned long lifetime)
 {    
     int ret = 0;
     gnutls_datum_t pem_data = {NULL, 0};
+    int dirlen = strlen(directory);
+    char tmp_certfile[dirlen+strlen(certfile)];
+    char tmp_privkeyfile[dirlen+strlen(privkeyfile)];
     
+    strcpy(tmp_certfile, directory);
+    strcat(tmp_certfile,certfile);
+    
+    strcpy(tmp_privkeyfile, directory);
+    strcat(tmp_privkeyfile,privkeyfile);
     
     // init private key
     ret = gnutls_x509_privkey_init (key);
@@ -473,7 +512,7 @@ int load_x509_self_signed_certificate(gnutls_x509_crt_t *crt, gnutls_x509_privke
     }
 
     // import private key from file
-    ret = read_pem_data_file(privkeyfile, &pem_data);
+    ret = read_pem_data_file(tmp_privkeyfile, &pem_data);
     if (ret == 0) {
         ret = gnutls_x509_privkey_import(*key, &pem_data, GNUTLS_X509_FMT_PEM);
         if (ret < 0) {
@@ -484,7 +523,7 @@ int load_x509_self_signed_certificate(gnutls_x509_crt_t *crt, gnutls_x509_privke
         }         
 
         // import certificate from file
-        ret = read_pem_data_file(certfile, &pem_data);
+        ret = read_pem_data_file(tmp_certfile, &pem_data);
         if (ret == 0) { 
             ret = gnutls_x509_crt_import(*crt, &pem_data, GNUTLS_X509_FMT_PEM);
             if (ret < 0) {
@@ -502,11 +541,11 @@ int load_x509_self_signed_certificate(gnutls_x509_crt_t *crt, gnutls_x509_privke
             }      
         }
         else {
-            ret = create_new_certificate(crt, key, certfile, privkeyfile, CN, modulusBits, lifetime);
+            ret = create_new_certificate(crt, key, directory, tmp_certfile, tmp_privkeyfile, CN, modulusBits, lifetime);
         }
     }
     else {
-        ret = create_new_certificate(crt, key, certfile, privkeyfile, CN, modulusBits, lifetime);
+        ret = create_new_certificate(crt, key, directory, tmp_certfile, tmp_privkeyfile, CN, modulusBits, lifetime);
     }
 
     if (pem_data.data) free(pem_data.data); 
