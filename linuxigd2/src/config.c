@@ -101,6 +101,7 @@ int parseConfigFile(globals_p vars)
     regex_t re_dhcpc;
     regex_t re_network;
     regex_t re_advertisement_interval;
+    regex_t re_cert_path;
 
     // Make sure all vars are 0 or \0 terminated
     vars->debug = 0;
@@ -125,6 +126,7 @@ int parseConfigFile(globals_p vars)
     strcpy(vars->dhcpc, "");
     strcpy(vars->networkCmd, "");
     vars->advertisementInterval = ADVERTISEMENT_INTERVAL;
+    strcpy(vars->certPath,"");
 
     // Regexp to match a comment line
     regcomp(&re_comment,"^[[:blank:]]*#",0);
@@ -153,6 +155,7 @@ int parseConfigFile(globals_p vars)
     regcomp(&re_dhcpc,"dhcpc_cmd[[:blank:]]*=[[:blank:]]*([[:alpha:]_/.]{1,50})",REG_EXTENDED);
     regcomp(&re_network,"network_script[[:blank:]]*=[[:blank:]]*([[:alpha:]_/.]{1,50})",REG_EXTENDED);
     regcomp(&re_advertisement_interval,"advertisement_interval[[:blank:]]*=[[:blank:]]*([[:digit:]]+)",REG_EXTENDED);
+    regcomp(&re_cert_path,"certificate_path[[:blank:]]*=[[:blank:]]*([[:alpha:]_/.]{1,50})",REG_EXTENDED);
 
     if ((conf_file=fopen(CONF_FILE,"r")) != NULL)
     {
@@ -269,6 +272,10 @@ int parseConfigFile(globals_p vars)
                     getConfigOptionArgument(tmp, OPTION_LEN, line, submatch);
                     vars->advertisementInterval = atoi(tmp);
                 }
+                else if (regexec(&re_cert_path,line,NMATCH,submatch,0) == 0)
+                {
+                    getConfigOptionArgument(vars->certPath, OPTION_LEN, line, submatch);
+                }                
                 else
                 {
                     // We end up here if ther is an unknown config directive
@@ -302,6 +309,7 @@ int parseConfigFile(globals_p vars)
     regfree(&re_dhcpc);
     regfree(&re_network);
     regfree(&re_advertisement_interval);
+    regfree(&re_cert_path);
     
     // Set default values for options not found in config file
     if (strnlen(vars->forwardChainName, OPTION_LEN) == 0)
@@ -360,6 +368,10 @@ int parseConfigFile(globals_p vars)
     {
         vars->advertisementInterval = 300;
     }
+    if (strnlen(vars->certPath, OPTION_LEN) == 0)
+    {
+        snprintf(vars->certPath, OPTION_LEN, CERT_PATH_DEFAULT);
+    }    
     if (strnlen(vars->iptables, OPTION_LEN) == 0)
     {
         // Can't find the iptables executable, return -1 to

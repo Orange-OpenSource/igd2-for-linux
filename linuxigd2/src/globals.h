@@ -64,6 +64,7 @@ struct GLOBALS
     
     // How often alive notifications are send
     int advertisementInterval;
+    char certPath[OPTION_LEN];
 };
 
 typedef struct GLOBALS* globals_p;
@@ -93,8 +94,8 @@ extern globals g_vars;
 #define DHCPC_DEFAULT "udhcpc"
 #define NETWORK_CMD_DEFAULT "/etc/init.d/network"
 
-
 #define ROUTE_COMMAND "route"
 #define ADVERTISEMENT_INTERVAL 1800
+#define CERT_PATH_DEFAULT "/etc/certstore"  // must be something else than XML_PATH_DEFAULT!!
 
 #endif // _GLOBALS_H_
