@@ -85,6 +85,7 @@ int StateTableInit(char *descDocUrl)
     }
 
     // Get the UDN from the description document, then free the DescDoc's memory
+    // Assumes that order of devices in file is IGD, WAN, WANConn
     gateUDN = GetDocumentItem(ixmlDescDoc, "UDN", 0);
     wanUDN = GetDocumentItem(ixmlDescDoc, "UDN", 1);
     wanConnectionUDN = GetDocumentItem(ixmlDescDoc, "UDN", 2);
@@ -110,8 +111,8 @@ int StateTableInit(char *descDocUrl)
     // only supported type at the moment
     strcpy(ConnectionType,"IP_Routed");
 
-    // DeviceProtection is ready for introduction
-    SetupReady = 1;
+    // initialize Device Protection statevariables
+    DPStateTableInit();
 
     return (ret);
 }
@@ -818,7 +819,7 @@ int ForceTermination(struct Upnp_Action_Request *ca_event)
     return ca_event->ErrCode;
 }
 
- /**
+/**
  * WANIPConnection:2 Action: AddPortMapping
  * 
  * Add New Port Map to the IGD
