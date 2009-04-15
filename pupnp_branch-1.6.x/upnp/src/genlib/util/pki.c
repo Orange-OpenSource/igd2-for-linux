@@ -272,7 +272,7 @@ static int export_certificate_to_file(const gnutls_x509_crt_t *crt, const gnutls
 *   Parameters :
 *       OUT gnutls_x509_crt_t *crt     ;  Pointer to gnutls_x509_crt_t where certificate is created
 *       OUT gnutls_x509_privkey_t *key ;  Pointer to gnutls_x509_privkey_t where private key is created
-*       IN const char directory        ;  Directory where files locate. If directory doesn't exist, tries to create
+*       IN const char directory        ;  Directory where files locate. If directory doesn't exist, tries to create. Must contain trailing '/'
 *       IN const char *certfile        ;  Full path to file where certificate is exported in PEM format
 *       IN const char *privkeyfile     ;  Full path to file where private key is exported in PEM format
 *       IN char *CN                    ;  Common Name velue in certificate
@@ -402,6 +402,15 @@ int init_x509_certificate_credentials(gnutls_certificate_credentials_t *x509_cre
 {
     int ret;
     int dirlen = strlen(directory);
+    
+    // add trailing '/' if directory doesn't have it yet
+    char tmpDir[dirlen+1];
+    strcpy(tmpDir,directory);
+    if (directory[dirlen-1] != '/')
+    {
+        strcat(tmpDir, "/"); 
+        dirlen = strlen(tmpDir);
+    }   
 
     ret = gnutls_certificate_allocate_credentials (x509_cred);
     if ( ret != GNUTLS_E_SUCCESS ) {
@@ -412,7 +421,7 @@ int init_x509_certificate_credentials(gnutls_certificate_credentials_t *x509_cre
     
     if (TrustFile) {
         char tmp_trustfile[dirlen+strlen(TrustFile)];
-        strcpy(tmp_trustfile, directory);
+        strcpy(tmp_trustfile, tmpDir);
         strcat(tmp_trustfile,TrustFile);
                 
         ret = gnutls_certificate_set_x509_trust_file (*x509_cred, tmp_trustfile, GNUTLS_X509_FMT_PEM); // white list
@@ -425,7 +434,7 @@ int init_x509_certificate_credentials(gnutls_certificate_credentials_t *x509_cre
     
     if (CRLFile) {
         char tmp_crlfile[dirlen+strlen(CRLFile)];
-        strcpy(tmp_crlfile, directory);
+        strcpy(tmp_crlfile, tmpDir);
         strcat(tmp_crlfile,CRLFile);
         
         ret = gnutls_certificate_set_x509_crl_file (*x509_cred, tmp_crlfile, GNUTLS_X509_FMT_PEM); // black list    
@@ -440,10 +449,10 @@ int init_x509_certificate_credentials(gnutls_certificate_credentials_t *x509_cre
         char tmp_certfile[dirlen+strlen(CertFile)];
         char tmp_privkeyfile[dirlen+strlen(PrivKeyFile)];
         
-        strcpy(tmp_certfile, directory);
+        strcpy(tmp_certfile, tmpDir);
         strcat(tmp_certfile,CertFile);
         
-        strcpy(tmp_privkeyfile, directory);
+        strcpy(tmp_privkeyfile, tmpDir);
         strcat(tmp_privkeyfile,PrivKeyFile);
         
         ret = gnutls_certificate_set_x509_key_file (*x509_cred, tmp_certfile, tmp_privkeyfile, GNUTLS_X509_FMT_PEM);                    
@@ -465,7 +474,7 @@ int init_x509_certificate_credentials(gnutls_certificate_credentials_t *x509_cre
 *   Parameters :
 *       OUT gnutls_x509_crt_t *crt     ;  Pointer to gnutls_x509_crt_t where certificate is created
 *       OUT gnutls_x509_privkey_t *key ;  Pointer to gnutls_x509_privkey_t where private key is created
-*       IN const char *directory       ;  Path to directory where files locate or where files are created. Must contain trailing '/' or '\'
+*       IN const char *directory       ;  Path to directory where files locate or where files are created.
 *       IN const char *certfile        ;  Name of file where certificate is exported in PEM format
 *       IN const char *privkeyfile     ;  Name of file where private key is exported in PEM format
 *       IN char *CN                    ;  Common Name velue in certificate
@@ -486,13 +495,23 @@ int load_x509_self_signed_certificate(gnutls_x509_crt_t *crt, gnutls_x509_privke
     int ret = 0;
     gnutls_datum_t pem_data = {NULL, 0};
     int dirlen = strlen(directory);
+    
+    // add trailing '/' if directory doesn't have it yet
+    char tmpDir[dirlen+1];
+    strcpy(tmpDir,directory);
+    if (directory[dirlen-1] != '/')
+    {
+        strcat(tmpDir, "/"); 
+        dirlen = strlen(tmpDir);
+    }   
+
     char tmp_certfile[dirlen+strlen(certfile)];
     char tmp_privkeyfile[dirlen+strlen(privkeyfile)];
     
-    strcpy(tmp_certfile, directory);
+    strcpy(tmp_certfile, tmpDir);
     strcat(tmp_certfile,certfile);
     
-    strcpy(tmp_privkeyfile, directory);
+    strcpy(tmp_privkeyfile, tmpDir);
     strcat(tmp_privkeyfile,privkeyfile);
     
     // init private key
@@ -541,11 +560,11 @@ int load_x509_self_signed_certificate(gnutls_x509_crt_t *crt, gnutls_x509_privke
             }      
         }
         else {
-            ret = create_new_certificate(crt, key, directory, tmp_certfile, tmp_privkeyfile, CN, modulusBits, lifetime);
+            ret = create_new_certificate(crt, key, tmpDir, tmp_certfile, tmp_privkeyfile, CN, modulusBits, lifetime);
         }
     }
     else {
-        ret = create_new_certificate(crt, key, directory, tmp_certfile, tmp_privkeyfile, CN, modulusBits, lifetime);
+        ret = create_new_certificate(crt, key, tmpDir, tmp_certfile, tmp_privkeyfile, CN, modulusBits, lifetime);
     }
 
     if (pem_data.data) free(pem_data.data); 
