@@ -23,6 +23,20 @@ WPSuStationInput input;
 // address of control point which is executin introduction process
 char prev_addr[INET6_ADDRSTRLEN];
 
+
+/**
+ * Initialize DeviceProtection StateVariables for their default values.
+ * 
+ * @return void
+ */
+void DPStateTableInit()
+{
+    // DeviceProtection is ready for introduction
+    SetupReady = 1;
+    strcpy(SupportedProtocols, "<SupportedProtocols><Setup>DeviceProtection:1</Setup><Login>DeviceProtection:1</Login></SupportedProtocols>");   
+}
+
+
 static int InitDP()
 {   
     int err;
@@ -294,11 +308,31 @@ int SendSetupMessage(struct Upnp_Action_Request *ca_event)
 
 
 /**
- * Action: GetSupportedProtocols.
+ * DeviceProtection:1 Action: GetSupportedProtocols.
  *
+ * Retrieve a list of setup protocols supported by the Device
+ * 
+ * @param ca_event Upnp event struct.
+ * @return Upnp error code.
  */
 int GetSupportedProtocols(struct Upnp_Action_Request *ca_event)
 {
+    IXML_Document *ActionResult = UpnpMakeActionResponse(ca_event->ActionName, "urn:schemas-upnp-org:service:DeviceProtection:1",
+                                    1,
+                                    "ProtocolList", SupportedProtocols);
+                                    
+    if (ActionResult)
+    {
+        ca_event->ActionResult = ActionResult;
+        ca_event->ErrCode = UPNP_E_SUCCESS;        
+    }
+    else
+    {
+        trace(1, "Error parsing Response to GetSupportedProtocols");
+        ca_event->ActionResult = NULL;
+        ca_event->ErrCode = 501;
+    }
+
     return ca_event->ErrCode;
 }
 

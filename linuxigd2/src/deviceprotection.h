@@ -5,8 +5,10 @@
 
 // DeviceProtection state variables
 int SetupReady;
-char SupportedProtocols[1000];
+char SupportedProtocols[150];
 
+
+void DPStateTableInit();
 
 // deviceprotection actions
 int SendSetupMessage(struct Upnp_Action_Request *ca_event);
