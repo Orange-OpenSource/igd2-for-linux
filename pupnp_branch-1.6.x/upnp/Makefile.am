@@ -74,7 +74,8 @@ libupnp_la_SOURCES = \
 	src/inc/util.h \
 	src/inc/utilall.h \
 	src/inc/uuid.h \
-	src/inc/webserver.h
+	src/inc/webserver.h \
+	src/inc/pki.h
 
 # ssdp
 libupnp_la_SOURCES += \
