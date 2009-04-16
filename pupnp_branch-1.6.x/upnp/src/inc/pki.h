@@ -23,9 +23,14 @@
 #define UPNP_X509_SERVER_PRIVKEY_FILE      "libupnpX509server.pem"
 #endif
 
-/* default bit size of used modulus in created certificate */
+/* Used X.509 certificate version */
+#ifndef UPNP_X509_CERT_VERSION
+#define UPNP_X509_CERT_VERSION           3
+#endif
+
+/* default bit size of used modulus in created certificate (key size) */
 #ifndef UPNP_X509_CERT_MODULUS_SIZE
-#define UPNP_X509_CERT_MODULUS_SIZE      1024
+#define UPNP_X509_CERT_MODULUS_SIZE      2048
 #endif
 
 /* how many seconds created certificate should last. Lets use 100 years to make sure that

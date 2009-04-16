@@ -358,7 +358,7 @@ static int create_new_certificate(gnutls_x509_crt_t *crt, gnutls_x509_privkey_t 
     }
         
     // sign certificate
-    ret = gnutls_x509_crt_sign2 (*crt, *crt, *key, GNUTLS_DIG_SHA1, 0);
+    ret = gnutls_x509_crt_sign2 (*crt, *crt, *key, GNUTLS_DIG_SHA256, 0);
     if (ret < 0) {
         UpnpPrintf( UPNP_CRITICAL, X509, __FILE__, __LINE__,
             "gnutls_x509_crt_sign2 failed. %s \n", gnutls_strerror(ret) );
@@ -366,7 +366,7 @@ static int create_new_certificate(gnutls_x509_crt_t *crt, gnutls_x509_privkey_t 
     }    
 
     // set version
-    ret = gnutls_x509_crt_set_version(*crt, 1);
+    ret = gnutls_x509_crt_set_version(*crt, UPNP_X509_CERT_VERSION);
     if (ret < 0) {
         UpnpPrintf( UPNP_CRITICAL, X509, __FILE__, __LINE__,
             "gnutls_x509_crt_set_version failed. %s \n", gnutls_strerror(ret) );
