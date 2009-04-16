@@ -68,6 +68,7 @@ int EventHandler(Upnp_EventType EventType, void *Event, void *Cookie)
 /**
  * Initialize state variables and parse device UDN's for InternetGatewayDevice, 
  * WANDevice and WANConnectionDevice.
+ * Also read access level xml into memory.
  *  
  * @param descDocUrl Url of device description document.
  * @return Upnp error code.
@@ -96,6 +97,14 @@ int StateTableInit(char *descDocUrl)
     if (gateUDN == NULL || wanUDN == NULL || wanConnectionUDN == NULL)
     {
         syslog(LOG_ERR, "Failed to get device UDN's from description document.  Exiting ...");
+        UpnpFinish();
+        exit(1);
+    }
+
+    // read access level file
+    if (initActionAccessLevels(g_vars.accessLevelXml) != 0)
+    {
+        syslog(LOG_ERR, "Failed read Access level xml '%s'.  Exiting ...",g_vars.accessLevelXml);
         UpnpFinish();
         exit(1);
     }
@@ -2089,6 +2098,12 @@ int AddNewPortMapping(struct Upnp_Action_Request *ca_event, char* new_enabled, i
  */
 int AuthorizeControlPoint(struct Upnp_Action_Request *ca_event)
 {
+    char *accessLevel;
+    accessLevel = getAccessLevel(ca_event->ActionName,0);
+    
+    trace(3, "ACCESS LEVEL of %s is %s\n",ca_event->ActionName,accessLevel);
+    
+    if (accessLevel) free(accessLevel);
     //return CONTROL_POINT_AUTHORIZED;
     return 0;
 }

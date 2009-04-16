@@ -3,6 +3,7 @@
 
 #include <net/if.h>
 #include <arpa/inet.h>
+#include <upnp/ixml.h>
 
 #define PIN_SIZE 32
 #define CHAIN_NAME_LEN 32
@@ -65,6 +66,8 @@ struct GLOBALS
     // How often alive notifications are send
     int advertisementInterval;
     char certPath[OPTION_LEN];
+    
+    // name of access level xml file
     char accessLevelXml[OPTION_LEN];
 };
 
@@ -98,6 +101,6 @@ extern globals g_vars;
 #define ROUTE_COMMAND "route"
 #define ADVERTISEMENT_INTERVAL 1800
 #define CERT_PATH_DEFAULT "/etc/certstore"  // must be something else than XML_PATH_DEFAULT!!
-#define ACCESS_LEVEL_XML_DEFAULT "accesslevel.xml"
+#define ACCESS_LEVEL_XML_DEFAULT "/etc/linuxigd/accesslevel.xml"
 
 #endif // _GLOBALS_H_
