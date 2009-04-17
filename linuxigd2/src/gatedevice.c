@@ -245,17 +245,17 @@ int HandleActionRequest(struct Upnp_Action_Request *ca_event)
             else if (strcmp(ca_event->ActionName,"GetSupportedProtocols") == 0)
                 result = GetSupportedProtocols(ca_event);
             else if (strcmp(ca_event->ActionName,"GetSessionLoginChallenge") == 0)
-                result = GetSessionLoginChallenge(ca_event);
+                result = GetUserLoginChallenge(ca_event);
             else if (strcmp(ca_event->ActionName,"SessionLogin") == 0)
-                result = SessionLogin(ca_event);
+                result = UserLogin(ca_event);
             else if (strcmp(ca_event->ActionName,"SessionLogout") == 0)
-                result = SessionLogout(ca_event);
+                result = UserLogout(ca_event);
             else if (strcmp(ca_event->ActionName,"GetACLData") == 0)
                 result = GetACLData(ca_event);
             else if (strcmp(ca_event->ActionName,"AddRolesForIdentity") == 0)
-                result = AddRolesForIdentity(ca_event);
+                result = SetRoleForIdentity(ca_event);
             else if (strcmp(ca_event->ActionName,"RemoveRolesForIdentity") == 0)
-                result = RemoveRolesForIdentity(ca_event); 
+                result = GetCurrentRole(ca_event); 
             else if (strcmp(ca_event->ActionName,"AddLoginData") == 0)
                 result = AddLoginData(ca_event); 
             else if (strcmp(ca_event->ActionName,"RemoveLoginData") == 0)

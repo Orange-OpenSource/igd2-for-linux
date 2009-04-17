@@ -15,14 +15,16 @@ static void FreeDP();
 static int message_received(int error, unsigned char *data, int len, void* control);
 
 // WPS state machine related stuff
-WPSuEnrolleeSM* esm;
-unsigned char* Enrollee_send_msg;
-int Enrollee_send_msg_len;
-WPSuStationInput input;
+static WPSuEnrolleeSM* esm;
+static unsigned char* Enrollee_send_msg;
+static int Enrollee_send_msg_len;
+static WPSuStationInput input;
 
 // address of control point which is executin introduction process
-char prev_addr[INET6_ADDRSTRLEN];
+static char prev_addr[INET6_ADDRSTRLEN];
 
+// Access Control List
+static IXML_Document *ACLDoc = NULL;
 
 /**
  * Initialize DeviceProtection StateVariables for their default values.
@@ -307,8 +309,6 @@ int SendSetupMessage(struct Upnp_Action_Request *ca_event)
 }
 
 
-
-
 /**
  * DeviceProtection:1 Action: GetSupportedProtocols.
  *
@@ -319,7 +319,8 @@ int SendSetupMessage(struct Upnp_Action_Request *ca_event)
  */
 int GetSupportedProtocols(struct Upnp_Action_Request *ca_event)
 {
-    IXML_Document *ActionResult = UpnpMakeActionResponse(ca_event->ActionName, "urn:schemas-upnp-org:service:DeviceProtection:1",
+    IXML_Document *ActionResult = NULL;
+    ActionResult = UpnpMakeActionResponse(ca_event->ActionName, "urn:schemas-upnp-org:service:DeviceProtection:1",
                                     1,
                                     "ProtocolList", SupportedProtocols);
                                     
@@ -339,63 +340,108 @@ int GetSupportedProtocols(struct Upnp_Action_Request *ca_event)
 }
 
 /**
- * Action: GetSessionLoginChallenge.
+ * DeviceProtection:1 Action: GetUserLoginChallenge.
  *
+ * @param ca_event Upnp event struct.
+ * @return Upnp error code.
  */
-int GetSessionLoginChallenge(struct Upnp_Action_Request *ca_event)
+int GetUserLoginChallenge(struct Upnp_Action_Request *ca_event)
 {
     return ca_event->ErrCode;
 }
 
 /**
- * Action: SessionLogin.
+ * DeviceProtection:1 Action: UserLogin.
  *
+ * @param ca_event Upnp event struct.
+ * @return Upnp error code.
  */
-int SessionLogin(struct Upnp_Action_Request *ca_event)
+int UserLogin(struct Upnp_Action_Request *ca_event)
 {
     return ca_event->ErrCode;
 }
 
 /**
- * Action: SessionLogout.
+ * DeviceProtection:1 Action: UserLogout.
  *
+ * @param ca_event Upnp event struct.
+ * @return Upnp error code.
  */
-int SessionLogout(struct Upnp_Action_Request *ca_event)
+int UserLogout(struct Upnp_Action_Request *ca_event)
 {
     return ca_event->ErrCode;
 }
 
 
 /**
- * Action: GetACLData.
+ * DeviceProtection:1 Action: GetACLData.
+ * 
+ * Return the Device’s Access Control List (ACL).
  *
+ * @param ca_event Upnp event struct.
+ * @return Upnp error code.
  */
 int GetACLData(struct Upnp_Action_Request *ca_event)
 {
+    char *ACL = ixmlDocumenttoString(ACLDoc);
+    IXML_Document *ActionResult = NULL;
+    
+    if (ACL)
+    {
+        ActionResult = UpnpMakeActionResponse(ca_event->ActionName, "urn:schemas-upnp-org:service:DeviceProtection:1",
+                                        1,
+                                        "ACL", ACL);
+    }
+    else
+    {
+        trace(1, "Error reading ACL value");
+        ca_event->ActionResult = NULL;
+        ca_event->ErrCode = 501;
+        return ca_event->ErrCode;
+    }    
+                                    
+    if (ActionResult)
+    {
+        ca_event->ActionResult = ActionResult;
+        ca_event->ErrCode = UPNP_E_SUCCESS;        
+    }
+    else
+    {
+        trace(1, "Error parsing Response to GetSupportedProtocols");
+        ca_event->ActionResult = NULL;
+        ca_event->ErrCode = 501;
+    }
+
     return ca_event->ErrCode;
 }
 
 /**
- * Action: AddRolesForIdentity.
+ * DeviceProtection:1 Action: SetRoleForIdentity.
  *
+ * @param ca_event Upnp event struct.
+ * @return Upnp error code.
  */
-int AddRolesForIdentity(struct Upnp_Action_Request *ca_event)
+int SetRoleForIdentity(struct Upnp_Action_Request *ca_event)
 {
     return ca_event->ErrCode;
 }
 
 /**
- * Action: RemoveRolesForIdentity.
+ * DeviceProtection:1 Action: GetCurrentRole.
  *
+ * @param ca_event Upnp event struct.
+ * @return Upnp error code.
  */
-int RemoveRolesForIdentity(struct Upnp_Action_Request *ca_event)
+int GetCurrentRole(struct Upnp_Action_Request *ca_event)
 {
     return ca_event->ErrCode;
 }
 
 /**
- * Action: AddLoginData.
+ * DeviceProtection:1 Action: AddLoginData.
  *
+ * @param ca_event Upnp event struct.
+ * @return Upnp error code.
  */
 int AddLoginData(struct Upnp_Action_Request *ca_event)
 {
@@ -404,8 +450,10 @@ int AddLoginData(struct Upnp_Action_Request *ca_event)
 
 
 /**
- * Action: RemoveLoginData.
+ * DeviceProtection:1 Action: RemoveLoginData.
  *
+ * @param ca_event Upnp event struct.
+ * @return Upnp error code.
  */
 int RemoveLoginData(struct Upnp_Action_Request *ca_event)
 {
@@ -413,8 +461,10 @@ int RemoveLoginData(struct Upnp_Action_Request *ca_event)
 }
 
 /**
- * Action: AddIdentityData.
+ * DeviceProtection:1 Action: AddIdentityData.
  *
+ * @param ca_event Upnp event struct.
+ * @return Upnp error code.
  */
 int AddIdentityData(struct Upnp_Action_Request *ca_event)
 {
@@ -422,8 +472,10 @@ int AddIdentityData(struct Upnp_Action_Request *ca_event)
 }
 
 /**
- * Action: RemoveIdentityData.
+ * DeviceProtection:1 Action: RemoveIdentityData.
  *
+ * @param ca_event Upnp event struct.
+ * @return Upnp error code.
  */
 int RemoveIdentityData(struct Upnp_Action_Request *ca_event)
 {
