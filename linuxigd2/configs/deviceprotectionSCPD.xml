@@ -53,17 +53,17 @@
         <argument>
           <name>Salt</name> 
           <direction>out</direction> 
-          <relatedStateVariable> A_ARG_TYPE_string</relatedStateVariable> 
+          <relatedStateVariable>A_ARG_TYPE_string</relatedStateVariable> 
         </argument>
         <argument>
           <name>IterationCount</name> 
           <direction>out</direction> 
-          <relatedStateVariable> A_ARG_TYPE_int</relatedStateVariable> 
+          <relatedStateVariable>A_ARG_TYPE_int</relatedStateVariable> 
         </argument>
         <argument>
           <name>Challenge</name> 
           <direction>out</direction> 
-          <relatedStateVariable> A_ARG_TYPE_string</relatedStateVariable> 
+          <relatedStateVariable>A_ARG_TYPE_string</relatedStateVariable> 
         </argument>
       </argumentList>
     </action> 
@@ -83,7 +83,7 @@
         <argument>
           <name>Authenticator</name> 
           <direction>in</direction> 
-          <relatedStateVariable> A_ARG_TYPE_string</relatedStateVariable> 
+          <relatedStateVariable>A_ARG_TYPE_string</relatedStateVariable> 
         </argument>
       </argumentList>
     </action> 
@@ -101,14 +101,9 @@
       <name>GetACLData</name> 
       <argumentList>
         <argument>
-          <name>Identity</name> 
-          <direction>in</direction> 
-          <relatedStateVariable> A_ARG_TYPE_string </relatedStateVariable> 
-        </argument>
-        <argument>
           <name>ACL</name> 
           <direction>out</direction> 
-          <relatedStateVariable> A_ARG_TYPE_string </relatedStateVariable> 
+          <relatedStateVariable>A_ARG_TYPE_string</relatedStateVariable> 
         </argument>        
       </argumentList>
     </action>  
@@ -118,7 +113,7 @@
         <argument>
           <name>Identity</name> 
           <direction>in</direction> 
-          <relatedStateVariable> A_ARG_TYPE_string </relatedStateVariable> 
+          <relatedStateVariable>A_ARG_TYPE_string</relatedStateVariable> 
         </argument>
         <argument>
           <name>RoleList</name> 
@@ -133,7 +128,7 @@
         <argument>
           <name>Identity</name> 
           <direction>in</direction> 
-          <relatedStateVariable> A_ARG_TYPE_string </relatedStateVariable> 
+          <relatedStateVariable>A_ARG_TYPE_string</relatedStateVariable> 
         </argument>
         <argument>
           <name>RoleList</name> 
@@ -153,7 +148,7 @@
         <argument>
           <name>Flags</name> 
           <direction>in</direction> 
-          <relatedStateVariable> A_ARG_TYPE_int</relatedStateVariable> 
+          <relatedStateVariable>A_ARG_TYPE_int</relatedStateVariable> 
         </argument>
        <argument>
           <name>Name</name> 
@@ -163,17 +158,17 @@
         <argument>
           <name>Stored</name> 
           <direction>in</direction> 
-          <relatedStateVariable> A_ARG_TYPE_base64</relatedStateVariable> 
+          <relatedStateVariable>A_ARG_TYPE_base64</relatedStateVariable> 
         </argument>
         <argument>
           <name>Salt</name> 
           <direction>in</direction> 
-          <relatedStateVariable> A_ARG_TYPE_base64</relatedStateVariable> 
+          <relatedStateVariable>A_ARG_TYPE_base64</relatedStateVariable> 
         </argument>
         <argument>
           <name>IterationCount</name> 
           <direction>in</direction> 
-          <relatedStateVariable> A_ARG_TYPE_int</relatedStateVariable> 
+          <relatedStateVariable>A_ARG_TYPE_int</relatedStateVariable> 
         </argument>
       </argumentList>
     </action>  
@@ -193,7 +188,7 @@
         <argument>
           <name>IdentityList</name> 
           <direction>in</direction> 
-          <relatedStateVariable> A_ARG_TYPE_string </relatedStateVariable> 
+          <relatedStateVariable>A_ARG_TYPE_string </relatedStateVariable> 
         </argument>        
       </argumentList>
     </action>  
@@ -203,7 +198,7 @@
         <argument>
           <name>IdentityList</name> 
           <direction>in</direction> 
-          <relatedStateVariable> A_ARG_TYPE_string </relatedStateVariable> 
+          <relatedStateVariable>A_ARG_TYPE_string</relatedStateVariable> 
         </argument>        
       </argumentList>
     </action>  
