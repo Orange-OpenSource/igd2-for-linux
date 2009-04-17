@@ -547,6 +547,10 @@ RunHttpsServer( SOCKET listen_sd )
    
     while (RUNNING) {
         sd = accept(listen_sd, ( struct sockaddr * )&addr, &len);
+        
+        // check here if peer address is accepted!?
+        // if not close socket
+        
         UpnpPrintf( UPNP_INFO, MSERV, __FILE__, __LINE__,
             "Https Connection: %s:%d\n",inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));
                     
