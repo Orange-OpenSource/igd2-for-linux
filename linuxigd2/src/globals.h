@@ -21,6 +21,7 @@
 struct GLOBALS
 {
     char pinCode[PIN_SIZE];  // Device Protection PIN code of device
+    char adminPassword[OPTION_LEN];  // Device Protection Admin password
     char extInterfaceName[IFNAMSIZ]; // The name of the external interface, picked up from the
     // command line
     char intInterfaceName[IFNAMSIZ]; // The name of the internal interface, picked from command line

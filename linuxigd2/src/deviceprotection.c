@@ -168,6 +168,8 @@ static int message_received(int error, unsigned char *data, int len, void* contr
         case WPSU_SM_E_SUCCESS:
         {
             // Now we should create SSL Session or something
+            
+            // add peer IP in accepted IP list?
             trace(3,"DeviceProtection introduction last message received!\n");
             FreeDP();
             break;
