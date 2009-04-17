@@ -38,7 +38,7 @@
       </argumentList>
     </action>
    <action>
-      <name>GetSessionLoginChallenge</name> 
+      <name>GetUserLoginChallenge</name> 
       <argumentList>
         <argument>
           <name>Algorithm</name> 
@@ -68,7 +68,7 @@
       </argumentList>
     </action> 
    <action>
-      <name>SessionLogin</name> 
+      <name>UserLogin</name> 
       <argumentList>
         <argument>
           <name>Algorithm</name> 
@@ -88,7 +88,7 @@
       </argumentList>
     </action> 
    <action>
-      <name>SessionLogout</name> 
+      <name>UserLogout</name> 
       <argumentList>
         <argument>
           <name>Name</name> 
@@ -113,7 +113,7 @@
       </argumentList>
     </action>  
     <action>
-      <name>AddRolesForIdentity</name> 
+      <name>SetRoleForIdentity</name> 
       <argumentList>
         <argument>
           <name>Identity</name> 
@@ -128,7 +128,7 @@
       </argumentList>
     </action>  
     <action>
-      <name>RemoveRolesForIdentity</name> 
+      <name>GetCurrentRole</name> 
       <argumentList>
         <argument>
           <name>Identity</name> 
