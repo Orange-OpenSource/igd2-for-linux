@@ -37,6 +37,44 @@
  */
 GCRY_THREAD_OPTION_PTHREAD_IMPL;
 
+
+/************************************************************************
+*   Function :  initialize_gcrypt
+*
+*   Description :   Initialize libgcrypt for gnutls.
+*
+*   Return : int ;
+*       0 on succes, -1 on error
+*
+*   Note : assumes that libupnp uses pthreads.
+************************************************************************/
+static int initialize_gcrypt()
+{
+    if (!gcry_control (GCRYCTL_INITIALIZATION_FINISHED_P))
+    {
+        /* Version check should be the very first call because it
+          makes sure that important subsystems are intialized. */
+        if (!gcry_check_version (GCRYPT_VERSION))
+        {
+            return -1;
+        }
+
+        /* Make libgrypt (gnutls) thread save. This assumes that we are using pthred for threading.
+           Check http://www.gnu.org/software/gnutls/manual/gnutls.html#Multi_002dthreaded-applications */
+        gcry_control (GCRYCTL_SET_THREAD_CBS, &gcry_threads_pthread);
+    
+        /* to disallow usage of the blocking /dev/random  */
+        gcry_control (GCRYCTL_ENABLE_QUICK_RANDOM, 0);
+     
+        /* Disable secure memory.  */
+        gcry_control (GCRYCTL_DISABLE_SECMEM, 0);
+
+        /* Tell Libgcrypt that initialization has completed. */
+        gcry_control (GCRYCTL_INITIALIZATION_FINISHED, 0);     
+    }   
+    return 0;
+}
+
 /************************************************************************
 *   Function :  init_crypto_libraries
 *
@@ -53,23 +91,23 @@ GCRY_THREAD_OPTION_PTHREAD_IMPL;
 int init_crypto_libraries()
 {
     int ret;
-    
-     /* Make libgrypt (gnutls) thread save. This assumes that we are using pthred for threading.
-     * Check http://www.gnu.org/software/gnutls/manual/gnutls.html#Multi_002dthreaded-applications
-     */
-    gcry_control (GCRYCTL_SET_THREAD_CBS, &gcry_threads_pthread);    
-    /* to disallow usage of the blocking /dev/random  */
-    gcry_control (GCRYCTL_ENABLE_QUICK_RANDOM, 0);
-    
-    
+
+    ret = initialize_gcrypt();
+    if ( ret != 0 ) {
+        UpnpPrintf( UPNP_CRITICAL, X509, __FILE__, __LINE__,
+            "Failed to initialize libgcrypt \n\n");        
+        return ret;       
+    }
+
     /* this must be called once in the program */
     ret = gnutls_global_init ();
     if ( ret != GNUTLS_E_SUCCESS ) {
         UpnpPrintf( UPNP_CRITICAL, X509, __FILE__, __LINE__,
-            "StartHttpsServer: gnutls_global_init failed. (%s) \n\n", gnutls_strerror(ret) );        
+            "Failed to initialize gnutls. (%s) \n\n", gnutls_strerror(ret) );        
         return ret;       
     }
     
+      
     return 0;
 }
 
