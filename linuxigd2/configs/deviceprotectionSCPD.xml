@@ -56,11 +56,6 @@
           <relatedStateVariable>A_ARG_TYPE_string</relatedStateVariable> 
         </argument>
         <argument>
-          <name>IterationCount</name> 
-          <direction>out</direction> 
-          <relatedStateVariable>A_ARG_TYPE_int</relatedStateVariable> 
-        </argument>
-        <argument>
           <name>Challenge</name> 
           <direction>out</direction> 
           <relatedStateVariable>A_ARG_TYPE_string</relatedStateVariable> 

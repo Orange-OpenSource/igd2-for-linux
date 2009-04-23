@@ -17,6 +17,9 @@
 #include "util.h"
 #include "pmlist.h"
 #include "lanhostconfig.h"
+#include <locale.h>
+
+
 
 // Global variables
 globals g_vars;
@@ -27,6 +30,13 @@ int main (int argc, char** argv)
     char intIpAddress[INET6_ADDRSTRLEN];     // Server internal ip address updated IPv6 address length 16 -> 46
     sigset_t sigsToCatch;
     int ret, signum, arg = 1, foreground = 0;
+    
+    if (!setlocale(LC_CTYPE, "")) {
+      fprintf(stderr, "Can't set the specified locale! "
+              "Check LANG, LC_CTYPE, LC_ALL.\n");
+      return 1;
+    }
+
 
     if (argc < 3 || argc > 4)
     {
