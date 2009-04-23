@@ -57,7 +57,7 @@ static int get_sockfd(void)
 char *toUpperCase(const char * str)
 {
     int slen = strlen(str);
-    int wcslen; 
+    int wcslen;
     wchar_t wc[2*slen];  // doubling original string length should guarantee that there is enough space for wchar_t
     char *UPPER = (char *)malloc(slen);
     
@@ -75,6 +75,7 @@ char *toUpperCase(const char * str)
     if (wcslen != slen)
         return NULL;
     
+    UPPER[slen] = '\0';
     return UPPER;
 }
 
