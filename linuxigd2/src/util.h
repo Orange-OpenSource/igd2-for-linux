@@ -4,6 +4,7 @@
 #include <upnp/upnp.h>
 
 int get_sockfd(void);
+char *toUpperCase(const char * str);
 int GetIpAddressStr(char *address, char *ifname);
 int GetMACAddressStr(unsigned char *address, int addressSize, char *ifname);
 int GetConnectionStatus(char *conStatus, char *ifname);
