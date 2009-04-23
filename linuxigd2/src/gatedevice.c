@@ -244,11 +244,11 @@ int HandleActionRequest(struct Upnp_Action_Request *ca_event)
                 result = SendSetupMessage(ca_event);
             else if (strcmp(ca_event->ActionName,"GetSupportedProtocols") == 0)
                 result = GetSupportedProtocols(ca_event);
-            else if (strcmp(ca_event->ActionName,"GetSessionLoginChallenge") == 0)
+            else if (strcmp(ca_event->ActionName,"GetUserLoginChallenge") == 0)
                 result = GetUserLoginChallenge(ca_event);
-            else if (strcmp(ca_event->ActionName,"SessionLogin") == 0)
+            else if (strcmp(ca_event->ActionName,"UserLogin") == 0)
                 result = UserLogin(ca_event);
-            else if (strcmp(ca_event->ActionName,"SessionLogout") == 0)
+            else if (strcmp(ca_event->ActionName,"UserLogout") == 0)
                 result = UserLogout(ca_event);
             else if (strcmp(ca_event->ActionName,"GetACLData") == 0)
                 result = GetACLData(ca_event);
