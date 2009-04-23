@@ -11,6 +11,8 @@
 #include <netinet/in.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
+#include <wchar.h>
+#include <wctype.h>
 #include <upnp/upnp.h>
 #include <upnp/ixml.h>
 #include "globals.h"
@@ -39,6 +41,43 @@ static int get_sockfd(void)
     }
     return sockfd;
 }
+
+
+/**
+ * Change given string in uppercase. Converts given string first as wide-character string
+ * and then transliterate that to upper case. Finally convert upper case wide-character string
+ * back to character string and return it. Such a complex procedure guarantees that umlaut chars
+ * are uppercased correctly, not sure if even all utf-8 chars.
+ * 
+ * User should free returned pointer.
+ *
+ * @param str String to turn uppercase.
+ * @return Upper cased string or NULL if failure.
+ */
+char *toUpperCase(const char * str)
+{
+    int slen = strlen(str);
+    int wcslen; 
+    wchar_t wc[2*slen];  // doubling original string length should guarantee that there is enough space for wchar_t
+    char *UPPER = (char *)malloc(slen);
+    
+    wcslen = mbsrtowcs(wc, &str, slen, NULL); // to wide-character string
+
+    int i;
+    for (i=0; i<wcslen; i++)
+    {
+        wc[i] = towupper(wc[i]);   // to upper-case
+    }
+ 
+    const wchar_t *ptr = wc;  
+    wcslen = wcsrtombs(UPPER, &ptr, slen, NULL);  // to character string, requires that wide-char string is constant
+    
+    if (wcslen != slen)
+        return NULL;
+    
+    return UPPER;
+}
+
 
 /**
  * Get MAC address of given network interface.
