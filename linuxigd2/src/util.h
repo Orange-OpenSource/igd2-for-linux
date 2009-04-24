@@ -24,9 +24,5 @@ char* GetDocumentItem(IXML_Document * doc, const char *item, int index);
 
 void ParseXMLResponse(struct Upnp_Action_Request *ca_event, const char *result);
 
-// access level handling and parsing stuff
-int initActionAccessLevels(const char *pathToFile);
-void deinitActionAccessLevels();
-char* getAccessLevel(const char *actionName, int manage);
 
 #endif //_UTIL_H_

@@ -22,11 +22,11 @@
     </iconList>
     <serviceList>
         <service>
-            <serviceType>urn:schemas-upnp-org:service:DeviceProtection:1</serviceType>
-            <serviceId>urn:upnp-org:serviceId:DeviceProtection1</serviceId>
-            <controlURL>/upnp/control/DeviceProtection1</controlURL>
-            <eventSubURL>/upnp/control/DeviceProtection1</eventSubURL>
-            <SCPDURL>/deviceprotectionSCPD.xml</SCPDURL>
+            <serviceType>urn:schemas-dummy-com:service:Dummy:1</serviceType>
+            <serviceId>urn:dummy-com:serviceId:dummy1</serviceId>
+            <controlURL>/dummy</controlURL>
+            <eventSubURL>/dummy</eventSubURL>
+            <SCPDURL>/dummy.xml</SCPDURL>
         </service>
     </serviceList>
     <deviceList>

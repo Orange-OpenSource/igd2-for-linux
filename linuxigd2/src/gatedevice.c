@@ -13,7 +13,6 @@
 #include "pmlist.h"
 #include "util.h"
 #include "lanhostconfig.h"
-#include "deviceprotection.h"
 
 //Definitions for mapping expiration timer thread
 static TimerThread gExpirationTimerThread;
@@ -101,14 +100,6 @@ int StateTableInit(char *descDocUrl)
         exit(1);
     }
 
-    // read access level file
-    if (initActionAccessLevels(g_vars.accessLevelXml) != 0)
-    {
-        syslog(LOG_ERR, "Failed read Access level xml '%s'.  Exiting ...",g_vars.accessLevelXml);
-        UpnpFinish();
-        exit(1);
-    }
-
     // Initialize our linked list of port mappings.
     pmlist_Head = pmlist_Current = NULL;
     PortMappingNumberOfEntries = 0;
@@ -119,9 +110,6 @@ int StateTableInit(char *descDocUrl)
     
     // only supported type at the moment
     strcpy(ConnectionType,"IP_Routed");
-
-    // initialize Device Protection statevariables
-    DPStateTableInit();
 
     return (ret);
 }
@@ -138,21 +126,7 @@ int HandleSubscriptionRequest(struct Upnp_Subscription_Request *sr_event)
 
     ithread_mutex_lock(&DevMutex);
 
-    if (strcmp(sr_event->UDN, gateUDN) == 0)
-    {
-        if (strcmp(sr_event->ServiceId, "urn:upnp-org:serviceId:DeviceProtection1") == 0)
-        {
-            char tmp[2];
-            snprintf(tmp,2,"%d",SetupReady);
-            
-            trace(3, "Received request to subscribe to DeviceProtection1");
-            UpnpAddToPropertySet(&propSet, "SetupReady", tmp);
-            UpnpAcceptSubscriptionExt(deviceHandle, sr_event->UDN, sr_event->ServiceId,
-                                      propSet, sr_event->Sid);
-            ixmlDocument_free(propSet);
-        }
-    }
-    else if (strcmp(sr_event->UDN, wanUDN) == 0)
+    if (strcmp(sr_event->UDN, wanUDN) == 0)
     {
         // WAN Common Interface Config Device Notifications
         if (strcmp(sr_event->ServiceId, "urn:upnp-org:serviceId:WANCommonIFC1") == 0)
@@ -236,42 +210,7 @@ int HandleActionRequest(struct Upnp_Action_Request *ca_event)
 
     ithread_mutex_lock(&DevMutex);
 
-    if (strcmp(ca_event->DevUDN, gateUDN) == 0)
-    {
-        if (strcmp(ca_event->ServiceID,"urn:upnp-org:serviceId:DeviceProtection1") == 0)
-        {
-            if (strcmp(ca_event->ActionName,"SendSetupMessage") == 0)
-                result = SendSetupMessage(ca_event);
-            else if (strcmp(ca_event->ActionName,"GetSupportedProtocols") == 0)
-                result = GetSupportedProtocols(ca_event);
-            else if (strcmp(ca_event->ActionName,"GetUserLoginChallenge") == 0)
-                result = GetUserLoginChallenge(ca_event);
-            else if (strcmp(ca_event->ActionName,"UserLogin") == 0)
-                result = UserLogin(ca_event);
-            else if (strcmp(ca_event->ActionName,"UserLogout") == 0)
-                result = UserLogout(ca_event);
-            else if (strcmp(ca_event->ActionName,"GetACLData") == 0)
-                result = GetACLData(ca_event);
-            else if (strcmp(ca_event->ActionName,"AddRolesForIdentity") == 0)
-                result = SetRoleForIdentity(ca_event);
-            else if (strcmp(ca_event->ActionName,"RemoveRolesForIdentity") == 0)
-                result = GetCurrentRole(ca_event); 
-            else if (strcmp(ca_event->ActionName,"AddLoginData") == 0)
-                result = AddLoginData(ca_event); 
-            else if (strcmp(ca_event->ActionName,"RemoveLoginData") == 0)
-                result = RemoveLoginData(ca_event); 
-            else if (strcmp(ca_event->ActionName,"AddIdentityData") == 0)
-                result = AddIdentityData(ca_event); 
-            else if (strcmp(ca_event->ActionName,"RemoveIdentityData") == 0)
-                result = RemoveIdentityData(ca_event);
-            else
-            {
-                trace(1, "Invalid Action Request : %s",ca_event->ActionName);
-                result = InvalidAction(ca_event);
-            }
-        }
-    }
-    else if (strcmp(ca_event->DevUDN, wanUDN) == 0)
+    if (strcmp(ca_event->DevUDN, wanUDN) == 0)
     {
         if (strcmp(ca_event->ServiceID,"urn:upnp-org:serviceId:WANCommonIFC1") == 0)
         {
@@ -2098,12 +2037,6 @@ int AddNewPortMapping(struct Upnp_Action_Request *ca_event, char* new_enabled, i
  */
 int AuthorizeControlPoint(struct Upnp_Action_Request *ca_event)
 {
-    char *accessLevel;
-    accessLevel = getAccessLevel(ca_event->ActionName,0);
-    
-    trace(3, "ACCESS LEVEL of %s is %s\n",ca_event->ActionName,accessLevel);
-    
-    if (accessLevel) free(accessLevel);
     //return CONTROL_POINT_AUTHORIZED;
     return 0;
 }

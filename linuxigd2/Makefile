@@ -10,8 +10,8 @@ DISTFILES = Makefile Doxyfile bin/ configs/ doc/ inc/ lib/ src/
 
 CC=gcc
 INCLUDES= -I$(LIBUPNP_PREFIX)/include -I../include 
-LIBS= -lpthread -lupnp -lixml -lthreadutil -lwpsutil -lgnutls -lgcrypt -lgpg-error -lz -L$(LIBUPNP_PREFIX)/lib -L../libs
-FILES= gatedevice.o pmlist.o util.o config.o lanhostconfig.o deviceprotection.o 
+LIBS= -lpthread -lupnp -lixml -lthreadutil -L$(LIBUPNP_PREFIX)/lib -L../libs
+FILES= gatedevice.o pmlist.o util.o config.o lanhostconfig.o
 
 BIN=bin/
 DOC=doc/
@@ -25,7 +25,7 @@ INCLUDES += -I$(LIBIPTC_PREFIX)/include
 endif
 
 LIBS += -liptc
-INCLUDES += -I/usr/src/linux-headers-$(shell uname -r)/include -DHAVE_LIBIPTC
+INCLUDES += -DHAVE_LIBIPTC
 FILES += iptc.o
 endif
 
@@ -59,7 +59,6 @@ install: upnpd
 	install configs/gateicfgSCPD.xml /etc/linuxigd
 	install configs/lanhostconfigSCPD.xml /etc/linuxigd
 	install configs/gateEthlcfgSCPD.xml /etc/linuxigd
-	install configs/deviceprotectionSCPD.xml /etc/linuxigd	
 	install configs/dummy.xml /etc/linuxigd
 	install $(BIN)upnpd $(PREFIX)/sbin
 	install doc/upnpd.8 $(PREFIX)/share/man/man8

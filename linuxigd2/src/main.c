@@ -168,17 +168,6 @@ int main (int argc, char** argv)
     }
     trace(2, "UPnP SDK Successfully Initialized.");
     
-    // start https server
-    if ( (ret = UpnpStartHttpsServer(443, g_vars.certPath, NULL, NULL, NULL, NULL, "LinuxIGD 2.0") ) != UPNP_E_SUCCESS)
-    {
-        syslog (LOG_ERR, "Error Starting UPnP HTTPS server on IP %s port %d",intIpAddress,443);
-        syslog (LOG_ERR, "  UpnpStartHttpsServer returned %d", ret);
-        UpnpFinish();
-        exit(1);
-    }
-    trace(2, "UPnP HTTPS Server Started Successfully.");
-
-    
     // Set the Device Web Server Base Directory
     trace(3, "Setting the Web Server Root Directory to %s",g_vars.xmlPath);
     if ( (ret = UpnpSetWebServerRootDir(g_vars.xmlPath)) != UPNP_E_SUCCESS )
