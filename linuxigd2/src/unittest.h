@@ -1,3 +1,22 @@
+/* 
+ * This file is part of Nokia InternetGatewayDevice v2 reference implementation 
+ * Copyright © 2009 Nokia Corporation and/or its subsidiary(-ies).
+ * Contact:mika.saaranen@nokia.com
+ * 
+ * This program is free software: you can redistribute it and/or modify 
+ * it under the terms of the GNU (Lesser) General Public License as 
+ * published by the Free Software Foundation, version 2 of the License. 
+ * 
+ * This program is distributed in the hope that it will be useful, 
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of 
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the 
+ * GNU (Lesser) General Public License for more details. 
+ * 
+ * You should have received a copy of the GNU (Lesser) General Public 
+ * License along with this program. If not, see http://www.gnu.org/licenses/. 
+ * 
+ */
+
 // RetrieveListOfPortMappings
 // SOAP requests
 char retrieve_port_list_request_xml[] = "<?xml version=\"1.0\"?>\n<u:GetListOfPortmappings xmlns:u=\"urn:schemas-upnp-org:service:WANIPConnection:1\">\n<NewEndPort>100</NewEndPort>\n<NewNumberOfPorts>0</NewNumberOfPorts>\n<NewProtocol>TCP</NewProtocol>\n<NewStartPort>10</NewStartPort>\n<NewManage>1</NewManage>\n</u:GetListOfPortmappings>";
