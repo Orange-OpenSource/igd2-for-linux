@@ -79,8 +79,6 @@ int parseConfigFile(globals_p vars)
 
     regex_t re_comment;
     regex_t re_empty_row;
-    regex_t re_pin_code;
-    regex_t re_admin_passwd;
     regex_t re_iptables_location;
     regex_t re_debug_mode;
     regex_t re_create_forward_rules;
@@ -102,15 +100,11 @@ int parseConfigFile(globals_p vars)
     regex_t re_dhcpc;
     regex_t re_network;
     regex_t re_advertisement_interval;
-    regex_t re_cert_path;
-    regex_t re_acc_lvl_xml;
 
     // Make sure all vars are 0 or \0 terminated
     vars->debug = 0;
     vars->createForwardRules = 0;
     vars->forwardRulesAppend = 0;
-    strcpy(vars->pinCode,"");
-    strcpy(vars->adminPassword,"");
     strcpy(vars->iptables,"");
     strcpy(vars->forwardChainName,"");
     strcpy(vars->preroutingChainName,"");
@@ -129,16 +123,12 @@ int parseConfigFile(globals_p vars)
     strcpy(vars->dhcpc, "");
     strcpy(vars->networkCmd, "");
     vars->advertisementInterval = ADVERTISEMENT_INTERVAL;
-    strcpy(vars->certPath,"");
-    strcpy(vars->accessLevelXml,"");
 
     // Regexp to match a comment line
     regcomp(&re_comment,"^[[:blank:]]*#",0);
     regcomp(&re_empty_row,"^[[:blank:]]*\r?\n$",REG_EXTENDED);
 
     // Regexps to match configuration file settings
-    regcomp(&re_pin_code,"pin_code[[:blank:]]*=[[:blank:]]*([[:alpha:]_/.]{1,50})",REG_EXTENDED);
-    regcomp(&re_admin_passwd,"admin_password[[:blank:]]*=[[:blank:]]*([[:alpha:]_/.]{1,50})",REG_EXTENDED);
     regcomp(&re_iptables_location,"iptables_location[[:blank:]]*=[[:blank:]]*\"([^\"]+)\"",REG_EXTENDED);
     regcomp(&re_debug_mode,"debug_mode[[:blank:]]*=[[:blank:]]*([[:digit:]])",REG_EXTENDED);
     regcomp(&re_forward_chain_name,"forward_chain_name[[:blank:]]*=[[:blank:]]*([[:alpha:]_-]+)",REG_EXTENDED);
@@ -160,8 +150,6 @@ int parseConfigFile(globals_p vars)
     regcomp(&re_dhcpc,"dhcpc_cmd[[:blank:]]*=[[:blank:]]*([[:alpha:]_/.]{1,50})",REG_EXTENDED);
     regcomp(&re_network,"network_script[[:blank:]]*=[[:blank:]]*([[:alpha:]_/.]{1,50})",REG_EXTENDED);
     regcomp(&re_advertisement_interval,"advertisement_interval[[:blank:]]*=[[:blank:]]*([[:digit:]]+)",REG_EXTENDED);
-    regcomp(&re_cert_path,"certificate_path[[:blank:]]*=[[:blank:]]*([[:alpha:]_/.]{1,50})",REG_EXTENDED);
-    regcomp(&re_acc_lvl_xml,"access_level_xml[[:blank:]]*=[[:blank:]]*([[:alpha:].]{1,20})",REG_EXTENDED);
 
     if ((conf_file=fopen(CONF_FILE,"r")) != NULL)
     {
@@ -173,17 +161,8 @@ int parseConfigFile(globals_p vars)
             if ( (0 != regexec(&re_comment,line,0,NULL,0)  )  &&
                     (0 != regexec(&re_empty_row,line,0,NULL,0))  )
             {
-                // Check if pin_code
-                if (regexec(&re_pin_code,line,NMATCH,submatch,0) == 0)
-                {
-                    getConfigOptionArgument(vars->pinCode, PIN_SIZE, line, submatch);
-                }
-                else if (regexec(&re_admin_passwd,line,NMATCH,submatch,0) == 0)
-                {
-                    getConfigOptionArgument(vars->adminPassword, OPTION_LEN, line, submatch);
-                }
-                // Check if iptables_location
-                else if (regexec(&re_iptables_location,line,NMATCH,submatch,0) == 0)
+                // Chec if iptables_location
+                if (regexec(&re_iptables_location,line,NMATCH,submatch,0) == 0)
                 {
                     getConfigOptionArgument(vars->iptables, OPTION_LEN, line, submatch);
                 }
@@ -282,14 +261,6 @@ int parseConfigFile(globals_p vars)
                     getConfigOptionArgument(tmp, OPTION_LEN, line, submatch);
                     vars->advertisementInterval = atoi(tmp);
                 }
-                else if (regexec(&re_cert_path,line,NMATCH,submatch,0) == 0)
-                {
-                    getConfigOptionArgument(vars->certPath, OPTION_LEN, line, submatch);
-                }   
-                else if (regexec(&re_acc_lvl_xml,line,NMATCH,submatch,0) == 0)
-                {
-                    getConfigOptionArgument(vars->accessLevelXml, OPTION_LEN, line, submatch);
-                }                             
                 else
                 {
                     // We end up here if ther is an unknown config directive
@@ -301,8 +272,6 @@ int parseConfigFile(globals_p vars)
     }
     regfree(&re_comment);
     regfree(&re_empty_row);
-    regfree(&re_pin_code);
-    regfree(&re_admin_passwd);
     regfree(&re_iptables_location);
     regfree(&re_debug_mode);
     regfree(&re_create_forward_rules);
@@ -324,8 +293,6 @@ int parseConfigFile(globals_p vars)
     regfree(&re_dhcpc);
     regfree(&re_network);
     regfree(&re_advertisement_interval);
-    regfree(&re_cert_path);
-    regfree(&re_acc_lvl_xml);
     
     // Set default values for options not found in config file
     if (strnlen(vars->forwardChainName, OPTION_LEN) == 0)
@@ -384,29 +351,9 @@ int parseConfigFile(globals_p vars)
     {
         vars->advertisementInterval = 300;
     }
-    if (strnlen(vars->certPath, OPTION_LEN) == 0)
-    {
-        snprintf(vars->certPath, OPTION_LEN, CERT_PATH_DEFAULT);
-    }
-    if (strnlen(vars->accessLevelXml, OPTION_LEN) == 0)
-    {
-        snprintf(vars->accessLevelXml, OPTION_LEN, ACCESS_LEVEL_XML_DEFAULT);
-    }    
     if (strnlen(vars->iptables, OPTION_LEN) == 0)
     {
         // Can't find the iptables executable, return -1 to
-        // indicate en error
-        return -1;
-    }
-    if (strnlen(vars->pinCode, PIN_SIZE) == 0)
-    {
-        // Can't find the PIN code, return -1 to
-        // indicate en error
-        return -1;
-    }
-    if (strnlen(vars->adminPassword, OPTION_LEN) == 0)
-    {
-        // Can't find the admin password code, return -1 to
         // indicate en error
         return -1;
     }
