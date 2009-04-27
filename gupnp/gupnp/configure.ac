@@ -18,7 +18,8 @@ PKG_CHECK_MODULES(LIBGUPNP, glib-2.0 >= 2.18 \
                             gssdp-1.0 >= 0.6 \
                             libsoup-2.4 >= 2.4.1 \
                             libxml-2.0 \
-                            uuid)
+                            uuid
+                            libwpsutil)
 
 PKG_CHECK_MODULES(GTHREAD, gthread-2.0)
 
