@@ -966,6 +966,7 @@ handle_invoke_action( IN SOCKINFO * info,
     action.ActionResult = NULL;
     action.ErrCode = UPNP_E_SUCCESS;
     action.CtrlPtIPAddr = info->foreign_ip_addr;
+    action.SSLSession = info->tls_session;
 
     UpnpPrintf( UPNP_INFO, SOAP, __FILE__, __LINE__,
                          "Calling Callback\n" );

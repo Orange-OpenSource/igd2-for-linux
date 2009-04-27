@@ -33,7 +33,7 @@
 #ifndef UPNP_H
 #define UPNP_H
 
-
+#include <gnutls/gnutls.h>
 /*!
  * \file
  *
@@ -649,6 +649,9 @@ struct Upnp_Action_Request
   /** The DOM document containing the information from the
       the SOAP header. */
   IXML_Document *SoapHeader;
+  
+  /** SSL session used for secure connection, or NULL if SSL is not used */
+  gnutls_session_t SSLSession;
 };
 
 struct Upnp_Action_Complete
