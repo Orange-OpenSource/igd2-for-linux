@@ -33,7 +33,11 @@
 static int InitDP();
 static void FreeDP();
 static void message_received(int error, unsigned char *data, int len);
-static int createUserLoginChallengeResponse(struct Upnp_Action_Request *ca_event, char *nameUPPER, char *passwd);
+static int getSaltAndStoredForName(const char *nameUPPER, unsigned char **b64_salt, int *salt_len, unsigned char **b64_stored, int *stored_len);
+static int createUserLoginChallengeResponse(struct Upnp_Action_Request *ca_event, const char *nameUPPER);
+static int getValuesFromPasswdFile(const char *nameUPPER, unsigned char **b64_salt, int *salt_len, unsigned char **b64_stored, int *stored_len, int max_size);
+static int putValuesToPasswdFile(const char *name, const unsigned char *b64_salt, const unsigned char *b64_stored);
+static int updateValuesToPasswdFile(const char *nameUPPER, const unsigned char *b64_salt, const unsigned char *b64_stored, int delete_values);
 
 // WPS state machine related stuff
 static WPSuEnrolleeSM* esm;
@@ -59,7 +63,7 @@ void DPStateTableInit()
     strcpy(SupportedProtocols, "<SupportedProtocols><Setup>DeviceProtection:1</Setup><Login>DeviceProtection:1</Login></SupportedProtocols>");   
     
     // init ACL
-    ACLDoc = ixmlLoadDocument("ACL.xml"); 
+    ACLDoc = ixmlLoadDocument("ACL.xml");
 }
 
 
@@ -236,6 +240,252 @@ static void message_received(int error, unsigned char *data, int len)
 
 
 /**
+ * Get salt and stored values of user with nameUpper as username.
+ * With getValuesFromPasswdFile(name, NULL, NULL, NULL, NULL, 0) it is possible to check 
+ * if password file contains that specific username.
+ * 
+ * @param nameUPPER User name in upper case.
+ * @param b64_salt Pointer to salt data read from file (base64 encoded)
+ * @param salt_len Pointer to integer where length of salt is inserted
+ * @oaram b64_stored Pointer to stored data read from file (base64 encoded)
+ * @param stored_len Pointer to integer where length of stored is inserted
+ * @param max_size Maximum space available for salt and stored. If they are longer than max_size, error is returned
+ * @return -1 if fail, -2 if username is not found, -3 if salt or stored is too long, 0 on success
+ */
+static int getValuesFromPasswdFile(const char *nameUPPER, unsigned char **b64_salt, int *salt_len, unsigned char **b64_stored, int *stored_len, int max_size)
+{
+    // file is formatted as this (every user in own row):
+    // Username,base64(SALT),base64(STORED)
+    char line[200];
+    char *name;
+    char *temp;
+
+    FILE *stream = fopen(g_vars.passwdFile, "r");
+    if (!stream) return -1;
+    
+    while(fgets(line, 200, stream) != NULL) 
+    {
+        line[strlen(line)-1] = '\0';
+    
+        name = strtok(line, ",");
+        if (name != NULL)
+        {        
+            name = toUpperCase(name);
+            if (name == NULL)
+            {
+                fclose(stream);
+                return -1;             
+            }
+            // if names match
+            if ( strcmp(name,nameUPPER) == 0 )
+            {
+                fclose(stream);
+                
+                if (b64_salt)
+                {
+                    memset(*b64_salt, '\0', max_size);
+                    temp = strtok(NULL, ",");
+                    *salt_len = strlen(temp);
+                    
+                    if (*salt_len > max_size) return -3;
+                    
+                    memcpy(*b64_salt, temp, *salt_len);
+                }
+                if (b64_stored)
+                {
+                    memset(*b64_stored, '\0', max_size);
+                    temp = strtok(NULL, ",");
+                    *stored_len = strlen(temp);
+                    
+                    if (*stored_len > max_size) return -3;
+                    
+                    memcpy(*b64_stored, temp, *stored_len);
+                }
+                
+                return 0;
+            }
+        }
+    }
+    
+    fclose(stream);
+    return -2; 
+}
+
+/**
+ * Update username,salt,stored values in password file.
+ * 
+ * @param name User name in uppercase
+ * @param b64_salt Pointer to salt data read from file (base64 encoded)
+ * @oaram b64_stored Pointer to stored data read from file (base64 encoded)
+ * @return -1 if fail -2 if username already exist, 0 on success
+ */
+static int putValuesToPasswdFile(const char *name, const unsigned char *b64_salt, const unsigned char *b64_stored)
+{
+    if (getValuesFromPasswdFile(name,NULL,NULL, NULL, NULL, 0) == 0)
+        return -2;
+    
+    FILE *stream = fopen(g_vars.passwdFile, "a");
+    if (!stream) return -1;
+    
+    fprintf(stream, "%s,%s,%s\n", name, b64_salt, b64_stored);
+    
+    fclose(stream);
+    return 0;     
+}
+
+/**
+ * Update username,salt,stored values in password file.
+ * Username and values can also be removed totally from file by putting delete_values as 1.
+ * 
+ * @param name User name in uppercase
+ * @param b64_salt Pointer to salt data read from file (base64 encoded)
+ * @oaram b64_stored Pointer to stored data read from file (base64 encoded)
+ * @param delete_values Use 0 to update existing values, 1 to delete.
+ * @return -1 if fail or username is not found, 0 on success
+ */
+static int updateValuesToPasswdFile(const char *nameUPPER, const unsigned char *b64_salt, const unsigned char *b64_stored, int delete_values)
+{
+    // file is formatted as this (every user in own row):
+    // Username,base64(SALT),base64(STORED)
+    char line[200];
+    char temp[200];
+    char *name;
+    int ret = -1;
+    
+    char tempfile[strlen(g_vars.passwdFile) + 5];
+    strcpy(tempfile,g_vars.passwdFile);
+    strcat(tempfile,".temp");
+    
+    // open 2 files, passwordfile which is read and temp file where lines are written.
+    // if usernames match write new values in temp file.
+    // Finally remove original passwordfile and rename temp file as original.
+    FILE *in = fopen(g_vars.passwdFile, "r");
+    if (!in) return -1;
+    FILE *out = fopen(tempfile, "w");
+    if (!out) 
+    {
+        fclose(in);      
+        return -1;
+    }
+    
+    while(fgets(line, 200, in) != NULL) 
+    {
+        line[strlen(line)-1] = '\0';
+        strcpy(temp,line); // copy line, strtok modifies it
+        
+        name = strtok(line, ",");
+        
+        if (name != NULL)
+        {
+            name = toUpperCase(name);
+            if (name == NULL)
+            {
+                fclose(in);
+                fclose(out);
+                return -1;             
+            }
+            // if names match        
+            if ( strcmp(name,nameUPPER) == 0 )
+            {
+                // if we want to remove user from passwd file, lets not add him to temp file
+                if (!delete_values)
+                    fprintf(out, "%s,%s,%s\n", nameUPPER, b64_salt, b64_stored);
+                ret = 0;
+            }
+            else
+            {
+                fprintf(out, "%s\n", temp);
+            }
+        }
+    }
+    
+    fclose(in);
+    fclose(out);
+    
+    // delete original password file
+    remove(g_vars.passwdFile);
+    // rename temp file is original password file
+    rename(tempfile, g_vars.passwdFile); 
+
+    return ret; 
+}
+
+/**
+ * Get salt and stored values of user with nameUPPER as username.
+ * Username "ADMIN" is an special case: if it is not found form password file, totally
+ * new salt and stored values are creted for that username. Password used for creation 
+ * of stored is stored in config file.
+ *  
+ * 
+ * @param nameUPPER User name in upper case.
+ * @param b64_salt Pointer to salt data read from file or newly created (base64 encoded)
+ * @param salt_len Pointer to integer where length of salt is inserted
+ * @oaram b64_stored Pointer to stored data read from file or newly created (base64 encoded)
+ * @param stored_len Pointer to integer where length of stored is inserted
+ * @return 0 on success
+ */
+static int getSaltAndStoredForName(const char *nameUPPER, unsigned char **b64_salt, int *salt_len, unsigned char **b64_stored, int *stored_len)
+{
+    int maxb64len = 2*DP_STORED_BYTES;     
+    *b64_salt = (unsigned char *)malloc(maxb64len); 
+    *b64_stored = (unsigned char *)malloc(maxb64len);
+    
+    int ret = getValuesFromPasswdFile(nameUPPER, b64_salt, salt_len, b64_stored, stored_len, maxb64len);
+    
+    if (ret != 0)
+    {
+        if (strcmp(nameUPPER,"ADMIN") == 0)
+        {
+            // create new salt and stored
+            int name_len = strlen(nameUPPER);
+            int namesalt_len = name_len + DP_SALT_BYTES;
+            unsigned char namesalt[namesalt_len];
+        
+            // create SALT   
+            unsigned char *salt = wpsu_createRandomValue(DP_SALT_BYTES);
+            
+            memcpy(namesalt, nameUPPER, name_len);
+            memcpy(namesalt+name_len, salt, DP_SALT_BYTES);
+            
+            /* Create STORED = first 160 bits of the key T1, with T1 computed according to [PKCS#5] algorithm PBKDF2
+                
+                T1 is defined as the exclusive-or sum of the first c iterates of PRF applied to the concatenation 
+                of the Password, Name, Salt, and four-octet block index (0x00000001) in big-endian format.  
+                For DeviceProtection, the value for c is 5,000.  Name MUST be converted to upper-case, and 
+                Password and Name MUST be encoded in UTF-8 format prior to invoking the PRF operation.  
+                T1 = U1 \xor U2 \xor … \xor Uc
+                where
+                U1 = PRF(Password, Name || Salt || 0x0 || 0x0 || 0x0 || 0x1)
+                U2 = PRF(Password, U1),
+                …
+                Uc = PRF(Password, Uc-1).
+              
+                NOTE1: SALT and STORED are created only if username is admin and passwordfile doesn't 
+                
+                NOTE2: wpsu_pbkdf2 goes through whole PBKDF2 algorithm, even if in this case only first block
+                       is needed for result. First 160 bits are the same if all the data is processed or just 
+                       the first block. (block size should be defined to 160bits => DP_STORED_BYTES = 8)
+             */
+            unsigned char bin_stored[DP_STORED_BYTES];
+            ret = wpsu_pbkdf2(g_vars.adminPassword, strlen(g_vars.adminPassword), namesalt,
+                            namesalt_len, DP_PRF_ROUNDS, DP_STORED_BYTES, bin_stored);
+                            
+            if (ret != 0) return ret;
+            
+            // SALT and STORED to base 64
+            wpsu_bin_to_base64(DP_SALT_BYTES, salt, salt_len, *b64_salt, maxb64len);                                                
+            wpsu_bin_to_base64(DP_STORED_BYTES, bin_stored, stored_len, *b64_stored, maxb64len);             
+
+            
+            // write values to password file
+            ret = putValuesToPasswdFile(nameUPPER, *b64_salt, *b64_stored);
+        }
+    }
+    
+    return ret;
+}
+
+/**
  * Create userlogin challenge data and put it in upnp response struct.
  * GetUserLoginChallenge uses this.
  *
@@ -255,54 +505,35 @@ static void message_received(int error, unsigned char *data, int len)
  * 
  * @param ca_event Upnp event struct.
  * @param nameUPPER Username in uppercase
- * @param passwd Password corresponding to username with nameUPPER
  * @return Upnp error code.
  */
-static int createUserLoginChallengeResponse(struct Upnp_Action_Request *ca_event, char *nameUPPER, char *passwd)
+static int createUserLoginChallengeResponse(struct Upnp_Action_Request *ca_event, const char *nameUPPER)
 {
     int result = 0;
-    int name_len = strlen(nameUPPER);
-    int namesalt_len = name_len + DP_SALT_BYTES;
-    unsigned char namesalt[namesalt_len];
+    unsigned char *b64_salt = NULL;
+    unsigned char *b64_stored = NULL;
+    int b64_salt_len = 0;
+    int b64_stored_len = 0;
 
-    // create SALT. Should this create only once somewhere else?    
-    unsigned char *salt = wpsu_createRandomValue(DP_SALT_BYTES);
-    
-    memcpy(namesalt, nameUPPER, name_len);
-    memcpy(namesalt+name_len, salt, DP_SALT_BYTES);
-    
-    /* Create STORED = first 160 bits of the key T1, with T1 computed according to [PKCS#5] algorithm PBKDF2
-        
-        T1 is defined as the exclusive-or sum of the first c iterates of PRF applied to the concatenation 
-        of the Password, Name, Salt, and four-octet block index (0x00000001) in big-endian format.  
-        For DeviceProtection, the value for c is 5,000.  Name MUST be converted to upper-case, and 
-        Password and Name MUST be encoded in UTF-8 format prior to invoking the PRF operation.  
-        T1 = U1 \xor U2 \xor … \xor Uc
-        where
-        U1 = PRF(Password, Name || Salt || 0x0 || 0x0 || 0x0 || 0x1)
-        U2 = PRF(Password, U1),
-        …
-        Uc = PRF(Password, Uc-1).
-      
-        NOTE: wpsu_pbkdf2 goes through whole PBKDF2 algorithm, even if in this case only first block
-              is needed for result. First 160 bits are the same if all the data is processed or just 
-              the first block. (block size should be defined to 160bits => DP_STORED_BYTES = 8)
-     */
-    unsigned char stored[DP_STORED_BYTES];
-    if ( wpsu_pbkdf2(passwd, strlen(passwd), namesalt,
-                    namesalt_len, DP_PRF_ROUNDS, DP_STORED_BYTES, stored) != 0 )
+    if (getSaltAndStoredForName(nameUPPER, &b64_salt, &b64_salt_len, &b64_stored, &b64_stored_len) != 0)
     {
-        trace(1, "Error creating STORED value for %s",ca_event->ActionName);
+        trace(1, "Error creating/getting STORED value for user %s",nameUPPER);
         result = 501;
         addErrorData(ca_event, result, "Action Failed");
     }
     else
     {
+        // stored to binary format
+        unsigned char *bin_stored = (unsigned char *)malloc(b64_stored_len);
+        int outlen;        
+        wpsu_base64_to_bin(b64_stored_len, b64_stored, &outlen, bin_stored, DP_STORED_BYTES);
+
+
         // Create NONCE
         unsigned char *nonce = wpsu_createNonce(DP_NONCE_BYTES);
         
         unsigned char storednonce[DP_STORED_BYTES+DP_NONCE_BYTES];
-        memcpy(storednonce, stored, DP_STORED_BYTES);
+        memcpy(storednonce, bin_stored, DP_STORED_BYTES);
         memcpy(storednonce+DP_STORED_BYTES, nonce, DP_NONCE_BYTES);
              
         // Create CHALLENGE = SHA-256(STORED || nonce)
@@ -315,16 +546,13 @@ static int createUserLoginChallengeResponse(struct Upnp_Action_Request *ca_event
         }
         else
         {                
-            // SALT and CHALLENGE to base64
+            // CHALLENGE to base64
             int maxb64len = 2*(DP_STORED_BYTES+DP_NONCE_BYTES); 
-            int b64len = 0;    
-            unsigned char *b64_salt = (unsigned char *)malloc(maxb64len);
-            wpsu_bin_to_base64(DP_SALT_BYTES, salt, &b64len, b64_salt, maxb64len);        
+            int b64len = 0;        
     
             unsigned char *b64_challenge = (unsigned char *)malloc(maxb64len);
             wpsu_bin_to_base64(DP_STORED_BYTES+DP_NONCE_BYTES, challenge, &b64len, b64_challenge, maxb64len);               
-        
-            
+
             IXML_Document *ActionResult = NULL;
             ActionResult = UpnpMakeActionResponse(ca_event->ActionName, DP_SERVICE_TYPE,
                                         2,
@@ -343,12 +571,17 @@ static int createUserLoginChallengeResponse(struct Upnp_Action_Request *ca_event
                 addErrorData(ca_event, result, "Action Failed");
             }
             
-            if (b64_salt) free(b64_salt);
             if (b64_challenge) free(b64_challenge);
         }
+        if (bin_stored) free(bin_stored);
     }
+    
+    if (b64_salt) free(b64_salt);
+    if (b64_stored) free(b64_stored);
     return result;
 }
+
+
 
 
 //-----------------------------------------------------------------------------
@@ -498,38 +731,48 @@ int GetUserLoginChallenge(struct Upnp_Action_Request *ca_event)
     char *nameUPPER = NULL;
     char *passwd = NULL;
     
+    // check if connection was made over SSL    
+    if (ca_event->SSLSession == NULL)
+    {
+        trace(1, "GetUserLoginChallenge: Connection wasn't made over SSL, terminating...");
+        addErrorData(ca_event, 501, "Action Failed");
+        return ca_event->ErrCode;
+    }
+
+    
     if ( (algorithm = GetFirstDocumentItem(ca_event->ActionRequest, "Algorithm") )
             && (name = GetFirstDocumentItem(ca_event->ActionRequest, "Name") ))
     {
         // check parameters
         if (strcmp(algorithm, "DeviceProtection:1") != 0)
         {
-            printf("here3\n");
             trace(1, "Unknown algorithm %s",algorithm);
             result = 705;
-            addErrorData(ca_event, result, "Invalid Algorithm");            
-        }        
-        else
+            addErrorData(ca_event, result, "Invalid Algorithm");             
+        }     
+        else 
         {
             // name to uppercase
             nameUPPER = toUpperCase(name);
-                    
-            // get password based on the name received in event
-            // TODO this here
-            passwd = (char *)malloc(15);
-            strcpy(passwd,"salasana");
-            if (passwd == NULL)
+            if (nameUPPER == NULL)
             {
-                trace(1, "Unknown username %s",name);
+                trace(1, "Failed to convert name to upper case ");
+                result = 501;
+                addErrorData(ca_event, 501, "Action Failed");
+            }
+            // check if user exits
+            if ((strcmp(nameUPPER, "ADMIN") != 0) && (getValuesFromPasswdFile(nameUPPER, NULL,NULL,NULL,NULL,0) != 0))
+            {
+                trace(1, "Unknown username %s",nameUPPER);
                 result = 706;
-                addErrorData(ca_event, result, "Invalid Name");            
+                addErrorData(ca_event, result, "Invalid Name");                 
             }
         }
         
         // parameters OK
         if (result == 0)
         {
-            createUserLoginChallengeResponse(ca_event, nameUPPER, passwd);
+            createUserLoginChallengeResponse(ca_event, nameUPPER);
         }
     }
 
