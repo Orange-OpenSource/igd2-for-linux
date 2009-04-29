@@ -396,8 +396,31 @@ int UpnpStartHttpsServer( IN unsigned short port,
     else 
         return retVal;        
 }
-#endif
  /***************** end of UpnpStartHttpsServer ******************/
+
+
+/****************************************************************************
+ * Function: UpnpGetClientCert
+ *
+ * Export client certificate of given ssl-session to given parameter data. 
+ * When calling this data must have enough memory allocated and data_size 
+ * must contain info how much data has space.
+ * 
+ * Parameters:      
+ *  IN gnutls_session_t session: SSL session
+ *  OUT unsigned char *data    :  Certificate is returned in DER format here
+ *  INOUT int *data_size         :  Pointer to integer which represents length of certificate 
+ * 
+ * Returns:
+ *  UPNP_E_SUCCESS on success, nonzero on failure. 
+ *  upnps or gnutls error code if starting fails.
+ *****************************************************************************/
+int UpnpGetClientCert(gnutls_session_t session, unsigned char *data, int *data_size)
+{
+    return get_peer_certificate(session, data, data_size); 
+}
+#endif
+ /***************** end of UpnpGetClientCert ******************/
 
 
 #ifdef DEBUG

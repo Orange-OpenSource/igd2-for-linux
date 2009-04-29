@@ -1073,6 +1073,29 @@ EXPORT_SPEC int UpnpStartHttpsServer(
     /*! [in] Name of device. This is used as CN (common name) in certificate */
     const char *devName);
 
+
+ /*!
+ * \brief Get client certificate used in ssl-session
+ *
+ * Export client certificate of given ssl-session to given parameter data. 
+ * When calling this data must have enough memory allocated and data_size 
+ * must contain info how much data has space.
+ * Certificate is exported in DER format.
+ *
+ * \return An integer representing one of the following:
+ *     \li \c UPNP_E_SUCCESS: The operation completed successfully.
+ *     \li gnutls error code if fails to get certificate 
+ */
+EXPORT_SPEC int UpnpGetClientCert(
+    /*! [in] Used (gnutls) ssl session */
+    gnutls_session_t session, 
+    /*! [out] Certificate is returned here. Reserve enough space for this */
+    unsigned char *data, 
+    /*! [inout] Size of certificate in bytes is returned here. 
+       Incoming value must be how much space is reserved for data */
+    int *data_size);
+
+
 /*!
  * \brief Terminates the Linux SDK for UPnP Devices.
  *
@@ -2795,7 +2818,6 @@ EXPORT_SPEC void UpnpRemoveAllVirtualDirs();
 
 
 /* @} Web Server API */
-
 
 
 #ifdef __cplusplus

@@ -674,3 +674,74 @@ int validate_x509_certificate(const gnutls_x509_crt_t *crt, const char *hostname
     return ret;  
 }
 
+
+/************************************************************************
+*   Function :  get_peer_certificate
+*
+*   Parameters :
+*       IN gnutls_session_t session  ;  SSL session
+*       OUT unsigned char *data      ;  Certificate is returned in DER format here
+*       INOUT int *data_size           ;  Pointer to integer which represents length of certificate 
+* 
+*   Description :   Export peer certificate to given parameter. When calling this
+*       data must have enough memory allocated and data_size must contain info
+*       how much data has space.
+*
+*   Return : int ;
+*       UPNP or gnutls error code.
+*
+*   Note :
+************************************************************************/
+int get_peer_certificate(gnutls_session_t session, unsigned char *data, int *data_size)
+{
+    const gnutls_datum_t *cert_list;
+    unsigned int cert_list_size;
+    int ret;
+    gnutls_x509_crt_t cert;   
+
+    if ((ret = gnutls_certificate_type_get (session)) != GNUTLS_CRT_X509)
+    {
+        UpnpPrintf( UPNP_CRITICAL, X509, __FILE__, __LINE__,
+            "Peer certificate type must be X.509. Wrong type received.\n");          
+        return GNUTLS_E_UNSUPPORTED_CERTIFICATE_TYPE;
+    }
+    
+    // get certificate list. First in list is peers
+    cert_list = gnutls_certificate_get_peers (session, &cert_list_size);
+    if (cert_list == NULL || cert_list_size < 1)
+    {
+        UpnpPrintf( UPNP_CRITICAL, X509, __FILE__, __LINE__,
+            "Could not get peers certificate\n");
+        return GNUTLS_E_X509_CERTIFICATE_ERROR;
+    }
+
+    //init certificate
+    ret = gnutls_x509_crt_init (&cert);
+    if (ret < 0) {
+        UpnpPrintf( UPNP_CRITICAL, X509, __FILE__, __LINE__,
+            "gnutls_x509_crt_init failed. %s \n", gnutls_strerror(ret) );
+        return ret;
+    }
+
+    // first in the list is peers certificate
+    ret = gnutls_x509_crt_import (cert, &cert_list[0], GNUTLS_X509_FMT_DER);
+    if (ret < 0)
+    {
+        UpnpPrintf( UPNP_CRITICAL, X509, __FILE__, __LINE__,
+            "gnutls_x509_crt_import failed. %s \n", gnutls_strerror(ret) );
+        return ret;
+    }
+
+    // export certificate to data
+    ret = gnutls_x509_crt_export(cert, GNUTLS_X509_FMT_DER, data, data_size);
+    if (ret < 0) {
+        UpnpPrintf( UPNP_CRITICAL, X509, __FILE__, __LINE__,
+            "gnutls_x509_crt_export failed. %s \n", gnutls_strerror(ret) );
+        return ret;  
+    }
+     
+    gnutls_x509_crt_deinit (cert);
+     
+    return 0; 
+}
+

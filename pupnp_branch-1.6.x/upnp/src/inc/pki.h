@@ -150,4 +150,24 @@ int load_x509_self_signed_certificate(gnutls_x509_crt_t *crt, gnutls_x509_privke
 ************************************************************************/
 int validate_x509_certificate(const gnutls_x509_crt_t *crt, const char *hostname, const char *commonname);
 
+
+/************************************************************************
+*   Function :  get_peer_certificate
+*
+*   Parameters :
+*       IN gnutls_session_t session  ;  SSL session
+*       OUT unsigned char *data      ;  Certificate is returned in DER format here
+*       OUT int *data_size           ;  Pointer to integer which represents length of certificate 
+* 
+*   Description :   Export peer certificate to given parameter. When calling this
+*       data must have enough memory allocated and data_size must contain info
+*       how much data has space.
+*
+*   Return : int ;
+*       UPNP or gnutls error code.
+*
+*   Note :
+************************************************************************/
+int get_peer_certificate(gnutls_session_t session, unsigned char *data, int *data_size);
+
 #endif /*PKI_H_*/
