@@ -29,10 +29,11 @@
 #include <wpsutil/base64mem.h>
 #include <wpsutil/cryptoutil.h>
 #include <upnp/upnptools.h>
+#include <upnp/upnp.h>
 
 static int InitDP();
 static void FreeDP();
-static void message_received(int error, unsigned char *data, int len);
+static void message_received(struct Upnp_Action_Request *ca_event, int error, unsigned char *data, int len);
 static int getSaltAndStoredForName(const char *nameUPPER, unsigned char **b64_salt, int *salt_len, unsigned char **b64_stored, int *stored_len);
 static int createUserLoginChallengeResponse(struct Upnp_Action_Request *ca_event, const char *nameUPPER);
 static int getValuesFromPasswdFile(const char *nameUPPER, unsigned char **b64_salt, int *salt_len, unsigned char **b64_stored, int *stored_len, int max_size);
@@ -188,7 +189,7 @@ static void FreeDP()
  * @oaram len Length of binary message
  * @return void
  */
-static void message_received(int error, unsigned char *data, int len)
+static void message_received(struct Upnp_Action_Request *ca_event, int error, unsigned char *data, int len)
 {
     int status;
 
@@ -204,10 +205,12 @@ static void message_received(int error, unsigned char *data, int len)
     {
         case WPSU_SM_E_SUCCESS:
         {
-            // Now we should create SSL Session or something
-            
-            // add peer IP in accepted IP list?
             trace(3,"DeviceProtection introduction last message received!\n");
+            // Add CP certificate hash into ACL
+            //unsigned char buffer[10 * 1024];
+            //int buffer_size = sizeof (buffer);         
+            //UpnpGetClientCert(ca_event->SSLSession, buffer, &buffer_size);
+            
             FreeDP();
             break;
         }
@@ -594,7 +597,7 @@ static int createUserLoginChallengeResponse(struct Upnp_Action_Request *ca_event
  * DeviceProtection:1 Action: SendSetupMessage
  * 
  * This action is used transport for pairwise introduction protocol messages.
- * Currently used protocol is WPS.
+ * Currently used protocol is WPS. Only one introduction process possible at same time.
  * 
  * @param ca_event Upnp event struct.
  * @return Upnp error code.
@@ -643,7 +646,7 @@ int SendSetupMessage(struct Upnp_Action_Request *ca_event)
             wpsu_base64_to_bin(b64msglen,(const unsigned char *)inmessage,&outlen,pBinMsg,b64msglen);
 
             // update state machine
-            message_received(0, pBinMsg, outlen);
+            message_received(ca_event, 0, pBinMsg, outlen);
             if (pBinMsg) free(pBinMsg);
         }
         else // must be busy doing someone else's introduction process 
