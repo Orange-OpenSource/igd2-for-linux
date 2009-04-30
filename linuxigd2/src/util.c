@@ -518,6 +518,12 @@ int releaseIP(char *iface)
 
 
 
+//-----------------------------------------------------------------------------
+//
+//                      Common extensions for ixml
+//
+//-----------------------------------------------------------------------------
+
 
 /**
  * Get text value of given IXML_Node. Node containing 'accessLevel>Admin</accessLevel>'
@@ -609,6 +615,75 @@ static IXML_Node *GetSiblingWithTagName(IXML_Node *node, const char *nodeName)
 }
 
 
+/**
+ * Get value of attribute with given name from node.
+ *
+ * @param tmpNode IXML_Node which attribute value is fetched 
+ * @param attrName Name of searched attribute
+ * @return String value of attribute or NULL
+ */
+static char* GetAttributeValueOfNode(IXML_Node *tmpNode, const char *attrName)
+{
+    if (tmpNode == NULL) return NULL;
+    
+    IXML_NamedNodeMap *attrs = ixmlNode_getAttributes(tmpNode);
+    
+    if (attrs == NULL) return NULL;
+    
+    tmpNode = ixmlNamedNodeMap_getNamedItem(attrs, attrName);
+    
+    if (tmpNode == NULL) return NULL;
+    
+    if ( attrs ) ixmlNamedNodeMap_free( attrs );
+    
+    return tmpNode->nodeValue;    
+}
+
+
+/**
+ * Get node with name nodeName and attribute with name attrName and value attrValue.
+ *
+ * @param doc IXML_Document where node is searched 
+ * @param nodeName Name of searched node
+ * @param attrName Name of attribute which searched node must have
+ * @param attrValue Value of attribute which searched node must have
+ * @return IXML_Node or NULL
+ */
+static IXML_Node *GetNodeWithNameAndAttribute(IXML_Document *doc, const char *nodeName, const char *attrName, const char *attrValue)
+{
+    IXML_Node *tmpNode = NULL;
+    IXML_NodeList *nodeList = NULL;
+    
+    int i;
+    nodeList = ixmlDocument_getElementsByTagName( doc, nodeName );
+
+    if ( nodeList )
+    {
+        for (i = 0; i < ixmlNodeList_length(nodeList); i++)
+        {
+            if ( ( tmpNode = ixmlNodeList_item( nodeList, i ) ) )
+            {
+                if ( strcmp(attrValue, GetAttributeValueOfNode(tmpNode, attrName)) == 0 )
+                {
+                    ixmlNodeList_free( nodeList );  
+                    return tmpNode;
+                }
+            }
+        }
+    }
+
+    if ( nodeList )
+        ixmlNodeList_free( nodeList );  
+        
+    return NULL;
+}
+
+//-----------------------------------------------------------------------------
+//
+//                      AccessLevel xml handling
+//
+//-----------------------------------------------------------------------------
+
 
 /**
  * Read action access level settings file and create IXML_Document from it.
@@ -626,7 +701,6 @@ int initActionAccessLevels(const char *pathToFile)
     
     return 0;
 }
-
 
 /**
  * Get accesslevel value from accesslevel xml for given action.
@@ -670,4 +744,160 @@ char* getAccessLevel(const char *actionName, int manage)
 void deinitActionAccessLevels()
 {
     ixmlDocument_free(accessLevelDoc);
+}
+
+
+//-----------------------------------------------------------------------------
+//
+//                      ACL xml handling
+//
+//-----------------------------------------------------------------------------
+/**
+ * Get rolenames that are defined for identity with "id" id .
+ * Rolenames are returned as comma separated: role1,role2
+ * Returned value must be released with free()
+ *
+ * @param doc ACL IXML_Document
+ * @param id id attribute of identity
+ * @return Roles as comma separated string, or empty string if no roles found, or NULL if error occurs.
+ */
+static char *getRolesOfID(IXML_Document *doc, const char *id)
+{
+    char *roleref = NULL;
+    char *rolename = NULL;
+    char *rolelist= (char *)malloc(100 * sizeof(char));
+    strcpy(rolelist,"");  
+
+    IXML_Node *tmpNode = NULL;
+    IXML_Node *roleRefNode = NULL;
+    
+    // get identity/role pairs: Entry-element with attribute identity and value id
+    tmpNode = GetNodeWithNameAndAttribute(doc, "Entry", "identity", id);
+    if (tmpNode == NULL) return NULL;
+    
+    // get first RoleRef-node
+    roleRefNode = ixmlNode_getFirstChild(tmpNode);
+    
+    do
+    {
+        // get value of attribute "role"
+        roleref = GetAttributeValueOfNode(roleRefNode,"role");
+        if (roleref == NULL) continue;
+        
+        // get element named "Role" with attribute "id" and value roleref
+        tmpNode = GetNodeWithNameAndAttribute(doc, "Role", "id", roleref);
+        if (tmpNode == NULL) continue;
+        
+        // get rolename
+        rolename = GetTextValueOfNode(tmpNode);
+        if (rolename == NULL) continue;
+        
+        strcat(rolelist,rolename);
+        strcat(rolelist,",");
+        
+        // get next RoleRef element from Entry
+    } while ((roleRefNode = ixmlNode_getNextSibling(roleRefNode)));
+    
+    //remove last extra comma
+    if (strlen(rolelist) > 0)
+        rolelist[strlen(rolelist)-1] = '\0';
+        
+    return rolelist;  
+}
+
+/**
+ * Get rolenames that are defined for given username in ACL.
+ * Rolenames are returned as comma separated: role1,role2
+ * Returned value must be released with free()
+ *
+ * @param doc ACL IXML_Document
+ * @param username Username whose roles are returned
+ * @return Roles as comma separated string, or empty string if no roles found, or NULL if error occurs.
+ */
+char *ACL_getRolesOfUser(IXML_Document *doc, const char *username)
+{
+    // get element with name "User" and value username
+    IXML_Node *tmpNode = GetNodeWithValue(doc, "User", username);
+    if (tmpNode == NULL) return NULL;    
+    
+    // get value of attribute named "id"
+    char *id = GetAttributeValueOfNode(tmpNode,"id");
+    if (id == NULL) return NULL;    
+    
+    return getRolesOfID(doc, id);
+}
+
+/**
+ * Get rolenames that are defined for control point with "Hash" hash.
+ * Rolenames are returned as comma separated: role1,role2
+ * Returned value must be released with free()
+ *
+ * @param doc ACL IXML_Document
+ * @param hash Value of Hash element
+ * @return Roles as comma separated string, or empty string if no roles found, or NULL if error occurs.
+ */
+char *ACL_getRolesOfCP(IXML_Document *doc, const char *hash)
+{
+    // get element with name "Hash" and value hash
+    IXML_Node *tmpNode = GetNodeWithValue(doc, "Hash", hash);
+    if (tmpNode == NULL) return NULL;    
+
+    // get parent node of "Hash" which is "CP"
+    tmpNode = ixmlNode_getParentNode(tmpNode);
+    if (tmpNode == NULL) return NULL;
+
+    // get value of attribute named "id"
+    char *id = GetAttributeValueOfNode(tmpNode,"id");
+    if (id == NULL) return NULL;    
+
+    return getRolesOfID(doc, id);  
+}
+
+/**
+ * Create XML representation of rolenames for use with GetCurrentRoles action
+ * <Roles>
+ * <Role>Admin</Role>
+ * </Roles>
+ * 
+ * If csv_roles is empty string or NULL, returned XML is this:
+ * <Roles>
+ * <Role>Public</Role>
+ * </Roles>
+ * 
+ * Returned string must be released with free()
+ *
+ * @param csv_roles Roles in comma separated string
+ * @return XML as string
+ */
+char *ACL_createRoleListXML(const char *csv_roles)
+{
+    if (csv_roles == NULL || strlen(csv_roles) == 0)
+        return "<Roles><Role>Public</Role></Roles>";
+
+    char *role;
+    char *xml = (char *)malloc(400 * sizeof(char));
+    
+    char roles[strlen(csv_roles)];
+    
+    strcpy(xml,"<Roles>");
+    strcpy(roles,csv_roles);
+    
+    role = strtok(roles, ",");
+    
+    if (role)
+    {
+        strcat(xml,"<Role>");
+        strcat(xml,role);
+        strcat(xml,"</Role>");
+    }
+    
+    while ((role = strtok(NULL, ",")))
+    {       
+        strcat(xml,"<Role>");
+        strcat(xml,role);
+        strcat(xml,"</Role>");
+    }
+    
+    strcat(xml,"</Roles>");    
+    return xml;
 }
