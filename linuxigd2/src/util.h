@@ -41,8 +41,10 @@ int readIntFromFile(char *file);
 
 char* GetFirstDocumentItem( IN IXML_Document * doc, const char *item );
 char* GetDocumentItem(IXML_Document * doc, const char *item, int index);
+int writeDocumentToFile(IXML_Document *doc, const char *file);
 
 void ParseXMLResponse(struct Upnp_Action_Request *ca_event, const char *result);
+
 
 // access level handling and parsing stuff
 int initActionAccessLevels(const char *pathToFile);
@@ -53,4 +55,7 @@ char* getAccessLevel(const char *actionName, int manage);
 char *ACL_getRolesOfUser(IXML_Document *doc, const char *username);
 char *ACL_getRolesOfCP(IXML_Document *doc, const char *hash);
 char *ACL_createRoleListXML(const char *csv_roles);
+int ACL_addCP(IXML_Document *doc, const char *name, const char *alias, const char *hash, int introduced);
+int ACL_addUser(IXML_Document *doc, const char *name);
+
 #endif //_UTIL_H_

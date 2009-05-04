@@ -296,59 +296,6 @@ void ParseXMLResponse(struct Upnp_Action_Request *ca_event, const char *result_s
     }
 }
 
-/**
- * Get document item which is at position index in nodelist (all nodes with same name item).
- * Index 0 means first, 1 second, etc.
- * 
- * @param doc XML document where item is fetched.
- * @param item Name of xml-node to fetch.
- * @param index Which one of nodes with same name is selected.
- * @return Value of desired node.
- */
-char* GetDocumentItem(IXML_Document * doc, const char *item, int index)
-{
-    IXML_NodeList *nodeList = NULL;
-    IXML_Node *textNode = NULL;
-    IXML_Node *tmpNode = NULL;
-
-    //fprintf(stderr,"%s\n",ixmlPrintDocument(doc)); //DEBUG
-
-    char *ret = NULL;
-
-    nodeList = ixmlDocument_getElementsByTagName( doc, ( char * )item );
-
-    if ( nodeList )
-    {
-        if ( ( tmpNode = ixmlNodeList_item( nodeList, index ) ) )
-        {
-            textNode = ixmlNode_getFirstChild( tmpNode );
-            if (textNode != NULL)
-            {
-                ret = strdup( ixmlNode_getNodeValue( textNode ) );
-            }
-            // if desired node exist, but textNode is NULL, then value of node propably is ""
-            else
-                ret = strdup("");
-        }
-    }
-
-    if ( nodeList )
-        ixmlNodeList_free( nodeList );
-    return ret;
-}
-
-/**
- * Get first document item in nodelist with name given in item parameter.
- * 
- * @param doc XML document where item is fetched.
- * @param item Name of xml-node to fetch.
- * @return Value of desired node.
- */
-char* GetFirstDocumentItem( IN IXML_Document * doc,
-                            IN const char *item )
-{
-    return GetDocumentItem(doc,item,0);
-}
 
 /**
  * Resolve up/down status of given network interface and insert it into given string.
@@ -523,7 +470,82 @@ int releaseIP(char *iface)
 //                      Common extensions for ixml
 //
 //-----------------------------------------------------------------------------
+/**
+ * Get document item which is at position index in nodelist (all nodes with same name item).
+ * Index 0 means first, 1 second, etc.
+ * 
+ * @param doc XML document where item is fetched.
+ * @param item Name of xml-node to fetch.
+ * @param index Which one of nodes with same name is selected.
+ * @return Value of desired node.
+ */
+char* GetDocumentItem(IXML_Document * doc, const char *item, int index)
+{
+    IXML_NodeList *nodeList = NULL;
+    IXML_Node *textNode = NULL;
+    IXML_Node *tmpNode = NULL;
 
+    //fprintf(stderr,"%s\n",ixmlPrintDocument(doc)); //DEBUG
+
+    char *ret = NULL;
+
+    nodeList = ixmlDocument_getElementsByTagName( doc, ( char * )item );
+
+    if ( nodeList )
+    {
+        if ( ( tmpNode = ixmlNodeList_item( nodeList, index ) ) )
+        {
+            textNode = ixmlNode_getFirstChild( tmpNode );
+            if (textNode != NULL)
+            {
+                ret = strdup( ixmlNode_getNodeValue( textNode ) );
+            }
+            // if desired node exist, but textNode is NULL, then value of node propably is ""
+            else
+                ret = strdup("");
+        }
+    }
+
+    if ( nodeList )
+        ixmlNodeList_free( nodeList );
+    return ret;
+}
+
+/**
+ * Get first document item in nodelist with name given in item parameter.
+ * 
+ * @param doc XML document where item is fetched.
+ * @param item Name of xml-node to fetch.
+ * @return Value of desired node.
+ */
+char* GetFirstDocumentItem( IN IXML_Document * doc,
+                            IN const char *item )
+{
+    return GetDocumentItem(doc,item,0);
+}
+
+/**
+ * Write given IXML_Document into file
+ *
+ * @param doc IXML_Document to write to file
+ * @param file Name of file where document is written. Include full path if different than execution folder is targeted.
+ * @return 0 on success, -1 if fails to open file, -2 if fails to read IXML_Document
+ */
+int writeDocumentToFile(IXML_Document *doc, const char *file)
+{
+    int ret = 0;
+    FILE *stream = fopen(file, "w");
+    if (!stream) return -1;
+    
+    char *contents = ixmlPrintDocument(doc);
+    if (!contents)
+        ret =-2;
+    else
+        fprintf(stream, "%s\n", contents);
+    
+    fclose(stream);
+    return ret;         
+}
 
 /**
  * Get text value of given IXML_Node. Node containing 'accessLevel>Admin</accessLevel>'
@@ -655,6 +677,7 @@ static IXML_Node *GetNodeWithNameAndAttribute(IXML_Document *doc, const char *no
     IXML_NodeList *nodeList = NULL;
     
     int i;
+    char *tmp;
     nodeList = ixmlDocument_getElementsByTagName( doc, nodeName );
 
     if ( nodeList )
@@ -663,7 +686,8 @@ static IXML_Node *GetNodeWithNameAndAttribute(IXML_Document *doc, const char *no
         {
             if ( ( tmpNode = ixmlNodeList_item( nodeList, i ) ) )
             {
-                if ( strcmp(attrValue, GetAttributeValueOfNode(tmpNode, attrName)) == 0 )
+                tmp = GetAttributeValueOfNode(tmpNode, attrName);
+                if ( tmp && (strcmp(attrValue, tmp) == 0) )
                 {
                     ixmlNodeList_free( nodeList );  
                     return tmpNode;
@@ -676,6 +700,33 @@ static IXML_Node *GetNodeWithNameAndAttribute(IXML_Document *doc, const char *no
         ixmlNodeList_free( nodeList );  
         
     return NULL;
+}
+
+
+/**
+ * Create new child node for parent node.
+ *
+ * @param doc Owner IXML_Document of created node
+ * @param parent Pointer to parent node of new node
+ * @param childNodeName Tagname of new node
+ * @param childNodeValue Value of new node
+ * @return Pointer to new node or NULL
+ */
+static IXML_Node *AddChildNode(IXML_Document *doc, IXML_Node *parent, const char *childNodeName, const char *childNodeValue)
+{
+    IXML_Element *tmpElement = NULL;
+    IXML_Node *textNode = NULL;
+    
+    if (!childNodeName || !childNodeValue)
+        return NULL;
+        
+    tmpElement = ixmlDocument_createElement(doc, childNodeName);
+    textNode = ixmlDocument_createTextNode(doc,childNodeValue);
+    
+    ixmlNode_appendChild(&tmpElement->n,textNode);
+    ixmlNode_appendChild(parent,&tmpElement->n);
+    
+    return &tmpElement->n;
 }
 
 //-----------------------------------------------------------------------------
@@ -754,14 +805,14 @@ void deinitActionAccessLevels()
 //-----------------------------------------------------------------------------
 /**
  * Get rolenames that are defined for identity with "id" id .
- * Rolenames are returned as comma separated: role1,role2
+ * Rolenames are returned as space separated: role1 role2
  * Returned value must be released with free()
  *
  * @param doc ACL IXML_Document
  * @param id id attribute of identity
- * @return Roles as comma separated string, or empty string if no roles found, or NULL if error occurs.
+ * @return Roles as space separated string, or empty string if no roles found, or NULL if error occurs.
  */
-static char *getRolesOfID(IXML_Document *doc, const char *id)
+static char *ACL_getRolesOfID(IXML_Document *doc, const char *id)
 {
     char *roleref = NULL;
     char *rolename = NULL;
@@ -793,7 +844,7 @@ static char *getRolesOfID(IXML_Document *doc, const char *id)
         if (rolename == NULL) continue;
         
         strcat(rolelist,rolename);
-        strcat(rolelist,",");
+        strcat(rolelist," ");
         
         // get next RoleRef element from Entry
     } while ((roleRefNode = ixmlNode_getNextSibling(roleRefNode)));
@@ -803,6 +854,69 @@ static char *getRolesOfID(IXML_Document *doc, const char *id)
         rolelist[strlen(rolelist)-1] = '\0';
         
     return rolelist;  
+}
+
+
+/**
+ * Find next unused identity id of format i<number> (i0, i1,..)
+ * 
+ * Returned string must be released with free()
+ *
+ * @param doc ACL IXML_Document
+ * @return Id string
+ */
+static char *ACL_getNextFreeIdentityID(IXML_Document *doc)
+{
+    char *id = (char *)malloc(4 * sizeof(char));
+    IXML_Node *tmpNode = NULL;
+    int i;
+    
+    for (i = 0; ; i++)
+    { 
+        snprintf(id,4,"i%d",i);
+        tmpNode = GetNodeWithNameAndAttribute(doc, "User", "id", id);
+        if (tmpNode == NULL)
+        {
+            tmpNode = GetNodeWithNameAndAttribute(doc, "CP", "id", id);
+            if (tmpNode == NULL)
+            {
+                tmpNode = GetNodeWithNameAndAttribute(doc, "Entry", "identity", id);
+                if (tmpNode == NULL)
+                    return id;
+            }
+        }
+    }
+    return NULL;
+}
+
+/**
+ * Find next unused role id of format r<number> (r0, r1,..)
+ * 
+ * Returned string must be released with free()
+ *
+ * @param doc ACL IXML_Document
+ * @return Id string
+ */
+static char *ACL_getNextFreeRoleID(IXML_Document *doc)
+{
+    char *id = (char *)malloc(4 * sizeof(char));
+    IXML_Node *tmpNode = NULL;
+    int i;
+    
+    for (i = 0; ; i++)
+    { 
+        snprintf(id,4,"r%d",i);
+        tmpNode = GetNodeWithNameAndAttribute(doc, "Role", "id", id);
+        if (tmpNode == NULL)
+        {
+            tmpNode = GetNodeWithNameAndAttribute(doc, "RoleRef", "role", id);
+            if (tmpNode == NULL)
+            {
+                return id;
+            }
+        }
+    }
+    return NULL;
 }
 
 /**
@@ -824,7 +938,7 @@ char *ACL_getRolesOfUser(IXML_Document *doc, const char *username)
     char *id = GetAttributeValueOfNode(tmpNode,"id");
     if (id == NULL) return NULL;    
     
-    return getRolesOfID(doc, id);
+    return ACL_getRolesOfID(doc, id);
 }
 
 /**
@@ -850,7 +964,7 @@ char *ACL_getRolesOfCP(IXML_Document *doc, const char *hash)
     char *id = GetAttributeValueOfNode(tmpNode,"id");
     if (id == NULL) return NULL;    
 
-    return getRolesOfID(doc, id);  
+    return ACL_getRolesOfID(doc, id);  
 }
 
 /**
@@ -882,7 +996,7 @@ char *ACL_createRoleListXML(const char *csv_roles)
     strcpy(xml,"<Roles>");
     strcpy(roles,csv_roles);
     
-    role = strtok(roles, ",");
+    role = strtok(roles, " ");
     
     if (role)
     {
@@ -891,7 +1005,7 @@ char *ACL_createRoleListXML(const char *csv_roles)
         strcat(xml,"</Role>");
     }
     
-    while ((role = strtok(NULL, ",")))
+    while ((role = strtok(NULL, " ")))
     {       
         strcat(xml,"<Role>");
         strcat(xml,role);
@@ -900,4 +1014,109 @@ char *ACL_createRoleListXML(const char *csv_roles)
     
     strcat(xml,"</Roles>");    
     return xml;
+}
+
+
+/**
+ * Add new Control point into ACL xml.
+ *
+ * <CP id="i3">
+ *  <Name>Some CP</Name>
+ *  <Hash>feeNZomIfI2erfrmIzefTufew==</Hash>
+ * </CP>
+ * 
+ * @param doc ACL IXML_Document
+ * @param name Value of Name element
+ * @param alias Value of Alias element
+ * @param hash Value of Hash element
+ * @param introduced Does "CP" has attribute introduced with value 1 (0 means no, 1 yes)
+ * @return 0 on success, -2 if same hash already exist in ACL, -1 else
+ */
+int ACL_addCP(IXML_Document *doc, const char *name, const char *alias, const char *hash, int introduced)
+{
+    // Check that hash doesn't already exist
+    if ( GetNodeWithValue(doc, "Hash", hash) != NULL )
+    {
+        return -2;
+    } 
+    
+    int ret = 0;
+    char *id = ACL_getNextFreeIdentityID(doc);
+    
+    // create new element called "CP"
+    IXML_Element *CP = ixmlDocument_createElement(doc, "CP");
+    
+    // set attributes for "CP"
+    ixmlElement_setAttribute(CP, "id", id);
+    if (introduced)
+        ixmlElement_setAttribute(CP, "introduced", "1");
+        
+    AddChildNode(doc, &CP->n, "Name", name);
+    AddChildNode(doc, &CP->n, "Alias", alias);
+    AddChildNode(doc, &CP->n, "Hash", hash);
+    
+    IXML_Node *tmpNode = NULL;
+    IXML_NodeList *nodeList = NULL;
+    nodeList = ixmlDocument_getElementsByTagName( doc, "Identities" );
+
+    if ( nodeList )
+    {
+        if ( ( tmpNode = ixmlNodeList_item( nodeList, 0 ) ) )    
+            ixmlNode_appendChild(tmpNode,&CP->n);
+        else
+            ret = -1;
+    }
+    
+    //fprintf(stderr,"\n\n\n%s\n",ixmlPrintDocument(doc));
+    
+    if (id) free(id);
+    return ret;
+}
+
+/**
+ * Add new User into ACL xml.
+ *
+ * <User id="i2">Mika</User>
+ * 
+ * @param doc ACL IXML_Document
+ * @param name Username which is added to ACL
+ * @return 0 on success, -2 if same username already exist in ACL, -1 else
+ */
+int ACL_addUser(IXML_Document *doc, const char *name)
+{
+    // Check that user doesn't already exist
+    if ( GetNodeWithValue(doc, "User", name) != NULL )
+    {
+        return -2;
+    } 
+    
+    int ret = 0;
+    char *id = ACL_getNextFreeIdentityID(doc);
+    
+    // create new element called "User"
+    IXML_Element *user = ixmlDocument_createElement(doc, "User");
+    
+    // set attributes for "User"
+    ixmlElement_setAttribute(user, "id", id);
+
+    // add text value for new element
+    IXML_Node *textNode = ixmlDocument_createTextNode(doc,name);
+    ixmlNode_appendChild(&user->n,textNode);
+    
+    IXML_Node *tmpNode = NULL;
+    IXML_NodeList *nodeList = NULL;
+    nodeList = ixmlDocument_getElementsByTagName( doc, "Identities" );
+
+    if ( nodeList )
+    {
+        if ( ( tmpNode = ixmlNodeList_item( nodeList, 0 ) ) )    
+            ixmlNode_appendChild(tmpNode,&user->n);
+        else
+            ret = -1;
+    }
+    
+    fprintf(stderr,"\n\n\n%s\n",ixmlPrintDocument(doc));
+    
+    if (id) free(id);
+    return ret;
 }
