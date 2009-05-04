@@ -57,5 +57,7 @@ char *ACL_getRolesOfCP(IXML_Document *doc, const char *hash);
 char *ACL_createRoleListXML(const char *csv_roles);
 int ACL_addCP(IXML_Document *doc, const char *name, const char *alias, const char *hash, int introduced);
 int ACL_addUser(IXML_Document *doc, const char *name);
+int ACL_removeUser(IXML_Document *doc, const char *name);
+int ACL_removeCP(IXML_Document *doc, const char *hash);
 
 #endif //_UTIL_H_

@@ -729,6 +729,29 @@ static IXML_Node *AddChildNode(IXML_Document *doc, IXML_Node *parent, const char
     return &tmpElement->n;
 }
 
+
+/**
+ * Remove node from document
+ *
+ * @param doc Owner IXML_Document of node
+ * @param node Pointer to node remove
+ * @return 0 on success, -2 node or its parent is not found, -1 else
+ */
+static int RemoveNode(IXML_Node *node)
+{
+    int ret = ixmlNode_removeChild(node->parentNode, node, NULL);
+    
+    if (ret == IXML_SUCCESS)
+        ret = 0;
+    else if (ret == IXML_INVALID_PARAMETER)
+        ret = -2;
+    else 
+        ret = -1; 
+        
+    return ret;
+}
+
+
 //-----------------------------------------------------------------------------
 //
 //                      AccessLevel xml handling
@@ -1120,3 +1143,83 @@ int ACL_addUser(IXML_Document *doc, const char *name)
     if (id) free(id);
     return ret;
 }
+
+
+/**
+ * Remove User from ACL xml. Remove also all role entries for user.
+ *
+ * <User id="i2">Mika</User>
+ * 
+ * @param doc ACL IXML_Document
+ * @param name Username which is removed from ACL
+ * @return 0 on success, -2 if user is not found, -1 else. 
+ */
+int ACL_removeUser(IXML_Document *doc, const char *name)
+{
+    int ret = 0;
+    char *id = NULL;
+    IXML_Node *userNode = NULL;
+    IXML_Node *entryNode = NULL;    
+    
+    userNode = GetNodeWithValue(doc, "User", name);
+    if (!userNode) return -2;
+    
+    // remove Identity/role pairs
+    // get id
+    id = GetAttributeValueOfNode(userNode,"id");
+    if (id)
+    {
+        while( (entryNode = GetNodeWithNameAndAttribute(doc, "Entry", "identity", id)) )
+        {
+            RemoveNode(entryNode);
+        }
+    }
+    
+    // remove user
+    ret = RemoveNode(userNode);
+    
+    if (id) free(id);
+    return ret;
+}
+
+
+/**
+ * Remove control point from ACL xml. Remove also all role entries for CP
+ *
+ * <CP id="i3">
+ *  <Name>Some CP</Name>
+ *  <Hash>feeNZomIfI2erfrmIzefTufew==</Hash>
+ * </CP>
+ * 
+ * @param doc ACL IXML_Document
+ * @param hash Hash of control point which is removed from ACL
+ * @return 0 on success, -2 if same username already exist in ACL, -1 else
+ */
+int ACL_removeCP(IXML_Document *doc, const char *hash)
+{
+    int ret = 0;
+    char *id = NULL;
+    IXML_Node *hashNode = NULL;
+    IXML_Node *entryNode = NULL;
+    
+    hashNode = GetNodeWithValue(doc, "Hash", hash);
+    if (!hashNode) return -2;
+    
+    // remove Identity/role pairs
+    // get id from parent CP
+    id = GetAttributeValueOfNode(hashNode->parentNode, "id");
+    if (id)
+    {
+        while( (entryNode = GetNodeWithNameAndAttribute(doc, "Entry", "identity", id)) )
+        {
+            RemoveNode(entryNode);
+        }
+    }
+    
+    // remove <CP> node
+    ret = RemoveNode(hashNode->parentNode);
+
+    if (id) free(id);
+    return ret;
+}
+
