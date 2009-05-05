@@ -944,167 +944,75 @@ void deinitActionAccessLevels()
 </Roles>
 </ACL>
  */ 
- 
-
-
-
-/**
- * Get rolenames that are defined for identity with "id" id .
- * Rolenames are returned as space separated: role1 role2
- * Returned value must be released with free()
- *
- * @param doc ACL IXML_Document
- * @param id id attribute of identity
- * @return Roles as space separated string, or empty string if no roles found, or NULL if error occurs.
- */
-static char *ACL_getRolesOfID(IXML_Document *doc, const char *id)
-{
-    char *roleref = NULL;
-    char *rolename = NULL;
-    char *rolelist= (char *)malloc(100 * sizeof(char));
-    strcpy(rolelist,"");  
-
-    IXML_Node *tmpNode = NULL;
-    IXML_Node *roleRefNode = NULL;
-    
-    // get identity/role pairs: Entry-element with attribute identity and value id
-    tmpNode = GetNodeWithNameAndAttribute(doc, "Entry", "identity", id);
-    if (tmpNode == NULL) return NULL;
-    
-    // get first RoleRef-node
-    roleRefNode = ixmlNode_getFirstChild(tmpNode);
-    
-    do
-    {
-        // get value of attribute "role"
-        roleref = GetAttributeValueOfNode(roleRefNode,"role");
-        if (roleref == NULL) continue;
-        
-        // get element named "Role" with attribute "id" and value roleref
-        tmpNode = GetNodeWithNameAndAttribute(doc, "Role", "id", roleref);
-        if (tmpNode == NULL) continue;
-        
-        // get rolename
-        rolename = GetTextValueOfNode(tmpNode);
-        if (rolename == NULL) continue;
-        
-        strcat(rolelist,rolename);
-        strcat(rolelist," ");
-        
-        // get next RoleRef element from Entry
-    } while ((roleRefNode = ixmlNode_getNextSibling(roleRefNode)));
-    
-    //remove last extra comma
-    if (strlen(rolelist) > 0)
-        rolelist[strlen(rolelist)-1] = '\0';
-        
-    return rolelist;  
-}
 
 
 /**
- * Add roles for user/CP with given id. 
+ * Add roles for user/CP. 
  * 
- * @param doc ACL IXML_Document
- * @param id id attribute of identity
+ * @param roleListNode IXML_Node "RoleList" for which new roles are added
+ * @param roles New roles
  * @return Roles as space separated string, or empty string if no roles found, or NULL if error occurs.
  */
-static int ACL_addRolesForId(IXML_Document *doc, const char *id, const char *roles)
+static int ACL_addRolesToRoleList(IXML_Node *roleListNode, const char *roles)
 {
-    int ret = ACL_SUCCESS;
-    char *role;
-    char *roleid = NULL;
-    char rolelist[strlen(roles)];
-    IXML_Node *entryNode = NULL;
-    IXML_Node *tmpNode = NULL;
-
-    // needs to check first if there is Entry with same id!!!
-    // if is, add new rolerefs there
-    entryNode = GetNodeWithNameAndAttribute(doc, "Entry", "identity", id);
+    // get current value of "RoleList"
+    char *currentRoles = GetTextValueOfNode(roleListNode);
+    if (currentRoles == NULL) return ACL_COMMON_ERROR;
     
-    if (entryNode == NULL)
-    {
-        // create new element called "Entry"
-        IXML_Element *entry = ixmlDocument_createElement(doc, "Entry");
+    char newRoleList[strlen(roles) + strlen(currentRoles)+1];
+    strcpy(newRoleList, currentRoles);
     
-        // set attributes for "Entry"
-        ixmlElement_setAttribute(entry, "identity", id);
-        entryNode = &entry->n;
-    }
-
+    char rolelist[strlen(roles)];    
     // go through all roles in list
     strcpy(rolelist,roles);   
-    role = strtok(rolelist, " ");
+    char *role = strtok(rolelist, " ");
     if (role)
     {
         do 
         {
-            tmpNode = GetNodeWithValue(doc, "Role", role);
-            if ( tmpNode == NULL )
+            // do "raw" check that this role isn't already in current roles
+            if ( strstr(newRoleList,role) == NULL )
             {
-                return ACL_ROLE_ERROR;
-            }        
-            roleid = GetAttributeValueOfNode(tmpNode, "id");
-            if (roleid == NULL)
-            {
-                return ACL_COMMON_ERROR;
+                // add new role at the end of rolelist
+                strcat(newRoleList, " ");
+                strcat(newRoleList, role);
             }
-            
-            // check if RoleRef with same role id already exist for this entry
-            tmpNode = GetChildNodeWithAttribute(entryNode, "RoleRef", NULL, "role", roleid);
-            if (tmpNode == NULL)
-                // insert new Roleref
-                tmpNode = AddChildNodeWithAttribute(doc, entryNode, "RoleRef", "", "role", roleid);
                 
         } while ((role = strtok(NULL, " ")));
 
     }
-
-    IXML_NodeList *nodeList = ixmlDocument_getElementsByTagName( doc, "Entries" );
-    if ( nodeList )
-    {
-        if ( ( tmpNode = ixmlNodeList_item( nodeList, 0 ) ) ) // only one <Entries> allowed in document
-            ixmlNode_appendChild(tmpNode, entryNode);
-        else
-            ret = ACL_COMMON_ERROR;
-    }
-
- 
-    if ( nodeList ) ixmlNodeList_free( nodeList );
-    return ret;
+    
+    // set text value of "RoleList" as new rolelist
+    return ixmlNode_setNodeValue(roleListNode->firstChild, newRoleList);    
 }
 
 
 /**
- * Get rolenames that are defined for given username in ACL.
- * Rolenames are returned as comma separated: role1,role2
- * Returned value must be released with free()
+ * Get RoleList of given username in ACL.
  *
  * @param doc ACL IXML_Document
  * @param username Username whose roles are returned
- * @return Roles as comma separated string, or empty string if no roles found, or NULL if error occurs.
+ * @return Value of RoleList or NULL
  */
 char *ACL_getRolesOfUser(IXML_Document *doc, const char *username)
 {
-    // get element with name "User" and value username
-    IXML_Node *tmpNode = GetNodeWithValue(doc, "User", username);
+    // get element with name "Name" and value username
+    IXML_Node *tmpNode = GetNodeWithValue(doc, "Name", username);
     if (tmpNode == NULL) return NULL;    
     
-    // get value of attribute named "id"
-    char *id = GetAttributeValueOfNode(tmpNode,"id");
-    if (id == NULL) return NULL;    
+    tmpNode = GetSiblingWithTagName(tmpNode, "RoleList");
     
-    return ACL_getRolesOfID(doc, id);
+    if (tmpNode == NULL) return NULL;   
+    
+    return GetTextValueOfNode(tmpNode);
 }
 
 /**
- * Get rolenames that are defined for control point with "Hash" hash.
- * Rolenames are returned as comma separated: role1,role2
- * Returned value must be released with free()
+ * Get RoleList control point with "Hash" hash.
  *
  * @param doc ACL IXML_Document
  * @param hash Value of Hash element
- * @return Roles as comma separated string, or empty string if no roles found, or NULL if error occurs.
+ * @return Value of RoleList or NULL.
  */
 char *ACL_getRolesOfCP(IXML_Document *doc, const char *hash)
 {
@@ -1112,64 +1020,11 @@ char *ACL_getRolesOfCP(IXML_Document *doc, const char *hash)
     IXML_Node *tmpNode = GetNodeWithValue(doc, "Hash", hash);
     if (tmpNode == NULL) return NULL;    
 
-    // get parent node of "Hash" which is "CP"
-    tmpNode = ixmlNode_getParentNode(tmpNode);
-    if (tmpNode == NULL) return NULL;
-
-    // get value of attribute named "id"
-    char *id = GetAttributeValueOfNode(tmpNode,"id");
-    if (id == NULL) return NULL;    
-
-    return ACL_getRolesOfID(doc, id);  
-}
-
-/**
- * Create XML representation of rolenames for use with GetCurrentRoles action
- * <Roles>
- * <Role>Admin</Role>
- * </Roles>
- * 
- * If csv_roles is empty string or NULL, returned XML is this:
- * <Roles>
- * <Role>Public</Role>
- * </Roles>
- * 
- * Returned string must be released with free()
- *
- * @param csv_roles Roles in space separated string
- * @return XML as string
- */
-char *ACL_createRoleListXML(const char *csv_roles)
-{
-    if (csv_roles == NULL || strlen(csv_roles) == 0)
-        return "<Roles><Role>Public</Role></Roles>";
-
-    char *role;
-    char *xml = (char *)malloc(400 * sizeof(char));
+    tmpNode = GetSiblingWithTagName(tmpNode, "RoleList");
     
-    char roles[strlen(csv_roles)];
+    if (tmpNode == NULL) return NULL;   
     
-    strcpy(xml,"<Roles>");
-    strcpy(roles,csv_roles);
-    
-    role = strtok(roles, " ");
-    
-    if (role)
-    {
-        strcat(xml,"<Role>");
-        strcat(xml,role);
-        strcat(xml,"</Role>");
-    }
-    
-    while ((role = strtok(NULL, " ")))
-    {       
-        strcat(xml,"<Role>");
-        strcat(xml,role);
-        strcat(xml,"</Role>");
-    }
-    
-    strcat(xml,"</Roles>");    
-    return xml;
+    return GetTextValueOfNode(tmpNode);
 }
 
 
@@ -1322,30 +1177,30 @@ int ACL_removeCP(IXML_Document *doc, const char *hash)
  * @param doc ACL IXML_Document
  * @param name Username for which roles are added
  * @param roles Space-separated string of rolenames which are added for user (Admin Basic)
- * @return ACL_SUCCESS on succes,
+ * @return 0 on succes,
  *         ACL_USER_ERROR if username is not found, 
  *         ACL_ROLE_ERROR if rolelist has invalid role
  *         ACL_COMMON_ERROR else
  */
 int ACL_addRolesForUser(IXML_Document *doc, const char *name, const char *roles)
 {
-    char *id = NULL;
-    IXML_Node *tmpNode = GetNodeWithValue(doc, "User", name);
+    IXML_Node *tmpNode = GetNodeWithValue(doc, "Name", name);
     
-    // Check that user does exist
+    // Check that name does exist
     if ( tmpNode == NULL )
     {
         return ACL_USER_ERROR;
     } 
     
-    // get id of user. Do not use free for id because it is free'd from document itself
-    id = GetAttributeValueOfNode(tmpNode, "id");
-    if (id == NULL)
+    tmpNode = GetSiblingWithTagName(tmpNode, "RoleList");
+    if (tmpNode == NULL) 
     {
-        return ACL_COMMON_ERROR;
-    }
-
-    return ACL_addRolesForId(doc, id, roles);
+        // if Rolelist element is not found at all, just add it for User-element
+        AddChildNode(doc, tmpNode->parentNode, "RoleList", roles);
+        return ACL_SUCCESS;
+    }    
+    
+    return ACL_addRolesToRoleList(tmpNode, roles);
 }
 
 
@@ -1362,7 +1217,6 @@ int ACL_addRolesForUser(IXML_Document *doc, const char *name, const char *roles)
  */
 int ACL_addRolesForCP(IXML_Document *doc, const char *hash, const char *roles)
 {
-    char *id = NULL;
     IXML_Node *tmpNode = GetNodeWithValue(doc, "Hash", hash);
     
     // Check that CP with hash does exist
@@ -1371,13 +1225,14 @@ int ACL_addRolesForCP(IXML_Document *doc, const char *hash, const char *roles)
         return ACL_USER_ERROR;
     } 
     
-    // get id of CP. Do not use free for id because it is free'd from document itself
-    id = GetAttributeValueOfNode(tmpNode->parentNode, "id");
-    if (id == NULL)
+    tmpNode = GetSiblingWithTagName(tmpNode, "RoleList");
+    if (tmpNode == NULL) 
     {
-        return ACL_COMMON_ERROR;
-    }
-
-    return ACL_addRolesForId(doc, id, roles);
+        // if Rolelist element is not found at all, just add it for User-element
+        AddChildNode(doc, tmpNode->parentNode, "RoleList", roles);
+        return ACL_SUCCESS;
+    }    
+    
+    return ACL_addRolesToRoleList(tmpNode, roles);
 }
 
