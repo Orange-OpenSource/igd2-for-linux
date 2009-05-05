@@ -23,7 +23,16 @@
 
 #include <upnp/upnp.h>
 
-int get_sockfd(void);
+// ACL error codes
+typedef enum {
+    ACL_SUCCESS           = 0,
+
+    ACL_COMMON_ERROR      = -1,
+    ACL_USER_ERROR        = -2,  //user either exist if it shouldn't or doesn't exist even if should
+    ACL_ROLE_ERROR        = -3,  //role either exist if it shouldn't or doesn't exist even if should
+} ACL_ERRORCODE;
+
+
 char *toUpperCase(const char * str);
 int GetIpAddressStr(char *address, char *ifname);
 int GetMACAddressStr(unsigned char *address, int addressSize, char *ifname);
@@ -59,5 +68,7 @@ int ACL_addCP(IXML_Document *doc, const char *name, const char *alias, const cha
 int ACL_addUser(IXML_Document *doc, const char *name);
 int ACL_removeUser(IXML_Document *doc, const char *name);
 int ACL_removeCP(IXML_Document *doc, const char *hash);
+int ACL_addRolesForUser(IXML_Document *doc, const char *name, const char *roles);
+int ACL_addRolesForCP(IXML_Document *doc, const char *hash, const char *roles);
 
 #endif //_UTIL_H_
