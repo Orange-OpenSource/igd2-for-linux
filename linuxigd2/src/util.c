@@ -585,7 +585,8 @@ static IXML_Node *GetNodeWithValue(IXML_Document *doc, const char *nodeName, con
 {
     int listLen, i;
     IXML_NodeList *nodeList = NULL;
-    IXML_Node *tmpNode = NULL;    
+    IXML_Node *tmpNode = NULL;
+    char *tmp = NULL; 
     
     nodeList = ixmlDocument_getElementsByTagName( doc, nodeName );
 
@@ -597,7 +598,8 @@ static IXML_Node *GetNodeWithValue(IXML_Document *doc, const char *nodeName, con
         {
             if ( ( tmpNode = ixmlNodeList_item( nodeList, i ) ) )
             {
-                if (strcmp( GetTextValueOfNode(tmpNode),  nodeValue) == 0)
+                tmp = GetTextValueOfNode(tmpNode);
+                if ( tmp && (strcmp( tmp,  nodeValue) == 0))
                 {
                     ixmlNodeList_free( nodeList );
                     return tmpNode;
@@ -1072,67 +1074,6 @@ static int ACL_addRolesForId(IXML_Document *doc, const char *id, const char *rol
     return ret;
 }
 
-/**
- * Find next unused identity id of format i<number> (i0, i1,..)
- * 
- * Returned string must be released with free()
- *
- * @param doc ACL IXML_Document
- * @return Id string
- */
-static char *ACL_getNextFreeIdentityID(IXML_Document *doc)
-{
-    char *id = (char *)malloc(4 * sizeof(char));
-    IXML_Node *tmpNode = NULL;
-    int i;
-    
-    for (i = 0; ; i++)
-    { 
-        snprintf(id,4,"i%d",i);
-        tmpNode = GetNodeWithNameAndAttribute(doc, "User", "id", id);
-        if (tmpNode == NULL)
-        {
-            tmpNode = GetNodeWithNameAndAttribute(doc, "CP", "id", id);
-            if (tmpNode == NULL)
-            {
-                tmpNode = GetNodeWithNameAndAttribute(doc, "Entry", "identity", id);
-                if (tmpNode == NULL)
-                    return id;
-            }
-        }
-    }
-    return NULL;
-}
-
-/**
- * Find next unused role id of format r<number> (r0, r1,..)
- * 
- * Returned string must be released with free()
- *
- * @param doc ACL IXML_Document
- * @return Id string
- */
-static char *ACL_getNextFreeRoleID(IXML_Document *doc)
-{
-    char *id = (char *)malloc(4 * sizeof(char));
-    IXML_Node *tmpNode = NULL;
-    int i;
-    
-    for (i = 0; ; i++)
-    { 
-        snprintf(id,4,"r%d",i);
-        tmpNode = GetNodeWithNameAndAttribute(doc, "Role", "id", id);
-        if (tmpNode == NULL)
-        {
-            tmpNode = GetNodeWithNameAndAttribute(doc, "RoleRef", "role", id);
-            if (tmpNode == NULL)
-            {
-                return id;
-            }
-        }
-    }
-    return NULL;
-}
 
 /**
  * Get rolenames that are defined for given username in ACL.
@@ -1235,19 +1176,23 @@ char *ACL_createRoleListXML(const char *csv_roles)
 /**
  * Add new Control point into ACL xml.
  *
- * <CP id="i3">
- *  <Name>Some CP</Name>
- *  <Hash>feeNZomIfI2erfrmIzefTufew==</Hash>
+ * <CP introduced="1">
+ *    <Name>ACME Widget Model XYZ</Name>
+ *    <Alias>Mark’s Game Console</Alias>
+ *    <Hash type="DP:1">TM0NZomIzI2OTsmIzM0NTueYgi93Q==</Hash>
+ *    <RoleList>Admin Basic</RoleList>
  * </CP>
  * 
  * @param doc ACL IXML_Document
  * @param name Value of Name element
  * @param alias Value of Alias element
  * @param hash Value of Hash element
+ * @param type Value of type-attribute in hash-element 
+ * @param roles Value of RoleList element
  * @param introduced Does "CP" has attribute introduced with value 1 (0 means no, 1 yes)
  * @return ACL_SUCCESS on success, ACL_USER_ERROR if same hash already exist in ACL, ACL_COMMON_ERROR else
  */
-int ACL_addCP(IXML_Document *doc, const char *name, const char *alias, const char *hash, int introduced)
+int ACL_addCP(IXML_Document *doc, const char *name, const char *alias, const char *hash, const char *type, const char *roles, int introduced)
 {
     // Check that hash doesn't already exist
     if ( GetNodeWithValue(doc, "Hash", hash) != NULL )
@@ -1256,19 +1201,17 @@ int ACL_addCP(IXML_Document *doc, const char *name, const char *alias, const cha
     } 
     
     int ret = ACL_SUCCESS;
-    char *id = ACL_getNextFreeIdentityID(doc);
     
     // create new element called "CP"
     IXML_Element *CP = ixmlDocument_createElement(doc, "CP");
-    
-    // set attributes for "CP"
-    ixmlElement_setAttribute(CP, "id", id);
+
     if (introduced)
         ixmlElement_setAttribute(CP, "introduced", "1");
         
     AddChildNode(doc, &CP->n, "Name", name);
     AddChildNode(doc, &CP->n, "Alias", alias);
-    AddChildNode(doc, &CP->n, "Hash", hash);
+    AddChildNodeWithAttribute(doc, &CP->n, "Hash", hash, "type", type);
+    AddChildNode(doc, &CP->n, "RoleList", roles);
     
     IXML_Node *tmpNode = NULL;
     IXML_NodeList *nodeList = NULL;
@@ -1284,39 +1227,37 @@ int ACL_addCP(IXML_Document *doc, const char *name, const char *alias, const cha
     
     //fprintf(stderr,"\n\n\n%s\n",ixmlPrintDocument(doc));
     if ( nodeList ) ixmlNodeList_free( nodeList ); 
-    if (id) free(id);
     return ret;
 }
 
 /**
  * Add new User into ACL xml.
- *
- * <User id="i2">Mika</User>
+ * 
+ * <User>
+ *  <Name>Admin</Name>
+ *  <RoleList>Admin</RoleList>
+ * </User>
  * 
  * @param doc ACL IXML_Document
  * @param name Username which is added to ACL
+ * @param roles Value of RoleList element 
  * @return ACL_SUCCESS on success, ACL_USER_ERROR if same username already exist in ACL, ACL_COMMON_ERROR else
  */
-int ACL_addUser(IXML_Document *doc, const char *name)
+int ACL_addUser(IXML_Document *doc, const char *name, const char *roles)
 {
     // Check that user doesn't already exist
-    if ( GetNodeWithValue(doc, "User", name) != NULL )
+    if ( GetNodeWithValue(doc, "Name", name) != NULL )
     {
         return ACL_USER_ERROR;
     } 
     
     int ret = ACL_SUCCESS;
-    char *id = ACL_getNextFreeIdentityID(doc);
     
     // create new element called "User"
     IXML_Element *user = ixmlDocument_createElement(doc, "User");
-    
-    // set attributes for "User"
-    ixmlElement_setAttribute(user, "id", id);
 
-    // add text value for new element
-    IXML_Node *textNode = ixmlDocument_createTextNode(doc,name);
-    ixmlNode_appendChild(&user->n,textNode);
+    AddChildNode(doc, &user->n, "Name", name);
+    AddChildNode(doc, &user->n, "RoleList", roles);
     
     IXML_Node *tmpNode = NULL;
     IXML_NodeList *nodeList = NULL;
@@ -1332,15 +1273,13 @@ int ACL_addUser(IXML_Document *doc, const char *name)
     
     //fprintf(stderr,"\n\n\n%s\n",ixmlPrintDocument(doc));
     if ( nodeList ) ixmlNodeList_free( nodeList ); 
-    if (id) free(id);
     return ret;
 }
 
 
 /**
- * Remove User from ACL xml. Remove also all role entries for user.
+ * Remove User from ACL xml.
  *
- * <User id="i2">Mika</User>
  * 
  * @param doc ACL IXML_Document
  * @param name Username which is removed from ACL
@@ -1348,40 +1287,18 @@ int ACL_addUser(IXML_Document *doc, const char *name)
  */
 int ACL_removeUser(IXML_Document *doc, const char *name)
 {
-    int ret = ACL_SUCCESS;
-    char *id = NULL;
-    IXML_Node *userNode = NULL;
-    IXML_Node *entryNode = NULL;    
+    IXML_Node *userNode = NULL;  
     
-    userNode = GetNodeWithValue(doc, "User", name);
+    userNode = GetNodeWithValue(doc, "Name", name);
     if (!userNode) return ACL_SUCCESS;
     
-    // remove Identity/role pairs
-    // get id
-    id = GetAttributeValueOfNode(userNode,"id");
-    if (id)
-    {
-        while( (entryNode = GetNodeWithNameAndAttribute(doc, "Entry", "identity", id)) )
-        {
-            RemoveNode(entryNode);
-        }
-    }
-    
-    // remove user
-    ret = RemoveNode(userNode);
-    
-    if (id) free(id);
-    return ret;
+    return RemoveNode(userNode->parentNode);
 }
 
 
 /**
- * Remove control point from ACL xml. Remove also all role entries for CP
+ * Remove control point from ACL xml.
  *
- * <CP id="i3">
- *  <Name>Some CP</Name>
- *  <Hash>feeNZomIfI2erfrmIzefTufew==</Hash>
- * </CP>
  * 
  * @param doc ACL IXML_Document
  * @param hash Hash of control point which is removed from ACL
@@ -1389,30 +1306,13 @@ int ACL_removeUser(IXML_Document *doc, const char *name)
  */
 int ACL_removeCP(IXML_Document *doc, const char *hash)
 {
-    int ret = ACL_SUCCESS;
-    char *id = NULL;
     IXML_Node *hashNode = NULL;
-    IXML_Node *entryNode = NULL;
     
     hashNode = GetNodeWithValue(doc, "Hash", hash);
     if (!hashNode) return ACL_SUCCESS;
     
-    // remove Identity/role pairs
-    // get id from parent CP
-    id = GetAttributeValueOfNode(hashNode->parentNode, "id");
-    if (id)
-    {
-        while( (entryNode = GetNodeWithNameAndAttribute(doc, "Entry", "identity", id)) )
-        {
-            RemoveNode(entryNode);
-        }
-    }
-    
     // remove <CP> node
-    ret = RemoveNode(hashNode->parentNode);
-
-    if (id) free(id);
-    return ret;
+    return RemoveNode(hashNode->parentNode);
 }
 
 
