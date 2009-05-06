@@ -255,7 +255,10 @@ int HandleActionRequest(struct Upnp_Action_Request *ca_event)
     int result = 0;
 
     ithread_mutex_lock(&DevMutex);
-
+    trace(3, "ActionName = %s", ca_event->ActionName);
+    
+// check authorization here    
+    
     if (strcmp(ca_event->DevUDN, gateUDN) == 0)
     {
         if (strcmp(ca_event->ServiceID,"urn:upnp-org:serviceId:DeviceProtection1") == 0)
@@ -273,9 +276,11 @@ int HandleActionRequest(struct Upnp_Action_Request *ca_event)
             else if (strcmp(ca_event->ActionName,"GetACLData") == 0)
                 result = GetACLData(ca_event);
             else if (strcmp(ca_event->ActionName,"AddRolesForIdentity") == 0)
-                result = SetRoleForIdentity(ca_event);
+                result = AddRolesForIdentity(ca_event);
             else if (strcmp(ca_event->ActionName,"RemoveRolesForIdentity") == 0)
-                result = GetCurrentRole(ca_event); 
+                result = RemoveRolesForIdentity(ca_event);                
+            else if (strcmp(ca_event->ActionName,"GetCurrentRoles") == 0)
+                result = GetCurrentRoles(ca_event); 
             else if (strcmp(ca_event->ActionName,"AddLoginData") == 0)
                 result = AddLoginData(ca_event); 
             else if (strcmp(ca_event->ActionName,"RemoveLoginData") == 0)
@@ -314,9 +319,6 @@ int HandleActionRequest(struct Upnp_Action_Request *ca_event)
     }
     else if (strcmp(ca_event->DevUDN, wanConnectionUDN) == 0)
     {
-        // Common debugging info, hopefully gets removed soon.
-        trace(3, "ActionName = %s", ca_event->ActionName);
-
         if (strcmp(ca_event->ServiceID, "urn:upnp-org:serviceId:WANIPConn2") == 0)
         {
             if (strcmp(ca_event->ActionName,"GetConnectionTypeInfo") == 0)

@@ -64,7 +64,12 @@ void DPStateTableInit()
     strcpy(SupportedProtocols, "<SupportedProtocols><Setup>DeviceProtection:1</Setup><Login>DeviceProtection:1</Login></SupportedProtocols>");   
     
     // init ACL
-    ACLDoc = ixmlLoadDocument("ACL.xml");
+    ACLDoc = ixmlLoadDocument(ACL_XML);
+    if (ACLDoc == NULL)
+    {
+        trace(1, "Couldn't load ACL document which should locate here: %s\n",ACL_XML);
+        exit(-2);
+    }
 }
 
 
@@ -761,7 +766,7 @@ int GetUserLoginChallenge(struct Upnp_Action_Request *ca_event)
             {
                 trace(1, "Failed to convert name to upper case ");
                 result = 501;
-                addErrorData(ca_event, 501, "Action Failed");
+                addErrorData(ca_event, result, "Action Failed");
             }
             // check if user exits
             if ((strcmp(nameUPPER, "ADMIN") != 0) && (getValuesFromPasswdFile(nameUPPER, NULL,NULL,NULL,NULL,0) != 0))
@@ -860,13 +865,142 @@ int GetACLData(struct Upnp_Action_Request *ca_event)
 }
 
 /**
- * DeviceProtection:1 Action: SetRoleForIdentity.
+ * DeviceProtection:1 Action: AddRolesForIdentity.
  *
  * @param ca_event Upnp event struct.
  * @return Upnp error code.
  */
-int SetRoleForIdentity(struct Upnp_Action_Request *ca_event)
+int AddRolesForIdentity(struct Upnp_Action_Request *ca_event)
 {
+    int result = 0;
+    char *identity = NULL;
+    char *rolelist = NULL;
+    
+    if ( (identity = GetFirstDocumentItem(ca_event->ActionRequest, "Identity") )
+            && (rolelist = GetFirstDocumentItem(ca_event->ActionRequest, "RoleList") ))
+    {
+        // check that CP has Admin privileges
+        
+        
+        // try first to add roles for username
+        result = ACL_addRolesForUser(ACLDoc, identity, rolelist);
+        if (result == ACL_USER_ERROR)
+        {
+            // identity wasn't username, so it must be control point hash
+            result = ACL_addRolesForCP(ACLDoc, identity, rolelist);
+        }
+        
+        if (result == ACL_USER_ERROR)
+        {
+            // ok, identity wasn't username or hash
+            trace(1, "AddRolesForIdentity: Unknown identity %s",identity);
+            result = 706;
+            addErrorData(ca_event, result, "Unknown Identity");
+        }
+        else if (result == ACL_ROLE_ERROR)
+        {
+            trace(1, "AddRolesForIdentity: Invalid rolelist received %s",rolelist);
+            result = 707;
+            addErrorData(ca_event, result, "Invalid RoleList");
+        }
+        else if (result != ACL_SUCCESS)
+        {
+            trace(1, "AddRolesForIdentity: Failed to add roles '%s' for identity '%s'",rolelist,identity);
+            result = 501;
+            addErrorData(ca_event, result, "Action Failed");
+        }
+        
+        // all is well
+        if (result == 0)
+        {
+            // write ACL in filesystem
+            writeDocumentToFile(ACLDoc, ACL_XML);
+            ca_event->ActionResult = UpnpMakeActionResponse(ca_event->ActionName, DP_SERVICE_TYPE,
+                                        0, NULL);                                        
+            ca_event->ErrCode = UPNP_E_SUCCESS;   
+        }
+        
+    }
+    else
+    {
+        trace(1, "AddRolesForIdentity: Invalid Arguments!");
+        trace(1, "  Identity: %s, RoleList: %s",identity,rolelist);
+        addErrorData(ca_event, 402, "Invalid Args");
+    }
+  
+    if (identity) free(identity);
+    if (rolelist) free(rolelist);
+    
+    return ca_event->ErrCode;
+}
+
+/**
+ * DeviceProtection:1 Action: RemoveRolesForIdentity.
+ *
+ * @param ca_event Upnp event struct.
+ * @return Upnp error code.
+ */
+int RemoveRolesForIdentity(struct Upnp_Action_Request *ca_event)
+{
+    int result = 0;
+    char *identity = NULL;
+    char *rolelist = NULL;
+    
+    if ( (identity = GetFirstDocumentItem(ca_event->ActionRequest, "Identity") )
+            && (rolelist = GetFirstDocumentItem(ca_event->ActionRequest, "RoleList") ))
+    {
+        // check that CP has Admin privileges
+        
+        
+        // try first to remove roles from username
+        result = ACL_removeRolesFromUser(ACLDoc, identity, rolelist);
+        if (result == ACL_USER_ERROR)
+        {
+            // identity wasn't username, so it must be control point hash
+            result = ACL_removeRolesFromCP(ACLDoc, identity, rolelist);
+        }
+        
+        if (result == ACL_USER_ERROR)
+        {
+            // ok, identity wasn't username or hash
+            trace(1, "RemoveRolesForIdentity: Unknown identity %s",identity);
+            result = 706;
+            addErrorData(ca_event, result, "Unknown Identity");
+        }
+        else if (result == ACL_ROLE_ERROR)
+        {
+            trace(1, "RemoveRolesForIdentity: Invalid rolelist received %s",rolelist);
+            result = 707;
+            addErrorData(ca_event, result, "Invalid RoleList");
+        }
+        else if (result != ACL_SUCCESS)
+        {
+            trace(1, "RemoveRolesForIdentity: Failed to add roles '%s' for identity '%s'",rolelist,identity);
+            result = 501;
+            addErrorData(ca_event, result, "Action Failed");
+        }
+        
+        // all is well
+        if (result == 0)
+        {
+            // write ACL in filesystem
+            writeDocumentToFile(ACLDoc, ACL_XML);
+            ca_event->ActionResult = UpnpMakeActionResponse(ca_event->ActionName, DP_SERVICE_TYPE,
+                                        0, NULL);                                        
+            ca_event->ErrCode = UPNP_E_SUCCESS;   
+        }
+        
+    }
+    else
+    {
+        trace(1, "RemoveRolesForIdentity: Invalid Arguments!");
+        trace(1, "  Identity: %s, RoleList: %s",identity,rolelist);
+        addErrorData(ca_event, 402, "Invalid Args");
+    }
+  
+    if (identity) free(identity);
+    if (rolelist) free(rolelist);
+    
     return ca_event->ErrCode;
 }
 
@@ -876,7 +1010,7 @@ int SetRoleForIdentity(struct Upnp_Action_Request *ca_event)
  * @param ca_event Upnp event struct.
  * @return Upnp error code.
  */
-int GetCurrentRole(struct Upnp_Action_Request *ca_event)
+int GetCurrentRoles(struct Upnp_Action_Request *ca_event)
 {
     return ca_event->ErrCode;
 }

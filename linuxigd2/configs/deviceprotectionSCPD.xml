@@ -103,7 +103,22 @@
       </argumentList>
     </action>  
     <action>
-      <name>SetRoleForIdentity</name> 
+      <name>AddRolesForIdentity</name> 
+      <argumentList>
+        <argument>
+          <name>Identity</name> 
+          <direction>in</direction> 
+          <relatedStateVariable>A_ARG_TYPE_string</relatedStateVariable> 
+        </argument>
+        <argument>
+          <name>RoleList</name> 
+          <direction>in</direction> 
+          <relatedStateVariable>A_ARG_TYPE_string</relatedStateVariable> 
+        </argument>       
+      </argumentList>
+    </action>
+    <action>
+      <name>RemoveRolesForIdentity</name> 
       <argumentList>
         <argument>
           <name>Identity</name> 
@@ -118,7 +133,7 @@
       </argumentList>
     </action>  
     <action>
-      <name>GetCurrentRole</name> 
+      <name>GetCurrentRoles</name> 
       <argumentList>
         <argument>
           <name>Identity</name> 
