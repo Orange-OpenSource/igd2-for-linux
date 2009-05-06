@@ -991,7 +991,6 @@ static int ACL_validateRoleNames(IXML_Document *doc, const char *roles)
                 }
                 if (!OK)
                 {
-                    printf("VALIDATE: %s, %s\n",tmp, role);
                     ixmlNodeList_free( nodeList );
                     return ACL_ROLE_ERROR;
                 }                
