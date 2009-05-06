@@ -561,6 +561,7 @@ static char* GetTextValueOfNode(IXML_Node *tmpNode)
     
     if ( tmpNode )
     {
+        value = strdup("");
         textNode = ixmlNode_getFirstChild( tmpNode );
         if ( textNode )
         {
@@ -945,16 +946,71 @@ void deinitActionAccessLevels()
 </ACL>
  */ 
 
+/**
+ * Validate that all rolenames in space-separated form found from parameter roles,
+ * are valid rolenames and defined in ACL.xml 
+ * 
+ * @param doc IXML_Document ACL document
+ * @param roles Roles to validate
+ * @return ACL_SUCCESS on succes, ACL_ROLE_ERROR if any of roles in invalid
+ */
+static int ACL_validateRoleNames(IXML_Document *doc, const char *roles)
+{
+    int i;
+    IXML_NodeList *nodeList = NULL;
+    IXML_Node *tmpNode = NULL;
+    char *tmp = NULL; 
+    
+    nodeList = ixmlDocument_getElementsByTagName( doc, "Role" );
+
+    if (nodeList)
+    {
+        char rolelist[strlen(roles)];    
+        // go through all roles in roles parameter
+        strcpy(rolelist,roles);   
+        char *role = strtok(rolelist, " ");
+        if (role)
+        {
+            do 
+            {
+                for (i = 0; i < ixmlNodeList_length(nodeList); i++)
+                {
+                    if ( ( tmpNode = ixmlNodeList_item( nodeList, i ) ) )
+                    {
+                        // here we make assumption that format of Role definition is following:
+                        // <Role><Name>Admin</Name></Role>
+                        // Role has only one child named Name
+                        tmp = GetTextValueOfNode(tmpNode->firstChild);
+                        if ( tmp && (strcmp( tmp,  role) != 0))
+                        {
+                            ixmlNodeList_free( nodeList );
+                            return ACL_ROLE_ERROR;
+                        }                
+                    }            
+                }
+                    
+            } while ((role = strtok(NULL, " ")));
+        } 
+    }
+    
+    if ( nodeList ) ixmlNodeList_free( nodeList );    
+    
+    return  ACL_SUCCESS; 
+}
 
 /**
  * Add roles for user/CP. 
  * 
+ * @param doc IXML_Document ACL document
  * @param roleListNode IXML_Node "RoleList" for which new roles are added
  * @param roles New roles
- * @return Roles as space separated string, or empty string if no roles found, or NULL if error occurs.
+ * @return 0 on succes negative value if failure
  */
-static int ACL_addRolesToRoleList(IXML_Node *roleListNode, const char *roles)
+static int ACL_addRolesToRoleList(IXML_Document *doc, IXML_Node *roleListNode, const char *roles)
 {
+    // check validity of rolenames
+    if (ACL_validateRoleNames(doc, roles) != ACL_SUCCESS) return ACL_ROLE_ERROR;
+       
     // get current value of "RoleList"
     char *currentRoles = GetTextValueOfNode(roleListNode);
     if (currentRoles == NULL) return ACL_COMMON_ERROR;
@@ -968,6 +1024,7 @@ static int ACL_addRolesToRoleList(IXML_Node *roleListNode, const char *roles)
     char *role = strtok(rolelist, " ");
     if (role)
     {
+        
         do 
         {
             // do "raw" check that this role isn't already in current roles
@@ -982,6 +1039,54 @@ static int ACL_addRolesToRoleList(IXML_Node *roleListNode, const char *roles)
 
     }
     
+    // set text value of "RoleList" as new rolelist
+    return ixmlNode_setNodeValue(roleListNode->firstChild, newRoleList);    
+}
+
+
+/**
+ * Remove roles from user/CP. 
+ * 
+ * @param doc IXML_Document ACL document
+ * @param roleListNode IXML_Node "RoleList" from where roles are removed
+ * @param roles Roles to remove (Admin Basic)
+ * @return 0 on succes negative value if failure
+ */
+static int ACL_removeRolesFromRoleList(IXML_Document *doc, IXML_Node *roleListNode, const char *roles)
+{
+    // check validity of rolenames
+    if (ACL_validateRoleNames(doc, roles) != ACL_SUCCESS) return ACL_ROLE_ERROR;
+ 
+    // get current value of "RoleList"
+    char *currentRoles = GetTextValueOfNode(roleListNode);
+    if (currentRoles == NULL) return ACL_COMMON_ERROR;
+    
+    char newRoleList[strlen(currentRoles)];
+    strcpy(newRoleList,"");
+    
+    char rolelist[strlen(roles)];    
+    // go through all roles in current roles
+    strcpy(rolelist,currentRoles);   
+    char *role = strtok(rolelist, " ");
+    if (role)
+    {
+        do 
+        {        
+            // do "raw" check that this current role isn't in roles which are to remove
+            if ( strstr(roles,role) == NULL )
+            {
+                // add new role at the end of rolelist
+                strcat(newRoleList, role);
+                strcat(newRoleList, " ");
+            }
+                
+        } while ((role = strtok(NULL, " ")));
+    }
+    
+    // remove last useless space from end of new rolelist
+    if (strlen(newRoleList) > 0)
+        newRoleList[strlen(newRoleList) - 1] = '\0';
+
     // set text value of "RoleList" as new rolelist
     return ixmlNode_setNodeValue(roleListNode->firstChild, newRoleList);    
 }
@@ -1200,7 +1305,7 @@ int ACL_addRolesForUser(IXML_Document *doc, const char *name, const char *roles)
         return ACL_SUCCESS;
     }    
     
-    return ACL_addRolesToRoleList(tmpNode, roles);
+    return ACL_addRolesToRoleList(doc, tmpNode, roles);
 }
 
 
@@ -1233,6 +1338,71 @@ int ACL_addRolesForCP(IXML_Document *doc, const char *hash, const char *roles)
         return ACL_SUCCESS;
     }    
     
-    return ACL_addRolesToRoleList(tmpNode, roles);
+    return ACL_addRolesToRoleList(doc, tmpNode, roles);
 }
 
+
+/**
+ * Remove roles from User in ACL xml.
+ * 
+ * @param doc ACL IXML_Document
+ * @param name Username from which roles are removed
+ * @param roles Space-separated string of rolenames which are removed from user (Admin Basic)
+ * @return 0 on succes,
+ *         ACL_USER_ERROR if username is not found, 
+ *         ACL_ROLE_ERROR if rolelist has invalid role
+ *         ACL_COMMON_ERROR else
+ */
+int ACL_removeRolesFromUser(IXML_Document *doc, const char *name, const char *roles)
+{
+    IXML_Node *tmpNode = GetNodeWithValue(doc, "Name", name);
+    
+    // Check that name does exist
+    if ( tmpNode == NULL )
+    {
+        return ACL_USER_ERROR;
+    } 
+    
+    tmpNode = GetSiblingWithTagName(tmpNode, "RoleList");
+    if (tmpNode == NULL) 
+    {
+        // if Rolelist element is not found at all, just add it for User-element
+        AddChildNode(doc, tmpNode->parentNode, "RoleList", roles);
+        return ACL_SUCCESS;
+    }    
+    
+    return ACL_removeRolesFromRoleList(doc, tmpNode, roles);
+}
+
+
+/**
+ * Remove roles from Control point in ACL xml.
+ * 
+ * @param doc ACL IXML_Document
+ * @param hash Hash of control from which roles are removed
+ * @param roles Space-separated string of rolenames which are removed from user (Admin Basic)
+ * @return ACL_SUCCESS on succes,
+ *         ACL_USER_ERROR if username is not found, 
+ *         ACL_ROLE_ERROR if rolelist has invalid role
+ *         ACL_COMMON_ERROR else
+ */
+int ACL_removeRolesFromCP(IXML_Document *doc, const char *hash, const char *roles)
+{
+    IXML_Node *tmpNode = GetNodeWithValue(doc, "Hash", hash);
+    
+    // Check that CP with hash does exist
+    if ( tmpNode == NULL )
+    {
+        return ACL_USER_ERROR;
+    } 
+    
+    tmpNode = GetSiblingWithTagName(tmpNode, "RoleList");
+    if (tmpNode == NULL) 
+    {
+        // if Rolelist element is not found at all, just add it for User-element
+        AddChildNode(doc, tmpNode->parentNode, "RoleList", roles);
+        return ACL_SUCCESS;
+    }    
+    
+    return ACL_removeRolesFromRoleList(doc, tmpNode, roles);
+}

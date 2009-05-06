@@ -70,5 +70,7 @@ int ACL_removeUser(IXML_Document *doc, const char *name);
 int ACL_removeCP(IXML_Document *doc, const char *hash);
 int ACL_addRolesForUser(IXML_Document *doc, const char *name, const char *roles);
 int ACL_addRolesForCP(IXML_Document *doc, const char *hash, const char *roles);
+int ACL_removeRolesFromUser(IXML_Document *doc, const char *name, const char *roles);
+int ACL_removeRolesFromCP(IXML_Document *doc, const char *hash, const char *roles);
 
 #endif //_UTIL_H_
