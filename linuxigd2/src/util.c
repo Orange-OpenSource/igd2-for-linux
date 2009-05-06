@@ -956,7 +956,7 @@ void deinitActionAccessLevels()
  */
 static int ACL_validateRoleNames(IXML_Document *doc, const char *roles)
 {
-    int i;
+    int i, OK;
     IXML_NodeList *nodeList = NULL;
     IXML_Node *tmpNode = NULL;
     char *tmp = NULL; 
@@ -973,6 +973,7 @@ static int ACL_validateRoleNames(IXML_Document *doc, const char *roles)
         {
             do 
             {
+                OK = 0;
                 for (i = 0; i < ixmlNodeList_length(nodeList); i++)
                 {
                     if ( ( tmpNode = ixmlNodeList_item( nodeList, i ) ) )
@@ -981,13 +982,19 @@ static int ACL_validateRoleNames(IXML_Document *doc, const char *roles)
                         // <Role><Name>Admin</Name></Role>
                         // Role has only one child named Name
                         tmp = GetTextValueOfNode(tmpNode->firstChild);
-                        if ( tmp && (strcmp( tmp,  role) != 0))
+                        if ( tmp && (strcmp( tmp,  role) == 0))
                         {
-                            ixmlNodeList_free( nodeList );
-                            return ACL_ROLE_ERROR;
-                        }                
-                    }            
+                            OK = 1;
+                            break;
+                        }            
+                    } 
                 }
+                if (!OK)
+                {
+                    printf("VALIDATE: %s, %s\n",tmp, role);
+                    ixmlNodeList_free( nodeList );
+                    return ACL_ROLE_ERROR;
+                }                
                     
             } while ((role = strtok(NULL, " ")));
         } 

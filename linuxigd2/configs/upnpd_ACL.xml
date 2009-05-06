@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<ACL>
+    <Identities>
+        <User>
+            <Name>Admin</Name>
+            <RoleList>Admin</RoleList>
+        </User>
+    </Identities>
+    <Roles>
+        <Role>
+            <Name>Admin</Name>
+        </Role>
+        <Role>
+            <Name>Basic</Name>
+        </Role>
+        <Role>
+            <Name>Public</Name>
+        </Role>
+    </Roles>
+</ACL>

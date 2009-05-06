@@ -92,8 +92,7 @@ struct GLOBALS
     char accessLevelXml[OPTION_LEN];
     
     // path to password file file, which stores values of STORED for names
-    char passwdFile[OPTION_LEN];    
-    
+    char passwdFile[OPTION_LEN];
 };
 
 typedef struct GLOBALS* globals_p;
@@ -128,5 +127,9 @@ extern globals g_vars;
 #define CERT_PATH_DEFAULT "/etc/certstore"  // must be something else than XML_PATH_DEFAULT!!
 #define ACCESS_LEVEL_XML_DEFAULT "/etc/linuxigd/accesslevel.xml"
 #define PASSWD_FILE_DEFAULT "/etc/linuxigd.passwd"
+
+
+// location of ACL (access control list) xml file. This totally internal file, and is not listed in config file. 
+#define ACL_XML "/etc/upnpd_ACL.xml"    
 
 #endif // _GLOBALS_H_

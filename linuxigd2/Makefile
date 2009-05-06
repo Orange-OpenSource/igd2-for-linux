@@ -64,3 +64,4 @@ install: upnpd
 	install $(BIN)upnpd $(PREFIX)/sbin
 	install doc/upnpd.8 $(PREFIX)/share/man/man8
 	if [ ! -f /etc/upnpd.conf ]; then install configs/upnpd.conf /etc; fi
+	if [ ! -f /etc/upnpd_ACL.xml ]; then install configs/upnpd_ACL.xml /etc; fi
