@@ -366,13 +366,13 @@ schedule_request_job( IN int connfd,
  * Function: RunMiniServer
  *
  * Parameters:
- *	MiniServerSockArray *miniSock - Socket Array
+ *  MiniServerSockArray *miniSock - Socket Array
  *
  * Description:
- * 	Function runs the miniserver. The MiniServer accepts a 
- *	new request and schedules a thread to handle the new request.
- *	Checks for socket state and invokes appropriate read and shutdown 
- *	actions for the Miniserver and SSDP sockets 
+ *  Function runs the miniserver. The MiniServer accepts a
+ *  new request and schedules a thread to handle the new request.
+ *  Checks for socket state and invokes appropriate read and shutdown
+ *  actions for the Miniserver and SSDP sockets
  *
  * Return: void
  ************************************************************************/
@@ -396,6 +396,7 @@ RunMiniServer( MiniServerSockArray *miniSock )
     int byteReceived;
     char requestBuf[256];
     int ret = 0;
+	struct timeval timeout;
 
     maxMiniSock = max( miniServSock, miniServStopSock) ;
     maxMiniSock = max( maxMiniSock, (SOCKET)(ssdpSock) );
@@ -406,6 +407,16 @@ RunMiniServer( MiniServerSockArray *miniSock )
 
     gMServState = MSERV_RUNNING;
     while( TRUE ) {
+		// reset SSDP socket options
+		/* If network is restarted e.g. with /etc/init.d/network restart,
+		 * ssdp_server stops responding. But if multicast and broadcast
+		 * options are re-added for ssdp-socket, it starts responding again.
+		 */
+		if ( set_ssdp_socket_options(ssdpSock) == UPNP_E_SUCCESS ) {
+			UpnpPrintf( UPNP_INFO, SSDP, __FILE__, __LINE__,
+				"set_ssdp_socket_options(ssdpSock) succeeded\n");
+		}
+
         FD_ZERO( &rdSet );
         FD_ZERO( &expSet );
 
@@ -417,13 +428,16 @@ RunMiniServer( MiniServerSockArray *miniSock )
         FD_SET( ssdpReqSock, &rdSet );
 #endif
 
-        ret = select( maxMiniSock, &rdSet, NULL, &expSet, NULL );
+		// select returns every 2 seconds even if no socket is active
+		timeout.tv_sec = 2;
+		timeout.tv_usec = 0;
+		ret = select( maxMiniSock, &rdSet, NULL, &expSet, &timeout );
         if ( ret == -1 ) {
             strerror_r(errno, errorBuffer, ERROR_BUFFER_LEN);
             UpnpPrintf( UPNP_CRITICAL, SSDP, __FILE__, __LINE__,
                 "Error in select(): %s\n", errorBuffer );
-	    /* Avoid 100% CPU in case of repeated error in select() */
-	    isleep( 1 );
+			/* Avoid 100% CPU in case of repeated error in select() */
+			isleep( 1 );
             continue;
         } else {
             if( FD_ISSET( miniServSock, &rdSet ) ) {
@@ -464,7 +478,7 @@ RunMiniServer( MiniServerSockArray *miniSock )
                         requestBuf );
                     if( NULL != strstr( requestBuf, "ShutDown" ) ) {
                         break;
-		    }
+					}
                 }
             }
         }
