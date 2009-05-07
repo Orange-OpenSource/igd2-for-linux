@@ -1473,7 +1473,7 @@ parser_parse_requestline( INOUT http_parser_t * parser )
                           &hmsg->major_version, &hmsg->minor_version );
     version_str.buf[version_str.length] = save_char;    // restore
     if( num_scanned != 2 ||
-        hmsg->major_version < 0 || hmsg->minor_version < 0 ) {
+		hmsg->major_version != 1 || hmsg->minor_version != 1 ) {
         // error; bad http version
         return PARSE_FAILURE;
     }
@@ -1544,8 +1544,8 @@ parser_parse_responseline( INOUT http_parser_t * parser )
     line.buf[line.length] = save_char;  // restore
 
     if( num_scanned != 3 ||
-        hmsg->major_version < 0 ||
-        hmsg->minor_version < 0 || hmsg->status_code < 0 ) {
+		hmsg->major_version != 1 ||
+		hmsg->minor_version != 1 || hmsg->status_code < 0 ) {
         // bad response line
         return PARSE_FAILURE;
     }
