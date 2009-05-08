@@ -38,6 +38,16 @@ G_DEFINE_TYPE (GUPnPDeviceProxy,
                gupnp_device_proxy,
                GUPNP_TYPE_DEVICE_INFO);
 
+struct _GUPnPDeviceProxyWps {
+        GUPnPDeviceProxy *proxy;
+
+        GUPnPDeviceProxyWpsCallback callback;
+
+        gpointer user_data;
+
+        GError *error;
+};
+
 static GUPnPDeviceInfo *
 gupnp_device_proxy_get_device (GUPnPDeviceInfo *info,
                                xmlNode         *element)
@@ -117,3 +127,49 @@ gupnp_device_proxy_class_init (GUPnPDeviceProxyClass *klass)
         info_class->get_service = gupnp_device_proxy_get_service;
 }
 
+GUPnPDeviceProxyWps *
+gupnp_device_proxy_begin_wps (GUPnPDeviceProxy           *proxy,
+                              GUPnPDeviceProxyWpsCallback callback,
+                              gpointer                    user_data)
+{
+        // TODO: send m1 to device and register callback
+        GUPnPDeviceProxyWps *wps;
+
+        g_return_val_if_fail (GUPNP_IS_DEVICE_PROXY (proxy), NULL);
+        g_return_val_if_fail (callback, NULL);
+
+        wps = g_slice_new (GUPnPDeviceProxyWps);
+        wps->proxy = proxy;
+        wps->callback = callback;
+        wps->user_data = user_data;
+        wps->error = NULL;
+
+        // test only
+        callback (proxy, wps, user_data);
+
+        return wps;
+}
+
+GUPnPDeviceProxyWps *
+gupnp_device_proxy_continue_wps (GUPnPDeviceProxyWps        *wps,
+                                 GString                     pin,
+                                 gpointer                    user_data)
+{
+        // TODO: wps messages m2..m8
+
+        return wps;
+}
+
+void
+gupnp_device_proxy_cancel_wps (GUPnPDeviceProxyWps *wps)
+{
+        // TODO: abort wps setup
+}
+
+gboolean
+gupnp_device_proxy_end_wps (GUPnPDeviceProxyWps *wps)
+{
+        // TODO: end wps setup
+
+        return TRUE;
+}

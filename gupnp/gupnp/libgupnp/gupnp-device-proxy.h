@@ -74,6 +74,37 @@ typedef struct {
         void (* _gupnp_reserved4) (void);
 } GUPnPDeviceProxyClass;
 
+typedef struct _GUPnPDeviceProxyWps GUPnPDeviceProxyWps;
+
+/**
+ * GUPnPDeviceProxyWpsCallback:
+ * @proxy: The #GUPnPDeviceProxy @wps is called from
+ * @action: The #GUPnPDevoceProxyWps in progress
+ * @user_data: User data
+ *
+ * Callback notifying that @wps on @proxy has done the next step.
+ **/
+typedef void (* GUPnPDeviceProxyWpsCallback) (
+                                     GUPnPDeviceProxy    *proxy,
+                                     GUPnPDeviceProxyWps *wps,
+                                     gpointer             user_data);
+
+GUPnPDeviceProxyWps *
+gupnp_device_proxy_begin_wps (GUPnPDeviceProxy           *proxy,
+                              GUPnPDeviceProxyWpsCallback callback,
+                              gpointer                    user_data);
+
+GUPnPDeviceProxyWps *
+gupnp_device_proxy_continue_wps (GUPnPDeviceProxyWps        *wps,
+                                 GString                     pin,
+                                 gpointer                    user_data);
+
+void
+gupnp_device_proxy_cancel_wps (GUPnPDeviceProxyWps *wps);
+
+gboolean
+gupnp_device_proxy_end_wps (GUPnPDeviceProxyWps *wps);
+
 G_END_DECLS
 
 #endif /* __GUPNP_DEVICE_PROXY_H__ */
