@@ -256,9 +256,63 @@ int HandleActionRequest(struct Upnp_Action_Request *ca_event)
 
     ithread_mutex_lock(&DevMutex);
     trace(3, "ActionName = %s", ca_event->ActionName);
+
+    /*
+     * Get rolename for action from accesslevel.xml
+     * If role is "Public", everybody can use action.
+     * If Role is Basic or Admin, SSL is required
+     */
+    char *accessLevel = NULL;
+    accessLevel = getAccessLevel(ca_event->ActionName,0);
     
-// check authorization here    
+    if (accessLevel == NULL)
+    {
+        trace(1,"%s is not listed in accesslevel.xml",ca_event->ActionName);
+        result = InvalidAction(ca_event);
+
+        ithread_mutex_unlock(&DevMutex);
+        return result;
+    }
+
+    if ( (strcmp(accessLevel, "Basic") == 0) || (strcmp(accessLevel, "Admin") == 0) )
+    {
+        // is SSL used for connection
+        if (ca_event->SSLSession == NULL)
+        {
+            // SSL must be used
+            trace(1, "%s: SSL connection must be used for this",ca_event->ActionName);
+            result = 701;
+            addErrorData(ca_event, result, "Authentication Failure");
+            
+            ithread_mutex_unlock(&DevMutex);
+            return result;                
+        }
+        
+        // check that CP has right privileges
+        if ( (result = checkCPPrivileges(ca_event, accessLevel)) == 1 )
+        {
+            // CP doesn't have privileges for this
+            trace(1, "%s: Not enough privileges to do this, '%s' is required",ca_event->ActionName, accessLevel);
+            result = 702;
+            addErrorData(ca_event, result, "Authorization Failure");
+            
+            ithread_mutex_unlock(&DevMutex);
+            return result;        
+        }
+        else if (result != 0)
+        {
+            trace(1,"Failed to get Control Point privileges");
+            result = 501;
+            addErrorData(ca_event, result, "Action Failed");
     
+            ithread_mutex_unlock(&DevMutex);
+            return result;            
+        }
+    }   
+    
+    // if we get here all should be in order, except if manage flag is used... 
+    // But that is left to action itself to check
+
     if (strcmp(ca_event->DevUDN, gateUDN) == 0)
     {
         if (strcmp(ca_event->ServiceID,"urn:upnp-org:serviceId:DeviceProtection1") == 0)

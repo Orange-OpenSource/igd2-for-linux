@@ -73,6 +73,35 @@
                 <accessLevel>Public</accessLevel>
                 <accessLevelManage>Basic</accessLevelManage>
             </action>
+            <action>
+                <name>AddPortMapping</name>
+                <accessLevel>Basic</accessLevel>
+                <accessLevelManage>Admin</accessLevelManage>
+            </action> 
+            <action>
+                <name>AddAnyPortMapping</name>
+                <accessLevel>Basic</accessLevel>
+                <accessLevelManage>Admin</accessLevelManage>
+            </action>
+            <action>
+                <name>DeletePortMapping</name>
+                <accessLevel>Basic</accessLevel>
+                <accessLevelManage>Admin</accessLevelManage>
+            </action>
+            <action>
+                <name>DeletePortMappingRange</name>
+                <accessLevel>Basic</accessLevel>
+                <accessLevelManage>Admin</accessLevelManage>
+            </action>
+            <action>
+                <name>GetExternalIPAddress</name>
+                <accessLevel>Public</accessLevel>
+            </action> 
+            <action>
+                <name>GetListOfPortMappings</name>
+                <accessLevel>Public</accessLevel>
+                <accessLevelManage>Basic</accessLevelManage>
+            </action>             
         </actionList>
     </serviceEntry>
     <serviceEntry>
@@ -167,4 +196,62 @@
             </action>
         </actionList>
     </serviceEntry>
+    <serviceEntry>
+        <serviceName>DeviceProtection</serviceName>
+        <serviceVersion>1</serviceVersion>
+        <actionList>
+            <action>
+                <name>SendSetupMessage</name>
+                <accessLevel>Basic</accessLevel>
+            </action>
+            <action>
+                <name>GetSupportedProtocols</name>
+                <accessLevel>Public</accessLevel>
+            </action>
+            <action>
+                <name>GetCurrentRoles</name>
+                <accessLevel>Basic</accessLevel>
+            </action>
+            <action>
+                <name>GetUserLoginChallenge</name>
+                <accessLevel>Basic</accessLevel>
+            </action>
+            <action>
+                <name>UserLogin</name>
+                <accessLevel>Basic</accessLevel>
+            </action>
+            <action>
+                <name>UserLogout</name>
+                <accessLevel>Basic</accessLevel>
+            </action>
+            <action>
+                <name>GetACLData</name>
+                <accessLevel>Basic</accessLevel>
+            </action>
+            <action>
+                <name>AddRolesForIdentity</name>
+                <accessLevel>Admin</accessLevel>
+            </action>
+            <action>
+                <name>RemoveRolesForIdentity</name>
+                <accessLevel>Admin</accessLevel>
+            </action>
+            <action>
+                <name>AddUserLoginData</name>
+                <accessLevel>Admin</accessLevel>
+            </action>
+            <action>
+                <name>RemoveUserLoginData</name>
+                <accessLevel>Admin</accessLevel>
+            </action>
+            <action>
+                <name>AddCPIdentityData</name>
+                <accessLevel>Admin</accessLevel>
+            </action>
+            <action>
+                <name>RemoveCPIdentityData</name>
+                <accessLevel>Admin</accessLevel>
+            </action>
+        </actionList>
+    </serviceEntry>    
 </serviceList>

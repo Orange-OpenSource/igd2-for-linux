@@ -35,6 +35,8 @@ char SupportedProtocols[150];
 
 
 void DPStateTableInit();
+int checkCPPrivileges(struct Upnp_Action_Request *ca_event, const char *targetRole);
+
 
 // deviceprotection actions
 int SendSetupMessage(struct Upnp_Action_Request *ca_event);

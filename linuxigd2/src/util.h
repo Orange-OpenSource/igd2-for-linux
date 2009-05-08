@@ -61,6 +61,7 @@ void deinitActionAccessLevels();
 char* getAccessLevel(const char *actionName, int manage);
 
 // ACL handling stuff
+int ACL_doesIdentityHasRole(IXML_Document *doc, const char *identity, const char *targetRole);
 char *ACL_getRolesOfUser(IXML_Document *doc, const char *username);
 char *ACL_getRolesOfCP(IXML_Document *doc, const char *hash);
 char *ACL_createRoleListXML(const char *csv_roles);

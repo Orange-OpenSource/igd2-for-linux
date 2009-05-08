@@ -1068,7 +1068,6 @@ static int ACL_addRolesToRoleList(IXML_Document *doc, IXML_Node *roleListNode, c
     char *role = strtok(rolelist, " ");
     if (role)
     {
-        
         do 
         {
             // do "raw" check that this role isn't already in current roles
@@ -1133,6 +1132,43 @@ static int ACL_removeRolesFromRoleList(IXML_Document *doc, IXML_Node *roleListNo
 
     // set text value of "RoleList" as new rolelist
     return ixmlNode_setNodeValue(roleListNode->firstChild, newRoleList);    
+}
+
+
+/**
+ * Check if identity has given role defined in ACL.
+ * Identity may be either username or certificate hash
+ *
+ * @param doc ACL IXML_Document
+ * @param identity Username or certificate hash
+ * @param targetRole Role which is searched form identity
+ * @return 1 if identity has this role, 0 if not. 
+ */
+int ACL_doesIdentityHasRole(IXML_Document *doc, const char *identity, const char *targetRole)
+{
+    // is identity username
+    char *roles = ACL_getRolesOfUser(doc, identity);
+    if (roles == NULL)
+        // is identity hash
+        roles = ACL_getRolesOfCP(doc, identity);
+    if (roles == NULL)
+        return 0;
+        
+    char *role = strtok(roles, " ");
+    if (role)
+    {
+        do 
+        {
+            if ( strcmp(targetRole,role) == 0 )
+            {
+                return 1;
+            }
+                
+        } while ((role = strtok(NULL, " ")));
+
+    }
+
+    return 0;
 }
 
 

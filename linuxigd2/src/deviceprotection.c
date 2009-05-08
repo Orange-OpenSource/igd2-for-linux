@@ -52,6 +52,23 @@ static char prev_addr[INET6_ADDRSTRLEN];
 // Access Control List
 static IXML_Document *ACLDoc = NULL;
 
+
+/*
+ * Document containing SSL session and username relationship. This in only for internal use of LinuxIGD.
+ * Identity is either username or 20 bytes of certificate hash. It is trusted that no-one will never-ever
+ * use username that could be some certificates hash.
+ * Active attribute tells if session is currentlyt used. If value is 0, it can be later used in session
+ * resumption
+ *
+ * <SIR>
+ *  <session id="7467363" active="1">
+ *      <identity>username</identity>
+ *  </session>
+ * </SIR>
+ */
+static IXML_Document *SIRDoc = NULL;
+
+
 /**
  * Initialize DeviceProtection StateVariables for their default values.
  * 
@@ -61,18 +78,82 @@ void DPStateTableInit()
 {
     // DeviceProtection is ready for introduction
     SetupReady = 1;
-    strcpy(SupportedProtocols, "<SupportedProtocols><Setup>DeviceProtection:1</Setup><Login>DeviceProtection:1</Login></SupportedProtocols>");   
+    strcpy(SupportedProtocols, "<SupportedProtocols><Introduction><Name>WPS</Name></Introduction></SupportedProtocols>");   
     
     // init ACL
     ACLDoc = ixmlLoadDocument(ACL_XML);
     if (ACLDoc == NULL)
     {
-        trace(1, "Couldn't load ACL document which should locate here: %s\n",ACL_XML);
-        exit(-2);
+        trace(1, "Couldn't load ACL (Access Control List) document which should locate here: %s\nExiting...\n",ACL_XML);
+        UpnpFinish();
+        exit(1);
     }
+    
+    // session-user relationships are stored in this
+    SIRDoc = SIR_init();
+    if (SIRDoc == NULL)
+    {
+        trace(1, "Couldn't load SIR document.\nSIR is LinuxIDG's internal structure for containing SSL-session-User relationships\nExiting...\n");
+        UpnpFinish();
+        exit(1);
+    } 
 }
 
 
+/**
+ * Update username,salt,stored values in password file.
+ * Username and values can also be removed totally from file by putting delete_values as 1.
+ * 
+ * @param ca_event Upnp event struct.
+ * @param targetRole Rolename that control point or user should have registerd in ACL
+ * @return 0 if rolename is found and everything is ok, 1 if CP doesn't have privileges. Something else if error
+ */
+int checkCPPrivileges(struct Upnp_Action_Request *ca_event, const char *targetRole)
+{
+    int ret;
+    int cert_size = 1000;
+    unsigned char cert[cert_size];
+    unsigned char hash[cert_size];
+    
+    if (ca_event->SSLSession == NULL)
+        return 1;
+    
+    // 1. get certificate of client
+    ret = UpnpGetClientCert(ca_event->SSLSession, cert, &cert_size);
+    if (ret != UPNP_E_SUCCESS)
+        return ret;
+    
+    // 2. create hash from certificate
+    ret = wpsu_sha256(cert, cert_size, hash);
+    if (ret < 0)
+        return ret;
+    
+    // 3. create base64 from 20 first bytes of hash
+    int identitylen = 20;
+    int maxb64len = 2*identitylen; 
+    int b64len = 0;        
+    unsigned char *b64_identity = (unsigned char *)malloc(maxb64len);
+    wpsu_bin_to_base64(identitylen, hash, &b64len, b64_identity, maxb64len);      
+    
+    // 4. fetch current identity of CP from SIR. Identity may be username or hash of certificate (== b64_identity)
+    int active;
+    char *identity = SIR_getIdentityOfSession(SIRDoc, (char *)b64_identity, &active);
+    if (identity == NULL)
+        return -1;
+     
+    // 5. check if target role is one of current roles of identity
+    if ( ACL_doesIdentityHasRole(ACLDoc, identity, targetRole) )
+        return 0;
+    
+    return 1;
+}
+
+
+/**
+ * Initialize DeviceProtection. Create input data and state machine for WPS
+ * 
+ * @return int. 0 on success
+ */
 static int InitDP()
 {   
     int err;
@@ -167,6 +248,12 @@ static int InitDP()
     return 0;
 }
 
+
+/**
+ * Deinitialize WPS state machine. Counterpart of InitDP()
+ *
+ * @return void
+ */
 static void FreeDP()
 {
     int error;
@@ -590,8 +677,6 @@ static int createUserLoginChallengeResponse(struct Upnp_Action_Request *ca_event
 }
 
 
-
-
 //-----------------------------------------------------------------------------
 //
 //                      DeviceProtection:1 Service Actions
@@ -879,11 +964,9 @@ int AddRolesForIdentity(struct Upnp_Action_Request *ca_event)
     if ( (identity = GetFirstDocumentItem(ca_event->ActionRequest, "Identity") )
             && (rolelist = GetFirstDocumentItem(ca_event->ActionRequest, "RoleList") ))
     {
-        // check that CP has Admin privileges
-        
-        
         // try first to add roles for username
         result = ACL_addRolesForUser(ACLDoc, identity, rolelist);
+
         if (result == ACL_USER_ERROR)
         {
             // identity wasn't username, so it must be control point hash
