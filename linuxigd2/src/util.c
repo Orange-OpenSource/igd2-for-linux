@@ -41,7 +41,6 @@
 // Document containing action access levels.
 static IXML_Document *accessLevelDoc = NULL;
 
-
 /**
  * Open new socket.
  *
@@ -373,7 +372,7 @@ int killDHCPClient(char *iface)
     int pid;
 
     trace(2,"Killing DHCP client...");
-    snprintf(tmp, 50, "/var/run/%s.pid", iface);
+    snprintf(tmp, 30, "/var/run/%s.pid", iface);
     pid = readIntFromFile(tmp);
     if (pid > -1)
     {
@@ -783,6 +782,45 @@ static int RemoveNode(IXML_Node *node)
         ret = -1; 
         
     return ret;
+}
+
+
+/**
+ * Find first childnode of parent with nodename. 
+ *
+ * @param parent Pointer to parent node
+ * @param childNodeName Name of searched childnode
+ * @return Pointer to node found or NULL if not found
+ */
+static IXML_Node *GetChildNodeWithName(IXML_Node *parent, const char *childNodeName)
+{
+    int i;
+    IXML_Node *tmpNode = NULL;
+    IXML_NodeList *nodeList = ixmlNode_getChildNodes( parent );
+    char *tmp = NULL;
+    
+    // name of node must be known
+    if (!childNodeName)
+        return NULL;
+    
+    if ( nodeList )
+    {
+        for (i = 0; i < ixmlNodeList_length(nodeList); i++)
+        {
+            if ( ( tmpNode = ixmlNodeList_item( nodeList, i ) ) )
+            {
+                if ((tmp = (char *)ixmlNode_getNodeName(tmpNode)) != NULL && (strcmp(tmp, childNodeName) == 0))
+                {
+                    // nodename matches, quit and return
+                    if ( nodeList ) ixmlNodeList_free( nodeList );
+                    return tmpNode;
+                }
+            }
+        }
+    }
+
+    if ( nodeList ) ixmlNodeList_free( nodeList );
+    return NULL;
 }
 
 
@@ -1411,4 +1449,154 @@ int ACL_removeRolesFromCP(IXML_Document *doc, const char *hash, const char *role
     }    
     
     return ACL_removeRolesFromRoleList(doc, tmpNode, roles);
+}
+
+
+
+
+//-----------------------------------------------------------------------------
+//
+//                      SIR xml handling (Session-User Relationship)
+//
+//-----------------------------------------------------------------------------
+/**
+ * Create empty SIR document containing only begin and end elments os SIR
+ *
+ * @return SIR IXML_Document
+ */
+IXML_Document *SIR_init()
+{
+    return ixmlParseBuffer("<SIR></SIR>");
+}
+
+
+/**
+ * Add new Session/Identity -pair into SIR. If session with same id already exist in SIR,
+ * old session element is removed, and new one with given values is inserted.
+ *
+ * <SIR>
+ *  <session id="7467363" active="1">
+ *      <identity>username</identity>
+ *  </session>
+ * </SIR>
+ *
+ * @param doc SIR IXML_Document
+ * @param id Session id. Value of id-attribute
+ * @param active Is session active. Value of active-attribute
+ * @param identity Value of identity element
+ * @return 0 on success, -1 else
+ */
+int SIR_addSession(IXML_Document *doc, int id, int active, const char *identity)
+{
+    IXML_Node *tmpNode = NULL;
+    char id_tmp[15];
+    int ret = 0;
+    
+    snprintf(id_tmp, 15, "%d", id);
+    
+    // Check that same session id doesn't already exist
+    tmpNode = GetNodeWithNameAndAttribute(doc, "session", "id", id_tmp);
+    if ( tmpNode != NULL )
+    {
+        // if session exist, remove old and create new node with new values
+        RemoveNode(tmpNode); 
+    } 
+
+    // create new element called "CP"
+    IXML_Element *sessionElement = ixmlDocument_createElement(doc, "session");
+    // set id-attribute
+    ixmlElement_setAttribute(sessionElement, "id", id_tmp);
+    
+    // set active-attribute
+    if (active)
+        ixmlElement_setAttribute(sessionElement, "active", "1");
+    else
+        ixmlElement_setAttribute(sessionElement, "active", "0");
+        
+    AddChildNode(doc, &sessionElement->n, "identity", identity);
+
+
+    IXML_NodeList *nodeList = NULL;
+    nodeList = ixmlDocument_getElementsByTagName( doc, "SIR" );
+
+    if ( nodeList )
+    {
+        if ( ( tmpNode = ixmlNodeList_item( nodeList, 0 ) ) )    
+            ixmlNode_appendChild(tmpNode, &sessionElement->n);
+        else
+            ret = -1;
+    }
+    
+    //fprintf(stderr,"\n\n\n%s\n",ixmlPrintDocument(doc));
+    if ( nodeList ) ixmlNodeList_free( nodeList ); 
+    return ret;
+}
+
+
+/**
+ * Remove Session with given id from SIR.
+ *
+ * @param doc SIR IXML_Document
+ * @param id Session id. Value of id-attribute
+ * @return 0 on success, -1 else
+ */
+int SIR_removeSession(IXML_Document *doc, int id)
+{
+    IXML_Node *tmpNode = NULL;
+    char id_tmp[15];
+    
+    snprintf(id_tmp, 15, "%d", id);
+    
+    // Check that same session id doesn't already exist
+    tmpNode = GetNodeWithNameAndAttribute(doc, "session", "id", id_tmp);
+    if ( tmpNode != NULL )
+    {
+        return RemoveNode(tmpNode); 
+    }
+    
+    // there's no session with that id at all
+    return 0; 
+}
+
+
+/**
+ * Get identity correspondign given session id
+ *
+ * <SIR>
+ *  <session id="7467363" active="1">
+ *      <identity>username</identity>
+ *  </session>
+ * </SIR>
+ *
+ * @param doc SIR IXML_Document
+ * @param id Session id. Value of id-attribute
+ * @param active Pointer to integer where value of "active" attribute is inserted 0 or 1
+ * @return Identity or NULL
+ */
+char *SIR_getIdentityOfSession(IXML_Document *doc, int id, int *active)
+{
+    IXML_Node *tmpNode = NULL;
+    char id_tmp[15];
+    char *act = NULL;
+    
+    // initial presumption is that session is not active
+    *active = 0;
+    
+    snprintf(id_tmp, 15, "%d", id);
+    // Check that same session id doesn't already exist
+    tmpNode = GetNodeWithNameAndAttribute(doc, "session", "id", id_tmp);
+    if ( tmpNode != NULL )
+    {
+        // set value of active. Is session still active, or has user logged out
+        act = GetAttributeValueOfNode(tmpNode, "active");
+        if ( strcmp(act, "1") == 0 )
+            *active = 1;
+        
+        // get value of childnode "identity"
+        tmpNode = GetChildNodeWithName(tmpNode, "identity");
+        if ( tmpNode != NULL )
+            return GetTextValueOfNode(tmpNode); 
+    } 
+    
+    return NULL;
 }
