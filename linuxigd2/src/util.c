@@ -1486,16 +1486,13 @@ IXML_Document *SIR_init()
  * @param identity Value of identity element
  * @return 0 on success, -1 else
  */
-int SIR_addSession(IXML_Document *doc, int id, int active, const char *identity)
+int SIR_addSession(IXML_Document *doc, char *id, int active, const char *identity)
 {
     IXML_Node *tmpNode = NULL;
-    char id_tmp[15];
     int ret = 0;
     
-    snprintf(id_tmp, 15, "%d", id);
-    
     // Check that same session id doesn't already exist
-    tmpNode = GetNodeWithNameAndAttribute(doc, "session", "id", id_tmp);
+    tmpNode = GetNodeWithNameAndAttribute(doc, "session", "id", id);
     if ( tmpNode != NULL )
     {
         // if session exist, remove old and create new node with new values
@@ -1505,7 +1502,7 @@ int SIR_addSession(IXML_Document *doc, int id, int active, const char *identity)
     // create new element called "CP"
     IXML_Element *sessionElement = ixmlDocument_createElement(doc, "session");
     // set id-attribute
-    ixmlElement_setAttribute(sessionElement, "id", id_tmp);
+    ixmlElement_setAttribute(sessionElement, "id", id);
     
     // set active-attribute
     if (active)
@@ -1540,15 +1537,12 @@ int SIR_addSession(IXML_Document *doc, int id, int active, const char *identity)
  * @param id Session id. Value of id-attribute
  * @return 0 on success, -1 else
  */
-int SIR_removeSession(IXML_Document *doc, int id)
+int SIR_removeSession(IXML_Document *doc, char *id)
 {
     IXML_Node *tmpNode = NULL;
-    char id_tmp[15];
-    
-    snprintf(id_tmp, 15, "%d", id);
     
     // Check that same session id doesn't already exist
-    tmpNode = GetNodeWithNameAndAttribute(doc, "session", "id", id_tmp);
+    tmpNode = GetNodeWithNameAndAttribute(doc, "session", "id", id);
     if ( tmpNode != NULL )
     {
         return RemoveNode(tmpNode); 
@@ -1573,18 +1567,16 @@ int SIR_removeSession(IXML_Document *doc, int id)
  * @param active Pointer to integer where value of "active" attribute is inserted 0 or 1
  * @return Identity or NULL
  */
-char *SIR_getIdentityOfSession(IXML_Document *doc, int id, int *active)
+char *SIR_getIdentityOfSession(IXML_Document *doc, char *id, int *active)
 {
     IXML_Node *tmpNode = NULL;
-    char id_tmp[15];
     char *act = NULL;
     
     // initial presumption is that session is not active
     *active = 0;
     
-    snprintf(id_tmp, 15, "%d", id);
     // Check that same session id doesn't already exist
-    tmpNode = GetNodeWithNameAndAttribute(doc, "session", "id", id_tmp);
+    tmpNode = GetNodeWithNameAndAttribute(doc, "session", "id", id);
     if ( tmpNode != NULL )
     {
         // set value of active. Is session still active, or has user logged out
