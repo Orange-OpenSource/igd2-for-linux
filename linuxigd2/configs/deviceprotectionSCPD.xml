@@ -11,17 +11,17 @@
       <name>SendSetupMessage</name> 
       <argumentList>
         <argument>
-          <name>NewProtocolType</name> 
+          <name>ProtocolType</name> 
           <direction>in</direction> 
           <relatedStateVariable>A_ARG_TYPE_string</relatedStateVariable> 
         </argument>
         <argument>
-          <name>NewInMessage</name> 
+          <name>InMessage</name> 
           <direction>in</direction> 
           <relatedStateVariable>A_ARG_TYPE_base64</relatedStateVariable> 
         </argument>
         <argument>
-          <name>NewOutMessage</name> 
+          <name>OutMessage</name> 
           <direction>out</direction> 
           <relatedStateVariable>A_ARG_TYPE_base64</relatedStateVariable> 
         </argument>        

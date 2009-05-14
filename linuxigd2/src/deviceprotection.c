@@ -58,13 +58,25 @@ static IXML_Document *ACLDoc = NULL;
 /*
  * Document containing SSL session and username relationship. This in only for internal use of LinuxIGD.
  * Identity is either username or 20 bytes of certificate hash. It is trusted that no-one will never-ever
- * use username that could be some certificates hash.
+ * use username that could be some certificates hash. Value of identity corresponds in ACL to value of
+ * "Name" under "User" or "Hash" under "CP" 
  * Active attribute tells if session is currentlyt used. If value is 0, it can be later used in session
- * resumption
+ * resumption.
+ * 
+ * Session may also contain data associated for user login process. Device must know what username/
+ * accountname CP wishes to login and value of challenge which was send to CP. Because its certificate
+ * is only somesort of unique identifer of Control point, SIR is only reasonable place to store these
+ * values.
+ * Value of "name" corresponds to the first word in passwordfile.
+ * After UserLogin and UserLogout logindata is removed. 
  *
  * <SIR>
  *  <session id="AHHuendfn372jsuGDS==" active="1">
  *      <identity>username</identity>
+ *      <logindata>
+ *          <name>Admin</name>
+ *          <challenge>83h83288J7YGHGS778jsJJHGDn=</challenge>
+ *      </logindata>
  *  </session>
  * </SIR>
  */
@@ -769,12 +781,12 @@ int SendSetupMessage(struct Upnp_Action_Request *ca_event)
     char *inmessage = NULL;
     char curr_addr[INET6_ADDRSTRLEN];
     
-    if ((protocoltype = GetFirstDocumentItem(ca_event->ActionRequest, "NewProtocolType")) &&
-            (inmessage = GetFirstDocumentItem(ca_event->ActionRequest, "NewInMessage")))
+    if ((protocoltype = GetFirstDocumentItem(ca_event->ActionRequest, "ProtocolType")) &&
+            (inmessage = GetFirstDocumentItem(ca_event->ActionRequest, "InMessage")))
     {    
         if (strcmp(protocoltype, "DeviceProtection:1") != 0)
         {
-            trace(1, "Introduction protocol type must be DeviceProtection:1: Invalid NewProtocolType=%s\n",protocoltype);
+            trace(1, "Introduction protocol type must be DeviceProtection:1: Invalid ProtocolType=%s\n",protocoltype);
             result = 703;
             addErrorData(ca_event, result, "Unknown Protocol Type");       
         } 
@@ -833,7 +845,7 @@ int SendSetupMessage(struct Upnp_Action_Request *ca_event)
         trace(3,"Send response for SendSetupMessage request\n");
         
         ca_event->ErrCode = UPNP_E_SUCCESS;
-        snprintf(resultStr, RESULT_LEN, "<u:%sResponse xmlns:u=\"%s\">\n<NewOutMessage>%s</NewOutMessage>\n</u:%sResponse>",
+        snprintf(resultStr, RESULT_LEN, "<u:%sResponse xmlns:u=\"%s\">\n<OutMessage>%s</OutMessage>\n</u:%sResponse>",
                  ca_event->ActionName, DP_SERVICE_TYPE, pB64Msg, ca_event->ActionName);
         ca_event->ActionResult = ixmlParseBuffer(resultStr);
         if (pB64Msg) free(pB64Msg);     
@@ -892,14 +904,6 @@ int GetUserLoginChallenge(struct Upnp_Action_Request *ca_event)
     char *name = NULL;
     char *nameUPPER = NULL;
     char *passwd = NULL;
-    
-    // check if connection was made over SSL    
-    if (ca_event->SSLSession == NULL)
-    {
-        trace(1, "GetUserLoginChallenge: Connection wasn't made over SSL, terminating...");
-        addErrorData(ca_event, 501, "Action Failed");
-        return ca_event->ErrCode;
-    }
 
     
     if ( (algorithm = GetFirstDocumentItem(ca_event->ActionRequest, "Algorithm") )
@@ -961,6 +965,26 @@ int GetUserLoginChallenge(struct Upnp_Action_Request *ca_event)
  */
 int UserLogin(struct Upnp_Action_Request *ca_event)
 {
+    int result = 0;
+    char *challenge = NULL;
+    char *authenticator = NULL;
+
+    
+    if ( (challenge = GetFirstDocumentItem(ca_event->ActionRequest, "Challenge") )
+            && (authenticator = GetFirstDocumentItem(ca_event->ActionRequest, "Authenticator") ))
+    {
+ 
+    }
+
+    else
+    {
+        trace(1, "Failure in %s: Invalid Arguments!",ca_event->ActionName);
+        addErrorData(ca_event, 402, "Invalid Args");
+    }
+    
+    if (challenge) free(challenge);
+    if (authenticator) free(authenticator);
+    
     return ca_event->ErrCode;
 }
 
