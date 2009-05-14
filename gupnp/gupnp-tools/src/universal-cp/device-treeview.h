@@ -34,6 +34,9 @@ find_device             (GtkTreeModel              *model,
 GUPnPDeviceInfo *
 get_service_device      (GUPnPServiceInfo          *service_info);
 
+GUPnPDeviceInfo *
+get_selected_device_info (void);
+
 void
 remove_device           (GUPnPDeviceInfo           *info);
 
@@ -44,7 +47,7 @@ void
 setup_device_treeview   (GladeXML                   *glade_xml);
 
 GUPnPServiceProxy *
-get_selected_service    (void);
+get_selected_service    (guint *icon_type);
 
 GUPnPServiceActionInfo *
 get_selected_action     (GUPnPServiceProxy         **ret_proxy,

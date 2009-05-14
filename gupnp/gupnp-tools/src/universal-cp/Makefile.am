@@ -16,12 +16,14 @@ gupnp_universal_cp_SOURCES = main.c \
 			     details-treeview.c \
 			     event-treeview.c \
 			     action-dialog.c \
+			     wps-dialog.c \
 			     main.h \
 			     gui.h \
 			     device-treeview.h \
 			     details-treeview.h \
 			     event-treeview.h \
-			     action-dialog.h
+			     action-dialog.h \
+			     wps-dialog.h
 gupnp_universal_cp_LDADD = $(LIBGLADE_LIBS) $(LIBGUPNP_LIBS) $(GTHREAD_LIBS) \
 		    	   ../common/libicons.a
 gupnp_universal_cp_LDFLAGS = -export-dynamic

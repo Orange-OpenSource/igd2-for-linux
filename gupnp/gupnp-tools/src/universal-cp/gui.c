@@ -26,6 +26,7 @@
 #include "device-treeview.h"
 #include "event-treeview.h"
 #include "action-dialog.h"
+#include "wps-dialog.h"
 #include "icons.h"
 #include "main.h"
 
@@ -145,6 +146,7 @@ init_ui (gint   *argc,
         init_icons ();
         setup_treeviews ();
         init_action_dialog (glade_xml);
+        init_wps_dialog(glade_xml);
 
         gtk_widget_show_all (main_window);
 
@@ -167,6 +169,7 @@ deinit_ui (void)
         g_object_unref (glade_xml);
         gtk_widget_destroy (main_window);
         deinit_action_dialog ();
+        deinit_wps_dialog ();
         deinit_icons ();
 }
 

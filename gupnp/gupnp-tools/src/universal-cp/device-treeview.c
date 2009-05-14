@@ -37,6 +37,7 @@ static GtkWidget *treeview;
 static GtkWidget *popup;
 static GtkWidget *subscribe_menuitem;
 static GtkWidget *action_menuitem;
+static GtkWidget *wps_setup_menuitem;
 static GtkWidget *separator;
 
 static gboolean   expanded;
@@ -116,48 +117,116 @@ get_service_device (GUPnPServiceInfo *service_info)
        return info;
 }
 
+GUPnPDeviceInfo *
+get_selected_device_info (void)
+{
+        GtkTreeModel      *model;
+	    GtkTreeSelection  *selection;
+        GtkTreeIter       iter;
+        GUPnPDeviceInfo *info;
+
+	    model = gtk_tree_view_get_model (GTK_TREE_VIEW (treeview));
+	    g_assert (model != NULL);
+
+	    selection = gtk_tree_view_get_selection (GTK_TREE_VIEW (treeview));
+	    g_assert (selection != NULL);
+
+	    if (gtk_tree_selection_get_selected	(selection, &model, &iter)) {
+	        guint icon_type;
+
+	        gtk_tree_model_get (model, &iter, 5, &icon_type, -1);
+
+	        if (icon_type == ICON_DEVICE) {
+	        	gtk_tree_model_get (model, &iter, 2, &info, -1);
+	        }
+	    }
+	    return info;
+}
+
 static void
 setup_device_popup (GtkWidget *popup)
 {
         GUPnPServiceProxy *proxy;
+        GUPnPServiceActionInfo *action;
+        guint icon_type;
 
-        /* See if a service is selected */
-        proxy = get_selected_service ();
-        if (proxy != NULL) {
-                g_object_set (subscribe_menuitem,
-                              "visible",
-                              TRUE,
-                              "active",
-                              gupnp_service_proxy_get_subscribed (proxy),
-                              NULL);
+        /* See which icon is selected */
+        proxy = get_selected_service (&icon_type);
+        if (icon_type == ICON_DEVICE) {
+        	g_object_set (wps_setup_menuitem,
+                          "visible",
+                          TRUE,
+                          NULL);
+            g_object_set (subscribe_menuitem,
+                          "visible",
+                          FALSE,
+                          NULL);
+            g_object_set (action_menuitem,
+                          "visible",
+                          FALSE,
+                          NULL);
+            proxy=NULL;
 
-                g_object_set (action_menuitem,
-                              "visible",
-                              FALSE,
-                              NULL);
+		} else if (icon_type == ICON_SERVICE) {
+            g_object_set (subscribe_menuitem,
+                          "visible",
+                          TRUE,
+                          "active",
+                          gupnp_service_proxy_get_subscribed (proxy),
+                          NULL);
+
+            g_object_set (action_menuitem,
+                          "visible",
+                          FALSE,
+                          NULL);
+            g_object_set (wps_setup_menuitem,
+                          "visible",
+                          FALSE,
+                          NULL);
+            proxy=NULL;
+
+		} else if (icon_type == ICON_ACTION) {
+            //GUPnPServiceActionInfo *action;
+
+            g_object_set (subscribe_menuitem,
+                          "visible",
+                          FALSE,
+                          NULL);
+
+            /* See if an action is selected */
+            action = get_selected_action (NULL, NULL);
+            g_object_set (action_menuitem,
+                          "visible",
+                          action != NULL,
+                          NULL);
+            g_object_set (wps_setup_menuitem,
+                          "visible",
+                          FALSE,
+                          NULL);
         } else {
-                GUPnPServiceActionInfo *action;
-
-                g_object_set (subscribe_menuitem,
-                              "visible",
-                              FALSE,
-                              NULL);
-
-                /* See if an action is selected */
-                action = get_selected_action (NULL, NULL);
-                g_object_set (action_menuitem,
-                              "visible",
-                              action != NULL,
-                              NULL);
+        	// menuitems invisible
+            g_object_set (wps_setup_menuitem,
+                          "visible",
+                          FALSE,
+                          NULL);
+            g_object_set (subscribe_menuitem,
+                          "visible",
+                          FALSE,
+                          NULL);
+            g_object_set (action_menuitem,
+                          "visible",
+                          FALSE,
+                          NULL);
         }
 
-        /* Separator should be visible only if either service or action row is
+         /* Separator should be visible only if either device or service or action row is
          * selected
          */
         g_object_set (separator,
                       "visible",
                       (proxy != NULL),
                       NULL);
+
         if (proxy)
                 g_object_unref (proxy);
 }
@@ -189,9 +258,10 @@ on_device_treeview_row_activate (GtkMenuItem *menuitem,
 {
         GUPnPServiceProxy         *proxy;
         GUPnPServiceIntrospection *introspection;
+        guint icon_type;
 
         /* See if a service is selected */
-        proxy = get_selected_service ();
+        proxy = get_selected_service (&icon_type);
         if (proxy != NULL) {
                 gboolean subscribed;
 
@@ -681,6 +751,9 @@ setup_device_treeview (GladeXML *glade_xml)
         g_assert (subscribe_menuitem != NULL);
         action_menuitem = glade_xml_get_widget (glade_xml, "invoke-action");
         g_assert (action_menuitem != NULL);
+        wps_setup_menuitem = glade_xml_get_widget (glade_xml,
+                                                   "start_wps_setup1");
+        g_assert (wps_setup_menuitem != NULL);
         separator = glade_xml_get_widget (glade_xml, "device-popup-separator");
         g_assert (separator != NULL);
 
@@ -708,7 +781,7 @@ setup_device_treeview (GladeXML *glade_xml)
 }
 
 GUPnPServiceProxy *
-get_selected_service (void)
+get_selected_service (guint *icon_type)
 {
         GUPnPServiceProxy *proxy = NULL;
         GtkTreeModel      *model;
@@ -721,13 +794,11 @@ get_selected_service (void)
         g_assert (selection != NULL);
 
         if (gtk_tree_selection_get_selected (selection, &model, &iter)) {
-                guint icon_type;
-
                 gtk_tree_model_get (model, &iter,
                                     2, &proxy,
-                                    5, &icon_type, -1);
+                                    5, icon_type, -1);
 
-                if (icon_type != ICON_SERVICE)
+                if (*icon_type != ICON_SERVICE)
                         proxy = NULL;
         }
 
