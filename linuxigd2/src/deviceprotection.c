@@ -39,6 +39,8 @@ static int createUserLoginChallengeResponse(struct Upnp_Action_Request *ca_event
 static int getValuesFromPasswdFile(const char *nameUPPER, unsigned char **b64_salt, int *salt_len, unsigned char **b64_stored, int *stored_len, int max_size);
 static int putValuesToPasswdFile(const char *name, const unsigned char *b64_salt, const unsigned char *b64_stored);
 static int updateValuesToPasswdFile(const char *nameUPPER, const unsigned char *b64_salt, const unsigned char *b64_stored, int delete_values);
+static int getIdentifierOfCP(struct Upnp_Action_Request *ca_event, unsigned char **b64_identifier, int b64len);
+
 
 // WPS state machine related stuff
 static WPSuEnrolleeSM* esm;
@@ -61,7 +63,7 @@ static IXML_Document *ACLDoc = NULL;
  * resumption
  *
  * <SIR>
- *  <session id="7467363" active="1">
+ *  <session id="AHHuendfn372jsuGDS==" active="1">
  *      <identity>username</identity>
  *  </session>
  * </SIR>
@@ -103,14 +105,53 @@ void DPStateTableInit()
 
 
 /**
- * Update username,salt,stored values in password file.
- * Username and values can also be removed totally from file by putting delete_values as 1.
+ * Check if CP which send given action has required role to initiate this action.
+ * First creates control point identifier based on certificate of control point. 
+ * Second get username (or certificate hash) associated with identifier created previously (from SIR).
+ * Third check if username (or hash) has desired role associated to (from ACL).
  * 
  * @param ca_event Upnp event struct.
  * @param targetRole Rolename that control point or user should have registerd in ACL
  * @return 0 if rolename is found and everything is ok, 1 if CP doesn't have privileges. Something else if error
  */
 int checkCPPrivileges(struct Upnp_Action_Request *ca_event, const char *targetRole)
+{
+    int ret, b64len=0;
+    unsigned char *b64_identifier;
+    
+    // get identity of CP (base64 of 20 first bytes of sha-256(CP certificate))
+    ret = getIdentifierOfCP(ca_event, &b64_identifier, b64len);
+    if (ret != 0 )
+    {
+        return ret;
+    } 
+    
+    // 4. fetch current identity of CP from SIR. Identity may be username or hash of certificate (== b64_identity)
+    int active;
+    char *identity = SIR_getIdentityOfSession(SIRDoc, (char *)b64_identifier, &active);
+    if (identity == NULL)
+        return -1;
+     
+    // 5. check if target role is one of current roles of identity
+    if ( ACL_doesIdentityHasRole(ACLDoc, identity, targetRole) )
+        return 0;
+    
+    return 1;
+}
+
+
+/**
+ * Get identity identifier of Control point based on certificate of Control Point.
+ * Identifier is created like this:
+ *  1. create sha-256 hash from CP certificate
+ *  2. create base64 encoded string from 20 first bytes of previously created hash
+ * 
+ * @param ca_event Upnp event struct.
+ * @param b64_identifier Pointer to unsigned char* where identifier is created. Caller should use free() for this.
+ * @param b64len Length of created base64 identifier
+ * @return 0 if succeeded to create identifier. Something else if error
+ */
+static int getIdentifierOfCP(struct Upnp_Action_Request *ca_event, unsigned char **b64_identifier, int b64len)
 {
     int ret;
     int cert_size = 1000;
@@ -133,23 +174,49 @@ int checkCPPrivileges(struct Upnp_Action_Request *ca_event, const char *targetRo
     // 3. create base64 from 20 first bytes of hash
     int identitylen = 20;
     int maxb64len = 2*identitylen; 
-    int b64len = 0;        
-    unsigned char *b64_identity = (unsigned char *)malloc(maxb64len);
-    wpsu_bin_to_base64(identitylen, hash, &b64len, b64_identity, maxb64len);      
+    b64len = 0;        
+    *b64_identifier = (unsigned char *)malloc(maxb64len);
+    wpsu_bin_to_base64(identitylen, hash, &b64len, *b64_identifier, maxb64len);
     
-    // 4. fetch current identity of CP from SIR. Identity may be username or hash of certificate (== b64_identity)
-    int active;
-    char *identity = SIR_getIdentityOfSession(SIRDoc, (char *)b64_identity, &active);
-    if (identity == NULL)
-        return -1;
-     
-    // 5. check if target role is one of current roles of identity
-    if ( ACL_doesIdentityHasRole(ACLDoc, identity, targetRole) )
-        return 0;
-    
-    return 1;
+    return 0;
 }
 
+
+/**
+ * Get list of roles associated with SSL session used for sending given action.
+ * 
+ * @param ca_event Upnp event struct.
+ * @param roles Pointer to char* where roles are put.
+ * @return 0 if succeeded to fetch roles. Something else if error
+ */
+static int getRolesOfSession(struct Upnp_Action_Request *ca_event, char **roles)
+{
+    int ret, b64len=0;
+    unsigned char *b64_identifier;
+    
+    // 1. get identifier of CP (base64 of 20 first bytes of sha-256(CP certificate))
+    ret = getIdentifierOfCP(ca_event, &b64_identifier, b64len);
+    if (ret != 0 )
+    {
+        return ret;
+    } 
+    
+    // 2. fetch current identity of CP from SIR. Identity may be username or hash of certificate (== b64_identity)
+    int active;
+    char *identity = SIR_getIdentityOfSession(SIRDoc, (char *)b64_identifier, &active);
+    if (identity == NULL)
+        return -1;
+    
+    // 3. get roles from ACL associated with identity fetched from SIR    
+    *roles = ACL_getRolesOfUser(ACLDoc, identity);
+    if (*roles == NULL)
+        // is identity hash
+        *roles = ACL_getRolesOfCP(ACLDoc, identity);
+    if (*roles == NULL)
+        return -1;
+        
+    return 0;
+}
 
 /**
  * Initialize DeviceProtection. Create input data and state machine for WPS
@@ -1100,7 +1167,37 @@ int RemoveRolesForIdentity(struct Upnp_Action_Request *ca_event)
  * @return Upnp error code.
  */
 int GetCurrentRoles(struct Upnp_Action_Request *ca_event)
-{
+{    
+    char *roles = NULL;
+    int ret;
+    
+    ret = getRolesOfSession(ca_event, &roles);
+    IXML_Document *ActionResult = NULL;
+    
+    if (ret == 0 && roles)
+    {
+        ActionResult = UpnpMakeActionResponse(ca_event->ActionName, DP_SERVICE_TYPE,
+                                        1,
+                                        "RoleList", roles);
+    }
+    else
+    {
+        trace(1, "Error getting roles of session");
+        addErrorData(ca_event, 501, "Action Failed");
+        return ca_event->ErrCode;
+    }    
+                                    
+    if (ActionResult)
+    {
+        ca_event->ActionResult = ActionResult;
+        ca_event->ErrCode = UPNP_E_SUCCESS;        
+    }
+    else
+    {
+        trace(1, "Error parsing Response to GetCurrentRoles");
+        addErrorData(ca_event, 501, "Action Failed");
+    }
+
     return ca_event->ErrCode;
 }
 

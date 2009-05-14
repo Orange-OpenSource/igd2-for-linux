@@ -136,15 +136,10 @@
       <name>GetCurrentRoles</name> 
       <argumentList>
         <argument>
-          <name>Identity</name> 
-          <direction>in</direction> 
-          <relatedStateVariable>A_ARG_TYPE_string</relatedStateVariable> 
-        </argument>
-        <argument>
           <name>RoleList</name> 
-          <direction>in</direction> 
+          <direction>out</direction> 
           <relatedStateVariable>A_ARG_TYPE_string</relatedStateVariable> 
-        </argument>       
+        </argument>     
       </argumentList>
     </action>
     <action>

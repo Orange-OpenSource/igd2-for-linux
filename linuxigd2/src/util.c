@@ -1511,7 +1511,7 @@ IXML_Document *SIR_init()
  * old session element is removed, and new one with given values is inserted.
  *
  * <SIR>
- *  <session id="7467363" active="1">
+ *  <session id="AHHuendfn372jsuGDS==" active="1">
  *      <identity>username</identity>
  *  </session>
  * </SIR>
@@ -1590,10 +1590,11 @@ int SIR_removeSession(IXML_Document *doc, char *id)
 
 
 /**
- * Get identity correspondign given session id
+ * Get identity correspondign given id where id means 
+ * base64 of 20 first bytes of sha-256(CP certificate)
  *
  * <SIR>
- *  <session id="7467363" active="1">
+ *  <session id="AHHuendfn372jsuGDS==" active="1">
  *      <identity>username</identity>
  *  </session>
  * </SIR>
