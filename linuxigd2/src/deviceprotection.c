@@ -89,6 +89,8 @@ void DPStateTableInit()
         exit(1);
     }
     
+    //fprintf(stderr,"\n\n\n%s\n",ixmlPrintDocument(ACLDoc));
+    
     // session-user relationships are stored in this
     SIRDoc = SIR_init();
     if (SIRDoc == NULL)
@@ -1014,6 +1016,8 @@ int AddRolesForIdentity(struct Upnp_Action_Request *ca_event)
     if (identity) free(identity);
     if (rolelist) free(rolelist);
     
+    //fprintf(stderr,"\n\n\n%s\n",ixmlPrintDocument(ACLDoc));
+    
     return ca_event->ErrCode;
 }
 
@@ -1083,6 +1087,8 @@ int RemoveRolesForIdentity(struct Upnp_Action_Request *ca_event)
   
     if (identity) free(identity);
     if (rolelist) free(rolelist);
+    
+    //fprintf(stderr,"\n\n\n%s\n",ixmlPrintDocument(ACLDoc));
     
     return ca_event->ErrCode;
 }

@@ -257,61 +257,15 @@ int HandleActionRequest(struct Upnp_Action_Request *ca_event)
     ithread_mutex_lock(&DevMutex);
     trace(3, "ActionName = %s", ca_event->ActionName);
 
-    /*
-     * Get rolename for action from accesslevel.xml
-     * If role is "Public", everybody can use action.
-     * If Role is Basic or Admin, SSL is required
-     */
-    char *accessLevel = NULL;
-    accessLevel = getAccessLevel(ca_event->ActionName,0);
-    
-    if (accessLevel == NULL)
+    // check if CP is authorized to use this action.
+    // checking managed flag is left to action itself
+    if ( (result = AuthorizeControlPoint(ca_event, 0)) != 0 )
     {
-        trace(1,"%s is not listed in accesslevel.xml",ca_event->ActionName);
-        result = InvalidAction(ca_event);
-
-        ithread_mutex_unlock(&DevMutex);
-        return result;
+        // TODO Remember to remove these from commments!!!!!
+        //ithread_mutex_unlock(&DevMutex);
+        //return result;        
     }
-
-    if ( (strcmp(accessLevel, "Basic") == 0) || (strcmp(accessLevel, "Admin") == 0) )
-    {
-        // is SSL used for connection
-        if (ca_event->SSLSession == NULL)
-        {
-            // SSL must be used
-            trace(1, "%s: SSL connection must be used for this",ca_event->ActionName);
-            result = 701;
-            addErrorData(ca_event, result, "Authentication Failure");
-            
-            ithread_mutex_unlock(&DevMutex);
-            return result;                
-        }
-        
-        // check that CP has right privileges
-        if ( (result = checkCPPrivileges(ca_event, accessLevel)) == 1 )
-        {
-            // CP doesn't have privileges for this
-            trace(1, "%s: Not enough privileges to do this, '%s' is required",ca_event->ActionName, accessLevel);
-            result = 702;
-            addErrorData(ca_event, result, "Authorization Failure");
-            
-            ithread_mutex_unlock(&DevMutex);
-            return result;        
-        }
-        else if (result != 0)
-        {
-            trace(1,"Failed to get Control Point privileges");
-            result = 501;
-            addErrorData(ca_event, result, "Action Failed");
     
-            ithread_mutex_unlock(&DevMutex);
-            return result;            
-        }
-    }   
-    
-    // if we get here all should be in order, except if manage flag is used... 
-    // But that is left to action itself to check
 
     if (strcmp(ca_event->DevUDN, gateUDN) == 0)
     {
@@ -937,7 +891,7 @@ int AddPortMapping(struct Upnp_Action_Request *ca_event)
     {
         // If ext_port or int_port is <1024 control point needs to be authorized
         if ((atoi(ext_port) < 1024 || atoi(int_port) < 1024 || !ControlPointIP_equals_InternalClientIP(int_ip, &ca_event->CtrlPtIPAddr))
-             && AuthorizeControlPoint(ca_event) != CONTROL_POINT_AUTHORIZED)
+             && AuthorizeControlPoint(ca_event, 1) != CONTROL_POINT_AUTHORIZED)
         {
             trace(1, "Port numbers must be greater than 1023 and NewInternalClient must be same as IP of Control point \
 unless control port is authorized. external_port:%s, internal_port:%s internal_client:%s",
@@ -1066,7 +1020,7 @@ int AddAnyPortMapping(struct Upnp_Action_Request *ca_event)
 
         // If ext_port or int_port is <1024 control point needs to be authorized
         if ((atoi(new_external_port) < 1024 || atoi(new_internal_port) < 1024 || !ControlPointIP_equals_InternalClientIP(new_internal_client, &ca_event->CtrlPtIPAddr))
-             && AuthorizeControlPoint(ca_event) != CONTROL_POINT_AUTHORIZED)
+             && AuthorizeControlPoint(ca_event, 1) != CONTROL_POINT_AUTHORIZED)
         {
             trace(1, "Port numbers must be greater than 1023 and NewInternalClient must be same as IP of Control point \
 unless control port is authorized. external_port:%s, internal_port:%s internal_client:%s",
@@ -1199,7 +1153,7 @@ int GetGenericPortMappingEntry(struct Upnp_Action_Request *ca_event)
     int authorized = 0;
 
     //check if authorized
-    if (AuthorizeControlPoint(ca_event) == CONTROL_POINT_AUTHORIZED)
+    if (AuthorizeControlPoint(ca_event, 1) == CONTROL_POINT_AUTHORIZED)
     {
         authorized = 1;
     }
@@ -1277,7 +1231,7 @@ int GetSpecificPortMappingEntry(struct Upnp_Action_Request *ca_event)
     int authorized = 0;
 
     //check if authorized
-    if (AuthorizeControlPoint(ca_event) == CONTROL_POINT_AUTHORIZED)
+    if (AuthorizeControlPoint(ca_event, 1) == CONTROL_POINT_AUTHORIZED)
     {
         authorized = 1;
     }
@@ -1418,7 +1372,7 @@ int DeletePortMapping(struct Upnp_Action_Request *ca_event)
             if ((strcmp(remote_host, "") == 0) || (inet_addr(remote_host) != -1))
             {
                 temp = pmlist_FindSpecific(remote_host, ext_port, proto);
-                if (temp && (AuthorizeControlPoint(ca_event) == CONTROL_POINT_AUTHORIZED || ControlPointIP_equals_InternalClientIP(temp->m_InternalClient, &ca_event->CtrlPtIPAddr)))
+                if (temp && (AuthorizeControlPoint(ca_event, 1) == CONTROL_POINT_AUTHORIZED || ControlPointIP_equals_InternalClientIP(temp->m_InternalClient, &ca_event->CtrlPtIPAddr)))
                 {
                     result = pmlist_Delete(temp);
                 }
@@ -1511,7 +1465,7 @@ int DeletePortMappingRange(struct Upnp_Action_Request *ca_event)
     ca_event->ErrCode = UPNP_E_SUCCESS;
 
     //check if authorized
-    if (AuthorizeControlPoint(ca_event) == CONTROL_POINT_AUTHORIZED)
+    if (AuthorizeControlPoint(ca_event, 1) == CONTROL_POINT_AUTHORIZED)
         authorized = 1;
 
     if ((start_port = GetFirstDocumentItem(ca_event->ActionRequest, "NewStartPort")) &&
@@ -1657,7 +1611,7 @@ int GetListOfPortmappings(struct Upnp_Action_Request *ca_event)
                 max_entries = INT_MAX;
     
             // If manage is not true or CP is not authorized, list only CP's port mappings
-            if ( !resolveBoolean(manage) || !AuthorizeControlPoint(ca_event) == CONTROL_POINT_AUTHORIZED )
+            if ( !resolveBoolean(manage) || !AuthorizeControlPoint(ca_event, 1) == CONTROL_POINT_AUTHORIZED )
                 inet_ntop(AF_INET, &ca_event->CtrlPtIPAddr, cp_ip, INET_ADDRSTRLEN);
     
             // Write XML header
@@ -2167,20 +2121,66 @@ int AddNewPortMapping(struct Upnp_Action_Request *ca_event, char* new_enabled, i
 
 /**
  * Checks if control point is authorized
- * NOT YET IMPLEMENTED!
+ * If not, inserts error data in Upnp_Action_Request-struct.
  * 
  * @param ca_event Upnp_Action_Request struct.
- * @return Is authorized
+ * @param managed Is accessLevelManage or accessLevel used from accesslevel.xml
+ * @return UPnP error code or 0 if CP is authorized
  */
-int AuthorizeControlPoint(struct Upnp_Action_Request *ca_event)
+int AuthorizeControlPoint(struct Upnp_Action_Request *ca_event, int managed)
 {
-    char *accessLevel;
-    accessLevel = getAccessLevel(ca_event->ActionName,0);
+    int result;
+    /*
+     * Get rolename for action from accesslevel.xml
+     * If role is "Public", everybody can use action.
+     * If Role is Basic or Admin, SSL is required
+     */
+    char *accessLevel = NULL;
+    accessLevel = getAccessLevel(ca_event->ActionName,managed);
     
-    trace(3, "ACCESS LEVEL of %s is %s\n",ca_event->ActionName,accessLevel);
+    if (accessLevel == NULL)
+    {
+        trace(1,"%s is not listed in accesslevel.xml",ca_event->ActionName);
+        result = InvalidAction(ca_event);
+
+        return result;
+    }
+
+    // if accesslevel is something else than public then, require SSL
+    if ( strcmp(accessLevel, "Public") != 0 )
+    {
+        // is SSL used for connection
+        if (ca_event->SSLSession == NULL)
+        {
+            // SSL must be used
+            trace(1, "%s: SSL connection must be used for this",ca_event->ActionName);
+            result = 701;
+            addErrorData(ca_event, result, "Authentication Failure");
+
+            return result;                
+        }
+        
+        // check that CP has right privileges
+        if ( (result = checkCPPrivileges(ca_event, accessLevel)) == 1 )
+        {
+            // CP doesn't have privileges for this
+            trace(1, "%s: Not enough privileges to do this, '%s' is required",ca_event->ActionName, accessLevel);
+            result = 702;
+            addErrorData(ca_event, result, "Authorization Failure");
+
+            return result;        
+        }
+        else if (result != 0)
+        {
+            trace(1,"Failed to get Control Point privileges");
+            result = 501;
+            addErrorData(ca_event, result, "Action Failed");
+
+            return result;            
+        }
+    }       
     
-    if (accessLevel) free(accessLevel);
-    //return CONTROL_POINT_AUTHORIZED;
-    return 0;
+    // Control point should be authorized
+    return CONTROL_POINT_AUTHORIZED;
 }
 

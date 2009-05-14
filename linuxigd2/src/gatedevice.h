@@ -89,7 +89,7 @@ int DeletePortMappingRange(struct Upnp_Action_Request *ca_event);
 int AddAnyPortMapping(struct Upnp_Action_Request *ca_event);
 int GetListOfPortmappings(struct Upnp_Action_Request *ca_event);
 int ForceTermination(struct Upnp_Action_Request *ca_event);
-int AuthorizeControlPoint(struct Upnp_Action_Request *ca_event);
+int AuthorizeControlPoint(struct Upnp_Action_Request *ca_event, int managed);
 
 // WANEthernetLinkConfig Actions
 int GetEthernetLinkStatus (struct Upnp_Action_Request *ca_event);
@@ -118,6 +118,6 @@ int ConnectionStatusEventing(IXML_Document *propSet);
 
 
 // Definition for authorizing control point
-#define CONTROL_POINT_AUTHORIZED    1
+#define CONTROL_POINT_AUTHORIZED    0
 
 #endif //_GATEDEVICE_H
