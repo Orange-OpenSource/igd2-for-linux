@@ -99,7 +99,7 @@ gupnp_device_proxy_begin_wps (GUPnPDeviceProxy           *proxy,
 
 GUPnPDeviceProxyWps *
 gupnp_device_proxy_continue_wps (GUPnPDeviceProxyWps        *wps,
-                                 GString                     pin,
+                                 GString                    *pin,
                                  gpointer                    user_data);
 
 void
