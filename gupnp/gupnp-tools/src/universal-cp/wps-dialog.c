@@ -57,7 +57,7 @@ continue_wps_cb (GUPnPDeviceProxy    *proxy,
 	gchar *device_name="";
 	//gchar *device_pin="";
 
-	init_wps_dialog_fields();
+	//init_wps_dialog_fields();
 	// TODO: miten M1,M2,M4...Done vaiheet erotellaan?
     //gtk_progress_bar_pulse (GTK_PROGRESS_BAR(wps_dialog_progressbar));
     gtk_entry_set_text (GTK_ENTRY (wps_dialog_name_entry), device_name);
@@ -107,11 +107,8 @@ wps_dialog_push_button(GtkToggleButton *button,
 void
 init_wps_dialog_fields (void)
 {
-	gchar *device_name="";
-	gchar *device_pin="";
-
-    gtk_entry_set_text (GTK_ENTRY(wps_dialog_name_entry), device_name);
-    gtk_entry_set_text (GTK_ENTRY(wps_dialog_pin_entry), device_pin);
+    gtk_entry_set_text (GTK_ENTRY(wps_dialog_name_entry), "");
+    gtk_entry_set_text (GTK_ENTRY(wps_dialog_pin_entry), "");
 }
 
 void

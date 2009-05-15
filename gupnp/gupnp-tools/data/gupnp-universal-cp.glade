@@ -287,7 +287,7 @@ Inspired by Intel Tools for UPnP.</property>
       </widget>
     </child>
     <child>
-      <widget class="GtkSeparatorMenuItem" id="separator7">
+      <widget class="GtkSeparatorMenuItem" id="expand-collapse-separator">
         <property name="visible">True</property>
       </widget>
     </child>

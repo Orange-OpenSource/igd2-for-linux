@@ -38,7 +38,8 @@ static GtkWidget *popup;
 static GtkWidget *subscribe_menuitem;
 static GtkWidget *action_menuitem;
 static GtkWidget *wps_setup_menuitem;
-static GtkWidget *separator;
+static GtkWidget *device_separator;
+static GtkWidget *expand_collapse_separator;
 
 static gboolean   expanded;
 
@@ -147,7 +148,6 @@ static void
 setup_device_popup (GtkWidget *popup)
 {
         GUPnPServiceProxy *proxy;
-        GUPnPServiceActionInfo *action;
         guint icon_type;
 
         /* See which icon is selected */
@@ -165,16 +165,11 @@ setup_device_popup (GtkWidget *popup)
                           "visible",
                           FALSE,
                           NULL);
-            proxy=NULL;
-
 		} else if (icon_type == ICON_SERVICE) {
             g_object_set (subscribe_menuitem,
                           "visible",
                           TRUE,
-                          "active",
-                          gupnp_service_proxy_get_subscribed (proxy),
                           NULL);
-
             g_object_set (action_menuitem,
                           "visible",
                           FALSE,
@@ -183,28 +178,20 @@ setup_device_popup (GtkWidget *popup)
                           "visible",
                           FALSE,
                           NULL);
-            proxy=NULL;
-
 		} else if (icon_type == ICON_ACTION) {
-            //GUPnPServiceActionInfo *action;
-
+            g_object_set (action_menuitem,
+                          "visible",
+                          TRUE,
+                          NULL);
             g_object_set (subscribe_menuitem,
                           "visible",
                           FALSE,
-                          NULL);
-
-            /* See if an action is selected */
-            action = get_selected_action (NULL, NULL);
-            g_object_set (action_menuitem,
-                          "visible",
-                          action != NULL,
                           NULL);
             g_object_set (wps_setup_menuitem,
                           "visible",
                           FALSE,
                           NULL);
         } else {
-        	// menuitems invisible
             g_object_set (wps_setup_menuitem,
                           "visible",
                           FALSE,
@@ -219,16 +206,26 @@ setup_device_popup (GtkWidget *popup)
                           NULL);
         }
 
-         /* Separator should be visible only if either device or service or action row is
-         * selected
-         */
-        g_object_set (separator,
-                      "visible",
-                      (proxy != NULL),
-                      NULL);
-
-        if (proxy)
-                g_object_unref (proxy);
+        // Separators visibility checking
+        if ((icon_type == ICON_DEVICE) || (icon_type == ICON_SERVICE) || (icon_type == ICON_ACTION)) {
+            g_object_set (expand_collapse_separator,
+                          "visible",
+                          TRUE,
+                          NULL);
+            g_object_set (device_separator,
+                          "visible",
+                          FALSE,
+                          NULL);
+        } else {
+            g_object_set (expand_collapse_separator,
+                          "visible",
+                          FALSE,
+                          NULL);
+            g_object_set (device_separator,
+                          "visible",
+                          FALSE,
+                          NULL);
+        }
 }
 
 gboolean
@@ -754,8 +751,11 @@ setup_device_treeview (GladeXML *glade_xml)
         wps_setup_menuitem = glade_xml_get_widget (glade_xml,
                                                    "start_wps_setup1");
         g_assert (wps_setup_menuitem != NULL);
-        separator = glade_xml_get_widget (glade_xml, "device-popup-separator");
-        g_assert (separator != NULL);
+        device_separator = glade_xml_get_widget (glade_xml, "device-popup-separator");
+        g_assert (device_separator != NULL);
+
+        expand_collapse_separator = glade_xml_get_widget (glade_xml, "expand-collapse-separator");
+        g_assert (expand_collapse_separator != NULL);
 
         model = create_device_treemodel ();
         g_assert (model != NULL);
