@@ -86,11 +86,14 @@ typedef struct _GUPnPDeviceProxyWps GUPnPDeviceProxyWps;
  **/
 typedef void (* GUPnPDeviceProxyWpsCallback) (
                                      GUPnPDeviceProxy    *proxy,
+                                     GString             *name,
                                      GUPnPDeviceProxyWps *wps,
+                                     GError             **error,
                                      gpointer             user_data);
 
 GUPnPDeviceProxyWps *
 gupnp_device_proxy_begin_wps (GUPnPDeviceProxy           *proxy,
+                              GString                    *client_name,
                               GUPnPDeviceProxyWpsCallback callback,
                               gpointer                    user_data);
 
