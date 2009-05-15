@@ -203,6 +203,14 @@ wps_got_response (GUPnPServiceProxy       *proxy,
                                  &wps->wpsu_registrar_send_msg_len,
                                  &status, &err);
 
+        int maxb64len = 2 * wps->wpsu_registrar_send_msg_len;
+        int b64len;
+        unsigned char *base64msg = (unsigned char *)malloc(maxb64len);
+        g_warning("2");
+
+        wpsu_bin_to_base64(wps->wpsu_registrar_send_msg_len, wps->wpsu_registrar_send_msg, &b64len, base64msg, maxb64len);
+        g_warning("3");
+
         switch (status)
         {
         case WPSU_SM_R_SUCCESS:
@@ -212,18 +220,18 @@ wps_got_response (GUPnPServiceProxy       *proxy,
 
         case WPSU_SM_R_SUCCESSINFO:
                 g_warning("DeviceProtection introduction last message received M2D!\n");
-
+                g_warning("Message: %s", base64msg);
                 // Send last ack, TODO: change callback, we don't want to process the response
                 gupnp_service_proxy_begin_action(wps->device_prot_service,
                                                  "SendSetupMessage",
-                                                 wps_got_response,
+                                                 wps_got_response_null,
                                                  wps,
                                                  "ProtocolType",
                                                  G_TYPE_STRING,
                                                  "DeviceProtection:1",
                                                  "InMessage",
                                                  G_TYPE_STRING,
-                                                 wps->wpsu_registrar_send_msg,
+                                                 base64msg,
                                                  NULL);
 
                 WPSuRegistrarOutput *smOutput;
@@ -346,6 +354,7 @@ gupnp_device_proxy_begin_wps (GUPnPDeviceProxy           *proxy,
         wps->wpsu_rsm = wpsu_create_registrar_sm_enrollment(&error);
         wpsu_start_registrar_sm(wps->wpsu_rsm, &wps->wpsu_input, &error);
 
+        g_warning("wps: initial message");
         gupnp_service_proxy_begin_action(wps->device_prot_service,
                                          "SendSetupMessage",
                                          wps_got_response,
