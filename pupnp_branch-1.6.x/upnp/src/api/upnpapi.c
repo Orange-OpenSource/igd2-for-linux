@@ -410,14 +410,15 @@ int UpnpStartHttpsServer( IN unsigned short port,
  *  IN gnutls_session_t session: SSL session
  *  OUT unsigned char *data    :  Certificate is returned in DER format here
  *  INOUT int *data_size         :  Pointer to integer which represents length of certificate 
+ *  OUT char **CN                ;  Pointer to string where Common Name value from peer certificate is put. If NULL this is ignored. 
  * 
  * Returns:
  *  UPNP_E_SUCCESS on success, nonzero on failure. 
  *  upnps or gnutls error code if starting fails.
  *****************************************************************************/
-int UpnpGetClientCert(gnutls_session_t session, unsigned char *data, int *data_size)
+int UpnpGetClientCert(gnutls_session_t session, unsigned char *data, int *data_size, char **CN)
 {
-    return get_peer_certificate(session, data, data_size); 
+    return get_peer_certificate(session, data, data_size, CN); 
 }
 #endif
  /***************** end of UpnpGetClientCert ******************/

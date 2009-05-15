@@ -1093,7 +1093,9 @@ EXPORT_SPEC int UpnpGetClientCert(
     unsigned char *data, 
     /*! [inout] Size of certificate in bytes is returned here. 
        Incoming value must be how much space is reserved for data */
-    int *data_size);
+    int *data_size,
+    /*! [out] Common name value from Certificate is returned here. */
+    char **CN);
 
 
 /*!

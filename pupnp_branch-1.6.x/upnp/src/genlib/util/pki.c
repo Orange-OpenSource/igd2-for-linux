@@ -681,7 +681,8 @@ int validate_x509_certificate(const gnutls_x509_crt_t *crt, const char *hostname
 *   Parameters :
 *       IN gnutls_session_t session  ;  SSL session
 *       OUT unsigned char *data      ;  Certificate is returned in DER format here
-*       INOUT int *data_size           ;  Pointer to integer which represents length of certificate 
+*       INOUT int *data_size         ;  Pointer to integer which represents length of certificate
+*       OUT char **CN                ;  Pointer to string where Common Name value from peer certificate is put. If NULL this is ignored. 
 * 
 *   Description :   Export peer certificate to given parameter. When calling this
 *       data must have enough memory allocated and data_size must contain info
@@ -692,12 +693,12 @@ int validate_x509_certificate(const gnutls_x509_crt_t *crt, const char *hostname
 *
 *   Note :
 ************************************************************************/
-int get_peer_certificate(gnutls_session_t session, unsigned char *data, int *data_size)
+int get_peer_certificate(gnutls_session_t session, unsigned char *data, int *data_size, char **CN)
 {
     const gnutls_datum_t *cert_list;
     unsigned int cert_list_size;
     int ret;
-    gnutls_x509_crt_t cert;   
+    gnutls_x509_crt_t cert;
 
     if ((ret = gnutls_certificate_type_get (session)) != GNUTLS_CRT_X509)
     {
@@ -729,15 +730,31 @@ int get_peer_certificate(gnutls_session_t session, unsigned char *data, int *dat
     {
         UpnpPrintf( UPNP_CRITICAL, X509, __FILE__, __LINE__,
             "gnutls_x509_crt_import failed. %s \n", gnutls_strerror(ret) );
+        gnutls_x509_crt_deinit (cert);
         return ret;
     }
 
     // export certificate to data
-    ret = gnutls_x509_crt_export(cert, GNUTLS_X509_FMT_DER, data, data_size);
+    ret = gnutls_x509_crt_export(cert, GNUTLS_X509_FMT_DER, data, (size_t *)data_size);
     if (ret < 0) {
         UpnpPrintf( UPNP_CRITICAL, X509, __FILE__, __LINE__,
             "gnutls_x509_crt_export failed. %s \n", gnutls_strerror(ret) );
+        gnutls_x509_crt_deinit (cert);
         return ret;  
+    }
+     
+    // get Common name value from certificate
+    if (CN != NULL)
+    {
+        int CN_size = 50;
+        *CN = (char *)malloc(CN_size);
+        ret = gnutls_x509_crt_get_dn_by_oid (cert, GNUTLS_OID_X520_COMMON_NAME, 0, 0, *CN, (size_t *)&CN_size);
+        if (ret != 0) {
+            UpnpPrintf( UPNP_CRITICAL, X509, __FILE__, __LINE__,
+                "Failed to get certificates Common Name value\n");
+            gnutls_x509_crt_deinit (cert);
+            return ret; 
+        }
     }
      
     gnutls_x509_crt_deinit (cert);

@@ -158,6 +158,7 @@ int validate_x509_certificate(const gnutls_x509_crt_t *crt, const char *hostname
 *       IN gnutls_session_t session  ;  SSL session
 *       OUT unsigned char *data      ;  Certificate is returned in DER format here
 *       OUT int *data_size           ;  Pointer to integer which represents length of certificate 
+*       OUT char **CN                ;  Pointer to string where Common Name value from peer certificate is put. If NULL this is ignored. 
 * 
 *   Description :   Export peer certificate to given parameter. When calling this
 *       data must have enough memory allocated and data_size must contain info
@@ -168,6 +169,6 @@ int validate_x509_certificate(const gnutls_x509_crt_t *crt, const char *hostname
 *
 *   Note :
 ************************************************************************/
-int get_peer_certificate(gnutls_session_t session, unsigned char *data, int *data_size);
+int get_peer_certificate(gnutls_session_t session, unsigned char *data, int *data_size, char **CN);
 
 #endif /*PKI_H_*/
