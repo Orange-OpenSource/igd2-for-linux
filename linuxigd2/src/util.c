@@ -1509,20 +1509,33 @@ IXML_Document *SIR_init()
 /**
  * Add new Session/Identity -pair into SIR. If session with same id already exist in SIR,
  * old session element is removed, and new one with given values is inserted.
+ * Identity is current username or hash identifier created from client's certificate.
+ * 
+ * Logindata contains information received/send in GetUserLoginChallenge. "name" is username/
+ * role that CP wishes to login, "challenge" is value of challenge that device send for CP
+ * as response for GetUserLoginChallenge.
+ * 
+ * Id, challenge and identity (if hash) are base64 encoded strings.
  *
  * <SIR>
  *  <session id="AHHuendfn372jsuGDS==" active="1">
  *      <identity>username</identity>
+ *      <logindata>
+ *          <name>Admin</name>
+ *          <challenge>83h83288J7YGHGS778jsJJHGDn=</challenge>
+ *      </logindata>
  *  </session>
  * </SIR>
  *
  * @param doc SIR IXML_Document
- * @param id Session id. Value of id-attribute
+ * @param id Session identifier. (sha-256 of 20 first bytes of certificate). Value of id-attribute
  * @param active Is session active. Value of active-attribute
  * @param identity Value of identity element
+ * @param loginName Username or role that CP wishes to login. If this parameter is given, also loginChallenge must be given.
+ * @param loginChallenge Login challenge which was send to CP as challenge for this login attempt. If this parameter is given, also loginName must be given.
  * @return 0 on success, -1 else
  */
-int SIR_addSession(IXML_Document *doc, char *id, int active, const char *identity)
+int SIR_addSession(IXML_Document *doc, const char *id, int active, const char *identity, const char *loginName, const char *loginChallenge)
 {
     IXML_Node *tmpNode = NULL;
     int ret = 0;
@@ -1535,7 +1548,7 @@ int SIR_addSession(IXML_Document *doc, char *id, int active, const char *identit
         RemoveNode(tmpNode); 
     } 
 
-    // create new element called "CP"
+    // create new element called "session"
     IXML_Element *sessionElement = ixmlDocument_createElement(doc, "session");
     // set id-attribute
     ixmlElement_setAttribute(sessionElement, "id", id);
@@ -1545,10 +1558,25 @@ int SIR_addSession(IXML_Document *doc, char *id, int active, const char *identit
         ixmlElement_setAttribute(sessionElement, "active", "1");
     else
         ixmlElement_setAttribute(sessionElement, "active", "0");
-        
+    
+    // add identity element        
     AddChildNode(doc, &sessionElement->n, "identity", identity);
 
+    
+    // create logindata element
+    if (loginName && loginChallenge)
+    {
+        // create new element called "logindata"
+        IXML_Element *logindataElement = ixmlDocument_createElement(doc, "logindata");
+        AddChildNode(doc, &logindataElement->n, "name", loginName);
+        AddChildNode(doc, &logindataElement->n, "challenge", loginChallenge); 
+        
+        // add logindata as child of session
+        ixmlNode_appendChild(&sessionElement->n, &logindataElement->n);
+    }
+    
 
+    // add session to SIR
     IXML_NodeList *nodeList = NULL;
     nodeList = ixmlDocument_getElementsByTagName( doc, "SIR" );
 
@@ -1612,7 +1640,7 @@ char *SIR_getIdentityOfSession(IXML_Document *doc, char *id, int *active)
     // initial presumption is that session is not active
     *active = 0;
     
-    // Check that same session id doesn't already exist
+    // Check that session id does exist
     tmpNode = GetNodeWithNameAndAttribute(doc, "session", "id", id);
     if ( tmpNode != NULL )
     {
@@ -1628,4 +1656,55 @@ char *SIR_getIdentityOfSession(IXML_Document *doc, char *id, int *active)
     } 
     
     return NULL;
+}
+
+
+/**
+ * Get login data from session with given identifier id.
+ *
+ * <SIR>
+ *  <session id="AHHuendfn372jsuGDS==" active="1">
+ *      <identity>username</identity>
+ *      <logindata>
+ *          <name>Admin</name>
+ *          <challenge>83h83288J7YGHGS778jsJJHGDn=</challenge>
+ *      </logindata>
+ *  </session>
+ * </SIR>
+ *
+ * @param doc SIR IXML_Document
+ * @param id Session id. Value of id-attribute
+ * @param loginName Pointer to string where value of "name" of logindata  is inserted
+ * @param loginChallenge Pointer to string where value of "challenge" of logindata  is inserted
+ * @return 0 on success, negative value else.
+ */
+int SIR_getLoginDataOfSession(IXML_Document *doc, char *id, char **loginName, char **loginChallenge)
+{
+    IXML_Node *tmpNode = NULL;
+    
+    // Check that session id does exist
+    tmpNode = GetNodeWithNameAndAttribute(doc, "session", "id", id);
+    if ( tmpNode == NULL )
+        return -1;
+    
+    // get logindata element
+    tmpNode = GetChildNodeWithName(tmpNode, "logindata");
+    if ( tmpNode == NULL )
+        return -2;    
+    
+    // get name element
+    tmpNode = GetChildNodeWithName(tmpNode, "name");
+    if ( tmpNode == NULL )
+        return -3;    
+    // get value of "name"
+    *loginName = GetTextValueOfNode(tmpNode);
+    
+    // get challenge element
+    tmpNode = GetSiblingWithTagName(tmpNode, "challenge");
+    if ( tmpNode == NULL )
+        return -4;    
+    // get value of "name"
+    *loginChallenge = GetTextValueOfNode(tmpNode);
+    
+    return 0;
 }

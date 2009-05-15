@@ -76,8 +76,9 @@ int ACL_removeRolesFromCP(IXML_Document *doc, const char *hash, const char *role
 
 // SIR handling stuff
 IXML_Document *SIR_init();
-int SIR_addSession(IXML_Document *doc, char *id, int active, const char *identity);
+int SIR_addSession(IXML_Document *doc, const char *id, int active, const char *identity, const char *loginName, const char *loginChallenge);
 int SIR_removeSession(IXML_Document *doc, char *id);
 char *SIR_getIdentityOfSession(IXML_Document *doc, char *id, int *active);
+int SIR_getLoginDataOfSession(IXML_Document *doc, char *id, char **loginName, char **loginChallenge);
 
 #endif //_UTIL_H_
