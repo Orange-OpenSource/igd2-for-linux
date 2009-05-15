@@ -43,7 +43,10 @@ begin_wps_dialog (void)
         deviceProxy = GUPNP_DEVICE_PROXY (info);
         g_assert (deviceProxy != NULL);
 
+        GString *cp_name = g_string_new("Universal Control Point");
+
         deviceProxyWps = gupnp_device_proxy_begin_wps (deviceProxy,
+                                                       cp_name,
             	                                       continue_wps_cb,
             		                                   wps_user_data);
 }
