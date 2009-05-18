@@ -14,7 +14,9 @@
 
 void
 continue_wps_cb (GUPnPDeviceProxy    *proxy,
+                 GString             *name,
                  GUPnPDeviceProxyWps *wps,
+                 GError             **error,
                  gpointer             user_data);
 
 void

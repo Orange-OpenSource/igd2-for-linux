@@ -23,6 +23,8 @@ static GtkWidget *wps_dialog_pin_entry;
 static GtkWidget *wps_dialog_checkbutton;
 static GtkWidget *wps_dialog_progressbar;
 
+static GUPnPDeviceProxyWps *deviceProxyWps;
+
 void
 on_start_wps_setup_activate (GladeXML *glade_xml)
 {
@@ -35,7 +37,7 @@ begin_wps_dialog (void)
 	    GUPnPDeviceInfo *info;
 	    GUPnPDeviceProxy *deviceProxy;
 	    GUPnPDeviceProxyWps *deviceProxyWps;
-	    gpointer wps_user_data;
+	    gpointer wps_user_data=NULL;
 
 	    init_wps_dialog_fields();
 
@@ -49,60 +51,85 @@ begin_wps_dialog (void)
                                                        cp_name,
             	                                       continue_wps_cb,
             		                                   wps_user_data);
+        gtk_dialog_run (GTK_DIALOG (wps_dialog));
+        gtk_widget_hide (wps_dialog);
 }
 
 void
 continue_wps_cb (GUPnPDeviceProxy    *proxy,
+		         GString             *name,
                  GUPnPDeviceProxyWps *wps,
+                 GError             **error,
                  gpointer             user_data)
 {
 
-	gchar *device_name="";
-	//gchar *device_pin="";
+    if ((*error) != NULL) {
 
-	//init_wps_dialog_fields();
-	// TODO: miten M1,M2,M4...Done vaiheet erotellaan?
-    //gtk_progress_bar_pulse (GTK_PROGRESS_BAR(wps_dialog_progressbar));
-    gtk_entry_set_text (GTK_ENTRY (wps_dialog_name_entry), device_name);
+    	GtkWidget *error_dialog;
 
-    gtk_dialog_run (GTK_DIALOG (wps_dialog));
-    gtk_widget_hide (wps_dialog);
+        error_dialog = gtk_message_dialog_new (GTK_WINDOW (wps_dialog),
+                                               GTK_DIALOG_MODAL,
+                                               GTK_MESSAGE_ERROR,
+                                               GTK_BUTTONS_CLOSE,
+                                               "WPS setup failed.\n\nError %d: %s",
+                                               (*error)->code,
+                                               (*error)->message);
 
+        gtk_dialog_run (GTK_DIALOG (error_dialog));
+        gtk_widget_destroy (error_dialog);
+
+        gtk_widget_hide (wps_dialog);
+        g_error_free ((*error));
+
+	} else {
+		g_assert (wps_dialog_progressbar != NULL);
+		g_assert (wps_dialog_name_entry != NULL);
+		g_assert (name != NULL);
+	    gtk_progress_bar_pulse (GTK_PROGRESS_BAR(wps_dialog_progressbar));
+	    gtk_entry_set_text (GTK_ENTRY (wps_dialog_name_entry), name->str);
+	    deviceProxyWps = wps;
+
+    	GtkWidget *info_dialog;
+
+        info_dialog = gtk_message_dialog_new (GTK_WINDOW (wps_dialog),
+                                               GTK_DIALOG_MODAL,
+                                               GTK_MESSAGE_INFO,
+                                               GTK_BUTTONS_CLOSE,
+                                               "Successful WPS setup phase...");
+
+        gtk_dialog_run (GTK_DIALOG (info_dialog));
+        gtk_widget_destroy (info_dialog);
+        //gtk_widget_hide (wps_dialog);
+
+	}
 }
 
 void
 wps_invocation (void)
 {
 	const gchar *device_pin;
-    // GUPnPDeviceProxyWps *deviceProxyWps;
-    //gpointer wps_user_data;
+    gpointer wps_user_data=NULL;
 
     device_pin = gtk_entry_get_text (GTK_ENTRY(wps_dialog_pin_entry));
-    /*
+    GString *pin_to_device = g_string_new(device_pin);
+
     gupnp_device_proxy_continue_wps (deviceProxyWps,
-								     device_pin,
+    		                         pin_to_device,
 								     wps_user_data);
-*/
-    gtk_entry_set_text (GTK_ENTRY(wps_dialog_name_entry), device_pin);
-
-
-    //gtk_dialog_run (GTK_DIALOG (wps_dialog));
-	//gtk_widget_destroy (wps_dialog);
 }
 
 void
 wps_dialog_push_button(GtkToggleButton *button,
 					   gpointer   user_data)
 {
-    gchar *text="";
     gboolean togglebutton_active;
 
     togglebutton_active = gtk_toggle_button_get_active (button);
     if (togglebutton_active) {
-        gtk_entry_set_text (GTK_ENTRY(wps_dialog_pin_entry), text);
+        gtk_entry_set_text (GTK_ENTRY(wps_dialog_pin_entry), "");
 	    gtk_entry_set_editable (GTK_ENTRY(wps_dialog_pin_entry), FALSE);
     } else {
-        gtk_entry_set_text (GTK_ENTRY(wps_dialog_pin_entry), text);
+        gtk_entry_set_text (GTK_ENTRY(wps_dialog_pin_entry), "");
 	    gtk_entry_set_editable (GTK_ENTRY(wps_dialog_pin_entry), TRUE);
 	}
 }
@@ -112,6 +139,7 @@ init_wps_dialog_fields (void)
 {
     gtk_entry_set_text (GTK_ENTRY(wps_dialog_name_entry), "");
     gtk_entry_set_text (GTK_ENTRY(wps_dialog_pin_entry), "");
+    gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(wps_dialog_progressbar),0);
 }
 
 void
