@@ -39,6 +39,12 @@
 
 extern SOCKET gMiniServerStopSock;
 
+struct mserv_request_t {
+    int connfd;                 // connection handle
+    struct in_addr foreign_ip_addr;
+    unsigned short foreign_ip_port;
+};
+
 
 typedef struct MServerSockArray {
 	/* socket for listening for miniserver requests */

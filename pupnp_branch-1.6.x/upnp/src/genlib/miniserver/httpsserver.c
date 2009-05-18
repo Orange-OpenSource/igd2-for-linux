@@ -406,7 +406,8 @@ handle_https_request(void *args)
     int timeout = HTTP_DEFAULT_TIMEOUT;
     int ret;
     gnutls_session_t session;
-    SOCKET sock = ( SOCKET )args;
+    struct mserv_request_t *request = ( struct mserv_request_t * )args;
+    int sock = request->connfd;
     
     /* create session */
     session = initialize_tls_session();
@@ -440,7 +441,9 @@ handle_https_request(void *args)
     SOCKINFO info;
     info.tls_session = session;
     info.socket = sock;
-
+    info.foreign_ip_addr = request->foreign_ip_addr;
+    info.foreign_ip_port = request->foreign_ip_port;
+    
     // serve session until peer closes connection or corrupted data is received
     // should here be some sort of expiration time, if no bye is received?
     while (TRUE)
@@ -488,7 +491,8 @@ error_handler:
 
     gnutls_bye (session, GNUTLS_SHUT_WR);
     close (sock);
-    gnutls_deinit (session);       
+    gnutls_deinit (session);
+    free( request );
 }
 
 /************************************************************************
@@ -496,6 +500,7 @@ error_handler:
  *
  * Parameters:
  *  IN int sock - Socket Descriptor on which connection is accepted
+ *  IN struct sockaddr_in* clientAddr - Clients Address information
  *
  * Description:
  *  Initilize the thread pool to handle a request.
@@ -504,11 +509,28 @@ error_handler:
  * Return: void
  ************************************************************************/
 static UPNP_INLINE void
-schedule_https_request_job( IN SOCKET sock )
+schedule_https_request_job( IN SOCKET sock,
+                            IN struct sockaddr_in *clientAddr )
 {
+    struct mserv_request_t *request;
     ThreadPoolJob job;
+
+    request =
+        ( struct mserv_request_t * )
+        malloc( sizeof( struct mserv_request_t ) );
+    if( request == NULL ) {
+        UpnpPrintf( UPNP_INFO, MSERV, __FILE__, __LINE__,
+            "mserv (https) %d: out of memory\n", sock );
+        shutdown( sock, SD_BOTH );
+        UpnpCloseSocket( sock );
+        return;
+    }
+
+    request->connfd = sock;
+    request->foreign_ip_addr = clientAddr->sin_addr;
+    request->foreign_ip_port = ntohs( clientAddr->sin_port );
     
-    TPJobInit( &job, ( start_routine ) handle_https_request, ( void * ) sock );
+    TPJobInit( &job, ( start_routine ) handle_https_request, ( void * ) request );
     TPJobSetFreeFunction( &job, free_handle_https_request_arg );
     TPJobSetPriority( &job, MED_PRIORITY );
 
@@ -554,7 +576,7 @@ RunHttpsServer( SOCKET listen_sd )
         UpnpPrintf( UPNP_INFO, MSERV, __FILE__, __LINE__,
             "Https Connection: %s:%d\n",inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));
                     
-        schedule_https_request_job(sd);
+        schedule_https_request_job(sd, &addr);
     } 
 
     close (listen_sd);

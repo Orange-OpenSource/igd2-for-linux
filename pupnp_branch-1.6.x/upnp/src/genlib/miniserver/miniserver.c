@@ -71,11 +71,6 @@
 
 #define APPLICATION_LISTENING_PORT 49152
 
-struct mserv_request_t {
-    int connfd;                 // connection handle
-    struct in_addr foreign_ip_addr;
-    unsigned short foreign_ip_port;
-};
 
 typedef enum { MSERV_IDLE, MSERV_RUNNING, MSERV_STOPPING } MiniServerState;
 
