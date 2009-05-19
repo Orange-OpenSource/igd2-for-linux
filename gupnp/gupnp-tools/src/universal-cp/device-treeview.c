@@ -25,6 +25,7 @@
 #include "gui.h"
 #include "icons.h"
 #include "action-dialog.h"
+#include "statusbar.h"
 #include "details-treeview.h"
 #include "main.h"
 
@@ -293,6 +294,9 @@ on_something_selected (GtkTreeSelection *selection,
 
                 gtk_tree_model_get (model, &iter, 5, &icon_type, -1);
 
+                /* Statusbar message may only appear with device selection */
+                statusbar_update (FALSE);
+
                 /* We recognise things by how they look, don't we? */
                 if (icon_type == ICON_DEVICE) {
                         GUPnPDeviceInfo *info;
@@ -300,6 +304,7 @@ on_something_selected (GtkTreeSelection *selection,
                         gtk_tree_model_get (model, &iter, 2, &info, -1);
                         show_device_details (info);
                         g_object_unref (info);
+                        statusbar_update (TRUE);
                 } else if (icon_type == ICON_SERVICE) {
                         GUPnPServiceInfo *info;
 

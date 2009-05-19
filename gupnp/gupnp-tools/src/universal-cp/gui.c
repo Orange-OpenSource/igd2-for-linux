@@ -27,6 +27,7 @@
 #include "event-treeview.h"
 #include "action-dialog.h"
 #include "wps-dialog.h"
+#include "statusbar.h"
 #include "icons.h"
 #include "main.h"
 
@@ -145,8 +146,9 @@ init_ui (gint   *argc,
 
         init_icons ();
         setup_treeviews ();
+        setup_statusbar (glade_xml);
         init_action_dialog (glade_xml);
-        init_wps_dialog(glade_xml);
+        init_wps_dialog (glade_xml);
 
         gtk_widget_show_all (main_window);
 

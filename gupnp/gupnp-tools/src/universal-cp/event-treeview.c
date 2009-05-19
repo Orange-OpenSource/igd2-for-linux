@@ -23,7 +23,6 @@
 #include <config.h>
 
 #include "event-treeview.h"
-//#include "wps-dialog.h"
 #include "gui.h"
 
 #define MAX_VALUE_SIZE 128
@@ -358,14 +357,6 @@ create_event_treemodel (void)
 
         return GTK_TREE_MODEL (store);
 }
-
-/*
-void
-on_start_wps_setup_activate (GladeXML *glade_xml)
-{
-	begin_wps_dialog();
-}
-*/
 
 void
 setup_event_treeview (GladeXML *glade_xml)
