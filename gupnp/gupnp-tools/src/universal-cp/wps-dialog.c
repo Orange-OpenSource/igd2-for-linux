@@ -45,24 +45,24 @@ begin_wps_dialog (void)
         deviceProxy = GUPNP_DEVICE_PROXY (info);
         g_assert (deviceProxy != NULL);
 
-        GString *cp_name = g_string_new("Universal Control Point");
-
         deviceProxyWps = gupnp_device_proxy_begin_wps (deviceProxy,
-                                                       cp_name,
+                                                       GUPNP_DEVICE_WPS_METHOD_PIN,
+                                                       "Universal Control Point",
+                                                       "",
             	                                       continue_wps_cb,
-            		                                   wps_user_data);
+            		                               wps_user_data);
         gtk_dialog_run (GTK_DIALOG (wps_dialog));
         gtk_widget_hide (wps_dialog);
 }
 
 void
 continue_wps_cb (GUPnPDeviceProxy    *proxy,
-		         GString             *name,
                  GUPnPDeviceProxyWps *wps,
+                 GString             *device_name,
                  GError             **error,
                  gpointer             user_data)
 {
-
+    
     if ((*error) != NULL) {
 
     	GtkWidget *error_dialog;
@@ -80,28 +80,38 @@ continue_wps_cb (GUPnPDeviceProxy    *proxy,
 
         gtk_widget_hide (wps_dialog);
         g_error_free ((*error));
+        gupnp_device_proxy_end_wps(wps);
 
-	} else {
-		g_assert (wps_dialog_progressbar != NULL);
-		g_assert (wps_dialog_name_entry != NULL);
-		g_assert (name != NULL);
-	    gtk_progress_bar_pulse (GTK_PROGRESS_BAR(wps_dialog_progressbar));
-	    gtk_entry_set_text (GTK_ENTRY (wps_dialog_name_entry), name->str);
-	    deviceProxyWps = wps;
+        return;
+    }
+        
+    g_assert (wps_dialog_progressbar != NULL);
+    g_assert (wps_dialog_name_entry != NULL);
+    gtk_progress_bar_pulse (GTK_PROGRESS_BAR(wps_dialog_progressbar));
+    deviceProxyWps = wps;
+    
+    GtkWidget *info_dialog;
 
-    	GtkWidget *info_dialog;
+    info_dialog = gtk_message_dialog_new (GTK_WINDOW (wps_dialog),
+                                          GTK_DIALOG_MODAL,
+                                          GTK_MESSAGE_INFO,
+                                          GTK_BUTTONS_CLOSE,
+                                          "Successful WPS setup phase...");
 
-        info_dialog = gtk_message_dialog_new (GTK_WINDOW (wps_dialog),
-                                               GTK_DIALOG_MODAL,
-                                               GTK_MESSAGE_INFO,
-                                               GTK_BUTTONS_CLOSE,
-                                               "Successful WPS setup phase...");
+    gtk_dialog_run (GTK_DIALOG (info_dialog));
+    gtk_widget_destroy (info_dialog);
+    //gtk_widget_hide (wps_dialog);
 
-        gtk_dialog_run (GTK_DIALOG (info_dialog));
-        gtk_widget_destroy (info_dialog);
-        //gtk_widget_hide (wps_dialog);
-
-	}
+    if (gupnp_device_proxy_end_wps(wps))
+    {
+        // TODO: koko wps setup onnistuneesti läpi
+    }
+    else
+    {
+        // TODO: ei virhettä, mutta ei läpi asti -> nimi saatu
+        g_assert (device_name != NULL);
+        gtk_entry_set_text (GTK_ENTRY (wps_dialog_name_entry), device_name->str);
+    }
 }
 
 void
