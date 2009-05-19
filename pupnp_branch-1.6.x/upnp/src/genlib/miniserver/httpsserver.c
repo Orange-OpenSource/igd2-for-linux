@@ -395,15 +395,12 @@ free_handle_https_request_arg( void *args )
 static void 
 handle_https_request(void *args)
 {   
-    char buffer[MAX_BUF];
-    int bytes;
     int http_error_code = 0;
-    int ret_code;
     int major = 1;
     int minor = 1;
-    http_parser_t parser;
+    http_parser_t arser;
+    http_parser_t *parser = &arser;
     http_message_t *hmsg = NULL;
-    int timeout = HTTP_DEFAULT_TIMEOUT;
     int ret;
     gnutls_session_t session;
     struct mserv_request_t *request = ( struct mserv_request_t * )args;
@@ -415,7 +412,7 @@ handle_https_request(void *args)
     {
         UpnpPrintf( UPNP_CRITICAL, MSERV, __FILE__, __LINE__,
             "Error initialising tls session: %s\n", gnutls_strerror(( int )session) );
-        goto error_handler;        
+        goto ExitFunction;        
     }
 
     /* require that client provide a certificate */
@@ -428,7 +425,7 @@ handle_https_request(void *args)
     if (ret != GNUTLS_E_SUCCESS) {
         UpnpPrintf( UPNP_CRITICAL, MSERV, __FILE__, __LINE__,
             "Handshake has failed: %s\n", gnutls_strerror(ret) );
-        goto error_handler;
+        goto ExitFunction;
     }
 
     // TODO: what is hostname value?????????! Is this even needed?
@@ -443,45 +440,93 @@ handle_https_request(void *args)
     info.socket = sock;
     info.foreign_ip_addr = request->foreign_ip_addr;
     info.foreign_ip_port = request->foreign_ip_port;
-    
-    // serve session until peer closes connection or corrupted data is received
-    // should here be some sort of expiration time, if no bye is received?
-    while (TRUE)
-    {
-        memset (buffer, 0, MAX_BUF + 1);
-        bytes = gnutls_record_recv (session, buffer, MAX_BUF);
 
-        if (bytes == 0)
-        {
-            UpnpPrintf( UPNP_INFO, MSERV, __FILE__, __LINE__,
-                "Peer has closed the GNUTLS connection\n");
-            break;
-        }
-        else if (bytes < 0)
-        {
-            UpnpPrintf( UPNP_INFO, MSERV, __FILE__, __LINE__,
-                "Https Received corrupted data. Closing the connection.\n");
-            break;
-        }
-         else if (bytes > 0)
-        {                                              
-            if ( bytes > 0 && NULL == strstr( buffer, "ShutDown" )) /* if buf is ShutDown, then program is exiting */
-            {
-                ret_code = parseHttpMessage(buffer, bytes, &parser, HTTPMETHOD_UNKNOWN, &timeout, &http_error_code);
-                /* dispatch as normal http packet, which it is */
-                http_error_code = dispatch_request( &info, &parser );
-                if( http_error_code != 0 ) {
-                    goto error_handler;
-                }
-                http_error_code = 0;
-            }
-            else
+
+    // copy from http_RecvMessage
+    ret = UPNP_E_SUCCESS;
+    int line = 0;
+    parse_status_t status;
+    int num_read;
+    xboolean ok_on_close = FALSE;
+    char buf[MAX_BUF];
+
+    // init parser
+    parser_request_init(parser);
+
+    // this loop serves one SSL session
+    while (TRUE) {
+        memset (buf, 0, MAX_BUF + 1);
+        num_read = gnutls_record_recv (session, buf, MAX_BUF);
+        if (num_read > 0) {            
+            // got data        
+            
+            // if buf is ShutDown, then program is exiting
+            if ( strstr( buf, "ShutDown") != NULL )
                 break;
+                
+            status = parser_append(parser, buf, num_read);
+
+            if (status == PARSE_SUCCESS) {                
+                UpnpPrintf( UPNP_INFO, HTTP, __FILE__, __LINE__,
+                    "<<< (RECVD) <<<\n%s\n-----------------\n",
+                    parser->msg.msg.buf );
+                print_http_headers( &parser->msg );
+                if (parser->content_length > (unsigned int)g_maxContentLength) {
+                    http_error_code = HTTP_REQ_ENTITY_TOO_LARGE;
+                    line = __LINE__;
+                    ret = UPNP_E_OUTOF_BOUNDS;
+                    goto ExitFunction;
+                }
+                
+                
+                // whole message is parsed. Dispatch message
+                http_error_code = dispatch_request( &info, parser );
+                if( http_error_code != 0 ) {
+                    goto ExitFunction;
+                } 
+                
+                // init parser for next message              
+                parser_request_init(parser);
+                
+            } else if (status == PARSE_FAILURE) {
+                http_error_code = parser->http_error_code;
+                line = __LINE__;
+                ret = UPNP_E_BAD_HTTPMSG;
+                goto ExitFunction;
+            } else if (status == PARSE_INCOMPLETE_ENTITY) {
+                // read until close
+                ok_on_close = TRUE;
+            } else if (status == PARSE_CONTINUE_1) {
+                // Web post request.
+                line = __LINE__;
+                ret = PARSE_SUCCESS;
+                goto ExitFunction;
+            }
+        } else if (num_read == 0) {
+            //peer has closed connection
+            http_error_code = UPNP_E_SUCCESS;
+            UpnpPrintf( UPNP_INFO, HTTP, __FILE__, __LINE__,
+                    "(handle_https_request): Peer has closed SSL connection\n");            
+            goto ExitFunction;
+        } else {
+            // received corrupted data
+            http_error_code = parser->http_error_code;
+            line = __LINE__;
+            ret = num_read;
+            UpnpPrintf( UPNP_INFO, HTTP, __FILE__, __LINE__,
+                    "(handle_https_request): gnutls received sorrupted data\n");             
+            goto ExitFunction;
         }
     }
 
-error_handler:
-    if( http_error_code > 0 ) {
+
+ExitFunction:
+    if( http_error_code != UPNP_E_SUCCESS ) {
+        UpnpPrintf(UPNP_ALL, HTTP, __FILE__, line,
+            "(handle_https_request): Error %d, http_error_code = %d.\n",
+            ret,
+            http_error_code);
+                    
         if( hmsg ) {
             major = hmsg->major_version;
             minor = hmsg->minor_version;

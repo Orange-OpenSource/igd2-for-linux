@@ -1483,7 +1483,7 @@ UpnpInitClientSSL( IN const char *directory,
     }    
 
     // set callback function for returning client certificate. (in default case server says in 
-    // certificate request that who hs to be signer of cert. Our client may not be on that list)
+    // certificate request that who has to be the signer of cert. Our client may not be on that list)
     gnutls_certificate_client_set_retrieve_function(xcred, (gnutls_certificate_client_retrieve_function *)clientCertCallback);
     
     return UPNP_E_SUCCESS;     
