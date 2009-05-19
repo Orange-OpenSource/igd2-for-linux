@@ -50,6 +50,9 @@ gupnp_device_proxy_get_type (void) G_GNUC_CONST;
                  GUPNP_TYPE_DEVICE_PROXY, \
                  GUPnPDeviceProxyClass))
 
+#define GUPNP_DEVICE_WPS_METHOD_PIN             0x01
+#define GUPNP_DEVICE_WPS_METHOD_PUSHBUTTON      0x02
+
 typedef struct _GUPnPDeviceProxyPrivate GUPnPDeviceProxyPrivate;
 
 /**
@@ -86,21 +89,19 @@ typedef struct _GUPnPDeviceProxyWps GUPnPDeviceProxyWps;
  **/
 typedef void (* GUPnPDeviceProxyWpsCallback) (
                                      GUPnPDeviceProxy    *proxy,
-                                     GString             *name,
                                      GUPnPDeviceProxyWps *wps,
+                                     GString             *device_name,
                                      GError             **error,
                                      gpointer             user_data);
 
 GUPnPDeviceProxyWps *
-gupnp_device_proxy_begin_wps (GUPnPDeviceProxy           *proxy,
-                              GString                    *client_name,
-                              GUPnPDeviceProxyWpsCallback callback,
-                              gpointer                    user_data);
+gupnp_device_proxy_begin_wps(GUPnPDeviceProxy           *proxy,
+                             guint                       method,
+                             const gchar                *client_name,
+                             const gchar                *pin,
+                             GUPnPDeviceProxyWpsCallback callback,
+                             gpointer                    user_data);
 
-GUPnPDeviceProxyWps *
-gupnp_device_proxy_continue_wps (GUPnPDeviceProxyWps        *wps,
-                                 GString                    *pin,
-                                 gpointer                    user_data);
 
 void
 gupnp_device_proxy_cancel_wps (GUPnPDeviceProxyWps *wps);

@@ -52,6 +52,10 @@ struct _GUPnPDeviceProxyWps {
 
         GString *device_name;
         GString *client_name;
+        GString *pin;
+
+        guint    method;
+        gboolean done;
 
         // WPSutil structures
         WPSuRegistrarSM   *wpsu_rsm;
@@ -182,19 +186,19 @@ wps_got_response (GUPnPServiceProxy       *proxy,
         {
                 wps->error = error;
                 g_warning("Error: %s", wps->error->message);
-                wps->callback(wps->proxy, wps->device_name, wps, &wps->error, wps->user_data);
+                wps->callback(wps->proxy, wps, wps->device_name, &wps->error, wps->user_data);
                 return;
         }
 
         if (wps->error != NULL || out_message == NULL)
         {
                 g_warning("Error: %s", wps->error->message);
-                wps->callback(wps->proxy, wps->device_name, wps, &wps->error, wps->user_data);
+                wps->callback(wps->proxy, wps, wps->device_name, &wps->error, wps->user_data);
                 return;
         }
 
         int b64_msg_len = strlen(out_message);
-        unsigned char *binary_message=(unsigned char *)malloc(b64_msg_len);
+        unsigned char *binary_message=(unsigned char *)g_malloc(b64_msg_len);
         int outlen;
         wpsu_base64_to_bin (b64_msg_len, (const unsigned char *)out_message, &outlen, binary_message, b64_msg_len);
 
@@ -206,27 +210,27 @@ wps_got_response (GUPnPServiceProxy       *proxy,
 
         int maxb64len = 2 * wps->wpsu_registrar_send_msg_len;
         int b64len;
-        unsigned char *base64msg = (unsigned char *)malloc(maxb64len);
-        g_warning("2");
+        unsigned char *base64msg = (unsigned char *)g_malloc(maxb64len);
 
         wpsu_bin_to_base64(wps->wpsu_registrar_send_msg_len, wps->wpsu_registrar_send_msg, &b64len, base64msg, maxb64len);
-        g_warning("3");
 
         switch (status)
         {
         case WPSU_SM_R_SUCCESS:
                 g_warning("DeviceProtection introduction last message received!\n");
                 gupnp_service_proxy_begin_action(wps->device_prot_service,
-                                "SendSetupMessage",
-                                wps_got_response_null,
-                                wps,
-                                "ProtocolType",
-                                G_TYPE_STRING,
-                                "DeviceProtection:1",
-                                "InMessage",
-                                G_TYPE_STRING,
-                                base64msg,
-                                NULL);
+                                                 "SendSetupMessage",
+                                                 wps_got_response_null,
+                                                 wps,
+                                                 "ProtocolType",
+                                                 G_TYPE_STRING,
+                                                 "DeviceProtection:1",
+                                                 "InMessage",
+                                                 G_TYPE_STRING,
+                                                 base64msg,
+                                                 NULL);
+                wps->done = TRUE;
+                wps->callback(wps->proxy, wps, wps->device_name, &wps->error, wps->user_data);
                 break;
 
         case WPSU_SM_R_SUCCESSINFO:
@@ -250,12 +254,16 @@ wps_got_response (GUPnPServiceProxy       *proxy,
                 wps->device_name = g_string_new(smOutput->EnrolleeInfo.DeviceName);
 
                 g_warning("Device name: %s", wps->device_name->str);
-                wps->callback(wps->proxy, wps->device_name, wps, &wps->error, wps->user_data);
+                wps->callback(wps->proxy, wps, wps->device_name, &wps->error, wps->user_data);
 
                 break;
 
         case WPSU_SM_R_FAILURE:
-                g_warning("DeviceProtection introduction error in state machine. Terminating...\n");
+                wps->error = g_error_new(GUPNP_SERVER_ERROR,
+                                         GUPNP_SERVER_ERROR_OTHER,
+                                         "DeviceProtection introduction error in state machine. Terminating...");
+                g_warning("Error: %s", wps->error->message);
+
                 gupnp_service_proxy_begin_action(wps->device_prot_service,
                                 "SendSetupMessage",
                                 wps_got_response_null,
@@ -267,13 +275,18 @@ wps_got_response (GUPnPServiceProxy       *proxy,
                                 G_TYPE_STRING,
                                 base64msg,
                                 NULL);
+                wps->callback(wps->proxy, wps, wps->device_name, &wps->error, wps->user_data);
                 break;
 
         case WPSU_SM_R_FAILUREEXIT:
-                g_warning("DeviceProtection introduction error in state machine. Terminating...\n");
+                wps->error = g_error_new(GUPNP_SERVER_ERROR,
+                                         GUPNP_SERVER_ERROR_OTHER,
+                                         "DeviceProtection introduction error in state machine. Terminating...");
+                g_warning("Error: %s", wps->error->message);
 
+                wps->callback(wps->proxy, wps, wps->device_name, &wps->error, wps->user_data);
                 break;
-                
+
         default:
                 gupnp_service_proxy_begin_action(wps->device_prot_service,
                                 "SendSetupMessage",
@@ -289,7 +302,8 @@ wps_got_response (GUPnPServiceProxy       *proxy,
                 break;
         }
 
-        wps->callback(wps->proxy, wps->device_name, wps, &wps->error, wps->user_data);
+        g_free(binary_message);
+        g_free(base64msg);
 }
 
 GUPnPServiceProxy *
@@ -321,7 +335,9 @@ find_device_protection_service (GUPnPDeviceProxy *proxy)
 
 GUPnPDeviceProxyWps *
 gupnp_device_proxy_begin_wps (GUPnPDeviceProxy           *proxy,
-                              GString                    *client_name,
+                              guint                       method,
+                              const gchar                *client_name,
+                              const gchar                *pin,
                               GUPnPDeviceProxyWpsCallback callback,
                               gpointer                    user_data)
 {
@@ -339,7 +355,19 @@ gupnp_device_proxy_begin_wps (GUPnPDeviceProxy           *proxy,
         wps->user_data = user_data;
         wps->error = NULL;
         wps->device_prot_service = find_device_protection_service (proxy);
-        wps->client_name = g_string_new(client_name->str);
+        wps->client_name = g_string_new(client_name);
+        wps->pin = g_string_new(pin);
+        wps->method = method;
+        wps->done = FALSE;
+
+        if (wps->method == GUPNP_DEVICE_WPS_METHOD_PUSHBUTTON)
+        {
+                wps->error = g_error_new(GUPNP_SERVER_ERROR,
+                                         GUPNP_SERVER_ERROR_OTHER,
+                                         "Push button method not yet supported.");
+                g_warning("Error: %s", wps->error->message);
+                return wps;
+        }
 
         if (wps->device_prot_service == NULL)
         {
@@ -352,9 +380,9 @@ gupnp_device_proxy_begin_wps (GUPnPDeviceProxy           *proxy,
 
         strncpy((char *)wps->uuid, gupnp_device_info_get_udn (GUPNP_DEVICE_INFO (proxy)), WPSU_MAX_UUID_LEN);
         wps->uuid[WPSU_MAX_UUID_LEN-1] = 0;
-        // device pin null, we just want the device info for now
+
         error = wpsu_registrar_input_add_device_info (&wps->wpsu_input,
-                                                       "", //device_pin
+                                                       wps->pin->str, //device_pin
                                                        NULL,
                                                        NULL,
                                                        NULL,
@@ -383,9 +411,25 @@ gupnp_device_proxy_begin_wps (GUPnPDeviceProxy           *proxy,
         }
 
         wps->wpsu_rsm = wpsu_create_registrar_sm_enrollment(&error);
-        wpsu_start_registrar_sm(wps->wpsu_rsm, &wps->wpsu_input, &error);
+        if (error != WPSU_E_SUCCESS)
+        {
+                wps->error = g_error_new(GUPNP_SERVER_ERROR,
+                                         GUPNP_SERVER_ERROR_OTHER,
+                                         "Failed to create registrat state machine.");
+                g_warning("%s", wps->error->message);
+                return wps;
+        }
 
-        g_warning("wps: initial message");
+        wpsu_start_registrar_sm(wps->wpsu_rsm, &wps->wpsu_input, &error);
+        if (error != WPSU_E_SUCCESS)
+        {
+                wps->error = g_error_new(GUPNP_SERVER_ERROR,
+                                         GUPNP_SERVER_ERROR_OTHER,
+                                         "Failed to start registrar state machine.");
+                g_warning("%s", wps->error->message);
+                return wps;
+        }
+
         gupnp_service_proxy_begin_action(wps->device_prot_service,
                                          "SendSetupMessage",
                                          wps_got_response,
@@ -435,7 +479,7 @@ gupnp_device_proxy_continue_wps (GUPnPDeviceProxyWps        *wps,
                 g_warning("%s", wps->error->message);
                 return wps;
         }
-        
+
         gupnp_service_proxy_begin_action(wps->device_prot_service,
                                          "SendSetupMessage",
                                          wps_got_response,
@@ -454,13 +498,25 @@ gupnp_device_proxy_continue_wps (GUPnPDeviceProxyWps        *wps,
 void
 gupnp_device_proxy_cancel_wps (GUPnPDeviceProxyWps *wps)
 {
-        // TODO: abort wps setup
+        g_warning("Canceling wps setup not yet supported.");
 }
 
 gboolean
 gupnp_device_proxy_end_wps (GUPnPDeviceProxyWps *wps)
 {
         // TODO: end wps setup
+        gint err;
 
-        return TRUE;
+        gboolean done = wps->done;
+        g_object_unref(wps->proxy);
+        g_string_free(wps->client_name, TRUE);
+        g_string_free(wps->pin, TRUE);
+        //g_string_free(wps->device_name, TRUE);
+
+        wpsu_registrar_input_free(&wps->wpsu_input);
+        wpsu_cleanup_registrar_sm(wps->wpsu_rsm, &err);
+
+        g_free(wps);
+
+        return done;
 }
