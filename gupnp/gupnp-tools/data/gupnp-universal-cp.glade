@@ -54,7 +54,7 @@
                   <widget class="GtkMenu" id="connection_menuitem_menu">
                     <child>
                       <widget class="GtkMenuItem" id="start_wps_setup">
-                        <property name="visible">True</property>
+                        <property name="events">GDK_STRUCTURE_MASK | GDK_VISIBILITY_NOTIFY_MASK</property>
                         <property name="label" translatable="yes">Start wps setup</property>
                         <property name="use_underline">True</property>
                         <signal name="activate" handler="on_start_wps_setup_activate"/>
@@ -761,7 +761,7 @@ Inspired by Intel Tools for UPnP.</property>
         <child>
           <widget class="GtkProgressBar" id="wps-dialog-progressbar">
             <property name="visible">True</property>
-            <property name="activity_mode">True</property>
+            <property name="discrete_blocks">9</property>
           </widget>
           <packing>
             <property name="position">2</property>
