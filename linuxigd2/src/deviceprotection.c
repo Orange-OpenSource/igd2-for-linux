@@ -40,7 +40,7 @@ static int getValuesFromPasswdFile(const char *nameUPPER, unsigned char **b64_sa
 static int putValuesToPasswdFile(const char *name, const unsigned char *b64_salt, const unsigned char *b64_stored);
 static int updateValuesToPasswdFile(const char *nameUPPER, const unsigned char *b64_salt, const unsigned char *b64_stored, int delete_values);
 static int getIdentifierOfCP(struct Upnp_Action_Request *ca_event, unsigned char **b64_identifier, int *b64len, char **CN);
-
+static int createAuthenticator(const char *b64_stored, const char *b64_challenge, char **b64_authenticator, int *auth_len);
 
 // WPS state machine related stuff
 static WPSuEnrolleeSM* esm;
@@ -48,8 +48,8 @@ static unsigned char* Enrollee_send_msg;
 static int Enrollee_send_msg_len;
 static WPSuStationInput input;
 
-// address of control point which is executin introduction process
-static char prev_addr[INET6_ADDRSTRLEN];
+// identifer of control point which is executing introduction process
+static unsigned char prev_CP_id[40];
 
 // Access Control List
 static IXML_Document *ACLDoc = NULL;
@@ -113,6 +113,20 @@ void DPStateTableInit()
         UpnpFinish();
         exit(1);
     }
+
+/*    
+    char *auth1 = NULL;
+    int len1;
+    int ret = createAuthenticator("8mVU1FdwuTMgOKDGxe0Ftr4yWMk=","83h83288J7YGHGS778jsJJHGDn=",&auth1,&len1);
+    
+    printf("RET: %d %d\n%s\n",ret,len1,auth1);
+
+    char *auth2 = NULL;
+    int len2;    
+    ret = createAuthenticator("8mVU1FdwuTMgOKDGxe0Ftr4yWMk=","83h83288J7YGHGS778jsJJHGDn=",&auth2,&len2);
+    
+    printf("RET: %d %d\n%s\n",ret,len2,auth2);
+    */
 }
 
 
@@ -806,19 +820,48 @@ static int createUserLoginChallengeResponse(struct Upnp_Action_Request *ca_event
 }
 
 
-static int createAuthenticator(const char *b64_stored, const char *b64_challenge, char *b64_authenticator, int auth_len)
+static int createAuthenticator(const char *b64_stored, const char *b64_challenge, char **b64_authenticator, int *auth_len)
 {
     // stored and challenge from base64 to binary
+    int b64msglen = strlen(b64_stored);
+    unsigned char *bin_stored = (unsigned char *)malloc(b64msglen);
+    int bin_stored_len;
+    
+    wpsu_base64_to_bin(b64msglen, (const unsigned char *)b64_stored, &bin_stored_len, bin_stored, b64msglen);    
+    
+    b64msglen = strlen(b64_challenge);
+    unsigned char *bin_challenge = (unsigned char *)malloc(b64msglen);
+    int bin_challenge_len;
+    
+    wpsu_base64_to_bin(b64msglen, (const unsigned char *)b64_challenge, &bin_challenge_len, bin_challenge, b64msglen); 
     
     
     // concatenate stored || challenge
+    int bin_concat_len = bin_stored_len + bin_challenge_len;
+    //unsigned char *bin_concat = (unsigned char *)malloc(bin_concat_len);    
+    unsigned char bin_concat[bin_concat_len];
+    memcpy(bin_concat, bin_stored, bin_stored_len);
+    memcpy(bin_concat + bin_stored_len, bin_challenge, bin_challenge_len);
+
+    // release useless stuff
+    if (bin_stored) free(bin_stored);
+    if (bin_challenge) free(bin_challenge);
     
     
     // crete hash from concatenation
+    unsigned char hash[2*bin_concat_len];
+    int ret = wpsu_sha256(bin_concat, bin_concat_len, hash);
+    if (ret < 0)
+        return ret;
+
+    // encode 20 first bytes of created hash as base64 authenticator
+    int maxb64len = 2*20; 
+    *auth_len = 0;
+    *b64_authenticator = (char *)malloc(maxb64len);
+    wpsu_bin_to_base64(20, hash, auth_len, (unsigned char *)*b64_authenticator, maxb64len);
     
-    
-    // encode 20 first bytes of created hash as authenticator
-    
+    if (bin_stored) free(bin_stored);
+    //if (bin_concat) free(bin_concat);
     return 0;   
 }
 
@@ -843,11 +886,16 @@ int SendSetupMessage(struct Upnp_Action_Request *ca_event)
     char resultStr[RESULT_LEN];
     char *protocoltype = NULL;
     char *inmessage = NULL;
-    char curr_addr[INET6_ADDRSTRLEN];
+    char IP_addr[INET6_ADDRSTRLEN];
+    int id_len = 0;
+    unsigned char *CP_id = NULL;
+        
     
     if ((protocoltype = GetFirstDocumentItem(ca_event->ActionRequest, "ProtocolType")) &&
             (inmessage = GetFirstDocumentItem(ca_event->ActionRequest, "InMessage")))
     {    
+        inet_ntop(AF_INET, &ca_event->CtrlPtIPAddr, IP_addr, INET6_ADDRSTRLEN);
+        
         if (strcmp(protocoltype, "WPS") != 0)
         {
             trace(1, "Introduction protocol type must be DeviceProtection:1: Invalid ProtocolType=%s\n",protocoltype);
@@ -855,12 +903,19 @@ int SendSetupMessage(struct Upnp_Action_Request *ca_event)
             addErrorData(ca_event, result, "Unknown Protocol Type");       
         } 
         
-        inet_ntop(AF_INET, &ca_event->CtrlPtIPAddr, curr_addr, INET6_ADDRSTRLEN);
+        // get identifier of CP (base64 of 20 first bytes of sha-256(CP certificate))
+        // this will tell if the same CP is doing all setup messages
+        result = getIdentifierOfCP(ca_event, &CP_id, &id_len, NULL);
+// TODO remove this!!!!!!!!!!!!!!!!!!!!!!!!     
+result = 0;   
+        
         if (result == 0 && SetupReady) // ready to start introduction
         {
-            strcpy(prev_addr, curr_addr);
+            // store id of this CP to determine next time if still the same CP is using this.
+            memcpy(prev_CP_id, CP_id, id_len);            
+            
             // begin introduction
-            trace(2,"Begin DeviceProtection pairwise introduction process. IP %s\n",prev_addr);
+            trace(2,"Begin DeviceProtection pairwise introduction process. IP %s\n",IP_addr);
             InitDP();
             // start the state machine and create M1
             wpsu_start_enrollee_sm(esm, &Enrollee_send_msg, &Enrollee_send_msg_len, &result);
@@ -871,7 +926,8 @@ int SendSetupMessage(struct Upnp_Action_Request *ca_event)
                 addErrorData(ca_event, result, "Processing Error");               
             }
         }
-        else if (!SetupReady && (strcmp(prev_addr, curr_addr) == 0)) // continue started introduction
+// TODO: remove comment!!!!!        
+        else if (!SetupReady )//&& (memcmp(prev_CP_id, CP_id, id_len) == 0)) // continue started introduction
         {
             // to bin
             int b64msglen = strlen(inmessage);
@@ -886,7 +942,7 @@ int SendSetupMessage(struct Upnp_Action_Request *ca_event)
         }
         else // must be busy doing someone else's introduction process 
         {
-            trace(1, "Busy with someone else's introduction process. IP %s\n",curr_addr);
+            trace(1, "Busy with someone else's introduction process. IP %s\n",IP_addr);
             result = 708;
             addErrorData(ca_event, result, "Busy");         
         }
@@ -1089,9 +1145,9 @@ int UserLogin(struct Upnp_Action_Request *ca_event)
             }
             
             // create authenticator
-            int auth_len = 20;
-            char b64_authenticator[auth_len];
-            result = createAuthenticator((char *)b64_stored, loginChallenge, b64_authenticator, auth_len);
+            int auth_len = 0;
+            char *b64_authenticator = NULL;
+            result = createAuthenticator((char *)b64_stored, loginChallenge, &b64_authenticator, &auth_len);
             
         }
     }
