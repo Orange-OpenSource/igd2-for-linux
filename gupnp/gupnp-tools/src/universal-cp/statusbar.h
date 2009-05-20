@@ -9,6 +9,7 @@
 #define STATUSBAR_H_
 
 #include <glade/glade.h>
+#include <gtk/gtkstatusbar.h>
 
 void
 statusbar_update (gboolean device_selected);
