@@ -37,6 +37,8 @@ char SupportedProtocols[150];
 
 
 void DPStateTableInit();
+void DP_loadDocuments();
+void DP_saveDocuments();
 int checkCPPrivileges(struct Upnp_Action_Request *ca_event, const char *targetRole);
 
 

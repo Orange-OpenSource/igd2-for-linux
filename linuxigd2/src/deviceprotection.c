@@ -69,11 +69,13 @@ static IXML_Document *ACLDoc = NULL;
  * values.
  * Value of "name" corresponds to the first word in passwordfile.
  * After UserLogin and UserLogout logindata is removed. 
+ * 
+ * loginattempts tells how many times this session has failed at UserLogin 
  *
  * <SIR>
  *  <session id="AHHuendfn372jsuGDS==" active="1">
  *      <identity>username</identity>
- *      <logindata>
+ *      <logindata loginattempts="2">
  *          <name>Admin</name>
  *          <challenge>83h83288J7YGHGS778jsJJHGDn=</challenge>
  *      </logindata>
@@ -93,7 +95,17 @@ void DPStateTableInit()
     // DeviceProtection is ready for introduction
     SetupReady = 1;
     strcpy(SupportedProtocols, "<SupportedProtocols><Introduction><Name>WPS</Name></Introduction></SupportedProtocols>");   
-    
+}
+
+
+/**
+ * Initialize XML documents used in DeviceProtection.
+ * Reads ACL from file, and creates an empty SIR
+ * 
+ * @return void
+ */
+void DP_loadDocuments()
+{
     // init ACL
     ACLDoc = ixmlLoadDocument(ACL_XML);
     if (ACLDoc == NULL)
@@ -112,21 +124,16 @@ void DPStateTableInit()
         trace(1, "Couldn't load SIR document.\nSIR is LinuxIDG's internal structure for containing SSL-session-User relationships\nExiting...\n");
         UpnpFinish();
         exit(1);
-    }
+    }    
+}
 
-/*    
-    char *auth1 = NULL;
-    int len1;
-    int ret = createAuthenticator("8mVU1FdwuTMgOKDGxe0Ftr4yWMk=","83h83288J7YGHGS778jsJJHGDn=",&auth1,&len1);
-    
-    printf("RET: %d %d\n%s\n",ret,len1,auth1);
 
-    char *auth2 = NULL;
-    int len2;    
-    ret = createAuthenticator("8mVU1FdwuTMgOKDGxe0Ftr4yWMk=","83h83288J7YGHGS778jsJJHGDn=",&auth2,&len2);
+void DP_saveDocuments()
+{
+    // write ACL to file
+    writeDocumentToFile(ACLDoc, ACL_XML);
     
-    printf("RET: %d %d\n%s\n",ret,len2,auth2);
-    */
+    // should SIR stay or not. Probably not...?
 }
 
 
@@ -433,7 +440,7 @@ static void message_received(struct Upnp_Action_Request *ca_event, int error, un
                 if (ret != 0)
                     trace(1,"Failed to add new CP into ACL! Ignoring...");
             }
-            fprintf(stderr,"\n\n\n%s\n",ixmlPrintDocument(ACLDoc));
+            trace(3, "Contents of ACL:\n%s\n",ixmlPrintDocument(ACLDoc));
             FreeDP();
             break;
         }
@@ -820,39 +827,64 @@ static int createUserLoginChallengeResponse(struct Upnp_Action_Request *ca_event
 }
 
 
+/**
+ * Create authenticator value used in UserLogin
+ * Authenticator contains the Base64 encoding of the first 20 bytes of SHA-256(STORED || Challenge).
+ * 
+ * @param b64_stored Base64 encoded value of STORED.
+ * @param b64_challenge Base64 encoded value of Challenge.
+ * @param b64_authenticator Pointer to string where authenticator is created. User needs to use free() for this
+ * @param auth_len Pointer to integer which is set to contain length of created authenticator
+ * @return 0 if succeeded to create authenticato. Something else if error
+ */
 static int createAuthenticator(const char *b64_stored, const char *b64_challenge, char **b64_authenticator, int *auth_len)
 {
     // stored and challenge from base64 to binary
     int b64msglen = strlen(b64_stored);
     unsigned char *bin_stored = (unsigned char *)malloc(b64msglen);
-    int bin_stored_len;
-    
+    if (bin_stored == NULL) 
+    {
+        return -1;
+    }
+    int bin_stored_len;    
     wpsu_base64_to_bin(b64msglen, (const unsigned char *)b64_stored, &bin_stored_len, bin_stored, b64msglen);    
-    
+
     b64msglen = strlen(b64_challenge);
     unsigned char *bin_challenge = (unsigned char *)malloc(b64msglen);
-    int bin_challenge_len;
-    
+    if (bin_challenge == NULL) 
+    {
+        if (bin_stored) free(bin_stored);
+        return -1;
+    }
+    int bin_challenge_len;    
     wpsu_base64_to_bin(b64msglen, (const unsigned char *)b64_challenge, &bin_challenge_len, bin_challenge, b64msglen); 
-    
+   
     
     // concatenate stored || challenge
     int bin_concat_len = bin_stored_len + bin_challenge_len;
-    //unsigned char *bin_concat = (unsigned char *)malloc(bin_concat_len);    
-    unsigned char bin_concat[bin_concat_len];
+    unsigned char *bin_concat = (unsigned char *)malloc(bin_concat_len);    
+    if (bin_concat == NULL) 
+    {
+        if (bin_stored) free(bin_stored);
+        if (bin_challenge) free(bin_challenge);
+        return -1;
+    }
     memcpy(bin_concat, bin_stored, bin_stored_len);
     memcpy(bin_concat + bin_stored_len, bin_challenge, bin_challenge_len);
 
     // release useless stuff
     if (bin_stored) free(bin_stored);
     if (bin_challenge) free(bin_challenge);
-    
-    
+ 
     // crete hash from concatenation
     unsigned char hash[2*bin_concat_len];
     int ret = wpsu_sha256(bin_concat, bin_concat_len, hash);
     if (ret < 0)
+    {
+        if (bin_concat) free(bin_concat);
+        *b64_authenticator = NULL;
         return ret;
+    }
 
     // encode 20 first bytes of created hash as base64 authenticator
     int maxb64len = 2*20; 
@@ -860,8 +892,7 @@ static int createAuthenticator(const char *b64_stored, const char *b64_challenge
     *b64_authenticator = (char *)malloc(maxb64len);
     wpsu_bin_to_base64(20, hash, auth_len, (unsigned char *)*b64_authenticator, maxb64len);
     
-    if (bin_stored) free(bin_stored);
-    //if (bin_concat) free(bin_concat);
+    if (bin_concat) free(bin_concat);
     return 0;   
 }
 
@@ -889,7 +920,6 @@ int SendSetupMessage(struct Upnp_Action_Request *ca_event)
     char IP_addr[INET6_ADDRSTRLEN];
     int id_len = 0;
     unsigned char *CP_id = NULL;
-        
     
     if ((protocoltype = GetFirstDocumentItem(ca_event->ActionRequest, "ProtocolType")) &&
             (inmessage = GetFirstDocumentItem(ca_event->ActionRequest, "InMessage")))
@@ -1114,6 +1144,18 @@ int UserLogin(struct Upnp_Action_Request *ca_event)
         {
             // out and away!
             // close SSL session on way out...
+            UpnpTerminateSSLSession(ca_event->SSLSession, ca_event->Socket);
+            
+            // remove session from SIR
+            SIR_removeSession(SIRDoc, (char *)id);
+            
+            if (challenge) free(challenge);
+            if (authenticator) free(authenticator);
+            if (loginName) free(loginName);
+            if (loginChallenge) free(loginChallenge);
+            if (id) free(id);
+            
+            return ca_event->ErrCode;            
         }
         
         // does our challenge stored in SIR match challenge received from control point
@@ -1141,14 +1183,56 @@ int UserLogin(struct Upnp_Action_Request *ca_event)
             result = getValuesFromPasswdFile(loginName, &b64_salt, &salt_len, &b64_stored, &stored_len, maxb64len);
             if (result != 0 || stored_len < 1)
             {
-                // failure  
+                // failure
+                trace(2, "%s: Failed to get STORED and Challenge from passwd file. (username: '%s')",ca_event->ActionName,loginName);
+                result = 706;
+                addErrorData(ca_event, result, "Invalid Context");                 
             }
-            
-            // create authenticator
-            int auth_len = 0;
-            char *b64_authenticator = NULL;
-            result = createAuthenticator((char *)b64_stored, loginChallenge, &b64_authenticator, &auth_len);
-            
+            else
+            {
+                // create authenticator
+                int auth_len = 0;
+                char *b64_authenticator = NULL;
+                result = createAuthenticator((char *)b64_stored, loginChallenge, &b64_authenticator, &auth_len);
+                
+                // do the authenticators match?
+                if (result != 0)
+                {
+                    trace(2, "%s: Failed to create authenticator",ca_event->ActionName);
+                    result = 501;
+                    addErrorData(ca_event, result, "Action Failed");                
+                }
+                else if ( strcmp(authenticator, b64_authenticator) != 0 )
+                {
+                    trace(1, "%s: Authenticator values do not match value.",ca_event->ActionName);
+                    result = 701;
+                    addErrorData(ca_event, result, "Authentication Failure");                
+                }
+                else
+                {
+                    // Login is now succeeded
+                    loginattempts = 0;
+                    result = SIR_updateSession(SIRDoc, (char *)id, NULL, loginName, NULL, &loginattempts, NULL, NULL);
+                    // remove logindata from SIR
+                    SIR_removeLoginDataOfSession(SIRDoc, (char *)id);
+                    // create response SOAP message
+                    IXML_Document *ActionResult = NULL;
+                    ActionResult = UpnpMakeActionResponse(ca_event->ActionName, DP_SERVICE_TYPE,
+                                                    0, NULL);
+                                                    
+                    if (ActionResult && result == 0)
+                    {
+                        ca_event->ActionResult = ActionResult;
+                        ca_event->ErrCode = UPNP_E_SUCCESS;        
+                    }
+                    else
+                    {
+                        trace(1, "Error parsing Response to %s (or failed to change identity of user in SIR)",ca_event->ActionName);
+                        result = 501;
+                        addErrorData(ca_event, result, "Action Failed"); 
+                    } 
+                }
+            }
         }
     }
 

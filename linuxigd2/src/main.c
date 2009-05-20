@@ -37,6 +37,7 @@
 #include "util.h"
 #include "pmlist.h"
 #include "lanhostconfig.h"
+#include "deviceprotection.h" 
 #include <locale.h>
 
 
@@ -267,6 +268,9 @@ int main (int argc, char** argv)
     // Initialize lanhostconfig module
     InitLanHostConfig();
 
+    // Initialize DeviceProtection
+    DP_loadDocuments();
+
     // Record the startup time, for uptime
     startup_time = time(NULL);
 
@@ -308,6 +312,9 @@ int main (int argc, char** argv)
 
     // Cleanup lanhostconfig module
     FreeLanHostConfig();
+
+    // Save possible changes done in DeviceProtection XML's 
+    DP_saveDocuments();
 
     UpnpUnRegisterRootDevice(deviceHandle);
     UpnpFinish();

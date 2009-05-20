@@ -81,5 +81,6 @@ int SIR_updateSession(IXML_Document *doc, const char *id, int *active, const cha
 int SIR_removeSession(IXML_Document *doc, const char *id);
 char *SIR_getIdentityOfSession(IXML_Document *doc, const char *id, int *active, char **role);
 int SIR_getLoginDataOfSession(IXML_Document *doc, const char *id, int *loginattempts, char **loginName, char **loginChallenge);
+int SIR_removeLoginDataOfSession(IXML_Document *doc, const char *id);
 
 #endif //_UTIL_H_

@@ -1830,3 +1830,28 @@ int SIR_getLoginDataOfSession(IXML_Document *doc, const char *id, int *loginatte
     
     return 0;
 }
+
+
+/**
+ * Remove logindata from session with given identifier id.
+ *
+ * @param doc SIR IXML_Document
+ * @param id Session id. Value of id-attribute
+ * @return 0 on success, negative value else.
+ */
+int SIR_removeLoginDataOfSession(IXML_Document *doc, const char *id)
+{
+    IXML_Node *tmpNode = NULL;
+    
+    // get session node
+    tmpNode = GetNodeWithNameAndAttribute(doc, "session", "id", id);
+    if ( tmpNode == NULL )
+        return -1;
+        
+    // get logindata node of session
+    tmpNode = GetChildNodeWithName(tmpNode, "logindata");
+    if ( tmpNode == NULL )
+        return 0;
+    
+    return RemoveNode(tmpNode);
+}

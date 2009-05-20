@@ -257,6 +257,11 @@ int HandleActionRequest(struct Upnp_Action_Request *ca_event)
     ithread_mutex_lock(&DevMutex);
     trace(3, "ActionName = %s", ca_event->ActionName);
 
+if (ca_event->SSLSession != NULL)
+        {printf("USING SSL\n");
+        }
+        else printf("NOT USING SSL\n");
+
     // check if CP is authorized to use this action.
     // checking managed flag is left to action itself
     if ( (result = AuthorizeControlPoint(ca_event, 0)) != 0 )
