@@ -44,17 +44,32 @@ begin_wps_dialog (void)
 	    init_wps_dialog_fields();
 
 	    info = get_selected_device_info ();
-        deviceProxy = GUPNP_DEVICE_PROXY (info);
-        g_assert (deviceProxy != NULL);
 
-        deviceProxyWps = gupnp_device_proxy_begin_wps (deviceProxy,
-                                                       GUPNP_DEVICE_WPS_METHOD_PIN,
-                                                       "Universal Control Point",
-                                                       "",
-            	                                       continue_wps_cb,
-            		                                   wps_user_data);
-        gtk_dialog_run (GTK_DIALOG (wps_dialog));
-        gtk_widget_hide (wps_dialog);
+	    if (info) {
+	    	deviceProxy = GUPNP_DEVICE_PROXY (info);
+	    	g_assert (deviceProxy != NULL);
+
+	    	deviceProxyWps = gupnp_device_proxy_begin_wps (deviceProxy,
+	    			                                       GUPNP_DEVICE_WPS_METHOD_PIN,
+                                                           "Universal Control Point",
+                                                           "",
+            	                                           continue_wps_cb,
+            		                                       wps_user_data);
+            gtk_dialog_run (GTK_DIALOG (wps_dialog));
+            gtk_widget_hide (wps_dialog);
+	    } else {
+	    	/* Device must be selected before starting WPS setup from connection menu */
+	        GtkWidget *info_dialog;
+
+	    	info_dialog = gtk_message_dialog_new (GTK_WINDOW (wps_dialog),
+	    	                                      GTK_DIALOG_MODAL,
+	    	                                      GTK_MESSAGE_INFO,
+	    	                                      GTK_BUTTONS_CLOSE,
+	    	                                      "No Device selected for WPS setup");
+
+	    	gtk_dialog_run (GTK_DIALOG (info_dialog));
+	        gtk_widget_destroy (info_dialog);
+	    }
 }
 
 void

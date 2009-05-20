@@ -124,8 +124,8 @@ get_selected_device_info (void)
 {
         GtkTreeModel      *model;
 	    GtkTreeSelection  *selection;
-        GtkTreeIter       iter;
-        GUPnPDeviceInfo *info;
+        GtkTreeIter        iter;
+        GUPnPDeviceInfo   *info=NULL;
 
 	    model = gtk_tree_view_get_model (GTK_TREE_VIEW (treeview));
 	    g_assert (model != NULL);
