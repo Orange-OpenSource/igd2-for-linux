@@ -39,7 +39,7 @@ static int createUserLoginChallengeResponse(struct Upnp_Action_Request *ca_event
 static int getValuesFromPasswdFile(const char *nameUPPER, unsigned char **b64_salt, int *salt_len, unsigned char **b64_stored, int *stored_len, int max_size);
 static int putValuesToPasswdFile(const char *name, const unsigned char *b64_salt, const unsigned char *b64_stored);
 static int updateValuesToPasswdFile(const char *nameUPPER, const unsigned char *b64_salt, const unsigned char *b64_stored, int delete_values);
-static int getIdentifierOfCP(struct Upnp_Action_Request *ca_event, unsigned char **b64_identifier, int b64len);
+static int getIdentifierOfCP(struct Upnp_Action_Request *ca_event, unsigned char **b64_identifier, int *b64len, char **CN);
 
 
 // WPS state machine related stuff
@@ -105,14 +105,14 @@ void DPStateTableInit()
     
     //fprintf(stderr,"\n\n\n%s\n",ixmlPrintDocument(ACLDoc));
     
-    // session-user relationships are stored in this
+    // session-identity relationships are stored in this. Also user login data which is needed at UserLogin()
     SIRDoc = SIR_init();
     if (SIRDoc == NULL)
     {
         trace(1, "Couldn't load SIR document.\nSIR is LinuxIDG's internal structure for containing SSL-session-User relationships\nExiting...\n");
         UpnpFinish();
         exit(1);
-    } 
+    }
 }
 
 
@@ -130,9 +130,9 @@ int checkCPPrivileges(struct Upnp_Action_Request *ca_event, const char *targetRo
 {
     int ret, b64len=0;
     unsigned char *b64_identifier;
-    
+
     // get identity of CP (base64 of 20 first bytes of sha-256(CP certificate))
-    ret = getIdentifierOfCP(ca_event, &b64_identifier, b64len);
+    ret = getIdentifierOfCP(ca_event, &b64_identifier, &b64len, NULL);
     if (ret != 0 )
     {
         return ret;
@@ -140,9 +140,23 @@ int checkCPPrivileges(struct Upnp_Action_Request *ca_event, const char *targetRo
     
     // 4. fetch current identity of CP from SIR. Identity may be username or hash of certificate (== b64_identity)
     int active;
-    char *identity = SIR_getIdentityOfSession(SIRDoc, (char *)b64_identifier, &active);
+    char *role = NULL;
+    char *identity = SIR_getIdentityOfSession(SIRDoc, (char *)b64_identifier, &active, &role);
     if (identity == NULL)
-        return -1;
+    {
+        // if identity isn't found, that could only mean that we are dealing with a new CP
+        // Let's add new entry to SIR with role value "Public". Identity is not inserted
+        ret = SIR_addSession(SIRDoc, (char *)b64_identifier, 1, NULL, "Public", NULL, NULL, NULL);
+        if (ret != 0)
+            return -1;
+            
+        // check if targetrole is public
+        if (strcmp(targetRole, "Public") == 0)
+            return 0;
+        else 
+            return 1;
+    }
+     
      
     // 5. check if target role is one of current roles of identity
     if ( ACL_doesIdentityHasRole(ACLDoc, identity, targetRole) )
@@ -163,33 +177,33 @@ int checkCPPrivileges(struct Upnp_Action_Request *ca_event, const char *targetRo
  * @param b64len Length of created base64 identifier
  * @return 0 if succeeded to create identifier. Something else if error
  */
-static int getIdentifierOfCP(struct Upnp_Action_Request *ca_event, unsigned char **b64_identifier, int b64len)
+static int getIdentifierOfCP(struct Upnp_Action_Request *ca_event, unsigned char **b64_identifier, int *b64len, char **CN)
 {
     int ret;
     int cert_size = 1000;
     unsigned char cert[cert_size];
     unsigned char hash[cert_size];
-    
+
     if (ca_event->SSLSession == NULL)
         return 1;
-    
+
     // 1. get certificate of client
-    ret = UpnpGetClientCert(ca_event->SSLSession, cert, &cert_size);
+    ret = UpnpGetClientCert(ca_event->SSLSession, cert, &cert_size, CN);
     if (ret != UPNP_E_SUCCESS)
         return ret;
-    
+
     // 2. create hash from certificate
     ret = wpsu_sha256(cert, cert_size, hash);
     if (ret < 0)
         return ret;
-    
+ 
     // 3. create base64 from 20 first bytes of hash
     int identitylen = 20;
     int maxb64len = 2*identitylen; 
-    b64len = 0;        
+    *b64len = 0;        
     *b64_identifier = (unsigned char *)malloc(maxb64len);
-    wpsu_bin_to_base64(identitylen, hash, &b64len, *b64_identifier, maxb64len);
-    
+    wpsu_bin_to_base64(identitylen, hash, b64len, *b64_identifier, maxb64len);
+   
     return 0;
 }
 
@@ -207,7 +221,7 @@ static int getRolesOfSession(struct Upnp_Action_Request *ca_event, char **roles)
     unsigned char *b64_identifier;
     
     // 1. get identifier of CP (base64 of 20 first bytes of sha-256(CP certificate))
-    ret = getIdentifierOfCP(ca_event, &b64_identifier, b64len);
+    ret = getIdentifierOfCP(ca_event, &b64_identifier, &b64len, NULL);
     if (ret != 0 )
     {
         return ret;
@@ -215,9 +229,18 @@ static int getRolesOfSession(struct Upnp_Action_Request *ca_event, char **roles)
     
     // 2. fetch current identity of CP from SIR. Identity may be username or hash of certificate (== b64_identity)
     int active;
-    char *identity = SIR_getIdentityOfSession(SIRDoc, (char *)b64_identifier, &active);
+    char *role = NULL;
+    char *identity = SIR_getIdentityOfSession(SIRDoc, (char *)b64_identifier, &active, &role);
     if (identity == NULL)
-        return -1;
+    {
+        // if identity is not defined in SIR, role should be
+        if (role == NULL)
+            return -1;
+        
+        *roles = (char *)malloc(strlen(role));
+        strcpy(*roles, role);
+        return 0;
+    }
     
     // 3. get roles from ACL associated with identity fetched from SIR    
     *roles = ACL_getRolesOfUser(ACLDoc, identity);
@@ -380,10 +403,23 @@ static void message_received(struct Upnp_Action_Request *ca_event, int error, un
         {
             trace(3,"DeviceProtection introduction last message received!\n");
             // Add CP certificate hash into ACL
-            //unsigned char buffer[10 * 1024];
-            //int buffer_size = sizeof (buffer);         
-            //UpnpGetClientCert(ca_event->SSLSession, buffer, &buffer_size);
-            
+            int ret, b64len=0;
+            unsigned char *b64_identifier;
+            char *CN = NULL;
+    
+            // get identity of CP (base64 of 20 first bytes of sha-256(CP certificate))
+            ret = getIdentifierOfCP(ca_event, &b64_identifier, &b64len, &CN);
+            if (ret != 0 )
+            {
+                trace(1,"Failed to get Identifier value from Certificate (%d)! Ignoring...",ret);
+            }
+            else
+            {                
+                ret = ACL_addCP(ACLDoc, CN, NULL, (char *)b64_identifier, "DP:1", "Public Basic", 1);
+                if (ret != 0)
+                    trace(1,"Failed to add new CP into ACL! Ignoring...");
+            }
+            fprintf(stderr,"\n\n\n%s\n",ixmlPrintDocument(ACLDoc));
             FreeDP();
             break;
         }
@@ -747,6 +783,18 @@ static int createUserLoginChallengeResponse(struct Upnp_Action_Request *ca_event
                 addErrorData(ca_event, result, "Action Failed");
             }
             
+            // insert user login values to SIR document
+            unsigned char *b64_identifier;
+    
+            result = getIdentifierOfCP(ca_event, &b64_identifier, &b64len, NULL);
+            if (result == 0 )
+            {
+                SIR_updateSession(SIRDoc, (char *)b64_identifier, NULL, NULL, NULL, NULL, nameUPPER, (char *)b64_challenge);
+            } 
+            else
+                trace(1, "Failure on inserting UserLoginChallenge values to SIR. Ignoring...");
+            
+            if (b64_identifier) free(b64_identifier);
             if (b64_challenge) free(b64_challenge);
         }
         if (bin_stored) free(bin_stored);
@@ -757,6 +805,22 @@ static int createUserLoginChallengeResponse(struct Upnp_Action_Request *ca_event
     return result;
 }
 
+
+static int createAuthenticator(const char *b64_stored, const char *b64_challenge, char *b64_authenticator, int auth_len)
+{
+    // stored and challenge from base64 to binary
+    
+    
+    // concatenate stored || challenge
+    
+    
+    // crete hash from concatenation
+    
+    
+    // encode 20 first bytes of created hash as authenticator
+    
+    return 0;   
+}
 
 //-----------------------------------------------------------------------------
 //
@@ -784,7 +848,7 @@ int SendSetupMessage(struct Upnp_Action_Request *ca_event)
     if ((protocoltype = GetFirstDocumentItem(ca_event->ActionRequest, "ProtocolType")) &&
             (inmessage = GetFirstDocumentItem(ca_event->ActionRequest, "InMessage")))
     {    
-        if (strcmp(protocoltype, "DeviceProtection:1") != 0)
+        if (strcmp(protocoltype, "WPS") != 0)
         {
             trace(1, "Introduction protocol type must be DeviceProtection:1: Invalid ProtocolType=%s\n",protocoltype);
             result = 703;
@@ -968,12 +1032,68 @@ int UserLogin(struct Upnp_Action_Request *ca_event)
     int result = 0;
     char *challenge = NULL;
     char *authenticator = NULL;
+    int loginattempts = 0;
+    char *loginName = NULL;
+    char *loginChallenge = NULL;
+    
+    unsigned char *id =NULL;
+    int id_len = 0;
 
     
     if ( (challenge = GetFirstDocumentItem(ca_event->ActionRequest, "Challenge") )
             && (authenticator = GetFirstDocumentItem(ca_event->ActionRequest, "Authenticator") ))
     {
- 
+        result = getIdentifierOfCP(ca_event, &id, &id_len, NULL);
+        result = SIR_getLoginDataOfSession(SIRDoc, (char *)id, &loginattempts, &loginName, &loginChallenge);
+        
+        if (result != 0 || !loginName || !loginChallenge)
+        {
+            trace(1, "%s: Failed to get login data for this session",ca_event->ActionName);
+            result = 501;
+            addErrorData(ca_event, result, "Action Failed");            
+        }
+        
+        // has CP tried to login too many times already?
+        if (++loginattempts > DP_MAX_LOGIN_ATTEMPTS)
+        {
+            // out and away!
+            // close SSL session on way out...
+        }
+        
+        // does our challenge stored in SIR match challenge received from control point
+        if (result == 0 && strcmp(challenge, loginChallenge) != 0)
+        {
+            trace(1, "%s: Challenge value does not match value from SIR",ca_event->ActionName);
+            result = 706;
+            addErrorData(ca_event, result, "Invalid Context");
+        }
+        
+        if (result == 0)
+        {
+            // update loginattempts value
+            result = SIR_updateSession(SIRDoc, (char *)id, NULL, NULL, NULL, &loginattempts, NULL, NULL);
+            
+            // name to uppercase
+            loginName = toUpperCase(loginName);
+            
+            // get stored from passwd file
+            int maxb64len = 2*DP_STORED_BYTES;     
+            unsigned char *b64_salt = (unsigned char *)malloc(maxb64len); 
+            unsigned char *b64_stored = (unsigned char *)malloc(maxb64len);
+            int salt_len, stored_len;
+            
+            result = getValuesFromPasswdFile(loginName, &b64_salt, &salt_len, &b64_stored, &stored_len, maxb64len);
+            if (result != 0 || stored_len < 1)
+            {
+                // failure  
+            }
+            
+            // create authenticator
+            int auth_len = 20;
+            char b64_authenticator[auth_len];
+            result = createAuthenticator((char *)b64_stored, loginChallenge, b64_authenticator, auth_len);
+            
+        }
     }
 
     else
@@ -984,6 +1104,9 @@ int UserLogin(struct Upnp_Action_Request *ca_event)
     
     if (challenge) free(challenge);
     if (authenticator) free(authenticator);
+    if (loginName) free(loginName);
+    if (loginChallenge) free(loginChallenge);
+    if (id) free(id);
     
     return ca_event->ErrCode;
 }
