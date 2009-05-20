@@ -1520,6 +1520,7 @@ IXML_Document *SIR_init()
  * <SIR>
  *  <session id="AHHuendfn372jsuGDS==" active="1">
  *      <identity>username</identity>
+ *      <role>Public</role>
  *      <logindata>
  *          <name>Admin</name>
  *          <challenge>83h83288J7YGHGS778jsJJHGDn=</challenge>
@@ -1531,11 +1532,13 @@ IXML_Document *SIR_init()
  * @param id Session identifier. (sha-256 of 20 first bytes of certificate). Value of id-attribute
  * @param active Is session active. Value of active-attribute
  * @param identity Value of identity element
+ * @param role Value of role element
+ * @param attempts Value of "loginattempts" attribute
  * @param loginName Username or role that CP wishes to login. If this parameter is given, also loginChallenge must be given.
  * @param loginChallenge Login challenge which was send to CP as challenge for this login attempt. If this parameter is given, also loginName must be given.
  * @return 0 on success, -1 else
  */
-int SIR_addSession(IXML_Document *doc, const char *id, int active, const char *identity, const char *loginName, const char *loginChallenge)
+int SIR_addSession(IXML_Document *doc, const char *id, int active, const char *identity, const char *role, int *attempts, const char *loginName, const char *loginChallenge)
 {
     IXML_Node *tmpNode = NULL;
     int ret = 0;
@@ -1559,15 +1562,28 @@ int SIR_addSession(IXML_Document *doc, const char *id, int active, const char *i
     else
         ixmlElement_setAttribute(sessionElement, "active", "0");
     
-    // add identity element        
-    AddChildNode(doc, &sessionElement->n, "identity", identity);
+    // add identity element
+    if (identity)      
+        AddChildNode(doc, &sessionElement->n, "identity", identity);
 
+    // add role element
+    if (role)      
+        AddChildNode(doc, &sessionElement->n, "role", role);
     
     // create logindata element
     if (loginName && loginChallenge)
     {
         // create new element called "logindata"
         IXML_Element *logindataElement = ixmlDocument_createElement(doc, "logindata");
+        
+        if (attempts == NULL)
+            *attempts = 0;
+        
+        char tmp[2];
+        snprintf(tmp, 2, "%d", *attempts);
+        // add "loginattempts" attribute to logindata
+        ixmlElement_setAttribute(logindataElement, "loginattempts", tmp);
+        
         AddChildNode(doc, &logindataElement->n, "name", loginName);
         AddChildNode(doc, &logindataElement->n, "challenge", loginChallenge); 
         
@@ -1595,13 +1611,102 @@ int SIR_addSession(IXML_Document *doc, const char *id, int active, const char *i
 
 
 /**
+ * Update values of Session with given identifier id to SIR.
+ * Any of the values, except id, may be NULL. If value is NULL, existing old value is left 
+ * untouched.
+ *
+ * <SIR>
+ *  <session id="AHHuendfn372jsuGDS==" active="1">
+ *      <identity>username</identity>
+ *      <role>Public</role>
+ *      <logindata loginattempts="5">
+ *          <name>Admin</name>
+ *          <challenge>83h83288J7YGHGS778jsJJHGDn=</challenge>
+ *      </logindata>
+ *  </session>
+ * </SIR>
+ *
+ * @param doc SIR IXML_Document
+ * @param id Session id. Value of id-attribute
+ * @param active Pointer to new value of "active"
+ * @param identity New value of "identity"
+ * @param role New value of "role"
+ * @param attempts Value of "loginattempts" attribute
+ * @param loginName New value of "name"
+ * @param loginChallenge New value of "challenge"
+ * @return 0 on success, negative integer else
+ */
+int SIR_updateSession(IXML_Document *doc, const char *id, int *active, const char *identity, const char *role, int *attempts, const char *loginName, const char *loginChallenge)
+{
+    IXML_Node *tmpNode = NULL;
+    int ret = 0;
+    char *oldIdentity = NULL;
+    char *oldRole = NULL;
+    int oldActive = 0;
+    int oldAttempts = 0;
+    char *oldLoginName = NULL;
+    char *oldLoginChallenge = NULL;
+    
+    int newActive = 0;
+    int newAttempts = 0;
+    char *newIdentity = NULL;
+    char *newRole = NULL;
+    char *newLoginName = NULL;
+    char *newLoginChallenge = NULL;    
+    
+    // Check if session id does exist
+    tmpNode = GetNodeWithNameAndAttribute(doc, "session", "id", id);
+    if ( tmpNode == NULL )
+    {
+        return -1;
+    }
+    
+    // get old values
+    oldIdentity = SIR_getIdentityOfSession(doc, id, &oldActive, &oldRole);
+    ret = SIR_getLoginDataOfSession(doc, id, &oldAttempts, &oldLoginName, &oldLoginChallenge);
+    
+    if (active != NULL)
+        newActive = *active;
+    else 
+        newActive = oldActive;
+    
+    if (identity != NULL)
+        newIdentity = (char *)identity;
+    else
+        newIdentity = oldIdentity;
+
+    if (role != NULL)
+        newRole = (char *)role;
+    else
+        newRole = oldRole;
+
+    if (attempts != NULL)
+        newAttempts = *attempts;
+    else 
+        newAttempts = oldAttempts;
+        
+    if (loginName != NULL)
+        newLoginName = (char *)loginName;
+    else
+        newLoginName = oldLoginName;        
+
+    if (loginChallenge != NULL)
+        newLoginChallenge = (char *)loginChallenge;
+    else
+        newLoginChallenge = oldLoginChallenge;    
+    
+    return SIR_addSession(doc, id , newActive, newIdentity, newRole, &newAttempts, newLoginName, newLoginChallenge);
+}
+
+
+/**
  * Remove Session with given id from SIR.
  *
  * @param doc SIR IXML_Document
  * @param id Session id. Value of id-attribute
  * @return 0 on success, -1 else
  */
-int SIR_removeSession(IXML_Document *doc, char *id)
+int SIR_removeSession(IXML_Document *doc, const char *id)
 {
     IXML_Node *tmpNode = NULL;
     
@@ -1624,16 +1729,19 @@ int SIR_removeSession(IXML_Document *doc, char *id)
  * <SIR>
  *  <session id="AHHuendfn372jsuGDS==" active="1">
  *      <identity>username</identity>
+ *      <role>Basic</role>
  *  </session>
  * </SIR>
  *
  * @param doc SIR IXML_Document
  * @param id Session id. Value of id-attribute
  * @param active Pointer to integer where value of "active" attribute is inserted 0 or 1
+ * @param role Pointer to string where possible value of "role" is inserted
  * @return Identity or NULL
  */
-char *SIR_getIdentityOfSession(IXML_Document *doc, char *id, int *active)
+char *SIR_getIdentityOfSession(IXML_Document *doc, const char *id, int *active, char **role)
 {
+    IXML_Node *sessionNode = NULL;
     IXML_Node *tmpNode = NULL;
     char *act = NULL;
     
@@ -1641,16 +1749,23 @@ char *SIR_getIdentityOfSession(IXML_Document *doc, char *id, int *active)
     *active = 0;
     
     // Check that session id does exist
-    tmpNode = GetNodeWithNameAndAttribute(doc, "session", "id", id);
-    if ( tmpNode != NULL )
+    sessionNode = GetNodeWithNameAndAttribute(doc, "session", "id", id);
+    if ( sessionNode != NULL )
     {
         // set value of active. Is session still active, or has user logged out
-        act = GetAttributeValueOfNode(tmpNode, "active");
+        act = GetAttributeValueOfNode(sessionNode, "active");
         if ( strcmp(act, "1") == 0 )
             *active = 1;
         
+        // get value of childnode "role"
+        tmpNode = GetChildNodeWithName(sessionNode, "role");
+        if ( tmpNode != NULL )
+            *role = GetTextValueOfNode(tmpNode);
+        else
+            *role = NULL;    
+        
         // get value of childnode "identity"
-        tmpNode = GetChildNodeWithName(tmpNode, "identity");
+        tmpNode = GetChildNodeWithName(sessionNode, "identity");
         if ( tmpNode != NULL )
             return GetTextValueOfNode(tmpNode); 
     } 
@@ -1674,11 +1789,12 @@ char *SIR_getIdentityOfSession(IXML_Document *doc, char *id, int *active)
  *
  * @param doc SIR IXML_Document
  * @param id Session id. Value of id-attribute
+ * @param loginattempts Pointer to integer where value of "loginattempts" attribute is inserted
  * @param loginName Pointer to string where value of "name" of logindata  is inserted
  * @param loginChallenge Pointer to string where value of "challenge" of logindata  is inserted
  * @return 0 on success, negative value else.
  */
-int SIR_getLoginDataOfSession(IXML_Document *doc, char *id, char **loginName, char **loginChallenge)
+int SIR_getLoginDataOfSession(IXML_Document *doc, const char *id, int *loginattempts, char **loginName, char **loginChallenge)
 {
     IXML_Node *tmpNode = NULL;
     
@@ -1691,6 +1807,12 @@ int SIR_getLoginDataOfSession(IXML_Document *doc, char *id, char **loginName, ch
     tmpNode = GetChildNodeWithName(tmpNode, "logindata");
     if ( tmpNode == NULL )
         return -2;    
+
+    char *tmp = GetAttributeValueOfNode(tmpNode, "loginattempts");
+    if (tmp)
+        *loginattempts = atoi(tmp);
+    else
+        *loginattempts = 0; 
     
     // get name element
     tmpNode = GetChildNodeWithName(tmpNode, "name");
