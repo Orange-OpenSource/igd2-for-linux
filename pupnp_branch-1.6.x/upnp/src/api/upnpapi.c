@@ -400,6 +400,34 @@ int UpnpStartHttpsServer( IN unsigned short port,
 
 
 /****************************************************************************
+ * Function: UpnpTerminateSSLSession
+ *
+ * Terminate SSL session so that no messages are send or received anymore
+ * for that session.
+ * 
+ * Parameters:      
+ *  INOUT gnutls_session_t session: SSL session which is closed and set to NULL
+ *  IN int sock                ;  Socket which is closed
+ * 
+ * Returns:
+ *  void
+ *****************************************************************************/
+void UpnpTerminateSSLSession(gnutls_session_t session, int sock)
+{
+    if (session != NULL)
+    {
+        // no more send and receives are allowed
+        gnutls_bye (session, GNUTLS_SHUT_RDWR);
+        close (sock);
+        gnutls_deinit (session);
+    }
+    
+    session = NULL;  
+}
+ /***************** end of UpnpTerminateSSLSession ******************/
+
+
+/****************************************************************************
  * Function: UpnpGetClientCert
  *
  * Export client certificate of given ssl-session to given parameter data. 

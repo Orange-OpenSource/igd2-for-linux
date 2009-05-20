@@ -1074,6 +1074,22 @@ EXPORT_SPEC int UpnpStartHttpsServer(
     const char *devName);
 
 
+/*!
+ * \brief Terminate given SSL session
+ *
+ * This function terminates given SSL session so that nothing is send or
+ * received anymore for this session. Will send SSL-bye message.
+ * Also socket reserved for session is closed.
+ *
+ * \return void
+ */
+EXPORT_SPEC void UpnpTerminateSSLSession(
+    /*! [inout] SSL session which is closed and set to NULL. */
+    gnutls_session_t session, 
+    /*! [in] Socket which is closed. */
+    int sock);
+
+
  /*!
  * \brief Get client certificate used in ssl-session
  *

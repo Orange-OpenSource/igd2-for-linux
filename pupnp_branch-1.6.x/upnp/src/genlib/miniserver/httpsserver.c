@@ -534,9 +534,12 @@ ExitFunction:
         handle_error( &info, http_error_code, major, minor );
     }
 
-    gnutls_bye (session, GNUTLS_SHUT_WR);
-    close (sock);
-    gnutls_deinit (session);
+    if (session != NULL)
+    {
+        gnutls_bye (session, GNUTLS_SHUT_RDWR);
+        close (sock);
+        //gnutls_deinit (session);
+    }
     free( request );
 }
 
