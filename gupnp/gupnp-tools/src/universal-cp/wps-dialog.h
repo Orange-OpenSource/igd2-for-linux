@@ -24,7 +24,7 @@ begin_wps_dialog (void);
 
 void
 wps_dialog_push_button(GtkToggleButton *button,
-					   gpointer   user_data);
+					   gpointer         user_data);
 
 void
 init_wps_dialog_fields (void);
