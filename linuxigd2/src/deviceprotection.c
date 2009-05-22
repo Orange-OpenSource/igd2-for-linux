@@ -33,7 +33,7 @@
 
 static int InitDP();
 static void FreeDP();
-static void message_received(struct Upnp_Action_Request *ca_event, int error, unsigned char *data, int len);
+static void message_received(struct Upnp_Action_Request *ca_event, int error, unsigned char *data, int len, int *status);
 static int getSaltAndStoredForName(const char *nameUPPER, unsigned char **b64_salt, int *salt_len, unsigned char **b64_stored, int *stored_len);
 static int createUserLoginChallengeResponse(struct Upnp_Action_Request *ca_event, const char *nameUPPER);
 static int getValuesFromPasswdFile(const char *nameUPPER, unsigned char **b64_salt, int *salt_len, unsigned char **b64_stored, int *stored_len, int max_size);
@@ -415,19 +415,17 @@ static void FreeDP()
  * @oaram len Length of binary message
  * @return void
  */
-static void message_received(struct Upnp_Action_Request *ca_event, int error, unsigned char *data, int len)
+static void message_received(struct Upnp_Action_Request *ca_event, int error, unsigned char *data, int len, int *status)
 {
-    int status;
-
     if (error)
     {
         trace(2,"DeviceProtection introduction message receive failure! Error = %d", error);
         return;
     }
 
-    wpsu_update_enrollee_sm(esm, data, len, &Enrollee_send_msg, &Enrollee_send_msg_len, &status, &error);
+    wpsu_update_enrollee_sm(esm, data, len, &Enrollee_send_msg, &Enrollee_send_msg_len, status, &error);
 
-    switch (status)
+    switch (*status)
     {
         case WPSU_SM_E_SUCCESS:
         {
@@ -462,14 +460,13 @@ static void message_received(struct Upnp_Action_Request *ca_event, int error, un
 
         case WPSU_SM_E_FAILURE:
         {
-            trace(3,"DeviceProtection introduction error in state machine. Terminating...\n");
-            FreeDP();
+            trace(3,"DeviceProtection introduction error in state machine (Peer gave wrong PIN?). Gracefully terminating and sending of NACK...\n");
             break;
         }
 
         case WPSU_SM_E_FAILUREEXIT:
         {
-            trace(3,"DeviceProtection introduction error in state machine. Terminating...\n");
+            trace(3,"Received NACK from peer. Terminating state machine...\n");
             FreeDP();
             break;
         }
@@ -935,6 +932,7 @@ int SendSetupMessage(struct Upnp_Action_Request *ca_event)
     char IP_addr[INET6_ADDRSTRLEN];
     int id_len = 0;
     unsigned char *CP_id = NULL;
+    int sm_status = 0;
     
     if ((protocoltype = GetFirstDocumentItem(ca_event->ActionRequest, "ProtocolType")) &&
             (inmessage = GetFirstDocumentItem(ca_event->ActionRequest, "InMessage")))
@@ -988,7 +986,7 @@ result = 0;
             wpsu_base64_to_bin(b64msglen,(const unsigned char *)inmessage,&outlen,pBinMsg,b64msglen);
 
             // update state machine
-            message_received(ca_event, 0, pBinMsg, outlen);
+            message_received(ca_event, 0, pBinMsg, outlen, &sm_status);
             if (pBinMsg) free(pBinMsg);
         }
         else // must be busy doing someone else's introduction process 
@@ -1021,6 +1019,15 @@ result = 0;
         ca_event->ActionResult = ixmlParseBuffer(resultStr);
         if (pB64Msg) free(pB64Msg);     
     }
+
+    
+    // if state machine is in this state, registrar has given wrong PIN
+    // We should stop state machine now and Send event telling SetupReady = 1
+    if (sm_status == WPSU_SM_E_FAILURE)  
+    {
+        FreeDP();
+    }
+    
     
     if (inmessage) free(inmessage);
     if (protocoltype) free(protocoltype);
