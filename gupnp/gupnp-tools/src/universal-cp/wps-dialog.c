@@ -26,6 +26,17 @@ static GtkWidget *wps_dialog_progressbar;
 
 static gboolean togglebutton_active;
 
+struct _GUPnPDeviceProxyWps {
+        GUPnPDeviceProxy  *proxy;
+        GUPnPServiceProxy *device_prot_service;
+
+        GUPnPDeviceProxyWpsCallback callback;
+
+        gpointer user_data;
+
+        GError *error;
+};
+
 void
 on_start_wps_setup_activate (GladeXML *glade_xml)
 {
@@ -54,6 +65,25 @@ begin_wps_dialog (void)
                                                            "",
             	                                           continue_wps_cb,
             		                                       wps_user_data);
+	    	g_assert (deviceProxyWps != NULL);
+	    	if (deviceProxyWps->error) {
+	           	GtkWidget *error_dialog;
+
+	            error_dialog = gtk_message_dialog_new (GTK_WINDOW (wps_dialog),
+	                                                   GTK_DIALOG_MODAL,
+	                                                   GTK_MESSAGE_ERROR,
+	                                                   GTK_BUTTONS_CLOSE,
+	                                                   "WPS setup failed.\n\nError %d: %s",
+	                                                   deviceProxyWps->error->code,
+	                                                   deviceProxyWps->error->message);
+
+	            gtk_dialog_run (GTK_DIALOG (error_dialog));
+	            gtk_widget_destroy (error_dialog);
+
+	            gtk_widget_hide (wps_dialog);
+	            return;
+	    	}
+
             gtk_dialog_run (GTK_DIALOG (wps_dialog));
             gtk_widget_hide (wps_dialog);
 	    } else {
@@ -169,6 +199,22 @@ wps_invocation (void)
                                                        device_pin,
         	                                           continue_wps_cb,
         		                                       wps_user_data);
+        if (deviceProxyWps->error) {
+            GtkWidget *error_dialog;
+
+        	error_dialog = gtk_message_dialog_new (GTK_WINDOW (wps_dialog),
+        	                                       GTK_DIALOG_MODAL,
+        	                                       GTK_MESSAGE_ERROR,
+        	                                       GTK_BUTTONS_CLOSE,
+        	                                       "WPS setup failed.\n\nError %d: %s",
+        	                                        deviceProxyWps->error->code,
+        	                                        deviceProxyWps->error->message);
+
+        	gtk_dialog_run (GTK_DIALOG (error_dialog));
+        	gtk_widget_destroy (error_dialog);
+        	gtk_widget_hide (wps_dialog);
+        	return;
+        }
 }
 
 void
