@@ -506,7 +506,8 @@ handle_https_request(void *args)
             //peer has closed connection
             http_error_code = UPNP_E_SUCCESS;
             UpnpPrintf( UPNP_INFO, HTTP, __FILE__, __LINE__,
-                    "(handle_https_request): Peer has closed SSL connection\n");            
+                    "(handle_https_request): Peer has closed SSL connection\n"); 
+            session = NULL;         // session doesn't exist anymore 
             goto ExitFunction;
         } else {
             // received corrupted data
@@ -514,7 +515,7 @@ handle_https_request(void *args)
             line = __LINE__;
             ret = num_read;
             UpnpPrintf( UPNP_INFO, HTTP, __FILE__, __LINE__,
-                    "(handle_https_request): gnutls received sorrupted data\n");             
+                    "(handle_https_request): gnutls received corrupted data\n");                
             goto ExitFunction;
         }
     }
@@ -537,9 +538,9 @@ ExitFunction:
     if (session != NULL)
     {
         gnutls_bye (session, GNUTLS_SHUT_RDWR);
-        close (sock);
         //gnutls_deinit (session);
     }
+    close (sock);
     free( request );
 }
 
