@@ -446,7 +446,7 @@ static void message_received(struct Upnp_Action_Request *ca_event, int error, un
             else
             {                
                 ret = ACL_addCP(ACLDoc, CN, NULL, (char *)b64_identifier, "DP:1", "Public Basic", 1);
-                if (ret != 0)
+                if (ret != ACL_SUCCESS && ret != ACL_USER_ERROR)
                     trace(1,"Failed to add new CP into ACL! Ignoring...");
             }
             trace(3, "Contents of ACL:\n%s\n",ixmlPrintDocument(ACLDoc));
@@ -943,7 +943,7 @@ int SendSetupMessage(struct Upnp_Action_Request *ca_event)
         
         if (strcmp(protocoltype, "WPS") != 0)
         {
-            trace(1, "Introduction protocol type must be DeviceProtection:1: Invalid ProtocolType=%s\n",protocoltype);
+            trace(1, "Introduction protocol type must be 'WPS': Invalid ProtocolType=%s\n",protocoltype);
             result = 703;
             addErrorData(ca_event, result, "Unknown Protocol Type");       
         } 
