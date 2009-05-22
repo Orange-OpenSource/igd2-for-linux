@@ -384,6 +384,15 @@ static void FreeDP()
     int error;
     
     trace(2,"Finished DeviceProtection pairwise introduction process\n");
+    
+    
+    /*WPSuStationOutput *smOutput;
+    smOutput = wpsu_get_enrollee_sm_station_output(esm, &error);
+    
+    printf("ConfigurationError: %d\n",smOutput->ConfigurationError);
+    printf("DeviceName: %s\n",smOutput->RegistrarInfo.DeviceName);
+    printf("Uuid: %s\n",smOutput->RegistrarInfo.Uuid);*/
+    
     wpsu_enrollee_station_input_free(&input);
     wpsu_cleanup_enrollee_sm(esm, &error);
     
@@ -464,9 +473,15 @@ static void message_received(struct Upnp_Action_Request *ca_event, int error, un
             FreeDP();
             break;
         }
+        case WPSU_SM_E_PROCESS:
+        {
+            trace(3, "Continuing DeviceProtection introduction...\n");
+            break;
+        }
         default:
         {
-
+            trace(2, "DeviceProtection introduction state machine in unknown error state. Terminating...\n");
+            FreeDP();
         }
     }
 }
@@ -939,7 +954,7 @@ int SendSetupMessage(struct Upnp_Action_Request *ca_event)
 // TODO remove this!!!!!!!!!!!!!!!!!!!!!!!!     
 result = 0;   
         
-        if (result == 0 && SetupReady) // ready to start introduction
+        if (result == 0 && SetupReady && strcmp(inmessage, "") == 0) // ready to start introduction. InMessage MUST be empty for M1
         {
             // store id of this CP to determine next time if still the same CP is using this.
             memcpy(prev_CP_id, CP_id, id_len);            
@@ -955,6 +970,12 @@ result = 0;
                 result = 704;
                 addErrorData(ca_event, result, "Processing Error");               
             }
+        }
+        else if (SetupReady && strcmp(inmessage, "") != 0)
+        {
+            trace(1, "Failure in SendSetupMessage: InMessage must be empty when fetching M1 message");
+            result = 402;
+            addErrorData(ca_event, result, "Invalid Args");            
         }
 // TODO: remove comment!!!!!        
         else if (!SetupReady )//&& (memcmp(prev_CP_id, CP_id, id_len) == 0)) // continue started introduction
@@ -999,10 +1020,6 @@ result = 0;
                  ca_event->ActionName, DP_SERVICE_TYPE, pB64Msg, ca_event->ActionName);
         ca_event->ActionResult = ixmlParseBuffer(resultStr);
         if (pB64Msg) free(pB64Msg);     
-    }
-    else if (result != 708)
-    {
-        FreeDP();       
     }
     
     if (inmessage) free(inmessage);
