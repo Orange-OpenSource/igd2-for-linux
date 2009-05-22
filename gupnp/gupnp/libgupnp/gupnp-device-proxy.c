@@ -62,7 +62,12 @@ struct _GUPnPDeviceProxyWps {
         WPSuRegistrarInput wpsu_input;
         unsigned char     *wpsu_registrar_send_msg;
         int                wpsu_registrar_send_msg_len;
-        unsigned char uuid[WPSU_MAX_UUID_LEN];
+        unsigned char      uuid[WPSU_MAX_UUID_LEN];
+};
+
+enum {
+        PROP_0,
+        PROP_SESSION,
 };
 
 static GUPnPDeviceInfo *
@@ -137,11 +142,28 @@ static void
 gupnp_device_proxy_class_init (GUPnPDeviceProxyClass *klass)
 {
         GUPnPDeviceInfoClass *info_class;
-
         info_class = GUPNP_DEVICE_INFO_CLASS (klass);
+
+        GObjectClass *object_class;
+        object_class = G_OBJECT_CLASS (klass);
 
         info_class->get_device  = gupnp_device_proxy_get_device;
         info_class->get_service = gupnp_device_proxy_get_service;
+
+        /**
+         * Soup Session object for secure connections (device protection).
+         */
+        g_object_class_install_property
+                        (object_class,
+                         PROP_SESSION,
+                         g_param_spec_object ("session",
+                                              "SoupSession",
+                                              "SoupSession object for SSL connections",
+                                              SOUP_TYPE_SESSION,
+                                              G_PARAM_READABLE |
+                                              G_PARAM_STATIC_NAME |
+                                              G_PARAM_STATIC_NICK |
+                                              G_PARAM_STATIC_BLURB));
 }
 
 /* Functions related to the device protection:1 service */
@@ -249,9 +271,9 @@ wps_got_response (GUPnPServiceProxy       *proxy,
                                                  base64msg,
                                                  NULL);
 
-                WPSuRegistrarOutput *smOutput;
-                smOutput = wpsu_get_registrar_sm_output(wps->wpsu_rsm, &err);
-                wps->device_name = g_string_new(smOutput->EnrolleeInfo.DeviceName);
+                WPSuRegistrarOutput *sm_output;
+                sm_output = wpsu_get_registrar_sm_output(wps->wpsu_rsm, &err);
+                wps->device_name = g_string_new(sm_output->EnrolleeInfo.DeviceName);
 
                 g_warning("Device name: %s", wps->device_name->str);
                 wps->callback(wps->proxy, wps, wps->device_name, &wps->error, wps->user_data);
@@ -519,4 +541,28 @@ gupnp_device_proxy_end_wps (GUPnPDeviceProxyWps *wps)
         g_free(wps);
 
         return done;
+}
+
+gboolean
+gupnp_device_proxy_init_ssl (GUPnPDeviceProxy *proxy,
+                             gchar            *certificate_file,
+                             GError          **error)
+{
+        g_assert (proxy != NULL);
+
+        // TODO: VLi check that device protection service exists and
+        // create new session with certificate file
+
+//        found_device = find_device_protection_service (proxy);
+//        if (found_device == NULL) // no device protection service found for the device
+//        g_object_unref (found_device); // free allocated memory, if not NULL
+
+//         proxy->priv->session = soup_session_async_new_with_options
+//                               (SOUP_SESSION_IDLE_TIMEOUT,
+//                                60,
+//                                SOUP_SESSION_SSL_CA_FILE,
+//                                certificate_file, //something like this??
+//                                NULL);
+
+        return TRUE;
 }

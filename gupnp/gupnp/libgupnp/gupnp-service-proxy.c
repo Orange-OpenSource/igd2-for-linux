@@ -688,6 +688,9 @@ finish_action_msg (GUPnPServiceProxyAction *action,
          * in order for send_action() to work. */
         g_object_ref (action->msg);
 
+        // TODO: VLi check if the device has its own session
+        // if it does, use it instead of context session
+
         /* Send the message */
         context = gupnp_service_info_get_context
                                 (GUPNP_SERVICE_INFO (action->proxy));

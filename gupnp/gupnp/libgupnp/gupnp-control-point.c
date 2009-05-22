@@ -209,6 +209,10 @@ gupnp_control_point_finalize (GObject *object)
         object_class->finalize (object);
 }
 
+// TODO: VLi add device proxy to both process_service_list and process_device_list as parameter
+// when creating a new service, include pointer to parent (or root maybe?) device proxy
+
+
 /* Search @element for matching services */
 static void
 process_service_list (xmlNode           *element,

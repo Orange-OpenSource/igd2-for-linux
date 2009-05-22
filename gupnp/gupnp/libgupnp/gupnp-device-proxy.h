@@ -109,6 +109,11 @@ gupnp_device_proxy_cancel_wps (GUPnPDeviceProxyWps *wps);
 gboolean
 gupnp_device_proxy_end_wps (GUPnPDeviceProxyWps *wps);
 
+gboolean
+gupnp_device_proxy_init_ssl (GUPnPDeviceProxy *proxy,
+                             gchar            *certificate_file,
+                             GError          **error);
+
 G_END_DECLS
 
 #endif /* __GUPNP_DEVICE_PROXY_H__ */
