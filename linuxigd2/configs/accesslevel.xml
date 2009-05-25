@@ -238,7 +238,7 @@
             </action>
             <action>
                 <name>AddUserLoginData</name>
-                <accessLevel>Admin</accessLevel>
+                <accessLevel>Basic</accessLevel>
             </action>
             <action>
                 <name>RemoveUserLoginData</name>
