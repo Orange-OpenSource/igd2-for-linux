@@ -52,8 +52,8 @@ int GetACLData(struct Upnp_Action_Request *ca_event);
 int AddRolesForIdentity(struct Upnp_Action_Request *ca_event);
 int RemoveRolesForIdentity(struct Upnp_Action_Request *ca_event);
 int GetCurrentRoles(struct Upnp_Action_Request *ca_event);
-int AddLoginData(struct Upnp_Action_Request *ca_event);
-int RemoveLoginData(struct Upnp_Action_Request *ca_event);
+int AddUserLoginData(struct Upnp_Action_Request *ca_event);
+int RemoveUserLoginData(struct Upnp_Action_Request *ca_event);
 int AddIdentityData(struct Upnp_Action_Request *ca_event);
 int RemoveIdentityData(struct Upnp_Action_Request *ca_event);
 

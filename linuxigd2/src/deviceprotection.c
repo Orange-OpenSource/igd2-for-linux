@@ -241,6 +241,36 @@ static int getIdentifierOfCP(struct Upnp_Action_Request *ca_event, unsigned char
 
 
 /**
+ * Get identity associated with SSL session used for sending given action.
+ * 
+ * @param ca_event Upnp event struct.
+ * @param identity Pointer to char* where identity are put.
+ * @return 0 if succeeded to fetch identity. Something else if error
+ */
+static int getIdentityOfSession(struct Upnp_Action_Request *ca_event, char **identity)
+{
+    int ret, b64len=0;
+    unsigned char *b64_identifier;
+    
+    // 1. get identifier of CP (base64 of 20 first bytes of sha-256(CP certificate))
+    ret = getIdentifierOfCP(ca_event, &b64_identifier, &b64len, NULL);
+    if (ret != 0 )
+    {
+        return ret;
+    } 
+    
+    // 2. fetch current identity of CP from SIR. Identity may be username or hash of certificate (== b64_identity)
+    int active;
+    char *role = NULL;
+    *identity = SIR_getIdentityOfSession(SIRDoc, (char *)b64_identifier, &active, &role);
+    
+    if (*identity == NULL)
+        return -1;
+    
+    return 0;
+}
+
+/**
  * Get list of roles associated with SSL session used for sending given action.
  * 
  * @param ca_event Upnp event struct.
@@ -597,7 +627,7 @@ static int putValuesToPasswdFile(const char *name, const unsigned char *b64_salt
  * @param b64_salt Pointer to salt data read from file (base64 encoded)
  * @oaram b64_stored Pointer to stored data read from file (base64 encoded)
  * @param delete_values Use 0 to update existing values, 1 to delete.
- * @return -1 if fail or username is not found, 0 on success
+ * @return -1 if fail, -2 if username is not found, 0 on success
  */
 static int updateValuesToPasswdFile(const char *nameUPPER, const unsigned char *b64_salt, const unsigned char *b64_stored, int delete_values)
 {
@@ -606,7 +636,7 @@ static int updateValuesToPasswdFile(const char *nameUPPER, const unsigned char *
     char line[200];
     char temp[200];
     char *name;
-    int ret = -1;
+    int ret = -2;
     
     char tempfile[strlen(g_vars.passwdFile) + 5];
     strcpy(tempfile,g_vars.passwdFile);
@@ -1484,10 +1514,7 @@ int RemoveRolesForIdentity(struct Upnp_Action_Request *ca_event)
     
     if ( (identity = GetFirstDocumentItem(ca_event->ActionRequest, "Identity") )
             && (rolelist = GetFirstDocumentItem(ca_event->ActionRequest, "RoleList") ))
-    {
-        // check that CP has Admin privileges
-        
-        
+    {       
         // try first to remove roles from username
         result = ACL_removeRolesFromUser(ACLDoc, identity, rolelist);
         if (result == ACL_USER_ERROR)
@@ -1584,24 +1611,163 @@ int GetCurrentRoles(struct Upnp_Action_Request *ca_event)
 }
 
 /**
- * DeviceProtection:1 Action: AddLoginData.
+ * DeviceProtection:1 Action: AddUserLoginData.
  *
  * @param ca_event Upnp event struct.
  * @return Upnp error code.
  */
-int AddLoginData(struct Upnp_Action_Request *ca_event)
+int AddUserLoginData(struct Upnp_Action_Request *ca_event)
 {
+    int result = 0;
+    char *flags = NULL;
+    char *name = NULL;
+    char *stored = NULL;
+    char *salt = NULL;
+    char *nameUPPER = NULL;
+    char *identity = NULL;
+    
+    if ( (flags = GetFirstDocumentItem(ca_event->ActionRequest, "Flags") )
+            && (name = GetFirstDocumentItem(ca_event->ActionRequest, "Name") )
+            && (stored = GetFirstDocumentItem(ca_event->ActionRequest, "Stored") )
+            && (salt = GetFirstDocumentItem(ca_event->ActionRequest, "Salt") ))
+    {      
+        // change name to uppercase, because usernames are not case sensitive
+        nameUPPER = toUpperCase(name);
+        if (nameUPPER == NULL)
+        {
+            trace(1, "%s: Failed to turn name '%s' to uppercase",ca_event->ActionName,name);
+            result = 501;
+            addErrorData(ca_event, result, "Action Failed");            
+        }
+        // update existing username
+        else if (atoi(flags) == 0)
+        {
+            getIdentityOfSession(ca_event, &identity);
+            identity = toUpperCase(identity);
+            if (identity == NULL)
+            {
+                trace(1, "%s: Failed to turn identity '%s' to uppercase",ca_event->ActionName,identity);
+                result = 501;
+                addErrorData(ca_event, result, "Action Failed");            
+            }            
+            // check from SIR that username received as parameter is current identity of this session
+            // or has "Admin" privileges 
+            else if ( (checkCPPrivileges(ca_event, "Admin") == 0) || (strcmp(identity, nameUPPER) == 0))
+            {
+                result = updateValuesToPasswdFile(nameUPPER, (unsigned char *)salt, (unsigned char *)stored, 0);
+                if (result == -2)
+                {
+                    trace(1, "%s: Username '%s' not found from passwd file",ca_event->ActionName,name);
+                    result = 706;
+                    addErrorData(ca_event, result, "Invalid Name");                    
+                }
+                else if (result != 0)
+                {
+                    trace(1, "%s: Failed to update login values to passwordfile",ca_event->ActionName);
+                    result = 501;
+                    addErrorData(ca_event, result, "Action Failed");       
+                }              
+            }
+            else
+            {
+                trace(1, "%s: Not enough privileges to do this, '%s' is required",ca_event->ActionName, "Admin");
+                result = 702;
+                addErrorData(ca_event, result, "Authorization Failure");                
+            }            
+        }
+        // add totally new username
+        else if (atoi(flags) == 1) 
+        {           
+            // if flags is 1, user must have Admin priviliges
+            if (checkCPPrivileges(ca_event, "Admin") != 0)
+            {
+                trace(1, "%s: Not enough privileges to do this, '%s' is required",ca_event->ActionName, "Admin");
+                result = 702;
+                addErrorData(ca_event, result, "Authorization Failure");                
+            }
+            else
+            {
+                // add new values to passwordfile
+                result = putValuesToPasswdFile(nameUPPER, (unsigned char *)salt, (unsigned char *)stored);
+                if (result == -2)
+                {
+                    trace(1, "%s: Same username '%s' exists in passwd file already",ca_event->ActionName,name);
+                    result = 706;
+                    addErrorData(ca_event, result, "Invalid Name");                    
+                }
+                else if (result != 0)
+                {
+                    trace(1, "%s: Failed to write login values to passwordfile",ca_event->ActionName);
+                    result = 501;
+                    addErrorData(ca_event, result, "Action Failed");
+                    
+                    // if failed to add new logindata to file but reason wasn't that same username 
+                    // existed in passwd file already, try to remove added data
+                    updateValuesToPasswdFile(nameUPPER, (unsigned char *)salt, (unsigned char *)stored, 1);          
+                } 
+                else
+                {
+                    // add user to ACL also
+                    result = ACL_addUser(ACLDoc, nameUPPER, "Public");
+                    // if failed, try to clean up what have done so far
+                    if (result != ACL_SUCCESS)
+                    {
+                        trace(1, "%s: Failed to add username to ACL",ca_event->ActionName);
+                        result = 501;
+                        addErrorData(ca_event, result, "Action Failed");
+                        
+                        // remove added username from passwdfile
+                        updateValuesToPasswdFile(nameUPPER, (unsigned char *)salt, (unsigned char *)stored, 1);
+                        // try to remove username from ACL
+                        ACL_removeUser(ACLDoc, name);
+                    }                    
+                }            
+            }
+        }
+        else
+        {
+            trace(1, "%s: Invalid parameter value for Flags!", ca_event->ActionName);
+            trace(1, "  Flags: %s, Name: %s, Stored: %s, Salt: %s",flags,name,stored,salt);
+            result = 707;
+            addErrorData(ca_event, result, "Invalid Parameter");            
+        }
+        
+        // all is well
+        if (result == 0)
+        {
+            // write ACL in filesystem
+            writeDocumentToFile(ACLDoc, ACL_XML);
+            ca_event->ActionResult = UpnpMakeActionResponse(ca_event->ActionName, DP_SERVICE_TYPE,
+                                        0, NULL);                                        
+            ca_event->ErrCode = UPNP_E_SUCCESS;   
+        }
+        
+    }
+    else
+    {
+        trace(1, "%s: Invalid Arguments!", ca_event->ActionName);
+        trace(1, "  Flags: %s, Name: %s, Stored: %s, Salt: %s",flags,name,stored,salt);
+        addErrorData(ca_event, 402, "Invalid Args");
+    }
+  
+    if (flags) free(flags);
+    if (name) free(name);
+    if (stored) free(stored);
+    if (salt) free(salt);
+    if (nameUPPER) free(nameUPPER);
+    if (identity) free(identity);
+
     return ca_event->ErrCode;
 }
 
 
 /**
- * DeviceProtection:1 Action: RemoveLoginData.
+ * DeviceProtection:1 Action: RemoveUserLoginData.
  *
  * @param ca_event Upnp event struct.
  * @return Upnp error code.
  */
-int RemoveLoginData(struct Upnp_Action_Request *ca_event)
+int RemoveUserLoginData(struct Upnp_Action_Request *ca_event)
 {
     return ca_event->ErrCode;
 }

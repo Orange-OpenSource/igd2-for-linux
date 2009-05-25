@@ -289,10 +289,10 @@ int HandleActionRequest(struct Upnp_Action_Request *ca_event)
                 result = RemoveRolesForIdentity(ca_event);                
             else if (strcmp(ca_event->ActionName,"GetCurrentRoles") == 0)
                 result = GetCurrentRoles(ca_event); 
-            else if (strcmp(ca_event->ActionName,"AddLoginData") == 0)
-                result = AddLoginData(ca_event); 
-            else if (strcmp(ca_event->ActionName,"RemoveLoginData") == 0)
-                result = RemoveLoginData(ca_event); 
+            else if (strcmp(ca_event->ActionName,"AddUserLoginData") == 0)
+                result = AddUserLoginData(ca_event); 
+            else if (strcmp(ca_event->ActionName,"RemoveUserLoginData") == 0)
+                result = RemoveUserLoginData(ca_event); 
             else if (strcmp(ca_event->ActionName,"AddIdentityData") == 0)
                 result = AddIdentityData(ca_event); 
             else if (strcmp(ca_event->ActionName,"RemoveIdentityData") == 0)
