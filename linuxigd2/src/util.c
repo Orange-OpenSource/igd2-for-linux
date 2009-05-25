@@ -546,6 +546,42 @@ int writeDocumentToFile(IXML_Document *doc, const char *file)
     return ret;         
 }
 
+
+/**
+ * Check if list containing items separated with separator contains item searchItem.
+ * 
+ * List could be for example: "Admin Basic Public", separator " " and searchItem "Basic".
+ * These values would return 1
+ *
+ * @param list String containing values separated with separator
+ * @param separator Separator used in list
+ * @param searchItem Token value which is searched from list
+ * @return 1 if item is found, 0 if not
+ */
+int tokenizeAndSearch(const char *constList, const char *separator, const char *searchItem)
+{
+    char list[strlen(constList)];
+    strcpy(list,constList);
+    
+    char *token = strtok(list, separator);
+    if (token)
+    {
+        do 
+        {
+            if ( strcmp(searchItem,token) == 0 )
+            {
+                return 1;
+            }
+                
+        } while ((token = strtok(NULL, separator)));
+
+    }
+    
+    return 0;
+} 
+
+
+
 /**
  * Get text value of given IXML_Node. Node containing 'accessLevel>Admin</accessLevel>'
  * would return 'Admin'
@@ -1153,22 +1189,8 @@ int ACL_doesIdentityHasRole(IXML_Document *doc, const char *identity, const char
         roles = ACL_getRolesOfCP(doc, identity);
     if (roles == NULL)
         return 0;
-        
-    char *role = strtok(roles, " ");
-    if (role)
-    {
-        do 
-        {
-            if ( strcmp(targetRole,role) == 0 )
-            {
-                return 1;
-            }
-                
-        } while ((role = strtok(NULL, " ")));
-
-    }
-
-    return 0;
+    
+    return tokenizeAndSearch(roles, " ", targetRole);
 }
 
 
@@ -1630,7 +1652,7 @@ int SIR_addSession(IXML_Document *doc, const char *id, int active, const char *i
  * @param id Session id. Value of id-attribute
  * @param active Pointer to new value of "active"
  * @param identity New value of "identity"
- * @param role New value of "role"
+ * @param role New value of "role". If NULL, node will be removed
  * @param attempts Value of "loginattempts" attribute
  * @param loginName New value of "name"
  * @param loginChallenge New value of "challenge"
@@ -1678,7 +1700,7 @@ int SIR_updateSession(IXML_Document *doc, const char *id, int *active, const cha
     if (role != NULL)
         newRole = (char *)role;
     else
-        newRole = oldRole;
+        newRole = NULL;  // removes role
 
     if (attempts != NULL)
         newAttempts = *attempts;

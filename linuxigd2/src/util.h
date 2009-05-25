@@ -51,6 +51,7 @@ int readIntFromFile(char *file);
 char* GetFirstDocumentItem( IN IXML_Document * doc, const char *item );
 char* GetDocumentItem(IXML_Document * doc, const char *item, int index);
 int writeDocumentToFile(IXML_Document *doc, const char *file);
+int tokenizeAndSearch(const char *constList, const char *separator, const char *searchItem);
 
 void ParseXMLResponse(struct Upnp_Action_Request *ca_event, const char *result);
 

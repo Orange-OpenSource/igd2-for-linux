@@ -60,8 +60,11 @@ static IXML_Document *ACLDoc = NULL;
  * Identity is either username or 20 bytes of certificate hash. It is trusted that no-one will never-ever
  * use username that could be some certificates hash. Value of identity corresponds in ACL to value of
  * "Name" under "User" or "Hash" under "CP" 
- * Active attribute tells if session is currentlyt used. If value is 0, it can be later used in session
- * resumption.
+ * Active attribute tells if session is currently logged in as identity. If value is 0, it can be later 
+ * used in session resumption.
+ * 
+ * If session contains "role"-element, this is the current role for this sesseion, not value from ACL.
+ * 
  * 
  * Session may also contain data associated for user login process. Device must know what username/
  * accountname CP wishes to login and value of challenge which was send to CP. Because its certificate
@@ -75,6 +78,7 @@ static IXML_Document *ACLDoc = NULL;
  * <SIR>
  *  <session id="AHHuendfn372jsuGDS==" active="1">
  *      <identity>username</identity>
+ *      <role>Basic</role>
  *      <logindata loginattempts="2">
  *          <name>Admin</name>
  *          <challenge>83h83288J7YGHGS778jsJJHGDn=</challenge>
@@ -161,13 +165,13 @@ int checkCPPrivileges(struct Upnp_Action_Request *ca_event, const char *targetRo
     
     // 4. fetch current identity of CP from SIR. Identity may be username or hash of certificate (== b64_identity)
     int active;
-    char *role = NULL;
-    char *identity = SIR_getIdentityOfSession(SIRDoc, (char *)b64_identifier, &active, &role);
+    char *roles = NULL;
+    char *identity = SIR_getIdentityOfSession(SIRDoc, (char *)b64_identifier, &active, &roles);
     if (identity == NULL)
     {
         // if identity isn't found, that could only mean that we are dealing with a new CP
         // Let's add new entry to SIR with role value "Public". Identity is not inserted
-        ret = SIR_addSession(SIRDoc, (char *)b64_identifier, 1, NULL, "Public", NULL, NULL, NULL);
+        ret = SIR_addSession(SIRDoc, (char *)b64_identifier, 0, NULL, "Public", NULL, NULL, NULL);
         if (ret != 0)
             return -1;
             
@@ -178,10 +182,17 @@ int checkCPPrivileges(struct Upnp_Action_Request *ca_event, const char *targetRo
             return 1;
     }
      
-     
-    // 5. check if target role is one of current roles of identity
-    if ( ACL_doesIdentityHasRole(ACLDoc, identity, targetRole) )
-        return 0;
+    if (active && roles == NULL) // this means that user is logged in as some username
+    {
+        // 5. check if target role is one of current roles of identity
+        if ( ACL_doesIdentityHasRole(ACLDoc, identity, targetRole) )
+            return 0;
+    }
+    else  // this means that user isn't logged in
+    {
+        if ( tokenizeAndSearch(roles, " ", targetRole) )
+            return 0;
+    }
     
     return 1;
 }
@@ -933,8 +944,16 @@ int SendSetupMessage(struct Upnp_Action_Request *ca_event)
     int id_len = 0;
     unsigned char *CP_id = NULL;
     int sm_status = 0;
-    
-    if ((protocoltype = GetFirstDocumentItem(ca_event->ActionRequest, "ProtocolType")) &&
+
+// TODO remove this from comments
+/*    if (ca_event->SSLSession == NULL)
+    {
+        // SSL must be used
+        trace(1, "%s: SSL connection must be used for this",ca_event->ActionName);
+        result = 701;
+        addErrorData(ca_event, result, "Authentication Failure");        
+    }
+    else*/ if ((protocoltype = GetFirstDocumentItem(ca_event->ActionRequest, "ProtocolType")) &&
             (inmessage = GetFirstDocumentItem(ca_event->ActionRequest, "InMessage")))
     {    
         inet_ntop(AF_INET, &ca_event->CtrlPtIPAddr, IP_addr, INET6_ADDRSTRLEN);
@@ -1145,15 +1164,20 @@ int UserLogin(struct Upnp_Action_Request *ca_event)
     int loginattempts = 0;
     char *loginName = NULL;
     char *loginChallenge = NULL;
+    int active;
     
     unsigned char *id =NULL;
     int id_len = 0;
 
+    // what if user is already logged in?
+    
     
     if ( (challenge = GetFirstDocumentItem(ca_event->ActionRequest, "Challenge") )
             && (authenticator = GetFirstDocumentItem(ca_event->ActionRequest, "Authenticator") ))
     {
         result = getIdentifierOfCP(ca_event, &id, &id_len, NULL);
+        // here we could try "session resumption" by getting identity from SIR?
+        // but not now, just continue as new login...
         result = SIR_getLoginDataOfSession(SIRDoc, (char *)id, &loginattempts, &loginName, &loginChallenge);
         
         if (result != 0 || !loginName || !loginChallenge)
@@ -1236,7 +1260,8 @@ int UserLogin(struct Upnp_Action_Request *ca_event)
                 {
                     // Login is now succeeded
                     loginattempts = 0;
-                    result = SIR_updateSession(SIRDoc, (char *)id, NULL, loginName, NULL, &loginattempts, NULL, NULL);
+                    active = 1;
+                    result = SIR_updateSession(SIRDoc, (char *)id, &active, loginName, NULL, &loginattempts, NULL, NULL);
                     // remove logindata from SIR
                     SIR_removeLoginDataOfSession(SIRDoc, (char *)id);
                     // create response SOAP message
@@ -1283,6 +1308,52 @@ int UserLogin(struct Upnp_Action_Request *ca_event)
  */
 int UserLogout(struct Upnp_Action_Request *ca_event)
 {
+    unsigned char *id =NULL;
+    int id_len = 0;
+    int result, active;
+    char *roles = NULL;  
+
+    // what if user is not even logged in?
+
+    result = getIdentifierOfCP(ca_event, &id, &id_len, NULL);
+    
+    if (result != 0)
+    {
+        trace(1, "%s: Failed to get identifier from certificate",ca_event->ActionName);
+        result = 501;
+        addErrorData(ca_event, result, "Action Failed");            
+    }
+    else
+    {
+        // Fetch default role(s) for this CP from ACL
+        roles = ACL_getRolesOfCP(ACLDoc, (char *)id);
+        if (roles == NULL)
+            roles = "Public";
+        
+        // Add value of role default roles of this CP, and active to 0
+        active = 0;
+        result = SIR_updateSession(SIRDoc, (char *)id, &active, NULL, roles, NULL, NULL, NULL);
+
+        // create response SOAP message
+        IXML_Document *ActionResult = NULL;
+        ActionResult = UpnpMakeActionResponse(ca_event->ActionName, DP_SERVICE_TYPE,
+                                        0, NULL);
+                                        
+        if (ActionResult && result == 0)
+        {
+            ca_event->ActionResult = ActionResult;
+            ca_event->ErrCode = UPNP_E_SUCCESS;        
+        }
+        else
+        {
+            trace(1, "Error parsing Response to %s (add default roles (%s) for this session in SIR)",ca_event->ActionName,roles);
+            result = 501;
+            addErrorData(ca_event, result, "Action Failed"); 
+        }
+    }
+    
+    if (id) free(id);
+    
     return ca_event->ErrCode;
 }
 
