@@ -48,10 +48,11 @@ int killDHCPClient(char *iface);
 int startDHCPClient(char *iface);
 int readIntFromFile(char *file);
 
+int tokenizeAndSearch(const char *constList, const char *separator, const char *searchItem);
+
 char* GetFirstDocumentItem( IN IXML_Document * doc, const char *item );
 char* GetDocumentItem(IXML_Document * doc, const char *item, int index);
 int writeDocumentToFile(IXML_Document *doc, const char *file);
-int tokenizeAndSearch(const char *constList, const char *separator, const char *searchItem);
 
 void ParseXMLResponse(struct Upnp_Action_Request *ca_event, const char *result);
 
@@ -76,6 +77,7 @@ int ACL_addRolesForCP(IXML_Document *doc, const char *hash, const char *roles);
 int ACL_removeRolesFromUser(IXML_Document *doc, const char *name, const char *roles);
 int ACL_removeRolesFromCP(IXML_Document *doc, const char *hash, const char *roles);
 int ACL_validateListAndUpdateACL(IXML_Document *ACLdoc, IXML_Document *identitiesDoc);
+int ACL_validateAndRemoveCP(IXML_Document *ACLdoc, IXML_Document *identityDoc);
 
 // SIR handling stuff
 IXML_Document *SIR_init();

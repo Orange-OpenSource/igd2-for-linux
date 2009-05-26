@@ -464,6 +464,41 @@ int releaseIP(char *iface)
 
 
 
+
+/**
+ * Check if list containing items separated with separator contains item searchItem.
+ * 
+ * List could be for example: "Admin Basic Public", separator " " and searchItem "Basic".
+ * These values would return 1
+ *
+ * @param list String containing values separated with separator
+ * @param separator Separator used in list
+ * @param searchItem Token value which is searched from list
+ * @return 1 if item is found, 0 if not
+ */
+int tokenizeAndSearch(const char *constList, const char *separator, const char *searchItem)
+{
+    char list[strlen(constList)];
+    strcpy(list,constList);
+    
+    char *token = strtok(list, separator);
+    if (token)
+    {
+        do 
+        {
+            if ( strcmp(searchItem,token) == 0 )
+            {
+                return 1;
+            }
+                
+        } while ((token = strtok(NULL, separator)));
+
+    }
+    
+    return 0;
+} 
+
+
 //-----------------------------------------------------------------------------
 //
 //                      Common extensions for ixml
@@ -545,40 +580,6 @@ int writeDocumentToFile(IXML_Document *doc, const char *file)
     fclose(stream);
     return ret;         
 }
-
-
-/**
- * Check if list containing items separated with separator contains item searchItem.
- * 
- * List could be for example: "Admin Basic Public", separator " " and searchItem "Basic".
- * These values would return 1
- *
- * @param list String containing values separated with separator
- * @param separator Separator used in list
- * @param searchItem Token value which is searched from list
- * @return 1 if item is found, 0 if not
- */
-int tokenizeAndSearch(const char *constList, const char *separator, const char *searchItem)
-{
-    char list[strlen(constList)];
-    strcpy(list,constList);
-    
-    char *token = strtok(list, separator);
-    if (token)
-    {
-        do 
-        {
-            if ( strcmp(searchItem,token) == 0 )
-            {
-                return 1;
-            }
-                
-        } while ((token = strtok(NULL, separator)));
-
-    }
-    
-    return 0;
-} 
 
 
 
@@ -1394,14 +1395,14 @@ int ACL_addUser(IXML_Document *doc, const char *name, const char *roles)
  * 
  * @param doc ACL IXML_Document
  * @param name Username which is removed from ACL
- * @return ACL_SUCCESS on success, -1 else. 
+ * @return ACL_SUCCESS on success, -1 else. ACL_USER_ERROR if Name is not found
  */
 int ACL_removeUser(IXML_Document *doc, const char *name)
 {
     IXML_Node *userNode = NULL;  
     
     userNode = GetNodeWithValue(doc, "Name", name);
-    if (!userNode) return ACL_SUCCESS;
+    if (!userNode) return ACL_USER_ERROR;
     
     return RemoveNode(userNode->parentNode);
 }
@@ -1413,14 +1414,14 @@ int ACL_removeUser(IXML_Document *doc, const char *name)
  * 
  * @param doc ACL IXML_Document
  * @param hash Hash of control point which is removed from ACL
- * @return 0 on success, -1 else
+ * @return 0 on success, -1 else. ACL_USER_ERROR if Hash is not found
  */
 int ACL_removeCP(IXML_Document *doc, const char *hash)
 {
     IXML_Node *hashNode = NULL;
     
     hashNode = GetNodeWithValue(doc, "Hash", hash);
-    if (!hashNode) return ACL_SUCCESS;
+    if (!hashNode) return ACL_USER_ERROR;
     
     // remove <CP> node
     return RemoveNode(hashNode->parentNode);
@@ -1643,6 +1644,56 @@ int ACL_validateListAndUpdateACL(IXML_Document *ACLdoc, IXML_Document *identitie
         ixmlNodeList_free( nodeList );  
         
     return 0;  
+}
+
+
+/**
+ * Validates given ixml document (identityDoc) which contains new CP's to add to ACL.
+ * Check that CP's 'Hash' have 'type="DP:1"'. 
+ * 
+ * This function is used by RemoveCPIdentityData() action.
+ * 
+ * @param doc ACL IXML_Document
+ * @param identitiesDoc IXML_Document which contains new CP-elements to add to ACL
+ * @return upnp error codes:
+ *         0 on succes,
+ *         707 if identitiesDoc contains invalid values
+ *         501 if processing error occurs
+ */
+int ACL_validateAndRemoveCP(IXML_Document *ACLdoc, IXML_Document *identityDoc)
+{
+    int result;
+    char *hash = NULL;
+    IXML_Node *tmpNode = NULL;
+    
+    tmpNode = GetNodeWithNameAndAttribute(identityDoc, "Hash", "type", "DP:1");
+    if (tmpNode == NULL)
+    {
+        trace(2,"(ACL) No Hash is found with type 'DP:1'");
+        return 707;        
+    }
+    
+    hash = GetTextValueOfNode(tmpNode);
+    if (hash == NULL)
+    {
+        trace(2,"(ACL) Failed to get value of Hash");
+        return 501;                
+    }    
+    
+    // remove CP form ACL
+    result = ACL_removeCP(ACLdoc, hash);
+    if (result == ACL_USER_ERROR)
+    {
+        trace(2,"(ACL) No CP with Hash '%s' is found from ACL",hash);
+        return 707;
+    }
+    else if (result != ACL_SUCCESS)
+    {
+        trace(2,"(ACL) Failed to remove CP with Hash '%s' from ACL",hash);
+        return 501;
+    }
+    
+    return 0;
 }
 
 

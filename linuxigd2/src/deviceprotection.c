@@ -1899,6 +1899,7 @@ int AddCPIdentityData(struct Upnp_Action_Request *ca_event)
         addErrorData(ca_event, 402, "Invalid Args");
     }
 
+    if (identitiesDoc) ixmlDocument_free(identitiesDoc);
     if (identitylist) free(identitylist);
     
     return ca_event->ErrCode;
@@ -1912,6 +1913,58 @@ int AddCPIdentityData(struct Upnp_Action_Request *ca_event)
  */
 int RemoveCPIdentityData(struct Upnp_Action_Request *ca_event)
 {
+    int result = 0;
+    char *identity = NULL;
+    char *hash = NULL;
+    IXML_Document *identityDoc = NULL;
+    
+    // TODO should it be tested that there is only one CP element in Identity?
+    if ( (identity = GetFirstDocumentItem(ca_event->ActionRequest, "Identity") ))
+    {    
+        identityDoc = ixmlParseBuffer(identity);
+        if (identityDoc == NULL)
+        {
+            trace(1, "%s: Failed to parse Identity '%s'",ca_event->ActionName, identity);
+            result = 501;
+            addErrorData(ca_event, result, "Action Failed");
+        }
+        else
+        {
+            // validate input and remove CP
+            result = ACL_validateAndRemoveCP(ACLDoc, identityDoc);
+            
+            if (result == 707)
+            {
+                addErrorData(ca_event, result, "Invalid Parameter");               
+            }
+            else if (result != 0)
+            {
+                result = 501;
+                addErrorData(ca_event, result, "Action Failed");
+            }
+        }
+        
+        
+        // all is well
+        if (result == 0)
+        {
+            // write ACL in filesystem
+            writeDocumentToFile(ACLDoc, ACL_XML);
+            ca_event->ActionResult = UpnpMakeActionResponse(ca_event->ActionName, DP_SERVICE_TYPE,
+                                        0, NULL);                                        
+            ca_event->ErrCode = UPNP_E_SUCCESS;   
+        }        
+    }
+    else
+    {
+        trace(1, "%s: Invalid Arguments!", ca_event->ActionName);
+        trace(1, "  Identity: %s",identity);
+        addErrorData(ca_event, 402, "Invalid Args");
+    }
+    
+    if (identityDoc) ixmlDocument_free(identityDoc);
+    if (hash) free(hash);
+    
     return ca_event->ErrCode;
 }
 
