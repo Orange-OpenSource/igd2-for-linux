@@ -1293,6 +1293,55 @@ int ACL_addCP(IXML_Document *doc, const char *name, const char *alias, const cha
 }
 
 /**
+ * Add or update Alias value of CP.
+ * 
+ * <CP introduced="1">
+ *    <Name>ACME Widget Model XYZ</Name>
+ *    <Alias>Mark’s Game Console</Alias>
+ *    <Hash type="DP:1">TM0NZomIzI2OTsmIzM0NTueYgi93Q==</Hash>
+ *    <RoleList>Admin Basic</RoleList>
+ * </CP>
+ * 
+ * @param doc ACL IXML_Document
+ * @param hash Value of Hash element which sibling Alias is modified or added
+ * @param alias Value of Alias element 
+ * @param forceChange Is existing Alias value changed, 1 is yes, 0 is no
+ * @return ACL_SUCCESS on success, ACL_COMMON_ERROR if fails to add or update alias
+ */
+int ACL_updateCPAlias(IXML_Document *doc, const char *hash, const char *alias, int forceChange)
+{
+    IXML_Node *tmpNode = GetNodeWithValue(doc, "Hash", hash);
+    IXML_Node *aliasNode = NULL;
+    
+    // Check that hash does exist
+    if ( tmpNode == NULL )
+    {
+        return ACL_USER_ERROR;
+    }
+    
+    aliasNode = GetSiblingWithTagName(tmpNode, "Alias");
+    
+    // if changing Alias value is forced, first thing to do is to remove aliasNode (even if it doesn't exist)
+    if (forceChange)
+    {
+        RemoveNode(aliasNode);
+    }
+    // if change is not forced and alias already exists, return SUCCESS
+    else if (!forceChange && aliasNode != NULL)
+    {
+        return ACL_SUCCESS;
+    }
+
+    // then add new child. If fails to add new node, and aliasNode is removed, or didn't even exist, return ACL_COMMON_ERROR
+    if ( AddChildNode(doc, tmpNode, "Alias", alias) == NULL )
+    {
+        return ACL_COMMON_ERROR;
+    }
+
+    return ACL_SUCCESS;
+}
+
+/**
  * Add new User into ACL xml.
  * 
  * <User>
@@ -1510,6 +1559,91 @@ int ACL_removeRolesFromCP(IXML_Document *doc, const char *hash, const char *role
 }
 
 
+/**
+ * Validates given ixml document (identitiesDoc) which contains new CP's to add to ACL.
+ * Validation checks that CP's doesn't contain 'RoleList' elements or 'introduced' attributes 
+ * with value '1'.
+ * Then add's all CP's to ACL whose 'Hash' have 'type="DP:1"'. 
+ * 
+ * This function is used by AddCPIdentityData() action.
+ * 
+ * @param doc ACL IXML_Document
+ * @param identitiesDoc IXML_Document which contains new CP-elements to add to ACL
+ * @return upnp error codes:
+ *         0 on succes,
+ *         707 if identitiesDoc contains invalid values
+ *         501 if processing error occurs
+ */
+int ACL_validateListAndUpdateACL(IXML_Document *ACLdoc, IXML_Document *identitiesDoc)
+{
+    int result;
+    IXML_Node *tmpNode = NULL;
+    IXML_NodeList *nodeList = NULL;
+    char *name = NULL;
+    char *alias = NULL;
+    char *hash = NULL;
+    
+    nodeList = ixmlDocument_getElementsByTagName( identitiesDoc, "RoleList" );
+    // list must not contain RoleList elements
+    if (nodeList != NULL)
+    {
+        trace(2,"(ACL) CP must not contain 'RoleList' element");
+        ixmlNodeList_free( nodeList );
+        return 707;       
+    }
+    
+    tmpNode = GetNodeWithNameAndAttribute(identitiesDoc, "CP", "introduced", "1");
+    // list must not contain CP element with attribute introduced with value 1
+    if (tmpNode != NULL)
+    {
+        trace(2,"(ACL) CP must not contain attribute 'introduced' with value '1'");
+        return 707;       
+    }    
+
+    // let's start adding new CP's to ACL
+    // get first Hash from new list with attribute type="DP:1"
+    while ( (tmpNode = GetNodeWithNameAndAttribute(identitiesDoc, "Hash", "type", "DP:1")) != NULL )
+    {
+        hash = GetTextValueOfNode(tmpNode);
+        name = GetTextValueOfNode( GetSiblingWithTagName(tmpNode, "Name") );
+        alias = GetTextValueOfNode( GetSiblingWithTagName(tmpNode, "Alias") );
+        
+        if (name == NULL)
+        {
+            trace(2,"(ACL) Name must be given for CP");
+            return 707;
+        }
+            
+        // just try to add new
+        result = ACL_addCP(ACLdoc, name, alias, hash, "DP:1", "Public", 0); //role?
+        
+        if (result == ACL_USER_ERROR && alias != NULL)
+        {
+            // CP with same Hash exist. Try to update OR add alias
+            result = ACL_updateCPAlias(ACLdoc, hash, alias, 0);
+            if (result != ACL_SUCCESS)
+            {
+                trace(2,"(ACL) Failed to add Alias");
+                return 501;                
+            }
+        }
+        // if same CP already exists, it is OK for us        
+        else if (result != ACL_USER_ERROR && result != ACL_SUCCESS)
+        {
+            trace(2,"(ACL) Failed to add new CP. Name: '%s', Alias: '%s', Hash: '%s'",name,alias,hash);
+            return 501;
+        }
+        
+        // remove node from identitiesDoc, so we can proceed to next one (if there is one)
+        RemoveNode(tmpNode);
+    }
+    
+    
+    if ( nodeList )
+        ixmlNodeList_free( nodeList );  
+        
+    return 0;  
+}
 
 
 //-----------------------------------------------------------------------------

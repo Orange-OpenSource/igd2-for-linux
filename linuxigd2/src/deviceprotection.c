@@ -1844,24 +1844,73 @@ int RemoveUserLoginData(struct Upnp_Action_Request *ca_event)
     return ca_event->ErrCode;
 }
 
+
 /**
- * DeviceProtection:1 Action: AddIdentityData.
+ * DeviceProtection:1 Action: AddCPIdentityData.
  *
  * @param ca_event Upnp event struct.
  * @return Upnp error code.
  */
-int AddIdentityData(struct Upnp_Action_Request *ca_event)
+int AddCPIdentityData(struct Upnp_Action_Request *ca_event)
 {
+    int result = 0;
+    char *identitylist = NULL;
+    IXML_Document *identitiesDoc = NULL;
+    
+    if ( (identitylist = GetFirstDocumentItem(ca_event->ActionRequest, "IdentityList") ))
+    {    
+        identitiesDoc = ixmlParseBuffer(identitylist);
+        if (identitiesDoc == NULL)
+        {
+            trace(1, "%s: Failed to parse IdentityList '%s'",ca_event->ActionName, identitylist);
+            result = 501;
+            addErrorData(ca_event, result, "Action Failed");
+        }
+        else
+        {
+            // validate contents of list and new CP's to ACL
+            result = ACL_validateListAndUpdateACL(ACLDoc, identitiesDoc);
+            if (result == 707)
+            {
+                addErrorData(ca_event, result, "Invalid Parameter");
+            } 
+            else if (result != 0)
+            {
+                result = 501;
+                addErrorData(ca_event, result, "Action Failed");
+            }    
+        }
+        
+        
+        // all is well
+        if (result == 0)
+        {
+            // write ACL in filesystem
+            writeDocumentToFile(ACLDoc, ACL_XML);
+            ca_event->ActionResult = UpnpMakeActionResponse(ca_event->ActionName, DP_SERVICE_TYPE,
+                                        0, NULL);                                        
+            ca_event->ErrCode = UPNP_E_SUCCESS;   
+        }        
+    }
+    else
+    {
+        trace(1, "%s: Invalid Arguments!", ca_event->ActionName);
+        trace(1, "  IdentityList: %s",identitylist);
+        addErrorData(ca_event, 402, "Invalid Args");
+    }
+
+    if (identitylist) free(identitylist);
+    
     return ca_event->ErrCode;
 }
 
 /**
- * DeviceProtection:1 Action: RemoveIdentityData.
+ * DeviceProtection:1 Action: RemoveCPIdentityData.
  *
  * @param ca_event Upnp event struct.
  * @return Upnp error code.
  */
-int RemoveIdentityData(struct Upnp_Action_Request *ca_event)
+int RemoveCPIdentityData(struct Upnp_Action_Request *ca_event)
 {
     return ca_event->ErrCode;
 }

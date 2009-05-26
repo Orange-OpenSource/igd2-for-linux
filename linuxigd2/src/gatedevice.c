@@ -293,10 +293,10 @@ int HandleActionRequest(struct Upnp_Action_Request *ca_event)
                 result = AddUserLoginData(ca_event); 
             else if (strcmp(ca_event->ActionName,"RemoveUserLoginData") == 0)
                 result = RemoveUserLoginData(ca_event); 
-            else if (strcmp(ca_event->ActionName,"AddIdentityData") == 0)
-                result = AddIdentityData(ca_event); 
-            else if (strcmp(ca_event->ActionName,"RemoveIdentityData") == 0)
-                result = RemoveIdentityData(ca_event);
+            else if (strcmp(ca_event->ActionName,"AddCPIdentityData") == 0)
+                result = AddCPIdentityData(ca_event); 
+            else if (strcmp(ca_event->ActionName,"RemoveCPIdentityData") == 0)
+                result = RemoveCPIdentityData(ca_event);
             else
             {
                 trace(1, "Invalid Action Request : %s",ca_event->ActionName);

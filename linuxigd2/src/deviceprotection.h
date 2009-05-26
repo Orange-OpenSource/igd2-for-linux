@@ -54,7 +54,7 @@ int RemoveRolesForIdentity(struct Upnp_Action_Request *ca_event);
 int GetCurrentRoles(struct Upnp_Action_Request *ca_event);
 int AddUserLoginData(struct Upnp_Action_Request *ca_event);
 int RemoveUserLoginData(struct Upnp_Action_Request *ca_event);
-int AddIdentityData(struct Upnp_Action_Request *ca_event);
-int RemoveIdentityData(struct Upnp_Action_Request *ca_event);
+int AddCPIdentityData(struct Upnp_Action_Request *ca_event);
+int RemoveCPIdentityData(struct Upnp_Action_Request *ca_event);
 
 #endif /*_DEVICEPROTECTION_H_*/
