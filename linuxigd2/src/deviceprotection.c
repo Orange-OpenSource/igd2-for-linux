@@ -181,7 +181,8 @@ int checkCPPrivileges(struct Upnp_Action_Request *ca_event, const char *targetRo
         else 
             return 1;
     }
-     
+// TODO Does this really go like this? Test and pounder this later. What if user is not logged in
+//      but CP in ACL has Admin rights or something?
     if (active && roles == NULL) // this means that user is logged in as some username
     {
         // 5. check if target role is one of current roles of identity
@@ -1719,7 +1720,7 @@ int AddUserLoginData(struct Upnp_Action_Request *ca_event)
                         // remove added username from passwdfile
                         updateValuesToPasswdFile(nameUPPER, (unsigned char *)salt, (unsigned char *)stored, 1);
                         // try to remove username from ACL
-                        ACL_removeUser(ACLDoc, name);
+                        ACL_removeUser(ACLDoc, nameUPPER);
                     }                    
                 }            
             }
@@ -1763,12 +1764,83 @@ int AddUserLoginData(struct Upnp_Action_Request *ca_event)
 
 /**
  * DeviceProtection:1 Action: RemoveUserLoginData.
+ * Requires Admin rights
  *
  * @param ca_event Upnp event struct.
  * @return Upnp error code.
  */
 int RemoveUserLoginData(struct Upnp_Action_Request *ca_event)
 {
+    int result = 0;
+    char *name = NULL;
+    char *nameUPPER = NULL;
+    
+    if ( (name = GetFirstDocumentItem(ca_event->ActionRequest, "Name") ))
+    {      
+        // change name to uppercase, because usernames are not case sensitive
+        nameUPPER = toUpperCase(name);
+        if (nameUPPER == NULL)
+        {
+            trace(1, "%s: Failed to turn name '%s' to uppercase",ca_event->ActionName,name);
+            result = 501;
+            addErrorData(ca_event, result, "Action Failed");            
+        }
+        else if (strcmp(nameUPPER, "ADMIN") == 0)
+        {
+            trace(1, "%s: Admin user cannot be removed!",ca_event->ActionName,name);
+            result = 702;
+            addErrorData(ca_event, result, "Authorization Failure");             
+        }
+        else
+        {
+            // remove user from passwd-file
+            result = updateValuesToPasswdFile(nameUPPER, NULL, NULL, 1);
+            if (result == -2)
+            {
+                trace(1, "%s: Username '%s' not found from passwd file",ca_event->ActionName,nameUPPER);
+                result = 706;
+                addErrorData(ca_event, result, "Invalid Name");                    
+            }
+            else if (result != 0)
+            {
+                trace(1, "%s: Failed to remove username '%s' from passwordfile",ca_event->ActionName,nameUPPER);
+                result = 501;
+                addErrorData(ca_event, result, "Action Failed");       
+            }                          
+            else
+            {
+                // remove user from ACL
+                result = ACL_removeUser(ACLDoc, nameUPPER);
+                if (result != ACL_SUCCESS)
+                {
+                    trace(1, "%s: Failed to remove username '%s' from ACL",ca_event->ActionName, nameUPPER);
+                    result = 501;
+                    addErrorData(ca_event, result, "Action Failed");
+                }     
+            }  
+        }
+        
+        
+        // all is well
+        if (result == 0)
+        {
+            // write ACL in filesystem
+            writeDocumentToFile(ACLDoc, ACL_XML);
+            ca_event->ActionResult = UpnpMakeActionResponse(ca_event->ActionName, DP_SERVICE_TYPE,
+                                        0, NULL);                                        
+            ca_event->ErrCode = UPNP_E_SUCCESS;   
+        }        
+    }
+    else
+    {
+        trace(1, "%s: Invalid Arguments!", ca_event->ActionName);
+        trace(1, "  Name: %s",name);
+        addErrorData(ca_event, 402, "Invalid Args");
+    }
+
+    if (name) free(name);
+    if (nameUPPER) free(nameUPPER);
+
     return ca_event->ErrCode;
 }
 
