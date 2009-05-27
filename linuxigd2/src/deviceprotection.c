@@ -491,8 +491,9 @@ static void message_received(struct Upnp_Action_Request *ca_event, int error, un
                 trace(1,"Failed to get Identifier value from Certificate (%d)! Ignoring...",ret);
             }
             else
-            {                
-                ret = ACL_addCP(ACLDoc, CN, NULL, (char *)b64_identifier, "DP:1", "Public Basic", 1);
+            {       
+                // Add CP to ACL with role Public 
+                ret = ACL_addCP(ACLDoc, CN, NULL, (char *)b64_identifier, "DP:1", "Public", 1);
                 if (ret != ACL_SUCCESS && ret != ACL_USER_ERROR)
                     trace(1,"Failed to add new CP into ACL! Ignoring...");
             }
