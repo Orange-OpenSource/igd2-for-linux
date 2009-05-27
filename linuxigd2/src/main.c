@@ -314,7 +314,7 @@ int main (int argc, char** argv)
     FreeLanHostConfig();
 
     // Save possible changes done in DeviceProtection XML's 
-    DP_saveDocuments();
+    DP_finishDocuments();
 
     UpnpUnRegisterRootDevice(deviceHandle);
     UpnpFinish();

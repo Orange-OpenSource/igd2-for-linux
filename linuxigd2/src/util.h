@@ -78,6 +78,7 @@ int ACL_removeRolesFromUser(IXML_Document *doc, const char *name, const char *ro
 int ACL_removeRolesFromCP(IXML_Document *doc, const char *hash, const char *roles);
 int ACL_validateListAndUpdateACL(IXML_Document *ACLdoc, IXML_Document *identitiesDoc);
 int ACL_validateAndRemoveCP(IXML_Document *ACLdoc, IXML_Document *identityDoc);
+int ACL_validateAndUpdateCPAlias(IXML_Document *ACLdoc, IXML_Document *identityDoc);
 
 // SIR handling stuff
 IXML_Document *SIR_init();

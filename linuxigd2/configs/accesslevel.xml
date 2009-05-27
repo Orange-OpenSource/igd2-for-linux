@@ -252,6 +252,10 @@
                 <name>RemoveCPIdentityData</name>
                 <accessLevel>Admin</accessLevel>
             </action>
+            <action>
+                <name>SetCPIdentityAlias</name>
+                <accessLevel>Admin</accessLevel>
+            </action>            
         </actionList>
     </serviceEntry>    
 </serviceList>

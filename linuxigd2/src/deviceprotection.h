@@ -38,7 +38,7 @@ char SupportedProtocols[150];
 
 void DPStateTableInit();
 void DP_loadDocuments();
-void DP_saveDocuments();
+void DP_finishDocuments();
 int checkCPPrivileges(struct Upnp_Action_Request *ca_event, const char *targetRole);
 
 
@@ -56,5 +56,6 @@ int AddUserLoginData(struct Upnp_Action_Request *ca_event);
 int RemoveUserLoginData(struct Upnp_Action_Request *ca_event);
 int AddCPIdentityData(struct Upnp_Action_Request *ca_event);
 int RemoveCPIdentityData(struct Upnp_Action_Request *ca_event);
+int SetCPIdentityAlias(struct Upnp_Action_Request *ca_event);
 
 #endif /*_DEVICEPROTECTION_H_*/

@@ -131,13 +131,20 @@ void DP_loadDocuments()
     }    
 }
 
-
-void DP_saveDocuments()
+/**
+ * Release XML documents used in DeviceProtection.
+ * Writes ACL to file.
+ * 
+ * @return void
+ */
+void DP_finishDocuments()
 {
     // write ACL to file
     writeDocumentToFile(ACLDoc, ACL_XML);
+    ixmlDocument_free(ACLDoc);
     
     // should SIR stay or not. Probably not...?
+    ixmlDocument_free(SIRDoc);
 }
 
 
@@ -1890,6 +1897,19 @@ int AddCPIdentityData(struct Upnp_Action_Request *ca_event)
             ca_event->ActionResult = UpnpMakeActionResponse(ca_event->ActionName, DP_SERVICE_TYPE,
                                         0, NULL);                                        
             ca_event->ErrCode = UPNP_E_SUCCESS;   
+        }
+        else
+        {
+            // erase all possible changes done
+            ixmlDocument_free(ACLDoc);
+            // init ACL
+            ACLDoc = ixmlLoadDocument(ACL_XML);
+            if (ACLDoc == NULL)
+            {
+                trace(1, "Couldn't load ACL (Access Control List) document which should locate here: %s\nExiting...\n",ACL_XML);
+                UpnpFinish();
+                exit(1);
+            }               
         }        
     }
     else
@@ -1915,7 +1935,6 @@ int RemoveCPIdentityData(struct Upnp_Action_Request *ca_event)
 {
     int result = 0;
     char *identity = NULL;
-    char *hash = NULL;
     IXML_Document *identityDoc = NULL;
     
     // TODO should it be tested that there is only one CP element in Identity?
@@ -1924,7 +1943,7 @@ int RemoveCPIdentityData(struct Upnp_Action_Request *ca_event)
         identityDoc = ixmlParseBuffer(identity);
         if (identityDoc == NULL)
         {
-            trace(1, "%s: Failed to parse Identity '%s'",ca_event->ActionName, identity);
+            trace(1, "%s: Failed to parse Identity xml '%s'",ca_event->ActionName, identity);
             result = 501;
             addErrorData(ca_event, result, "Action Failed");
         }
@@ -1953,7 +1972,20 @@ int RemoveCPIdentityData(struct Upnp_Action_Request *ca_event)
             ca_event->ActionResult = UpnpMakeActionResponse(ca_event->ActionName, DP_SERVICE_TYPE,
                                         0, NULL);                                        
             ca_event->ErrCode = UPNP_E_SUCCESS;   
-        }        
+        }
+        else
+        {
+            // erase all possible changes done
+            ixmlDocument_free(ACLDoc);
+            // init ACL
+            ACLDoc = ixmlLoadDocument(ACL_XML);
+            if (ACLDoc == NULL)
+            {
+                trace(1, "Couldn't load ACL (Access Control List) document which should locate here: %s\nExiting...\n",ACL_XML);
+                UpnpFinish();
+                exit(1);
+            }               
+        }         
     }
     else
     {
@@ -1963,8 +1995,85 @@ int RemoveCPIdentityData(struct Upnp_Action_Request *ca_event)
     }
     
     if (identityDoc) ixmlDocument_free(identityDoc);
-    if (hash) free(hash);
+    if (identity) free(identity);
     
     return ca_event->ErrCode;
 }
+
+
+/**
+ * DeviceProtection:1 Action: SetCPIdentityAlias.
+ *
+ * @param ca_event Upnp event struct.
+ * @return Upnp error code.
+ */
+int SetCPIdentityAlias(struct Upnp_Action_Request *ca_event)
+{
+    int result = 0;
+    char *identity = NULL;
+    IXML_Document *identityDoc = NULL;
+    
+    // TODO should it be tested that there is only one CP element in Identity?
+    if ( (identity = GetFirstDocumentItem(ca_event->ActionRequest, "Identity") ))
+    {    
+        identityDoc = ixmlParseBuffer(identity);
+        if (identityDoc == NULL)
+        {
+            trace(1, "%s: Failed to parse Identity '%s'",ca_event->ActionName, identity);
+            result = 501;
+            addErrorData(ca_event, result, "Action Failed");
+        }
+        else
+        {
+            // validate input and remove CP
+            result = ACL_validateAndUpdateCPAlias(ACLDoc, identityDoc);
+            
+            if (result == 707)
+            {
+                addErrorData(ca_event, result, "Invalid Parameter");               
+            }
+            else if (result != 0)
+            {
+                result = 501;
+                addErrorData(ca_event, result, "Action Failed");
+            }
+        }
+        
+        
+        // all is well
+        if (result == 0)
+        {
+            // write ACL in filesystem
+            writeDocumentToFile(ACLDoc, ACL_XML);
+            ca_event->ActionResult = UpnpMakeActionResponse(ca_event->ActionName, DP_SERVICE_TYPE,
+                                        0, NULL);                                        
+            ca_event->ErrCode = UPNP_E_SUCCESS;   
+        }
+        else
+        {
+            // erase all possible changes done
+            ixmlDocument_free(ACLDoc);
+            // init ACL
+            ACLDoc = ixmlLoadDocument(ACL_XML);
+            if (ACLDoc == NULL)
+            {
+                trace(1, "Couldn't load ACL (Access Control List) document which should locate here: %s\nExiting...\n",ACL_XML);
+                UpnpFinish();
+                exit(1);
+            }               
+        }  
+    }
+    else
+    {
+        trace(1, "%s: Invalid Arguments!", ca_event->ActionName);
+        trace(1, "  Identity: %s",identity);
+        addErrorData(ca_event, 402, "Invalid Args");
+    }
+    
+    if (identityDoc) ixmlDocument_free(identityDoc);
+    if (identity) free(identity);
+    
+    return ca_event->ErrCode;
+}
+
 

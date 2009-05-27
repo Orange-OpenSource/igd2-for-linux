@@ -1334,11 +1334,11 @@ int ACL_updateCPAlias(IXML_Document *doc, const char *hash, const char *alias, i
     }
 
     // then add new child. If fails to add new node, and aliasNode is removed, or didn't even exist, return ACL_COMMON_ERROR
-    if ( AddChildNode(doc, tmpNode, "Alias", alias) == NULL )
+    if ( AddChildNode(doc, tmpNode->parentNode, "Alias", alias) == NULL )
     {
         return ACL_COMMON_ERROR;
     }
-
+    
     return ACL_SUCCESS;
 }
 
@@ -1648,13 +1648,13 @@ int ACL_validateListAndUpdateACL(IXML_Document *ACLdoc, IXML_Document *identitie
 
 
 /**
- * Validates given ixml document (identityDoc) which contains new CP's to add to ACL.
+ * Validates given ixml document (identityDoc) which contains CP to remove from ACL.
  * Check that CP's 'Hash' have 'type="DP:1"'. 
  * 
  * This function is used by RemoveCPIdentityData() action.
  * 
  * @param doc ACL IXML_Document
- * @param identitiesDoc IXML_Document which contains new CP-elements to add to ACL
+ * @param identitiesDoc IXML_Document which contains CP-elements to remove from ACL
  * @return upnp error codes:
  *         0 on succes,
  *         707 if identitiesDoc contains invalid values
@@ -1690,6 +1690,63 @@ int ACL_validateAndRemoveCP(IXML_Document *ACLdoc, IXML_Document *identityDoc)
     else if (result != ACL_SUCCESS)
     {
         trace(2,"(ACL) Failed to remove CP with Hash '%s' from ACL",hash);
+        return 501;
+    }
+    
+    return 0;
+}
+
+
+/**
+ * Validates given ixml document (identityDoc) which contains CP's new alias.
+ * Check that CP's 'Hash' have 'type="DP:1"'. 
+ * 
+ * This function is used by SetCPIdentityAlias() action.
+ * 
+ * @param doc ACL IXML_Document
+ * @param identitiesDoc IXML_Document which contains CP-elements alias value
+ * @return upnp error codes:
+ *         0 on succes,
+ *         707 if identitiesDoc contains invalid values
+ *         501 if processing error occurs
+ */
+int ACL_validateAndUpdateCPAlias(IXML_Document *ACLdoc, IXML_Document *identityDoc)
+{
+    int result;
+    char *hash = NULL;
+    char *alias = NULL;
+    IXML_Node *tmpNode = NULL;
+    
+    tmpNode = GetNodeWithNameAndAttribute(identityDoc, "Hash", "type", "DP:1");
+    if (tmpNode == NULL)
+    {
+        trace(2,"(ACL) No Hash is found with type 'DP:1'");
+        return 707;        
+    }
+    
+    hash = GetTextValueOfNode(tmpNode);
+    if (hash == NULL)
+    {
+        trace(2,"(ACL) Failed to get value of Hash");
+        return 707;                
+    }
+    alias = GetTextValueOfNode( GetSiblingWithTagName(tmpNode, "Alias") );
+    if (alias == NULL)
+    {
+        trace(2,"(ACL) Failed to get value of Alias");
+        return 707;                
+    }  
+    
+    // update alias
+    result = ACL_updateCPAlias(ACLdoc, hash, alias, 1);
+    if (result == ACL_USER_ERROR)
+    {
+        trace(2,"(ACL) No CP with Hash '%s' is found from ACL",hash);
+        return 707;
+    }
+    else if (result != ACL_SUCCESS)
+    {
+        trace(2,"(ACL) Failed to update Alias value '%s' to ACL (hash: '%s')",alias,hash);
         return 501;
     }
     
