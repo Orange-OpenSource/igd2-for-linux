@@ -210,15 +210,15 @@
             </action>
             <action>
                 <name>GetCurrentRoles</name>
-                <accessLevel>Basic</accessLevel>
+                <accessLevel>Public</accessLevel>
             </action>
             <action>
                 <name>GetUserLoginChallenge</name>
-                <accessLevel>Basic</accessLevel>
+                <accessLevel>Public</accessLevel>
             </action>
             <action>
                 <name>UserLogin</name>
-                <accessLevel>Basic</accessLevel>
+                <accessLevel>Public</accessLevel>
             </action>
             <action>
                 <name>UserLogout</name>
@@ -226,7 +226,7 @@
             </action>
             <action>
                 <name>GetACLData</name>
-                <accessLevel>Basic</accessLevel>
+                <accessLevel>Public</accessLevel>
             </action>
             <action>
                 <name>AddRolesForIdentity</name>
@@ -238,7 +238,7 @@
             </action>
             <action>
                 <name>AddUserLoginData</name>
-                <accessLevel>Basic</accessLevel>
+                <accessLevel>Admin</accessLevel>
             </action>
             <action>
                 <name>RemoveUserLoginData</name>
