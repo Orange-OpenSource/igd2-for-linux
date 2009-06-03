@@ -67,7 +67,7 @@ int ACL_doesIdentityHasRole(IXML_Document *doc, const char *identity, const char
 char *ACL_getRolesOfUser(IXML_Document *doc, const char *username);
 char *ACL_getRolesOfCP(IXML_Document *doc, const char *hash);
 char *ACL_createRoleListXML(const char *csv_roles);
-int ACL_addCP(IXML_Document *doc, const char *name, const char *alias, const char *hash, const char *type, const char *roles, int introduced);
+int ACL_addCP(IXML_Document *doc, const char *name, const char *alias, const char *hash, const char *roles, int introduced);
 int ACL_updateCPAlias(IXML_Document *doc, const char *hash, const char *alias, int forceChange);
 int ACL_addUser(IXML_Document *doc, const char *name, const char *roles);
 int ACL_removeUser(IXML_Document *doc, const char *name);

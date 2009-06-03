@@ -651,6 +651,41 @@ static IXML_Node *GetNodeWithValue(IXML_Document *doc, const char *nodeName, con
 
 
 /**
+ * Get first occurence of node with name nodeName
+ *
+ * @param doc IXML_Document where node is searched
+ * @param nodeName Name of searched element
+ * @return Node or NULL
+ */
+static IXML_Node *GetNode(IXML_Document *doc, const char *nodeName)
+{
+    int listLen, i;
+    IXML_NodeList *nodeList = NULL;
+    IXML_Node *tmpNode = NULL;
+
+    
+    nodeList = ixmlDocument_getElementsByTagName( doc, nodeName );
+
+    if (nodeList)
+    {
+        listLen = ixmlNodeList_length(nodeList);
+        
+        for (i = 0; i < listLen; i++)
+        {
+            if ( ( tmpNode = ixmlNodeList_item( nodeList, i ) ) )
+            {
+                if ( nodeList ) ixmlNodeList_free( nodeList );
+                return tmpNode;
+            }            
+        }
+    }
+    if ( nodeList ) ixmlNodeList_free( nodeList );
+    
+    return NULL;
+}
+
+
+/**
  * Get first occurence of sibling node with name nodeName
  *
  * @param node IXML_Node which sibling is searched
@@ -1004,12 +1039,12 @@ void deinitActionAccessLevels()
 <CP introduced="1">
    <Name>ACME Widget Model XYZ</Name>
    <Alias>Mark’s Game Console</Alias>
-   <Hash type=“DP:1”>TM0NZomIzI2OTsmIzM0NTueYgi93Q==</Hash>
+   <ID>TM0NZomIzI2OTsmIzM0NTueYgi93Q==</ID>
    <RoleList>Admin Basic</RoleList>
 </CP>
 <CP>
    <Name>Some CP</Name>
-   <Hash type=“DP:1”>feeNZomIfI2erfrmIzefTufew==</Hash>
+   <ID>feeNZomIfI2erfrmIzefTufew==</ID>
    <RoleList>Public</RoleList>
 </CP>
 </Identities>
@@ -1174,10 +1209,10 @@ static int ACL_removeRolesFromRoleList(IXML_Document *doc, IXML_Node *roleListNo
 
 /**
  * Check if identity has given role defined in ACL.
- * Identity may be either username or certificate hash
+ * Identity may be either username or CP uuid
  *
  * @param doc ACL IXML_Document
- * @param identity Username or certificate hash
+ * @param identity Username or certificate id
  * @param targetRole Role which is searched form identity
  * @return 1 if identity has this role, 0 if not. 
  */
@@ -1186,7 +1221,7 @@ int ACL_doesIdentityHasRole(IXML_Document *doc, const char *identity, const char
     // is identity username
     char *roles = ACL_getRolesOfUser(doc, identity);
     if (roles == NULL)
-        // is identity hash
+        // is identity uuid
         roles = ACL_getRolesOfCP(doc, identity);
     if (roles == NULL)
         return 0;
@@ -1216,16 +1251,16 @@ char *ACL_getRolesOfUser(IXML_Document *doc, const char *username)
 }
 
 /**
- * Get RoleList control point with "Hash" hash.
+ * Get RoleList control point with "ID" id
  *
  * @param doc ACL IXML_Document
- * @param hash Value of Hash element
+ * @param id Value of ID element
  * @return Value of RoleList or NULL.
  */
-char *ACL_getRolesOfCP(IXML_Document *doc, const char *hash)
+char *ACL_getRolesOfCP(IXML_Document *doc, const char *id)
 {
-    // get element with name "Hash" and value hash
-    IXML_Node *tmpNode = GetNodeWithValue(doc, "Hash", hash);
+    // get element with name "ID" and value id
+    IXML_Node *tmpNode = GetNodeWithValue(doc, "ID", id);
     if (tmpNode == NULL) return NULL;    
 
     tmpNode = GetSiblingWithTagName(tmpNode, "RoleList");
@@ -1242,23 +1277,22 @@ char *ACL_getRolesOfCP(IXML_Document *doc, const char *hash)
  * <CP introduced="1">
  *    <Name>ACME Widget Model XYZ</Name>
  *    <Alias>Mark’s Game Console</Alias>
- *    <Hash type="DP:1">TM0NZomIzI2OTsmIzM0NTueYgi93Q==</Hash>
+ *    <ID>3543d8e6-3b8b-4000-80cb-212886b5b044</ID>
  *    <RoleList>Admin Basic</RoleList>
  * </CP>
  * 
  * @param doc ACL IXML_Document
  * @param name Value of Name element
- * @param alias Value of Alias element
- * @param hash Value of Hash element
- * @param type Value of type-attribute in hash-element 
+ * @param alias Value of Alias element. May be NULL
+ * @param id Value of ID element
  * @param roles Value of RoleList element
  * @param introduced Does "CP" has attribute introduced with value 1 (0 means no, 1 yes)
- * @return ACL_SUCCESS on success, ACL_USER_ERROR if same hash already exist in ACL, ACL_COMMON_ERROR else
+ * @return ACL_SUCCESS on success, ACL_USER_ERROR if same id already exist in ACL, ACL_COMMON_ERROR else
  */
-int ACL_addCP(IXML_Document *doc, const char *name, const char *alias, const char *hash, const char *type, const char *roles, int introduced)
+int ACL_addCP(IXML_Document *doc, const char *name, const char *alias, const char *id, const char *roles, int introduced)
 {
-    // Check that hash doesn't already exist
-    if ( GetNodeWithValue(doc, "Hash", hash) != NULL )
+    // Check that ID doesn't already exist
+    if ( GetNodeWithValue(doc, "ID", id) != NULL )
     {
         return ACL_USER_ERROR;
     } 
@@ -1272,8 +1306,9 @@ int ACL_addCP(IXML_Document *doc, const char *name, const char *alias, const cha
         ixmlElement_setAttribute(CP, "introduced", "1");
         
     AddChildNode(doc, &CP->n, "Name", name);
-    AddChildNode(doc, &CP->n, "Alias", alias);
-    AddChildNodeWithAttribute(doc, &CP->n, "Hash", hash, "type", type);
+    if (alias)
+        AddChildNode(doc, &CP->n, "Alias", alias);
+    AddChildNode(doc, &CP->n, "ID", id);
     AddChildNode(doc, &CP->n, "RoleList", roles);
     
     IXML_Node *tmpNode = NULL;
@@ -1299,22 +1334,22 @@ int ACL_addCP(IXML_Document *doc, const char *name, const char *alias, const cha
  * <CP introduced="1">
  *    <Name>ACME Widget Model XYZ</Name>
  *    <Alias>Mark’s Game Console</Alias>
- *    <Hash type="DP:1">TM0NZomIzI2OTsmIzM0NTueYgi93Q==</Hash>
+ *    <ID>TM0NZomIzI2OTsmIzM0NTueYgi93Q==</ID>
  *    <RoleList>Admin Basic</RoleList>
  * </CP>
  * 
  * @param doc ACL IXML_Document
- * @param hash Value of Hash element which sibling Alias is modified or added
+ * @param id Value of ID element which sibling Alias is modified or added
  * @param alias Value of Alias element 
  * @param forceChange Is existing Alias value changed, 1 is yes, 0 is no
  * @return ACL_SUCCESS on success, ACL_COMMON_ERROR if fails to add or update alias
  */
-int ACL_updateCPAlias(IXML_Document *doc, const char *hash, const char *alias, int forceChange)
+int ACL_updateCPAlias(IXML_Document *doc, const char *id, const char *alias, int forceChange)
 {
-    IXML_Node *tmpNode = GetNodeWithValue(doc, "Hash", hash);
+    IXML_Node *tmpNode = GetNodeWithValue(doc, "ID", id);
     IXML_Node *aliasNode = NULL;
     
-    // Check that hash does exist
+    // Check that ID does exist
     if ( tmpNode == NULL )
     {
         return ACL_USER_ERROR;
@@ -1413,18 +1448,18 @@ int ACL_removeUser(IXML_Document *doc, const char *name)
  *
  * 
  * @param doc ACL IXML_Document
- * @param hash Hash of control point which is removed from ACL
- * @return 0 on success, -1 else. ACL_USER_ERROR if Hash is not found
+ * @param id ID of control point which is removed from ACL
+ * @return 0 on success, -1 else. ACL_USER_ERROR if ID is not found
  */
-int ACL_removeCP(IXML_Document *doc, const char *hash)
+int ACL_removeCP(IXML_Document *doc, const char *id)
 {
-    IXML_Node *hashNode = NULL;
+    IXML_Node *idNode = NULL;
     
-    hashNode = GetNodeWithValue(doc, "Hash", hash);
-    if (!hashNode) return ACL_USER_ERROR;
+    idNode = GetNodeWithValue(doc, "ID", id);
+    if (!idNode) return ACL_USER_ERROR;
     
     // remove <CP> node
-    return RemoveNode(hashNode->parentNode);
+    return RemoveNode(idNode->parentNode);
 }
 
 
@@ -1465,18 +1500,18 @@ int ACL_addRolesForUser(IXML_Document *doc, const char *name, const char *roles)
  * Add roles for Control point in ACL xml.
  * 
  * @param doc ACL IXML_Document
- * @param hash Hash of control for which roles are added
+ * @param id ID of control for which roles are added
  * @param roles Space-separated string of rolenames which are added for user (Admin Basic)
  * @return ACL_SUCCESS on succes,
  *         ACL_USER_ERROR if username is not found, 
  *         ACL_ROLE_ERROR if rolelist has invalid role
  *         ACL_COMMON_ERROR else
  */
-int ACL_addRolesForCP(IXML_Document *doc, const char *hash, const char *roles)
+int ACL_addRolesForCP(IXML_Document *doc, const char *id, const char *roles)
 {
-    IXML_Node *tmpNode = GetNodeWithValue(doc, "Hash", hash);
+    IXML_Node *tmpNode = GetNodeWithValue(doc, "ID", id);
     
-    // Check that CP with hash does exist
+    // Check that CP with ID does exist
     if ( tmpNode == NULL )
     {
         return ACL_USER_ERROR;
@@ -1531,18 +1566,18 @@ int ACL_removeRolesFromUser(IXML_Document *doc, const char *name, const char *ro
  * Remove roles from Control point in ACL xml.
  * 
  * @param doc ACL IXML_Document
- * @param hash Hash of control from which roles are removed
+ * @param id ID of control from which roles are removed
  * @param roles Space-separated string of rolenames which are removed from user (Admin Basic)
  * @return ACL_SUCCESS on succes,
  *         ACL_USER_ERROR if username is not found, 
  *         ACL_ROLE_ERROR if rolelist has invalid role
  *         ACL_COMMON_ERROR else
  */
-int ACL_removeRolesFromCP(IXML_Document *doc, const char *hash, const char *roles)
+int ACL_removeRolesFromCP(IXML_Document *doc, const char *id, const char *roles)
 {
-    IXML_Node *tmpNode = GetNodeWithValue(doc, "Hash", hash);
+    IXML_Node *tmpNode = GetNodeWithValue(doc, "ID", id);
     
-    // Check that CP with hash does exist
+    // Check that CP with id does exist
     if ( tmpNode == NULL )
     {
         return ACL_USER_ERROR;
@@ -1564,7 +1599,7 @@ int ACL_removeRolesFromCP(IXML_Document *doc, const char *hash, const char *role
  * Validates given ixml document (identitiesDoc) which contains new CP's to add to ACL.
  * Validation checks that CP's doesn't contain 'RoleList' elements or 'introduced' attributes 
  * with value '1'.
- * Then add's all CP's to ACL whose 'Hash' have 'type="DP:1"'. 
+ * Then add's all CP's to ACL. 
  * 
  * This function is used by AddCPIdentityData() action.
  * 
@@ -1581,14 +1616,22 @@ int ACL_validateListAndUpdateACL(IXML_Document *ACLdoc, IXML_Document *identitie
     IXML_Node *tmpNode = NULL;
     IXML_NodeList *nodeList = NULL;
     char *name = NULL;
-    char *alias = NULL;
-    char *hash = NULL;
+    char *id = NULL;
     
     nodeList = ixmlDocument_getElementsByTagName( identitiesDoc, "RoleList" );
     // list must not contain RoleList elements
     if (nodeList != NULL)
     {
         trace(2,"(ACL) CP must not contain 'RoleList' element");
+        ixmlNodeList_free( nodeList );
+        return 707;       
+    }
+
+    nodeList = ixmlDocument_getElementsByTagName( identitiesDoc, "Alias" );
+    // list must not contain RoleList elements
+    if (nodeList != NULL)
+    {
+        trace(2,"(ACL) CP must not contain 'Alias' element");
         ixmlNodeList_free( nodeList );
         return 707;       
     }
@@ -1602,12 +1645,11 @@ int ACL_validateListAndUpdateACL(IXML_Document *ACLdoc, IXML_Document *identitie
     }    
 
     // let's start adding new CP's to ACL
-    // get first Hash from new list with attribute type="DP:1"
-    while ( (tmpNode = GetNodeWithNameAndAttribute(identitiesDoc, "Hash", "type", "DP:1")) != NULL )
+    // get first ID from new list 
+    while ( (tmpNode = GetNode(identitiesDoc, "ID")) != NULL )
     {
-        hash = GetTextValueOfNode(tmpNode);
+        id = GetTextValueOfNode(tmpNode);
         name = GetTextValueOfNode( GetSiblingWithTagName(tmpNode, "Name") );
-        alias = GetTextValueOfNode( GetSiblingWithTagName(tmpNode, "Alias") );
         
         if (name == NULL)
         {
@@ -1616,22 +1658,12 @@ int ACL_validateListAndUpdateACL(IXML_Document *ACLdoc, IXML_Document *identitie
         }
             
         // just try to add new
-        result = ACL_addCP(ACLdoc, name, alias, hash, "DP:1", "Public", 0); //role?
-        
-        if (result == ACL_USER_ERROR && alias != NULL)
+        result = ACL_addCP(ACLdoc, name, NULL, id, "Public", 0);
+
+        // if same CP already exists, it is OK for us. All we care if something else has gone wrong      
+        if (result != ACL_USER_ERROR && result != ACL_SUCCESS)
         {
-            // CP with same Hash exist. Try to update OR add alias
-            result = ACL_updateCPAlias(ACLdoc, hash, alias, 0);
-            if (result != ACL_SUCCESS)
-            {
-                trace(2,"(ACL) Failed to add Alias");
-                return 501;                
-            }
-        }
-        // if same CP already exists, it is OK for us        
-        else if (result != ACL_USER_ERROR && result != ACL_SUCCESS)
-        {
-            trace(2,"(ACL) Failed to add new CP. Name: '%s', Alias: '%s', Hash: '%s'",name,alias,hash);
+            trace(2,"(ACL) Failed to add new CP. Name: '%s', ID: '%s'",name,id);
             return 501;
         }
         
@@ -1649,7 +1681,6 @@ int ACL_validateListAndUpdateACL(IXML_Document *ACLdoc, IXML_Document *identitie
 
 /**
  * Validates given ixml document (identityDoc) which contains CP to remove from ACL.
- * Check that CP's 'Hash' have 'type="DP:1"'. 
  * 
  * This function is used by RemoveCPIdentityData() action.
  * 
@@ -1663,33 +1694,25 @@ int ACL_validateListAndUpdateACL(IXML_Document *ACLdoc, IXML_Document *identitie
 int ACL_validateAndRemoveCP(IXML_Document *ACLdoc, IXML_Document *identityDoc)
 {
     int result;
-    char *hash = NULL;
-    IXML_Node *tmpNode = NULL;
-    
-    tmpNode = GetNodeWithNameAndAttribute(identityDoc, "Hash", "type", "DP:1");
-    if (tmpNode == NULL)
+    char *id = NULL;
+
+    id = GetFirstDocumentItem(identityDoc, "ID");
+    if (id == NULL)
     {
-        trace(2,"(ACL) No Hash is found with type 'DP:1'");
-        return 707;        
-    }
-    
-    hash = GetTextValueOfNode(tmpNode);
-    if (hash == NULL)
-    {
-        trace(2,"(ACL) Failed to get value of Hash");
-        return 501;                
+        trace(2,"(ACL) Failed to find any ID from given parameter");
+        return 707;                
     }    
     
     // remove CP form ACL
-    result = ACL_removeCP(ACLdoc, hash);
+    result = ACL_removeCP(ACLdoc, id);
     if (result == ACL_USER_ERROR)
     {
-        trace(2,"(ACL) No CP with Hash '%s' is found from ACL",hash);
+        trace(2,"(ACL) No CP with ID '%s' is found from ACL",id);
         return 707;
     }
     else if (result != ACL_SUCCESS)
     {
-        trace(2,"(ACL) Failed to remove CP with Hash '%s' from ACL",hash);
+        trace(2,"(ACL) Failed to remove CP with ID '%s' from ACL",id);
         return 501;
     }
     
@@ -1699,7 +1722,6 @@ int ACL_validateAndRemoveCP(IXML_Document *ACLdoc, IXML_Document *identityDoc)
 
 /**
  * Validates given ixml document (identityDoc) which contains CP's new alias.
- * Check that CP's 'Hash' have 'type="DP:1"'. 
  * 
  * This function is used by SetCPIdentityAlias() action.
  * 
@@ -1713,40 +1735,35 @@ int ACL_validateAndRemoveCP(IXML_Document *ACLdoc, IXML_Document *identityDoc)
 int ACL_validateAndUpdateCPAlias(IXML_Document *ACLdoc, IXML_Document *identityDoc)
 {
     int result;
-    char *hash = NULL;
+    char *id = NULL;
     char *alias = NULL;
-    IXML_Node *tmpNode = NULL;
+
+    // following assumes that identityDoc contains only one pair of ID and Alias elements
     
-    tmpNode = GetNodeWithNameAndAttribute(identityDoc, "Hash", "type", "DP:1");
-    if (tmpNode == NULL)
+    id = GetFirstDocumentItem(identityDoc, "ID");
+    if (id == NULL)
     {
-        trace(2,"(ACL) No Hash is found with type 'DP:1'");
-        return 707;        
-    }
-    
-    hash = GetTextValueOfNode(tmpNode);
-    if (hash == NULL)
-    {
-        trace(2,"(ACL) Failed to get value of Hash");
+        trace(2,"(ACL) Failed to find any ID from given parameter");
         return 707;                
-    }
-    alias = GetTextValueOfNode( GetSiblingWithTagName(tmpNode, "Alias") );
+    } 
+
+    alias = GetFirstDocumentItem(identityDoc, "Alias");
     if (alias == NULL)
     {
         trace(2,"(ACL) Failed to get value of Alias");
         return 707;                
-    }  
+    } 
     
     // update alias
-    result = ACL_updateCPAlias(ACLdoc, hash, alias, 1);
+    result = ACL_updateCPAlias(ACLdoc, id, alias, 1);
     if (result == ACL_USER_ERROR)
     {
-        trace(2,"(ACL) No CP with Hash '%s' is found from ACL",hash);
+        trace(2,"(ACL) No CP with ID '%s' is found from ACL",id);
         return 707;
     }
     else if (result != ACL_SUCCESS)
     {
-        trace(2,"(ACL) Failed to update Alias value '%s' to ACL (hash: '%s')",alias,hash);
+        trace(2,"(ACL) Failed to update Alias value '%s' to ACL (id: '%s')",alias,id);
         return 501;
     }
     
@@ -1773,13 +1790,13 @@ IXML_Document *SIR_init()
 /**
  * Add new Session/Identity -pair into SIR. If session with same id already exist in SIR,
  * old session element is removed, and new one with given values is inserted.
- * Identity is current username or hash identifier created from client's certificate.
+ * Identity is current username or id identifier created from client's certificate.
  * 
  * Logindata contains information received/send in GetUserLoginChallenge. "name" is username/
  * role that CP wishes to login, "challenge" is value of challenge that device send for CP
  * as response for GetUserLoginChallenge.
  * 
- * Id, challenge and identity (if hash) are base64 encoded strings.
+ * Challenge is base64 encoded strings.
  *
  * <SIR>
  *  <session id="AHHuendfn372jsuGDS==" active="1">
@@ -1793,7 +1810,7 @@ IXML_Document *SIR_init()
  * </SIR>
  *
  * @param doc SIR IXML_Document
- * @param id Session identifier. (sha-256 of 20 first bytes of certificate). Value of id-attribute
+ * @param id Session identifier. uuid created form certificate. Value of id-attribute
  * @param active Is session active. Value of active-attribute
  * @param identity Value of identity element
  * @param role Value of role element

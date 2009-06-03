@@ -39,7 +39,7 @@ static int createUserLoginChallengeResponse(struct Upnp_Action_Request *ca_event
 static int getValuesFromPasswdFile(const char *nameUPPER, unsigned char **b64_salt, int *salt_len, unsigned char **b64_stored, int *stored_len, int max_size);
 static int putValuesToPasswdFile(const char *name, const unsigned char *b64_salt, const unsigned char *b64_stored);
 static int updateValuesToPasswdFile(const char *nameUPPER, const unsigned char *b64_salt, const unsigned char *b64_stored, int delete_values);
-static int getIdentifierOfCP(struct Upnp_Action_Request *ca_event, unsigned char **b64_identifier, int *b64len, char **CN);
+static int getIdentifierOfCP(struct Upnp_Action_Request *ca_event, char **identifier, int *idLen, char **CN);
 static int createAuthenticator(const char *b64_stored, const char *b64_challenge, char **b64_authenticator, int *auth_len);
 
 // WPS state machine related stuff
@@ -54,6 +54,15 @@ static unsigned char prev_CP_id[40];
 // Access Control List
 static IXML_Document *ACLDoc = NULL;
 
+#define PSEUDO_RANDOM_UUID_TYPE 0x4
+typedef struct {
+    uint32_t  time_low;
+    uint16_t  time_mid;
+    uint16_t time_hi_and_version;
+    uint8_t   clock_seq_hi_and_reserved;
+    uint8_t   clock_seq_low;
+    unsigned char   node[6];
+} my_uuid_t;
 
 /*
  * Document containing SSL session and username relationship. This in only for internal use of LinuxIGD.
@@ -160,25 +169,25 @@ void DP_finishDocuments()
  */
 int checkCPPrivileges(struct Upnp_Action_Request *ca_event, const char *targetRole)
 {
-    int ret, b64len=0;
-    unsigned char *b64_identifier;
+    int ret, len=0;
+    char *identifier;
 
-    // get identity of CP (base64 of 20 first bytes of sha-256(CP certificate))
-    ret = getIdentifierOfCP(ca_event, &b64_identifier, &b64len, NULL);
+    // get identity of CP 
+    ret = getIdentifierOfCP(ca_event, &identifier, &len, NULL);
     if (ret != 0 )
     {
         return ret;
     } 
     
-    // 4. fetch current identity of CP from SIR. Identity may be username or hash of certificate (== b64_identity)
+    // 4. fetch current identity of CP from SIR. Identity may be username or identity created from certificate
     int active;
     char *roles = NULL;
-    char *identity = SIR_getIdentityOfSession(SIRDoc, (char *)b64_identifier, &active, &roles);
+    char *identity = SIR_getIdentityOfSession(SIRDoc, identifier, &active, &roles);
     if (identity == NULL)
     {
         // if identity isn't found, that could only mean that we are dealing with a new CP
         // Let's add new entry to SIR with role value "Public". Identity is not inserted
-        ret = SIR_addSession(SIRDoc, (char *)b64_identifier, 0, NULL, "Public", NULL, NULL, NULL);
+        ret = SIR_addSession(SIRDoc, identifier, 0, NULL, "Public", NULL, NULL, NULL);
         if (ret != 0)
             return -1;
             
@@ -188,7 +197,7 @@ int checkCPPrivileges(struct Upnp_Action_Request *ca_event, const char *targetRo
         else 
             return 1;
     }
-// TODO Does this really go like this? Test and pounder this later. What if user is not logged in
+// TODO Does this really go like this? Test this later. What if user is not logged in
 //      but CP in ACL has Admin rights or something?
     if (active && roles == NULL) // this means that user is logged in as some username
     {
@@ -202,7 +211,55 @@ int checkCPPrivileges(struct Upnp_Action_Request *ca_event, const char *targetRo
             return 0;
     }
     
+    if (identifier) free(identifier);
+    
     return 1;
+}
+
+
+
+
+/**
+ * Create uuid string from given data. (In this case data is hash created from certificate)
+ * 
+ * "The CP Identity is a UUID derived from the first 128 bits of the SHA-256 hash of the 
+ * CP’s X.509 certificate in accordance with the procedure given in Section 4.4 and Appendix A 
+ * of RFC 4122."
+ * 
+ * @param uuid_str Pointer to string where uuid is created. User must release this with free()
+ * @param hash Input data from which uuid is created
+ * @param hashLen Length of input data. Or how much of it is used.
+ * @return void
+ */
+static void createUuidFromData(char **uuid_str, unsigned char *hash, int hashLen)
+{
+    my_uuid_t *uuid = malloc(sizeof *uuid);
+    int i;
+    *uuid_str = malloc(37*sizeof(char));
+    char tmp[3];
+    memset(*uuid_str, '\0', 37);
+   
+    memcpy(uuid, hash, sizeof *uuid);
+    uuid->time_low = ntohl(uuid->time_low);
+    uuid->time_mid = ntohs(uuid->time_mid);
+    uuid->time_hi_and_version = ntohs(uuid->time_hi_and_version);
+
+    /* put in the variant and version bits */
+    uuid->time_hi_and_version &= 0x0FFF;
+    uuid->time_hi_and_version |= (PSEUDO_RANDOM_UUID_TYPE << 12);
+    uuid->clock_seq_hi_and_reserved &= 0x3F;
+    uuid->clock_seq_hi_and_reserved |= 0x80;
+    
+    
+    // create string representation from binary
+    snprintf(*uuid_str, 37, "%8.8x-%4.4x-%4.4x-%2.2x%2.2x-", uuid->time_low, uuid->time_mid,
+            uuid->time_hi_and_version, uuid->clock_seq_hi_and_reserved, uuid->clock_seq_low);
+
+    for (i = 0; i < 6; i++)
+    {
+        snprintf(tmp, 3, "%2.2x", uuid->node[i]);
+        strcat(*uuid_str,tmp);
+    }
 }
 
 
@@ -210,14 +267,14 @@ int checkCPPrivileges(struct Upnp_Action_Request *ca_event, const char *targetRo
  * Get identity identifier of Control point based on certificate of Control Point.
  * Identifier is created like this:
  *  1. create sha-256 hash from CP certificate
- *  2. create base64 encoded string from 20 first bytes of previously created hash
+ *  2. create uuid string from 16 first bytes of previously created hash
  * 
  * @param ca_event Upnp event struct.
- * @param b64_identifier Pointer to unsigned char* where identifier is created. Caller should use free() for this.
- * @param b64len Length of created base64 identifier
+ * @param identifier Pointer to char* where identifier is created. Caller should use free() for this.
+ * @param idLen Length of created base64 identifier
  * @return 0 if succeeded to create identifier. Something else if error
  */
-static int getIdentifierOfCP(struct Upnp_Action_Request *ca_event, unsigned char **b64_identifier, int *b64len, char **CN)
+static int getIdentifierOfCP(struct Upnp_Action_Request *ca_event, char **identifier, int *idLen, char **CN)
 {
     int ret;
     int cert_size = 1000;
@@ -236,13 +293,9 @@ static int getIdentifierOfCP(struct Upnp_Action_Request *ca_event, unsigned char
     ret = wpsu_sha256(cert, cert_size, hash);
     if (ret < 0)
         return ret;
- 
-    // 3. create base64 from 20 first bytes of hash
-    int identitylen = 20;
-    int maxb64len = 2*identitylen; 
-    *b64len = 0;        
-    *b64_identifier = (unsigned char *)malloc(maxb64len);
-    wpsu_bin_to_base64(identitylen, hash, b64len, *b64_identifier, maxb64len);
+
+    createUuidFromData(identifier, hash, 16);
+    *idLen = strlen(*identifier);
    
     return 0;
 }
@@ -257,23 +310,25 @@ static int getIdentifierOfCP(struct Upnp_Action_Request *ca_event, unsigned char
  */
 static int getIdentityOfSession(struct Upnp_Action_Request *ca_event, char **identity)
 {
-    int ret, b64len=0;
-    unsigned char *b64_identifier;
+    int ret, len=0;
+    char *identifier;
     
-    // 1. get identifier of CP (base64 of 20 first bytes of sha-256(CP certificate))
-    ret = getIdentifierOfCP(ca_event, &b64_identifier, &b64len, NULL);
+    // 1. get identifier of CP 
+    ret = getIdentifierOfCP(ca_event, &identifier, &len, NULL);
     if (ret != 0 )
     {
         return ret;
     } 
     
-    // 2. fetch current identity of CP from SIR. Identity may be username or hash of certificate (== b64_identity)
+    // 2. fetch current identity of CP from SIR. Identity may be username or identifier created from certificate
     int active;
     char *role = NULL;
-    *identity = SIR_getIdentityOfSession(SIRDoc, (char *)b64_identifier, &active, &role);
+    *identity = SIR_getIdentityOfSession(SIRDoc, identifier, &active, &role);
     
     if (*identity == NULL)
         return -1;
+    
+    if (identifier) free(identifier);
     
     return 0;
 }
@@ -287,11 +342,11 @@ static int getIdentityOfSession(struct Upnp_Action_Request *ca_event, char **ide
  */
 static int getRolesOfSession(struct Upnp_Action_Request *ca_event, char **roles)
 {
-    int ret, b64len=0;
-    unsigned char *b64_identifier;
+    int ret, len=0;
+    char *identifier;
     
-    // 1. get identifier of CP (base64 of 20 first bytes of sha-256(CP certificate))
-    ret = getIdentifierOfCP(ca_event, &b64_identifier, &b64len, NULL);
+    // 1. get identifier of CP 
+    ret = getIdentifierOfCP(ca_event, &identifier, &len, NULL);
     if (ret != 0 )
     {
         return ret;
@@ -300,7 +355,7 @@ static int getRolesOfSession(struct Upnp_Action_Request *ca_event, char **roles)
     // 2. fetch current identity of CP from SIR. Identity may be username or hash of certificate (== b64_identity)
     int active;
     char *role = NULL;
-    char *identity = SIR_getIdentityOfSession(SIRDoc, (char *)b64_identifier, &active, &role);
+    char *identity = SIR_getIdentityOfSession(SIRDoc, identifier, &active, &role);
     if (identity == NULL)
     {
         // if identity is not defined in SIR, role should be
@@ -319,7 +374,9 @@ static int getRolesOfSession(struct Upnp_Action_Request *ca_event, char **roles)
         *roles = ACL_getRolesOfCP(ACLDoc, identity);
     if (*roles == NULL)
         return -1;
-        
+    
+    if (identifier) free(identifier);    
+    
     return 0;
 }
 
@@ -480,12 +537,12 @@ static void message_received(struct Upnp_Action_Request *ca_event, int error, un
         {
             trace(3,"DeviceProtection introduction last message received!\n");
             // Add CP certificate hash into ACL
-            int ret, b64len=0;
-            unsigned char *b64_identifier;
+            int ret, len=0;
+            char *identifier;
             char *CN = NULL;
     
-            // get identity of CP (base64 of 20 first bytes of sha-256(CP certificate))
-            ret = getIdentifierOfCP(ca_event, &b64_identifier, &b64len, &CN);
+            // get identity of CP 
+            ret = getIdentifierOfCP(ca_event, &identifier, &len, &CN);
             if (ret != 0 )
             {
                 trace(1,"Failed to get Identifier value from Certificate (%d)! Ignoring...",ret);
@@ -493,7 +550,7 @@ static void message_received(struct Upnp_Action_Request *ca_event, int error, un
             else
             {       
                 // Add CP to ACL with role Public 
-                ret = ACL_addCP(ACLDoc, CN, NULL, (char *)b64_identifier, "DP:1", "Public", 1);
+                ret = ACL_addCP(ACLDoc, CN, NULL, identifier, "Public", 1);
                 if (ret != ACL_SUCCESS && ret != ACL_USER_ERROR)
                     trace(1,"Failed to add new CP into ACL! Ignoring...");
             }
@@ -867,17 +924,17 @@ static int createUserLoginChallengeResponse(struct Upnp_Action_Request *ca_event
             }
             
             // insert user login values to SIR document
-            unsigned char *b64_identifier;
+            char *identifier;
     
-            result = getIdentifierOfCP(ca_event, &b64_identifier, &b64len, NULL);
+            result = getIdentifierOfCP(ca_event, &identifier, &b64len, NULL);
             if (result == 0 )
             {
-                SIR_updateSession(SIRDoc, (char *)b64_identifier, NULL, NULL, NULL, NULL, nameUPPER, (char *)b64_challenge);
+                SIR_updateSession(SIRDoc, identifier, NULL, NULL, NULL, NULL, nameUPPER, (char *)b64_challenge);
             } 
             else
                 trace(1, "Failure on inserting UserLoginChallenge values to SIR. Ignoring...");
             
-            if (b64_identifier) free(b64_identifier);
+            if (identifier) free(identifier);
             if (b64_challenge) free(b64_challenge);
         }
         if (bin_stored) free(bin_stored);
@@ -981,7 +1038,7 @@ int SendSetupMessage(struct Upnp_Action_Request *ca_event)
     char *inmessage = NULL;
     char IP_addr[INET6_ADDRSTRLEN];
     int id_len = 0;
-    unsigned char *CP_id = NULL;
+    char *CP_id = NULL;
     int sm_status = 0;
 
 // TODO remove this from comments
@@ -1004,7 +1061,7 @@ int SendSetupMessage(struct Upnp_Action_Request *ca_event)
             addErrorData(ca_event, result, "Unknown Protocol Type");       
         } 
         
-        // get identifier of CP (base64 of 20 first bytes of sha-256(CP certificate))
+        // get identifier of CP 
         // this will tell if the same CP is doing all setup messages
         result = getIdentifierOfCP(ca_event, &CP_id, &id_len, NULL);
 // TODO remove this!!!!!!!!!!!!!!!!!!!!!!!!     
@@ -1086,7 +1143,7 @@ result = 0;
         FreeDP();
     }
     
-    
+    if (CP_id) free(CP_id);
     if (inmessage) free(inmessage);
     if (protocoltype) free(protocoltype);
     return ca_event->ErrCode;
@@ -1213,7 +1270,7 @@ int UserLogin(struct Upnp_Action_Request *ca_event)
     char *loginChallenge = NULL;
     int active;
     
-    unsigned char *id =NULL;
+    char *id =NULL;
     int id_len = 0;
 
     // what if user is already logged in?
@@ -1363,7 +1420,7 @@ int UserLogin(struct Upnp_Action_Request *ca_event)
  */
 int UserLogout(struct Upnp_Action_Request *ca_event)
 {
-    unsigned char *id =NULL;
+    char *id =NULL;
     int id_len = 0;
     int result, active;
     char *roles = NULL;  
@@ -1537,7 +1594,7 @@ int AddRolesForIdentity(struct Upnp_Action_Request *ca_event)
     if (identity) free(identity);
     if (rolelist) free(rolelist);
     
-    //fprintf(stderr,"\n\n\n%s\n",ixmlPrintDocument(ACLDoc));
+    trace(3, "Contents of ACL:\n%s\n",ixmlPrintDocument(ACLDoc));  
     
     return ca_event->ErrCode;
 }
@@ -1614,7 +1671,7 @@ int RemoveRolesForIdentity(struct Upnp_Action_Request *ca_event)
     if (identity) free(identity);
     if (rolelist) free(rolelist);
     
-    //fprintf(stderr,"\n\n\n%s\n",ixmlPrintDocument(ACLDoc));
+    trace(3, "Contents of ACL:\n%s\n",ixmlPrintDocument(ACLDoc));
     
     return ca_event->ErrCode;
 }
@@ -1825,6 +1882,8 @@ int AddUserLoginData(struct Upnp_Action_Request *ca_event)
     if (nameUPPER) free(nameUPPER);
     if (identity) free(identity);
 
+    trace(3, "Contents of ACL:\n%s\n",ixmlPrintDocument(ACLDoc));
+
     return ca_event->ErrCode;
 }
 
@@ -1916,6 +1975,8 @@ int RemoveUserLoginData(struct Upnp_Action_Request *ca_event)
     if (name) free(name);
     if (nameUPPER) free(nameUPPER);
 
+    trace(3, "Contents of ACL:\n%s\n",ixmlPrintDocument(ACLDoc));
+
     return ca_event->ErrCode;
 }
 
@@ -1997,6 +2058,8 @@ int AddCPIdentityData(struct Upnp_Action_Request *ca_event)
 
     if (identitiesDoc) ixmlDocument_free(identitiesDoc);
     if (identitylist) free(identitylist);
+
+    trace(3, "Contents of ACL:\n%s\n",ixmlPrintDocument(ACLDoc));
     
     return ca_event->ErrCode;
 }
@@ -2081,6 +2144,8 @@ int RemoveCPIdentityData(struct Upnp_Action_Request *ca_event)
     if (identityDoc) ixmlDocument_free(identityDoc);
     if (identity) free(identity);
     
+    trace(3, "Contents of ACL:\n%s\n",ixmlPrintDocument(ACLDoc));
+    
     return ca_event->ErrCode;
 }
 
@@ -2164,6 +2229,8 @@ int SetCPIdentityAlias(struct Upnp_Action_Request *ca_event)
     
     if (identityDoc) ixmlDocument_free(identityDoc);
     if (identity) free(identity);
+    
+    trace(3, "Contents of ACL:\n%s\n",ixmlPrintDocument(ACLDoc));
     
     return ca_event->ErrCode;
 }
