@@ -1226,7 +1226,29 @@ int ACL_doesIdentityHasRole(IXML_Document *doc, const char *identity, const char
     if (roles == NULL)
         return 0;
     
-    return tokenizeAndSearch(roles, " ", targetRole);
+    // role Admin contains privileges of Admin Basic Public
+    // role Basic contains privileges of Basic Public
+    // role Public contains privileges Public
+    if (strcmp(targetRole, "Public") == 0)
+        // everybody has Public
+        return 1;
+    else if (strcmp(targetRole, "Basic") == 0)
+    {
+        if (tokenizeAndSearch(roles, " ", "Basic") || tokenizeAndSearch(roles, " ", "Admin"))
+            return 1;
+        else
+            return 0;
+    }
+    else if (strcmp(targetRole, "Admin") == 0)
+    {
+        return tokenizeAndSearch(roles, " ", "Admin");
+    }
+    else
+        // unknown role
+        return 0;
+        
+        
+    return 0;
 }
 
 
