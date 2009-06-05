@@ -41,11 +41,6 @@
       <name>GetUserLoginChallenge</name> 
       <argumentList>
         <argument>
-          <name>Algorithm</name> 
-          <direction>in</direction> 
-          <relatedStateVariable>A_ARG_TYPE_string</relatedStateVariable> 
-        </argument>
-        <argument>
           <name>Name</name> 
           <direction>in</direction> 
           <relatedStateVariable>A_ARG_TYPE_string</relatedStateVariable> 
@@ -53,23 +48,18 @@
         <argument>
           <name>Salt</name> 
           <direction>out</direction> 
-          <relatedStateVariable>A_ARG_TYPE_string</relatedStateVariable> 
+          <relatedStateVariable>A_ARG_TYPE_base64</relatedStateVariable> 
         </argument>
         <argument>
           <name>Challenge</name> 
           <direction>out</direction> 
-          <relatedStateVariable>A_ARG_TYPE_string</relatedStateVariable> 
+          <relatedStateVariable>A_ARG_TYPE_base64</relatedStateVariable> 
         </argument>
       </argumentList>
     </action> 
    <action>
       <name>UserLogin</name> 
       <argumentList>
-        <argument>
-          <name>Algorithm</name> 
-          <direction>in</direction> 
-          <relatedStateVariable>A_ARG_TYPE_string</relatedStateVariable> 
-        </argument>
         <argument>
           <name>Name</name> 
           <direction>in</direction> 
@@ -78,18 +68,13 @@
         <argument>
           <name>Authenticator</name> 
           <direction>in</direction> 
-          <relatedStateVariable>A_ARG_TYPE_string</relatedStateVariable> 
+          <relatedStateVariable>A_ARG_TYPE_base64</relatedStateVariable> 
         </argument>
       </argumentList>
     </action> 
    <action>
       <name>UserLogout</name> 
       <argumentList>
-        <argument>
-          <name>Name</name> 
-          <direction>in</direction> 
-          <relatedStateVariable>A_ARG_TYPE_string</relatedStateVariable> 
-        </argument>
       </argumentList>
     </action> 
     <action>
@@ -143,13 +128,8 @@
       </argumentList>
     </action>
     <action>
-      <name>AddLoginData</name> 
+      <name>AddUserLoginData</name> 
       <argumentList>
-         <argument>
-          <name>Algorithm</name> 
-          <direction>in</direction> 
-          <relatedStateVariable>A_ARG_TYPE_string</relatedStateVariable> 
-        </argument>
         <argument>
           <name>Flags</name> 
           <direction>in</direction> 
@@ -170,15 +150,10 @@
           <direction>in</direction> 
           <relatedStateVariable>A_ARG_TYPE_base64</relatedStateVariable> 
         </argument>
-        <argument>
-          <name>IterationCount</name> 
-          <direction>in</direction> 
-          <relatedStateVariable>A_ARG_TYPE_int</relatedStateVariable> 
-        </argument>
       </argumentList>
     </action>  
     <action>
-      <name>RemoveLoginData</name> 
+      <name>RemoveUserLoginData</name> 
       <argumentList>
        <argument>
           <name>Name</name> 
@@ -188,7 +163,7 @@
       </argumentList>
     </action>  
     <action>
-      <name>AddIdentityData</name>
+      <name>AddCPIdentityData</name>
       <argumentList> 
         <argument>
           <name>IdentityList</name> 
@@ -196,9 +171,19 @@
           <relatedStateVariable>A_ARG_TYPE_string </relatedStateVariable> 
         </argument>        
       </argumentList>
+    </action>
+    <action>
+      <name>SetCPIdentityAlias</name>
+      <argumentList> 
+        <argument>
+          <name>Identity</name> 
+          <direction>in</direction> 
+          <relatedStateVariable>A_ARG_TYPE_string </relatedStateVariable> 
+        </argument>        
+      </argumentList>
     </action>  
     <action>
-      <name>RemoveIdentityData</name>
+      <name>RemoveCPIdentityData</name>
       <argumentList> 
         <argument>
           <name>IdentityList</name> 

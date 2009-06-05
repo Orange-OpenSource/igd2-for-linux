@@ -1189,7 +1189,6 @@ int GetSupportedProtocols(struct Upnp_Action_Request *ca_event)
 int GetUserLoginChallenge(struct Upnp_Action_Request *ca_event)
 {
     int result = 0;
-    char *algorithm = NULL;
     char *name = NULL;
     char *nameUPPER = NULL;
     char *passwd = NULL;
@@ -1203,33 +1202,22 @@ int GetUserLoginChallenge(struct Upnp_Action_Request *ca_event)
         result = 701;
         addErrorData(ca_event, result, "Authentication Failure");        
     }
-    else*/if ( (algorithm = GetFirstDocumentItem(ca_event->ActionRequest, "Algorithm") )
-            && (name = GetFirstDocumentItem(ca_event->ActionRequest, "Name") ))
+    else*/if ( (name = GetFirstDocumentItem(ca_event->ActionRequest, "Name") ))
     {
-        // check parameters
-        if (strcmp(algorithm, "DeviceProtection:1") != 0)
+        // name to uppercase
+        nameUPPER = toUpperCase(name);
+        if (nameUPPER == NULL)
         {
-            trace(1, "Unknown algorithm %s",algorithm);
-            result = 705;
-            addErrorData(ca_event, result, "Invalid Algorithm");             
-        }     
-        else 
+            trace(1, "Failed to convert name to upper case ");
+            result = 501;
+            addErrorData(ca_event, result, "Action Failed");
+        }
+        // check if user exits
+        if ((strcmp(nameUPPER, "ADMIN") != 0) && (getValuesFromPasswdFile(nameUPPER, NULL,NULL,NULL,NULL,0) != 0))
         {
-            // name to uppercase
-            nameUPPER = toUpperCase(name);
-            if (nameUPPER == NULL)
-            {
-                trace(1, "Failed to convert name to upper case ");
-                result = 501;
-                addErrorData(ca_event, result, "Action Failed");
-            }
-            // check if user exits
-            if ((strcmp(nameUPPER, "ADMIN") != 0) && (getValuesFromPasswdFile(nameUPPER, NULL,NULL,NULL,NULL,0) != 0))
-            {
-                trace(1, "Unknown username %s",nameUPPER);
-                result = 706;
-                addErrorData(ca_event, result, "Invalid Name");                 
-            }
+            trace(1, "Unknown username %s",nameUPPER);
+            result = 706;
+            addErrorData(ca_event, result, "Invalid Name");                 
         }
         
         // parameters OK
@@ -1242,11 +1230,10 @@ int GetUserLoginChallenge(struct Upnp_Action_Request *ca_event)
     else
     {
         trace(1, "Failure in GetUserLoginChallenge: Invalid Arguments!");
-        trace(1, "  Algotrithm: %s, Name: %s",algorithm,name);
+        trace(1, "  Name: %s",name);
         addErrorData(ca_event, 402, "Invalid Args");
     }
-    
-    if (algorithm) free(algorithm);
+
     if (name) free(name);    
     if (nameUPPER) free(nameUPPER);
     if (passwd) free(passwd);
