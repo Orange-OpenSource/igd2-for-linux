@@ -57,6 +57,10 @@ libgupnp_1_0_la_SOURCES = http-headers.c			\
 			  xml-util.c				\
 			  xml-util.h				\
 			  gena-protocol.h			\
+			  pki.c						\
+			  pki.h						\
+			  ssl-client.c				\
+			  ssl-client.h				\
 			  $(BUILT_SOURCES)
 
 libgupnp_1_0_la_LIBADD = $(LIBGUPNP_LIBS)
