@@ -2,6 +2,9 @@
 #include <netinet/in.h>
 #include <libsoup/soup.h>
 #include <glib.h>
+#include <string.h>
+#include <stdlib.h>
+
 
 
 #include "pki.h"
@@ -12,6 +15,32 @@
 // that clientCertCallback function can access these
 gnutls_x509_crt_t client_crt = NULL;
 gnutls_x509_privkey_t client_privkey = NULL;
+
+
+/************************************************************************
+*   Function :  ssl_create_https_url
+*   Parameters:
+*   IN const char *http_url: Https url which is turned into https usrl
+*   IN int port: Port number used in https url
+*   IN char **https_url: Pointer to created https url
+*   
+*   Description :   Create https url from http url. 
+*               http://127.0.0.1:49152  => https://127.0.0.1:443
+*
+*   Return : void
+*
+*   Note : 
+************************************************************************/
+void ssl_create_https_url(const char *http_url, int port, char **https_url)
+{
+    SoupURI *uri;
+    uri = soup_uri_new (http_url);
+    uri->scheme = SOUP_URI_SCHEME_HTTPS;
+    uri->port = port;
+    
+    *https_url = soup_uri_to_string(uri, FALSE);
+    soup_uri_free (uri);    
+}
 
 
 /************************************************************************
@@ -330,31 +359,62 @@ ssl_close_client_session( GUPnPSSLClient *client )
 
 
 int
-ssl_client_send_and_receive_message(  GUPnPSSLClient *client,
+ssl_client_send_and_receive(  GUPnPSSLClient *client,
                                         const char *message,
-                                        char **response)
+                                        char *response)
 {
+    char *tmp;
     int retVal = 0;
-    
+    int len = 1000;
+    char recv[len+1];
+
+    response = malloc(len*sizeof( char* ));
+    memset(response,len,'\0');
+
     if (client->session == NULL)
         return GUPNP_E_SESSION_FAIL;
-        
+   
     retVal = gnutls_record_send(client->session, message, strlen(message));
-    
+     
     if (retVal < 0)
     {
         g_warning("Error: gnutls_record_send failed. %s", gnutls_strerror(retVal));
         return retVal;  
     }
-    
-    retVal = gnutls_record_recv (client->session, *response, strlen(*response));
-    if (retVal < 0)
+    while (retVal > 0)
     {
-        g_warning("Error: gnutls_record_recv failed. %s", gnutls_strerror(retVal));
-        return retVal;  
+        retVal = gnutls_record_recv (client->session, recv, len);
+               
+        if (retVal < 0)
+        {
+            g_warning("Error: gnutls_record_recv failed. %s", gnutls_strerror(retVal));
+            return retVal;
+        }
+     
+        g_warning("RECEIVED: %s",recv);
+         
+        strcat(response, recv);    
+        // receive data until empty line containing only \r\n\r\n is received. That means that headers are done
+        // This "parser" doesn't support chunked encoding...    
+        if ((tmp = strstr(response, "\r\n\r\n")) != NULL)
+        {
+            // lisätään SoupMessageen header arvot, jotka on erotettu toisistaan \r\n
+            // Nyt saadaan content-length soup_message_headers_get_one ()
+            // Sitten luetaan kunnes on tullut täyteen c-l:n mukaiset tavut. Entä Chunked? Not my problem... 
+            //soup_message_headers_append () 
+            
+            g_warning("END FOUND: ");//'%s'",tmp);
+            //return 0;
+        }
+        else
+        {   
+  
+        }
     }
         
     return retVal;   
 }
+                            
+
                             
                             

@@ -15,6 +15,8 @@ typedef struct {
 } GUPnPSSLClient;
 
 
+void ssl_create_https_url(const char *http_url, int port, char **https_url);
+
 int
 ssl_init_client(  GUPnPSSLClient *client,
                   const char *directory,
@@ -38,9 +40,9 @@ ssl_close_client_session( GUPnPSSLClient *client );
 
 
 int
-ssl_client_send_and_receive_message(  GUPnPSSLClient *client,
+ssl_client_send_and_receive(  GUPnPSSLClient *client,
                             const char *message,
-                            char **response);
+                            char *response);
 
 
 /************************************************************************
