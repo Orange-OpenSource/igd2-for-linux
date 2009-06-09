@@ -357,19 +357,73 @@ ssl_close_client_session( GUPnPSSLClient *client )
 
 }  /****************** End of ssl_close_client_session   *********************/
 
+// return status code parsed from header if success, negative else
+static int parse_headers(SoupMessageHeaders *soup_headers, const char *headers)
+{
+    char headers_copy[strlen(headers)];
+    char *tmp;
+    char *value;
+    int status_code = -1;
+    
+    strcpy(headers_copy, headers);
+
+    // Example header:
+    // Accept-Language: en-us;q=1, en;q=0.5
+    // 1. tokenize header string with '\r\n', different header-value pairs should be separated with that
+    // 2. If token contains ":", we have a pair
+    // 3. copy string after ":" as value and replace ':' with '\0'. This leaves only header name into token 
+    char *token = strtok(headers_copy, "\r\n");
+    if (token)
+    {
+        do 
+        {
+            if ( (tmp = strstr(token, ":")) != NULL )
+            {
+                value = strdup(tmp+1);
+                *tmp = '\0';
+                
+                if (token && value)
+                    soup_message_headers_append(soup_headers, token, value);
+                free(value);
+            }
+            else if ( (tmp = strstr(token, "HTTP/")) != NULL ) // this row contains statuscode of message
+            {
+                // HTTP/1.1 200 OK
+                // find last space and replace it with '\0'
+                tmp = strrchr(token, ' ');
+                *tmp = '\0';
+                // find first space and all after that is status code as string (maybe some white spaces too)
+                tmp = strstr(token, " ");
+                status_code = atoi(tmp);
+            }
+            
+                
+        } while ((token = strtok(NULL, "\r\n")));
+
+    } 
+    
+    return status_code;      
+}
+
 
 int
 ssl_client_send_and_receive(  GUPnPSSLClient *client,
                                         const char *message,
-                                        char *response)
+                                        char **response,
+                                        SoupMessage *msg)
 {
-    char *tmp;
+    int headers_ready = 0;
+    char *tmp, *body = NULL;
     int retVal = 0;
-    int len = 1000;
+    int size = 0;
+    int alloc = 1024;
+    int len = 1024;
     char recv[len+1];
+    int content_len = 0;
 
-    response = malloc(len*sizeof( char* ));
-    memset(response,len,'\0');
+    *response = malloc((alloc+1)*sizeof( char* ));
+    **response = '\0';
+    //memset(*response,'\0',len);
 
     if (client->session == NULL)
         return GUPNP_E_SESSION_FAIL;
@@ -381,6 +435,7 @@ ssl_client_send_and_receive(  GUPnPSSLClient *client,
         g_warning("Error: gnutls_record_send failed. %s", gnutls_strerror(retVal));
         return retVal;  
     }
+    
     while (retVal > 0)
     {
         retVal = gnutls_record_recv (client->session, recv, len);
@@ -390,31 +445,69 @@ ssl_client_send_and_receive(  GUPnPSSLClient *client,
             g_warning("Error: gnutls_record_recv failed. %s", gnutls_strerror(retVal));
             return retVal;
         }
-     
-        g_warning("RECEIVED: %s",recv);
-         
-        strcat(response, recv);    
-        // receive data until empty line containing only \r\n\r\n is received. That means that headers are done
-        // This "parser" doesn't support chunked encoding...    
-        if ((tmp = strstr(response, "\r\n\r\n")) != NULL)
+        else 
+            g_warning("Received %d bytes", retVal);
+       
+        // does *response have enough space. If not realloc
+        if ( (size + retVal) > alloc )
         {
+            char *new_resp;
+            alloc = alloc + retVal + 1;
+            
+            new_resp = realloc (*response, alloc);
+            if (!new_resp) {
+                return -1; // not enough memory
+            }
+  
+            *response = new_resp;
+        }
+         
+        strcat(*response, recv);
+        size = strlen(*response);
+       
+        // receive data until empty line containing only \r\n is received (also previous line must end with \r\n). 
+        // That means that headers are done
+        // This "parser" doesn't support chunked encoding...    
+        if (!headers_ready && (tmp = strstr(*response, "\r\n\r\n")) != NULL)
+        {
+            body = tmp + 4; // everything after "\r\n\r\n"
+            
             // lisätään SoupMessageen header arvot, jotka on erotettu toisistaan \r\n
             // Nyt saadaan content-length soup_message_headers_get_one ()
             // Sitten luetaan kunnes on tullut täyteen c-l:n mukaiset tavut. Entä Chunked? Not my problem... 
             //soup_message_headers_append () 
             
-            g_warning("END FOUND: ");//'%s'",tmp);
-            //return 0;
+            //msg->response_headers = soup_message_headers_new(SOUP_MESSAGE_HEADERS_RESPONSE);
+            retVal = parse_headers(msg->response_headers, *response);
+            if (retVal > 0)
+                // set statuscode to SoupMessage
+                soup_message_set_status (msg, retVal);
+            else
+                g_warning("Failed to parse response headers");
+                            
+            g_warning("END FOUND: '%s'",tmp);
+            
+            const char *clen = soup_message_headers_get_one (msg->response_headers, "content-length");
+            content_len = atoi(clen);            
+            
+            headers_ready = 1;
+            
+        }
+        else if (headers_ready && body != NULL && strlen(body) >= content_len)
+        {   
+            g_warning("AND NOW IT SHOULD BE READY \n %s", *response);
+            // body should be ready
+            tmp = soup_message_headers_get_one (msg->response_headers, "content-type");
+            soup_message_set_response (msg, tmp, SOUP_MEMORY_TAKE, body, strlen(body));
+            return 0;
         }
         else
-        {   
-  
+        {
+            g_warning("RESPONSE SO FAR\n %s", *response); 
+            //something fishy...
         }
-    }
         
+    }
+            
     return retVal;   
 }
-                            
-
-                            
-                            

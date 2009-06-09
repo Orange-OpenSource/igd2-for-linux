@@ -42,7 +42,8 @@ ssl_close_client_session( GUPnPSSLClient *client );
 int
 ssl_client_send_and_receive(  GUPnPSSLClient *client,
                             const char *message,
-                            char *response);
+                            char **response,
+                            SoupMessage *msg);
 
 
 /************************************************************************
