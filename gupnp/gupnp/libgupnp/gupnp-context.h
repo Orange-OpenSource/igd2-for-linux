@@ -26,6 +26,8 @@
 #include <libsoup/soup-server.h>
 #include <libsoup/soup-session.h>
 
+#include "ssl-client.h"
+
 G_BEGIN_DECLS
 
 GType
@@ -93,6 +95,9 @@ gupnp_context_get_server               (GUPnPContext *context);
 
 SoupSession *
 gupnp_context_get_session              (GUPnPContext *context);
+
+GUPnPSSLClient *
+gupnp_context_get_ssl_client           (GUPnPContext *context);
 
 void
 gupnp_context_set_subscription_timeout (GUPnPContext *context,

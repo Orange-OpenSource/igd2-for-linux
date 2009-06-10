@@ -4,6 +4,46 @@
 #include <gnutls/gnutls.h>
 #include <gnutls/x509.h>
 
+#include <glib-object.h>
+
+//#include "gupnp-context.h"
+
+G_BEGIN_DECLS
+/*
+GType
+gupnp_ssl_client_get_type (void) G_GNUC_CONST;
+
+#define GUPNP_TYPE_SSL_CLIENT \
+                (gupnp_ssl_client_get_type ())
+#define GUPNP_SSL_CLIENT(obj) \
+                (G_TYPE_CHECK_INSTANCE_CAST ((obj), \
+                 GUPNP_TYPE_SSL_CLIENT, \
+                 GUPnPSSLClient))
+#define GUPNP_SSL_CLIENT_CLASS(obj) \
+                (G_TYPE_CHECK_CLASS_CAST ((obj), \
+                 GUPNP_TYPE_SSL_CLIENT, \
+                 GUPnPSSLClientClass))
+#define GUPNP_IS_SSL_CLIENT(obj) \
+                (G_TYPE_CHECK_INSTANCE_TYPE ((obj), \
+                 GUPNP_TYPE_SSL_CLIENT))
+#define GUPNP_IS_SSL_CLIENT_CLASS(obj) \
+                (G_TYPE_CHECK_CLASS_TYPE ((obj), \
+                 GUPNP_TYPE_SSL_CLIENT))
+#define GUPNP_SSL_CLIENT_GET_CLASS(obj) \
+                (G_TYPE_INSTANCE_GET_CLASS ((obj), \
+                 GUPNP_TYPE_SSL_CLIENT, \
+                 GUPnPSSLClientClass))
+
+typedef struct {
+        GUPnPContextClass parent_class;
+
+        // future padding 
+        void (* _gupnp_reserved1) (void);
+        void (* _gupnp_reserved2) (void);
+        void (* _gupnp_reserved3) (void);
+        void (* _gupnp_reserved4) (void);
+} GUPnPSSLClientClass;
+*/
 
 typedef struct {   
     // creadentials for ssl clients
@@ -59,5 +99,8 @@ ssl_client_send_and_receive(  GUPnPSSLClient *client,
 *   Note : Don't call this.
 ************************************************************************/
 int clientCertCallback(gnutls_session_t session, const gnutls_datum_t* req_ca_dn, int nreqs, gnutls_pk_algorithm_t* pk_algos, int pk_algos_length, gnutls_retr_st* st);
+
+
+G_END_DECLS
 
 #endif /*SSLCLIENT_H_*/

@@ -42,6 +42,7 @@
 #include "gena-protocol.h"
 #include "http-headers.h"
 #include "gvalue-util.h"
+#include "ssl-client.h"
 
 G_DEFINE_TYPE (GUPnPServiceProxy,
                gupnp_service_proxy,
@@ -570,6 +571,24 @@ begin_action_msg (GUPnPServiceProxy              *proxy,
         control_url = gupnp_service_info_get_control_url
                                         (GUPNP_SERVICE_INFO (proxy));
 
+g_warning ("URL: %s",control_url);
+/*
+    SoupURI *uri;
+    uri = soup_uri_new (control_url);
+    uri->scheme = SOUP_URI_SCHEME_HTTPS;
+    uri->port = 443;
+    
+    control_url = soup_uri_to_string(uri, FALSE);
+    soup_uri_free (uri);
+    
+GUPnPSSLClient *client = malloc(sizeof(GUPnPSSLClient));
+g_warning ("INIT: %d",ssl_init_client(client,"./certstore/",NULL,NULL,NULL,NULL, "GUPNP Client"));
+g_warning ("URL: %s",control_url);
+g_warning ("CREATE: %d",ssl_create_client_session(client, control_url, NULL, NULL));
+char *response;
+ssl_client_send_and_receive_message(client, "this is send message", &response);
+g_warning ("RESPONSE: %s",response);
+*/
         if (control_url != NULL) {
                 ret->msg = soup_message_new (SOUP_METHOD_POST, control_url);
 
@@ -659,6 +678,56 @@ action_got_response (SoupSession             *session,
         }
 }
 
+
+static void header_callback(const char *name,
+                        const char *value,
+                        gpointer user_data)
+{
+    if (user_data)
+    {
+        strcat((char *)user_data,name);                                                            
+        strcat((char *)user_data,": ");
+        strcat((char *)user_data,value); 
+        strcat((char *)user_data,"\r\n");
+    }                                                
+    g_warning ("HEADER: %s: %s",name,value);                                                            
+}
+
+
+static int create_msg_string( GUPnPServiceProxyAction *action, char *path, char *host, int port, char **full_message)
+{
+    char headers[500] = "\0";
+    char *http_version;
+
+    if (soup_message_get_http_version(action->msg) == SOUP_HTTP_1_1)
+        http_version = "HTTP/1.1";
+    else 
+        http_version = "HTTP/1.0";
+    // add POST and Host headers
+    snprintf(headers,500,"POST %s %s\r\nHost: %s:%d\r\n",path,http_version,host,port);
+    
+    soup_message_headers_foreach (action->msg->request_headers, (SoupMessageHeadersForeachFunc)header_callback, headers);
+    
+    SoupBuffer *buf = soup_message_body_flatten (action->msg->request_body);
+    char len[5];
+    snprintf(len,5,"%d",buf->length);
+    // add Content-Length header value
+    strcat(headers,"Content-Length: ");
+    strcat(headers,len);
+    strcat(headers,"\r\n"); 
+    
+    int fullLength = strlen(headers)+buf->length + 5;
+    
+    *full_message = malloc(fullLength);
+    memset(*full_message, '\0', fullLength);
+    snprintf(*full_message,fullLength,"%s\r\n%s",headers,buf->data);
+    
+    g_warning ("FULL MESSAGE:\n%s",*full_message);    
+    
+    return 0;
+}
+
+
 /* Finishes an action message and sends it off */
 static void
 finish_action_msg (GUPnPServiceProxyAction *action,
@@ -682,6 +751,24 @@ finish_action_msg (GUPnPServiceProxyAction *action,
                                   action->msg_str->str,
                                   action->msg_str->len);
 
+/*
+char *https_url;
+SoupURI *uri = soup_message_get_uri (action->msg);
+char *control_url = soup_uri_to_string(uri, FALSE);
+ssl_create_https_url(control_url, 443, &https_url);
+
+char *message;
+create_msg_string(action, uri->path, uri->host, 443, &message);
+
+
+GUPnPSSLClient *client = malloc(sizeof(GUPnPSSLClient));
+g_warning ("INIT: %d",ssl_init_client(client,"./certstore/",NULL,NULL,NULL,NULL, "GUPNP Client"));
+g_warning ("URLS: %s",https_url);
+g_warning ("CREATE: %d",ssl_create_client_session(client, https_url, NULL, NULL));
+char *response = NULL;
+*/
+
+
         g_string_free (action->msg_str, FALSE);
 
         /* We need to keep our own reference to the message as well,
@@ -694,12 +781,29 @@ finish_action_msg (GUPnPServiceProxyAction *action,
         /* Send the message */
         context = gupnp_service_info_get_context
                                 (GUPNP_SERVICE_INFO (action->proxy));
-        session = gupnp_context_get_session (context);
-
-        soup_session_queue_message (session,
-                                    action->msg,
-                                    (SoupSessionCallback) action_got_response,
-                                    action);
+                                
+        GUPnPSSLClient *client = gupnp_context_get_ssl_client(context);
+        if (client == NULL)
+        {
+            g_warning("We don't have SSL");                              
+                                
+            session = gupnp_context_get_session (context);
+    
+            soup_session_queue_message (session,
+                                        action->msg,
+                                        (SoupSessionCallback) action_got_response,
+                                        action);
+        }
+        else
+        {
+            g_warning("We do have SSL");
+            //ssl_client_send_and_receive(client, message, &response, action->msg);
+            //soup_message_headers_foreach (action->msg->response_headers, (SoupMessageHeadersForeachFunc)header_callback, NULL);
+            //g_warning ("RESPONSE: %s",response);
+            //if (response) free(response);
+            
+            //action->callback (action->proxy, action, action->user_data);                                                 
+        }
 }
 
 /* Writes a parameter name and GValue pair to @msg */
@@ -898,7 +1002,7 @@ check_action_response (GUPnPServiceProxy       *proxy,
                 return NULL;
         }
 
-        /* Parse response */
+        /* Parse response */      
         response = xmlRecoverMemory (action->msg->response_body->data,
                                      action->msg->response_body->length);
 

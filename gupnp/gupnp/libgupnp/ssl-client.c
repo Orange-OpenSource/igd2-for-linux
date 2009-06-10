@@ -6,9 +6,9 @@
 #include <stdlib.h>
 
 
-
 #include "pki.h"
 #include "ssl-client.h"
+
 
 
 // these are now global variables, because this is the only way I can imagine 
@@ -16,6 +16,23 @@
 gnutls_x509_crt_t client_crt = NULL;
 gnutls_x509_privkey_t client_privkey = NULL;
 
+/*
+G_DEFINE_TYPE (GUPnPSSLClient,
+               gupnp_ssl_client,
+               GUPNP_CONTEXT);
+
+
+static void
+gupnp_ssl_client_init (GUPnPSSLClient *client)
+{
+}
+
+
+static void
+gupnp_ssl_client_class_init (GUPnPSSLClientClass *klass)
+{
+}
+*/
 
 /************************************************************************
 *   Function :  ssl_create_https_url

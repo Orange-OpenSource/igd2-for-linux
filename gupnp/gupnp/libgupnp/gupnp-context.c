@@ -68,6 +68,8 @@ struct _GUPnPContextPrivate {
 
         SoupServer  *server; /* Started on demand */
         char        *server_url;
+        
+        GUPnPSSLClient *ssl_client; // this is used for SSL connections
 };
 
 enum {
@@ -243,6 +245,8 @@ gupnp_context_constructor (GType                  type,
                  SOUP_SESSION_ASYNC_CONTEXT,
                  gssdp_client_get_main_context (GSSDP_CLIENT (context)),
                  NULL);
+
+        context->priv->ssl_client = NULL;
 
 	if (g_getenv ("GUPNP_DEBUG")) {
 		SoupLogger *logger;
@@ -481,6 +485,26 @@ gupnp_context_get_session (GUPnPContext *context)
 
         return context->priv->session;
 }
+
+
+
+/**
+ * gupnp_context_get_ssl_client
+ * @context: A #GUPnPContext
+ *
+ * Get the #SoupSession object that GUPnP is using.
+ *
+ * Return value: The #SoupSession used by GUPnP. Do not unref this when
+ * finished.
+ **/
+GUPnPSSLClient *
+gupnp_context_get_ssl_client (GUPnPContext *context)
+{
+        g_return_val_if_fail (GUPNP_IS_CONTEXT (context), NULL);
+
+        return context->priv->ssl_client;
+}
+
 
 /*
  * Default server handler: Return 404 not found.
