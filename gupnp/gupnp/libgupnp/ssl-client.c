@@ -357,7 +357,23 @@ ssl_close_client_session( GUPnPSSLClient *client )
 
 }  /****************** End of ssl_close_client_session   *********************/
 
-// return status code parsed from header if success, negative else
+
+/**************************************************************************
+ * Function: parse_headers
+ *
+ * Parameters:
+ *  OUT  SoupMessageHeaders *soup_headerst: Header name-value pairs are added to this struct
+ *  IN  const char *headers: String containing headers
+ * 
+ * Description:
+ *  Add headers parsed from string to given SoupMessageHeaders struct. Parse statuscode value
+ *  from headers and return it.
+ *
+ * Return Values: int
+ *      Statuscode value parsed from headers, 
+ *      Negative value on error. 
+ *      
+ ***************************************************************************/
 static int parse_headers(SoupMessageHeaders *soup_headers, const char *headers)
 {
     char headers_copy[strlen(headers)];
@@ -406,8 +422,29 @@ static int parse_headers(SoupMessageHeaders *soup_headers, const char *headers)
 }
 
 
-int
-ssl_client_send_and_receive(  GUPnPSSLClient *client,
+/**************************************************************************
+ * Function: ssl_client_send_and_receive
+ *
+ * Parameters:
+ *  IN  GUPnPSSLClient *client: Client used for sending message. This contains SSL-session
+ *  IN  const char *message: Message which is send
+ *  IN  char **response: Response for message is returned here as string
+ *  IN  SoupMessage *msg: Into this SoupMessage, response information is inserted. This way we can mimic that normal soup-sending and receiving was used
+ *
+ * Description:
+ *  Send and receive using SSL. Tries to mimic for the rest of gupnp normal soup.
+ *  Puts response to SoupMessage as soup would have done.
+ * 
+ *  Problems with this implementation are:
+ *      - doesn't support support chunked HTTP
+ *      - doesn't support revival from Method Not Allowed status-code
+ *      - not sure what happens if something goes wrong... 
+ *
+ * Return Values: int
+ *      0 on success.
+ *      
+ ***************************************************************************/
+int ssl_client_send_and_receive(  GUPnPSSLClient *client,
                                         const char *message,
                                         char **response,
                                         SoupMessage *msg)
@@ -423,11 +460,11 @@ ssl_client_send_and_receive(  GUPnPSSLClient *client,
 
     *response = malloc((alloc+1)*sizeof( char* ));
     **response = '\0';
-    //memset(*response,'\0',len);
 
     if (client->session == NULL)
         return GUPNP_E_SESSION_FAIL;
    
+    // Send the message
     retVal = gnutls_record_send(client->session, message, strlen(message));
      
     if (retVal < 0)
@@ -436,8 +473,10 @@ ssl_client_send_and_receive(  GUPnPSSLClient *client,
         return retVal;  
     }
     
-    while (retVal > 0)
+    // Start receiving until error occurs or whole message is received.
+    while (retVal > 0) // if retVal is negative, then gnutls have returned error
     {
+        memset(recv, '\0',len+1);// earlier receivings doesn't bother after this
         retVal = gnutls_record_recv (client->session, recv, len);
                
         if (retVal < 0)
@@ -470,22 +509,15 @@ ssl_client_send_and_receive(  GUPnPSSLClient *client,
         // This "parser" doesn't support chunked encoding...    
         if (!headers_ready && (tmp = strstr(*response, "\r\n\r\n")) != NULL)
         {
-            body = tmp + 4; // everything after "\r\n\r\n"
+            body = tmp + 4; // body of message is everything that comes after "\r\n\r\n"
             
-            // lisätään SoupMessageen header arvot, jotka on erotettu toisistaan \r\n
-            // Nyt saadaan content-length soup_message_headers_get_one ()
-            // Sitten luetaan kunnes on tullut täyteen c-l:n mukaiset tavut. Entä Chunked? Not my problem... 
-            //soup_message_headers_append () 
-            
-            //msg->response_headers = soup_message_headers_new(SOUP_MESSAGE_HEADERS_RESPONSE);
+            // add response header values to SoupMessage
             retVal = parse_headers(msg->response_headers, *response);
             if (retVal > 0)
                 // set statuscode to SoupMessage
                 soup_message_set_status (msg, retVal);
             else
                 g_warning("Failed to parse response headers");
-                            
-            g_warning("END FOUND: '%s'",tmp);
             
             const char *clen = soup_message_headers_get_one (msg->response_headers, "content-length");
             content_len = atoi(clen);            
@@ -495,16 +527,19 @@ ssl_client_send_and_receive(  GUPnPSSLClient *client,
         }
         else if (headers_ready && body != NULL && strlen(body) >= content_len)
         {   
-            g_warning("AND NOW IT SHOULD BE READY \n %s", *response);
-            // body should be ready
-            tmp = soup_message_headers_get_one (msg->response_headers, "content-type");
-            soup_message_set_response (msg, tmp, SOUP_MEMORY_TAKE, body, strlen(body));
+            body[content_len] = '\0';
+            // body should be ready    
+            
+            // Put body to SoupMessage (soup_message_set_response() should do that also, but didn't get it working 
+            msg->response_body->data = strdup(body);
+            msg->response_body->length = strlen(body);
+            
             return 0;
         }
         else
         {
-            g_warning("RESPONSE SO FAR\n %s", *response); 
-            //something fishy...
+            //g_warning("RESPONSE SO FAR\n %s", *response); 
+            // whole message is not received yet...
         }
         
     }
