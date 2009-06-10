@@ -96,6 +96,10 @@ gupnp_context_get_server               (GUPnPContext *context);
 SoupSession *
 gupnp_context_get_session              (GUPnPContext *context);
 
+void
+gupnp_context_set_ssl_client           (GUPnPContext *context,
+                                        GUPnPSSLClient *client);
+                                        
 GUPnPSSLClient *
 gupnp_context_get_ssl_client           (GUPnPContext *context);
 

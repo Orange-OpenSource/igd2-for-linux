@@ -487,6 +487,24 @@ gupnp_context_get_session (GUPnPContext *context)
 }
 
 
+/**
+ * gupnp_context_set_ssl_client
+ * @context: A #GUPnPContext
+ * @client: A #GUPnPSSLClient
+ *
+ * Sets ssl client of context.
+ **/
+void
+gupnp_context_set_ssl_client (GUPnPContext *context,
+                              GUPnPSSLClient *client)
+{
+        g_return_if_fail (GUPNP_IS_CONTEXT (context));
+        
+        if (context->priv->ssl_client == NULL)
+            context->priv->ssl_client = malloc(sizeof(GUPnPSSLClient));
+            
+        memcpy(context->priv->ssl_client, client, sizeof(GUPnPSSLClient));
+}
 
 /**
  * gupnp_context_get_ssl_client
