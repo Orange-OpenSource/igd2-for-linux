@@ -19,13 +19,13 @@ statusbar_update (gboolean device_selected)
 	    if (device_selected) {
 		    guint user_name_context_id;
 		    guint user_identifier;
-		    const gchar *user_name="Secure connection for Username: Admin";
+		    const gchar *user_name="Using secure connection";
 
 		    user_name_context_id = gtk_statusbar_get_context_id(GTK_STATUSBAR(statusbar),
 			                	                                user_name);
 		    // TODO: Check whether connection is secured or not with library call...
 		    // if (wps_connection) {
-		    // TODO: find device name with library call...
+		    // TODO: find user name with library call...
             user_identifier = gtk_statusbar_push(GTK_STATUSBAR(statusbar),
         		                                 user_name_context_id,
 			                                     user_name);

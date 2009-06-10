@@ -28,6 +28,8 @@
 #include "action-dialog.h"
 #include "wps-dialog.h"
 #include "statusbar.h"
+#include "user-administration-dialog.h"
+#include "user-login-setup-dialog.h"
 #include "icons.h"
 #include "main.h"
 
@@ -149,6 +151,9 @@ init_ui (gint   *argc,
         setup_statusbar (glade_xml);
         init_action_dialog (glade_xml);
         init_wps_dialog (glade_xml);
+        init_user_administration_dialog (glade_xml);
+        init_user_login_setup_dialog (glade_xml);
+        init_add_user_dialog (glade_xml);
 
         gtk_widget_show_all (main_window);
 
@@ -172,6 +177,9 @@ deinit_ui (void)
         gtk_widget_destroy (main_window);
         deinit_action_dialog ();
         deinit_wps_dialog ();
+        deinit_user_administration_dialog ();
+        deinit_user_login_setup_dialog ();
+        deinit_add_user_dialog ();
         deinit_icons ();
 }
 

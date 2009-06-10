@@ -18,6 +18,8 @@ gupnp_universal_cp_SOURCES = main.c \
 			     action-dialog.c \
 			     wps-dialog.c \
 			     statusbar.c \
+			     user-administration-dialog.c \
+			     user-login-setup-dialog.c \
 			     main.h \
 			     gui.h \
 			     device-treeview.h \
@@ -25,7 +27,10 @@ gupnp_universal_cp_SOURCES = main.c \
 			     event-treeview.h \
 			     action-dialog.h \
 			     wps-dialog.h \
-			     statusbar.h
+			     statusbar.h \
+			     user-administration-dialog.h \
+			     user-login-setup-dialog.h
+			     
 gupnp_universal_cp_LDADD = $(LIBGLADE_LIBS) $(LIBGUPNP_LIBS) $(GTHREAD_LIBS) \
 		    	   ../common/libicons.a
 gupnp_universal_cp_LDFLAGS = -export-dynamic
