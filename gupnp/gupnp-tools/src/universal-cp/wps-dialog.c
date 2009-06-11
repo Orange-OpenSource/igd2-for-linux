@@ -59,13 +59,17 @@ begin_wps_dialog (void)
 	    	deviceProxy = GUPNP_DEVICE_PROXY (info);
 	    	g_assert (deviceProxy != NULL);
 
+            // create ssl connection if doesn't exist already
+            gupnp_device_proxy_init_ssl(deviceProxy,NULL);
+
 	    	deviceProxyWps = gupnp_device_proxy_begin_wps (deviceProxy,
 	    			                                       GUPNP_DEVICE_WPS_METHOD_PIN,
                                                            "Universal Control Point",
                                                            "",
             	                                           continue_wps_cb,
             		                                       wps_user_data);
-	    	g_assert (deviceProxyWps != NULL);
+
+            g_assert (deviceProxyWps != NULL);
 	    	if (deviceProxyWps->error) {
 	           	GtkWidget *error_dialog;
 
