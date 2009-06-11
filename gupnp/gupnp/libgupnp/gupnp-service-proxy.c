@@ -49,6 +49,8 @@ G_DEFINE_TYPE (GUPnPServiceProxy,
                GUPNP_TYPE_SERVICE_INFO);
 
 struct _GUPnPServiceProxyPrivate {
+        GUPnPDeviceProxy *device_proxy;
+        
         gboolean subscribed;
 
         GList *pending_actions;
@@ -140,7 +142,7 @@ static void
 gupnp_service_proxy_init (GUPnPServiceProxy *proxy)
 {
         static int proxy_counter = 0;
-
+        
         proxy->priv = G_TYPE_INSTANCE_GET_PRIVATE (proxy,
                                                    GUPNP_TYPE_SERVICE_PROXY,
                                                    GUPnPServiceProxyPrivate);
@@ -155,6 +157,15 @@ gupnp_service_proxy_init (GUPnPServiceProxy *proxy)
                                        g_str_equal,
                                        g_free,
                                        (GDestroyNotify) notify_data_free);
+                                       
+        proxy->priv->device_proxy = NULL;                                       
+}
+
+void 
+gupnp_service_proxy_set_device_proxy(GUPnPServiceProxy *service_proxy,
+                                     GUPnPDeviceProxy *device_proxy)
+{
+        service_proxy->priv->device_proxy = device_proxy;
 }
 
 static void
@@ -765,8 +776,8 @@ finish_action_msg (GUPnPServiceProxyAction *action,
         context = gupnp_service_info_get_context
                                 (GUPNP_SERVICE_INFO (action->proxy));
 
-                                
-        GUPnPSSLClient *client = gupnp_context_get_ssl_client(context);
+        // get ssl-client from deviceproxy                      
+        GUPnPSSLClient *client = gupnp_device_proxy_get_ssl_client(action->proxy->priv->device_proxy);
         if (client == NULL)
         {
             g_warning("We don't have SSL");                              
@@ -787,7 +798,9 @@ finish_action_msg (GUPnPServiceProxyAction *action,
             create_msg_string(action, uri->path, uri->host, GUPNP_SSL_PORT, &message);
             
             ssl_client_send_and_receive(client, message, &response, action->msg);
-            //soup_message_headers_foreach (action->msg->response_headers, (SoupMessageHeadersForeachFunc)header_callback, NULL);
+            //char headers[1000] = "\0";
+            //soup_message_headers_foreach (action->msg->response_headers, (SoupMessageHeadersForeachFunc)header_callback, headers);
+            //g_warning ("RESPONSE HEADERS: '%s'",headers);
             //g_warning ("RESPONSE: %s",response);
             g_free(response);
             

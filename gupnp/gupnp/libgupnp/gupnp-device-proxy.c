@@ -129,6 +129,9 @@ gupnp_device_proxy_get_service (GUPnPDeviceInfo *info,
                                                                NULL,
                                                                location,
                                                                url_base);
+                                                               
+        // set device proxy to GUPnPServiceProxy                                                             
+        gupnp_service_proxy_set_device_proxy(service, proxy);
 
         return GUPNP_SERVICE_INFO (service);
 }
@@ -136,6 +139,7 @@ gupnp_device_proxy_get_service (GUPnPDeviceInfo *info,
 static void
 gupnp_device_proxy_init (GUPnPDeviceProxy *proxy)
 {
+    proxy->ssl_client = NULL;
 }
 
 static void
@@ -149,21 +153,6 @@ gupnp_device_proxy_class_init (GUPnPDeviceProxyClass *klass)
 
         info_class->get_device  = gupnp_device_proxy_get_device;
         info_class->get_service = gupnp_device_proxy_get_service;
-
-        /**
-         * Soup Session object for secure connections (device protection).
-         */
-        g_object_class_install_property
-                        (object_class,
-                         PROP_SESSION,
-                         g_param_spec_object ("session",
-                                              "SoupSession",
-                                              "SoupSession object for SSL connections",
-                                              SOUP_TYPE_SESSION,
-                                              G_PARAM_READABLE |
-                                              G_PARAM_STATIC_NAME |
-                                              G_PARAM_STATIC_NICK |
-                                              G_PARAM_STATIC_BLURB));
 }
 
 /* Functions related to the device protection:1 service */
@@ -549,18 +538,14 @@ gupnp_device_proxy_init_ssl (GUPnPDeviceProxy *proxy,
 {
         g_assert (proxy != NULL);
 
-        GUPnPContext *context = gupnp_device_info_get_context( GUPNP_DEVICE_INFO(proxy) );
-        // check if context already have ssl-client
-        if ( gupnp_context_get_ssl_client(context) != NULL )
+        if ( proxy->ssl_client != NULL )
         {
-            g_object_unref (context);
             return TRUE;
         }
 
         GUPnPServiceProxy *found_device = find_device_protection_service (proxy);
         if (found_device == NULL) // no device protection service found for the device
         {
-            g_object_unref (context);
             return FALSE;
         }
         else
@@ -569,14 +554,99 @@ gupnp_device_proxy_init_ssl (GUPnPDeviceProxy *proxy,
             g_object_unref (found_device);
             
             // create ssl            
-            int ret = gupnp_context_create_and_init_ssl_client (context,
+            int ret = gupnp_device_proxy_create_and_init_ssl_client (proxy,
                               URL, GUPNP_SSL_PORT);
-            
-            g_object_unref (context);                  
+                  
             if (ret != 0)
                 return FALSE;      
         }
 
-        g_object_unref (context);
         return TRUE;
 }
+
+
+/**
+ * gupnp_context_create_and_init_ssl_client
+ * @context: A #GUPnPContext
+ * @url: Address of server. Address is changed into HTTPS address
+ * @port: Port number on which client will connect on server
+ *
+ * Create and initialize ssl client of context. Connects to server.
+ **/
+int
+gupnp_device_proxy_create_and_init_ssl_client (GUPnPDeviceProxy *proxy,
+                              const char *url, int port)
+{
+        g_assert (proxy != NULL);
+        
+        char *https_url;
+        int ret = 0;
+        
+        if (proxy->ssl_client == NULL)
+            proxy->ssl_client = malloc(sizeof(GUPnPSSLClient));
+        else
+            return -1;
+
+        ssl_create_https_url(url, port, &https_url);
+        if (https_url == NULL)
+        {
+            g_warning("Failed to create https url from '%s' and port %d",url,port);
+            return -1;
+        }
+           
+        ret = ssl_init_client(proxy->ssl_client,"./certstore/",NULL,NULL,NULL,NULL, "GUPNP Client");
+        if (ret != 0)
+        {
+            g_warning("Failed init SSL client");
+            return ret;
+        }
+        
+        // create SSL session (connection to server)
+        ret = ssl_create_client_session(proxy->ssl_client, https_url, NULL, NULL);
+        if (ret != 0)
+        {
+            g_warning("Failed create SSL session to '%s'",https_url);
+            return ret;
+        }
+
+        return 0;
+}
+
+
+/**
+ * gupnp_context_set_ssl_client
+ * @context: A #GUPnPContext
+ * @client: A #GUPnPSSLClient
+ *
+ * Sets ssl client of context.
+ **/
+void
+gupnp_device_proxy_set_ssl_client (GUPnPDeviceProxy *proxy,
+                              GUPnPSSLClient *client)
+{
+        g_assert (proxy != NULL);
+        
+        if (proxy->ssl_client == NULL)
+            proxy->ssl_client = malloc(sizeof(GUPnPSSLClient));
+            
+        memcpy(proxy->ssl_client, client, sizeof(GUPnPSSLClient));
+}
+
+/**
+ * gupnp_device_proxy_get_ssl_client
+ * @proxy: A #GUPnPDeviceProxy
+ *
+ * Get the ssl-client that GUPnP is using.
+ *
+ * Return value: The #GUPnPSSLClient used by GUPnP. Do not unref this when
+ * finished.
+ **/
+GUPnPSSLClient *
+gupnp_device_proxy_get_ssl_client (GUPnPDeviceProxy *proxy)
+{
+        g_assert (proxy != NULL);
+
+        return proxy->ssl_client;
+}
+
+

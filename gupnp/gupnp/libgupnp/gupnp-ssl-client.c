@@ -501,8 +501,10 @@ int ssl_client_send_and_receive(  GUPnPSSLClient *client,
             g_warning("Error: gnutls_record_recv failed. %s", gnutls_strerror(retVal));
             return retVal;
         }
-        else 
-            g_warning("Received %d bytes", retVal);
+        else
+        { 
+            //g_warning("Received %d bytes", retVal);
+        }
        
         // does *response have enough space. If not realloc
         if ( (size + retVal) > alloc )

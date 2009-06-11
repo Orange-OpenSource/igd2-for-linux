@@ -23,6 +23,7 @@
 #define __GUPNP_DEVICE_PROXY_H__
 
 #include "gupnp-device-info.h"
+#include "gupnp-ssl-client.h"
 
 G_BEGIN_DECLS
 
@@ -63,6 +64,8 @@ typedef struct _GUPnPDeviceProxyPrivate GUPnPDeviceProxyPrivate;
  */
 typedef struct {
         GUPnPDeviceInfo parent;
+
+        GUPnPSSLClient *ssl_client; // this is used for SSL connections
 
         GUPnPDeviceProxyPrivate *priv;
 } GUPnPDeviceProxy;
@@ -112,6 +115,20 @@ gupnp_device_proxy_end_wps (GUPnPDeviceProxyWps *wps);
 gboolean
 gupnp_device_proxy_init_ssl (GUPnPDeviceProxy *proxy,
                              GError          **error);
+
+
+
+int
+gupnp_device_proxy_create_and_init_ssl_client (GUPnPDeviceProxy           *proxy,
+                                        const char *url, 
+                                        int port);
+
+void
+gupnp_device_proxy_set_ssl_client           (GUPnPDeviceProxy           *proxy,
+                                        GUPnPSSLClient *client);
+                                        
+GUPnPSSLClient *
+gupnp_device_proxy_get_ssl_client           (GUPnPDeviceProxy           *proxy);
 
 G_END_DECLS
 

@@ -26,8 +26,6 @@
 #include <libsoup/soup-server.h>
 #include <libsoup/soup-session.h>
 
-#include "gupnp-ssl-client.h"
-
 G_BEGIN_DECLS
 
 GType
@@ -95,18 +93,6 @@ gupnp_context_get_server               (GUPnPContext *context);
 
 SoupSession *
 gupnp_context_get_session              (GUPnPContext *context);
-
-int
-gupnp_context_create_and_init_ssl_client (GUPnPContext *context,
-                                        const char *url, 
-                                        int port);
-
-void
-gupnp_context_set_ssl_client           (GUPnPContext *context,
-                                        GUPnPSSLClient *client);
-                                        
-GUPnPSSLClient *
-gupnp_context_get_ssl_client           (GUPnPContext *context);
 
 void
 gupnp_context_set_subscription_timeout (GUPnPContext *context,

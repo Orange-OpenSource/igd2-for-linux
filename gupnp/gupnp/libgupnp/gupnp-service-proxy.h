@@ -24,6 +24,7 @@
 
 #include "gupnp-error.h"
 #include "gupnp-service-info.h"
+#include "gupnp-device-proxy.h"
 
 G_BEGIN_DECLS
 
@@ -202,6 +203,10 @@ gupnp_service_proxy_set_subscribed (GUPnPServiceProxy              *proxy,
 
 gboolean
 gupnp_service_proxy_get_subscribed (GUPnPServiceProxy              *proxy);
+
+void 
+gupnp_service_proxy_set_device_proxy(GUPnPServiceProxy *service_proxy,
+                                     GUPnPDeviceProxy *device_proxy);
 
 G_END_DECLS
 

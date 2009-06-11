@@ -68,8 +68,6 @@ struct _GUPnPContextPrivate {
 
         SoupServer  *server; /* Started on demand */
         char        *server_url;
-        
-        GUPnPSSLClient *ssl_client; // this is used for SSL connections
 };
 
 enum {
@@ -245,8 +243,6 @@ gupnp_context_constructor (GType                  type,
                  SOUP_SESSION_ASYNC_CONTEXT,
                  gssdp_client_get_main_context (GSSDP_CLIENT (context)),
                  NULL);
-
-        context->priv->ssl_client = NULL;
 
 	if (g_getenv ("GUPNP_DEBUG")) {
 		SoupLogger *logger;
@@ -484,88 +480,6 @@ gupnp_context_get_session (GUPnPContext *context)
         g_return_val_if_fail (GUPNP_IS_CONTEXT (context), NULL);
 
         return context->priv->session;
-}
-
-
-/**
- * gupnp_context_create_and_init_ssl_client
- * @context: A #GUPnPContext
- * @url: Address of server. Address is changed into HTTPS address
- * @port: Port number on which client will connect on server
- *
- * Create and initialize ssl client of context. Connects to server.
- **/
-int
-gupnp_context_create_and_init_ssl_client (GUPnPContext *context,
-                              const char *url, int port)
-{
-        g_return_if_fail (GUPNP_IS_CONTEXT (context));
-        char *https_url;
-        int ret = 0;
-        
-        if (context->priv->ssl_client == NULL)
-            context->priv->ssl_client = malloc(sizeof(GUPnPSSLClient));
-
-        ssl_create_https_url(url, port, &https_url);
-        if (https_url == NULL)
-        {
-            g_warning("Failed to create https url from '%s' and port %d",url,port);
-            return -1;
-        }
-           
-        ret = ssl_init_client(context->priv->ssl_client,"./certstore/",NULL,NULL,NULL,NULL, "GUPNP Client");
-        if (ret != 0)
-        {
-            g_warning("Failed init SSL client");
-            return ret;
-        }
-        
-        // create SSL session (connection to server)
-        ret = ssl_create_client_session(context->priv->ssl_client, https_url, NULL, NULL);
-        if (ret != 0)
-        {
-            g_warning("Failed create SSL session to '%s'",https_url);
-            return ret;
-        }
-
-        return 0;
-}
-
-
-/**
- * gupnp_context_set_ssl_client
- * @context: A #GUPnPContext
- * @client: A #GUPnPSSLClient
- *
- * Sets ssl client of context.
- **/
-void
-gupnp_context_set_ssl_client (GUPnPContext *context,
-                              GUPnPSSLClient *client)
-{
-        g_return_if_fail (GUPNP_IS_CONTEXT (context));
-        
-        if (context->priv->ssl_client == NULL)
-            context->priv->ssl_client = malloc(sizeof(GUPnPSSLClient));
-            
-        memcpy(context->priv->ssl_client, client, sizeof(GUPnPSSLClient));
-}
-
-/**
- * gupnp_context_get_ssl_client
- * @context: A #GUPnPContext
- *
- * Get the #SoupSession object that GUPnP is using.
- *
- * Return value: The #SoupSession used by GUPnP. Do not unref this when
- * finished.
- **/
-GUPnPSSLClient *
-gupnp_context_get_ssl_client (GUPnPContext *context)
-{
-        g_return_val_if_fail (GUPNP_IS_CONTEXT (context), NULL);
-
-        return context->priv->ssl_client;
 }
 
 
