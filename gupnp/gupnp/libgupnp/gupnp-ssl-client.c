@@ -7,7 +7,7 @@
 
 
 #include "pki.h"
-#include "ssl-client.h"
+#include "gupnp-ssl-client.h"
 
 
 

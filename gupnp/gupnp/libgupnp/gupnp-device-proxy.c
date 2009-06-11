@@ -382,9 +382,6 @@ gupnp_device_proxy_begin_wps (GUPnPDeviceProxy           *proxy,
         wps->method = method;
         wps->done = FALSE;
 
-        // create ssl connection if doesn't exist already
-        gupnp_device_proxy_init_ssl(proxy,NULL);
-
         if (wps->method == GUPNP_DEVICE_WPS_METHOD_PUSHBUTTON)
         {
                 wps->error = g_error_new(GUPNP_SERVER_ERROR,

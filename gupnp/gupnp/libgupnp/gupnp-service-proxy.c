@@ -42,7 +42,7 @@
 #include "gena-protocol.h"
 #include "http-headers.h"
 #include "gvalue-util.h"
-#include "ssl-client.h"
+#include "gupnp-ssl-client.h"
 
 G_DEFINE_TYPE (GUPnPServiceProxy,
                gupnp_service_proxy,

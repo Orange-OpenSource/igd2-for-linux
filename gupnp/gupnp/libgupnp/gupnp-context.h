@@ -26,7 +26,7 @@
 #include <libsoup/soup-server.h>
 #include <libsoup/soup-session.h>
 
-#include "ssl-client.h"
+#include "gupnp-ssl-client.h"
 
 G_BEGIN_DECLS
 
