@@ -9,6 +9,9 @@
 //#include "gupnp-context.h"
 
 G_BEGIN_DECLS
+
+#define GUPNP_SSL_PORT  443
+
 /*
 GType
 gupnp_ssl_client_get_type (void) G_GNUC_CONST;

@@ -678,7 +678,7 @@ action_got_response (SoupSession             *session,
         }
 }
 
-
+/* Callback function set in soup_message_headers_foreach. Used for creating string form headers */ 
 static void header_callback(const char *name,
                         const char *value,
                         gpointer user_data)
@@ -690,13 +690,13 @@ static void header_callback(const char *name,
         strcat((char *)user_data,value); 
         strcat((char *)user_data,"\r\n");
     }                                                
-    g_warning ("HEADER: %s: %s",name,value);                                                            
+    //g_warning ("HEADER: %s: %s",name,value);                                                            
 }
 
-
+/* Create a string from SoupMessage. String contains headers and the body */
 static int create_msg_string( GUPnPServiceProxyAction *action, char *path, char *host, int port, char **full_message)
 {
-    char headers[500] = "\0";
+    char headers[1000] = "\0";
     char *http_version;
 
     if (soup_message_get_http_version(action->msg) == SOUP_HTTP_1_1)
@@ -704,7 +704,7 @@ static int create_msg_string( GUPnPServiceProxyAction *action, char *path, char 
     else 
         http_version = "HTTP/1.0";
     // add POST and Host headers
-    snprintf(headers,500,"POST %s %s\r\nHost: %s:%d\r\n",path,http_version,host,port);
+    snprintf(headers,1000,"POST %s %s\r\nHost: %s:%d\r\n",path,http_version,host,port);
     
     soup_message_headers_foreach (action->msg->request_headers, (SoupMessageHeadersForeachFunc)header_callback, headers);
     
@@ -722,7 +722,7 @@ static int create_msg_string( GUPnPServiceProxyAction *action, char *path, char 
     memset(*full_message, '\0', fullLength);
     snprintf(*full_message,fullLength,"%s\r\n%s",headers,buf->data);
     
-    g_warning ("FULL MESSAGE:\n%s",*full_message);    
+    //g_warning ("FULL MESSAGE:\n%s",*full_message);    
     
     return 0;
 }
@@ -751,23 +751,6 @@ finish_action_msg (GUPnPServiceProxyAction *action,
                                   action->msg_str->str,
                                   action->msg_str->len);
 
-/*
-char *https_url;
-SoupURI *uri = soup_message_get_uri (action->msg);
-char *control_url = soup_uri_to_string(uri, FALSE);
-ssl_create_https_url(control_url, 443, &https_url);
-
-char *message;
-create_msg_string(action, uri->path, uri->host, 443, &message);
-
-
-GUPnPSSLClient *client = malloc(sizeof(GUPnPSSLClient));
-g_warning ("INIT: %d",ssl_init_client(client,"./certstore/",NULL,NULL,NULL,NULL, "GUPNP Client"));
-g_warning ("URLS: %s",https_url);
-g_warning ("CREATE: %d",ssl_create_client_session(client, https_url, NULL, NULL));
-char *response = NULL;
-*/
-
 
         g_string_free (action->msg_str, FALSE);
 
@@ -781,6 +764,7 @@ char *response = NULL;
         /* Send the message */
         context = gupnp_service_info_get_context
                                 (GUPNP_SERVICE_INFO (action->proxy));
+
                                 
         GUPnPSSLClient *client = gupnp_context_get_ssl_client(context);
         if (client == NULL)
@@ -797,12 +781,17 @@ char *response = NULL;
         else
         {
             g_warning("We do have SSL");
-            //ssl_client_send_and_receive(client, message, &response, action->msg);
+            SoupURI *uri = soup_message_get_uri (action->msg);
+            char *message;
+            char *response = NULL;
+            create_msg_string(action, uri->path, uri->host, GUPNP_SSL_PORT, &message);
+            
+            ssl_client_send_and_receive(client, message, &response, action->msg);
             //soup_message_headers_foreach (action->msg->response_headers, (SoupMessageHeadersForeachFunc)header_callback, NULL);
             //g_warning ("RESPONSE: %s",response);
-            //if (response) free(response);
+            g_free(response);
             
-            //action->callback (action->proxy, action, action->user_data);                                                 
+            action->callback (action->proxy, action, action->user_data);                                                 
         }
 }
 

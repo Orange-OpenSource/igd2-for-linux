@@ -382,6 +382,9 @@ gupnp_device_proxy_begin_wps (GUPnPDeviceProxy           *proxy,
         wps->method = method;
         wps->done = FALSE;
 
+        // create ssl connection if doesn't exist already
+        gupnp_device_proxy_init_ssl(proxy,NULL);
+
         if (wps->method == GUPNP_DEVICE_WPS_METHOD_PUSHBUTTON)
         {
                 wps->error = g_error_new(GUPNP_SERVER_ERROR,
@@ -545,24 +548,38 @@ gupnp_device_proxy_end_wps (GUPnPDeviceProxyWps *wps)
 
 gboolean
 gupnp_device_proxy_init_ssl (GUPnPDeviceProxy *proxy,
-                             gchar            *certificate_file,
                              GError          **error)
 {
         g_assert (proxy != NULL);
 
-        // TODO: VLi check that device protection service exists and
-        // create new session with certificate file
+        GUPnPContext *context = gupnp_device_info_get_context( GUPNP_DEVICE_INFO(proxy) );
+        // check if context already have ssl-client
+        if ( gupnp_context_get_ssl_client(context) != NULL )
+        {
+            g_object_unref (context);
+            return TRUE;
+        }
 
-//        found_device = find_device_protection_service (proxy);
-//        if (found_device == NULL) // no device protection service found for the device
-//        g_object_unref (found_device); // free allocated memory, if not NULL
+        GUPnPServiceProxy *found_device = find_device_protection_service (proxy);
+        if (found_device == NULL) // no device protection service found for the device
+        {
+            g_object_unref (context);
+            return FALSE;
+        }
+        else
+        {
+            const char *URL = gupnp_service_info_get_control_url (GUPNP_SERVICE_INFO(found_device));
+            g_object_unref (found_device);
+            
+            // create ssl            
+            int ret = gupnp_context_create_and_init_ssl_client (context,
+                              URL, GUPNP_SSL_PORT);
+            
+            g_object_unref (context);                  
+            if (ret != 0)
+                return FALSE;      
+        }
 
-//         proxy->priv->session = soup_session_async_new_with_options
-//                               (SOUP_SESSION_IDLE_TIMEOUT,
-//                                60,
-//                                SOUP_SESSION_SSL_CA_FILE,
-//                                certificate_file, //something like this??
-//                                NULL);
-
+        g_object_unref (context);
         return TRUE;
 }
