@@ -51,7 +51,7 @@ begin_wps_dialog (void)
 	    	g_assert (deviceProxy != NULL);
 
             // create ssl connection if doesn't exist already
-            //gupnp_device_proxy_init_ssl(deviceProxy,NULL);
+            gupnp_device_proxy_init_ssl(deviceProxy,NULL);
 
 	    	deviceProxyWps = gupnp_device_proxy_begin_wps (deviceProxy,
 	    			                                       GUPNP_DEVICE_WPS_METHOD_PIN,
