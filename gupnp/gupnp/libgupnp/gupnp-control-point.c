@@ -276,13 +276,14 @@ process_service_list (xmlNode           *element,
 static void
 process_device_list (xmlNode           *element,
                      GUPnPControlPoint *control_point,
+                     GUPnPDeviceProxy  *root_proxy,
                      XmlDocWrapper     *doc,
                      const char        *udn,
                      const char        *service_type,
                      const char        *description_url,
                      SoupURI           *url_base)
-{
-        for (element = element->children; element; element = element->next) {
+{ 
+        for (element = element->children; element; element = element->next) {           
                 xmlNode *children;
                 xmlChar *prop;
                 gboolean match;
@@ -299,6 +300,7 @@ process_device_list (xmlNode           *element,
                 if (children) {
                         process_device_list (children,
                                              control_point,
+                                             root_proxy,
                                              doc,
                                              udn,
                                              service_type,
@@ -360,6 +362,12 @@ process_device_list (xmlNode           *element,
                                        signals[DEVICE_PROXY_AVAILABLE],
                                        0,
                                        proxy);
+                        
+                        if (root_proxy == NULL)               
+                            root_proxy = proxy;
+                            
+                        // set root_proxy to proxy
+                        gupnp_device_proxy_set_root_proxy(proxy, root_proxy);                              
                 }
         }
 }
@@ -391,6 +399,7 @@ description_loaded (GUPnPControlPoint *control_point,
         /* Iterate matching devices */
         process_device_list (element,
                              control_point,
+                             NULL,
                              doc,
                              udn,
                              service_type,

@@ -40,6 +40,12 @@ G_DEFINE_TYPE (GUPnPDeviceProxy,
                gupnp_device_proxy,
                GUPNP_TYPE_DEVICE_INFO);
 
+struct _GUPnPDeviceProxyPrivate {
+        GUPnPDeviceProxy *root_proxy;
+
+        GUPnPSSLClient *ssl_client; // this is used for SSL connections
+};
+
 struct _GUPnPDeviceProxyWps {
         GUPnPDeviceProxy  *proxy;
         GUPnPServiceProxy *device_prot_service;
@@ -106,6 +112,18 @@ gupnp_device_proxy_get_device (GUPnPDeviceInfo *info,
                                                              NULL,
                                                              location,
                                                              url_base);
+                                                             
+
+        // Add root deviceproxy information for new proxy
+        // if older proxy here ('proxy'), doesn't already have root_proxy defined, 
+        // then it is the root_proxy for 'device'
+        // (actually I'm not 100% sure if this root_proxy is even the root, or is it the
+        // last leaf proxy. But it works at least if there are most of 3 levels of devices.        
+        if (proxy->priv->root_proxy)                                             
+            gupnp_device_proxy_set_root_proxy(device,proxy->priv->root_proxy);
+        else
+            gupnp_device_proxy_set_root_proxy(device,proxy);
+
 
         return GUPNP_DEVICE_INFO (device);
 }
@@ -149,12 +167,19 @@ gupnp_device_proxy_get_service (GUPnPDeviceInfo *info,
 static void
 gupnp_device_proxy_init (GUPnPDeviceProxy *proxy)
 {
-    proxy->ssl_client = NULL;
+        proxy->priv = G_TYPE_INSTANCE_GET_PRIVATE (proxy,
+                                                   GUPNP_TYPE_DEVICE_PROXY,
+                                                   GUPnPDeviceProxyPrivate);
+    
+        proxy->priv->root_proxy = NULL;
+        proxy->priv->ssl_client = NULL;
 }
 
 static void
 gupnp_device_proxy_class_init (GUPnPDeviceProxyClass *klass)
 {
+        g_type_class_add_private (klass, sizeof (GUPnPDeviceProxyPrivate));    
+    
         GUPnPDeviceInfoClass *info_class;
         info_class = GUPNP_DEVICE_INFO_CLASS (klass);
 
@@ -164,6 +189,15 @@ gupnp_device_proxy_class_init (GUPnPDeviceProxyClass *klass)
         info_class->get_device  = gupnp_device_proxy_get_device;
         info_class->get_service = gupnp_device_proxy_get_service;
 }
+
+void
+gupnp_device_proxy_set_root_proxy(GUPnPDeviceProxy *proxy,
+                                  GUPnPDeviceProxy *root)
+{
+    proxy->priv->root_proxy = g_object_ref( root );
+}   
+
+
 
 /* Functions related to the device protection:1 service */
 
@@ -548,7 +582,7 @@ gupnp_device_proxy_init_ssl (GUPnPDeviceProxy *proxy,
 {
         g_assert (proxy != NULL);
 
-        if ( proxy->ssl_client != NULL )
+        if ( proxy->priv->ssl_client != NULL )
         {
             return TRUE;
         }
@@ -592,8 +626,8 @@ gupnp_device_proxy_create_and_init_ssl_client (GUPnPDeviceProxy *proxy,
         char *https_url;
         int ret = 0;
         
-        if (proxy->ssl_client == NULL)
-            proxy->ssl_client = g_slice_new(GUPnPSSLClient);//malloc(sizeof(GUPnPSSLClient));
+        if (proxy->priv->ssl_client == NULL)
+            proxy->priv->ssl_client = g_slice_new(GUPnPSSLClient);//malloc(sizeof(GUPnPSSLClient));
         else
             return -1;
 
@@ -604,7 +638,7 @@ gupnp_device_proxy_create_and_init_ssl_client (GUPnPDeviceProxy *proxy,
             return -1;
         }
            
-        ret = ssl_init_client(proxy->ssl_client,"./certstore/",NULL,NULL,NULL,NULL, "GUPNP Client");
+        ret = ssl_init_client(proxy->priv->ssl_client,"./certstore/",NULL,NULL,NULL,NULL, "GUPNP Client");
         if (ret != 0)
         {
             g_warning("Failed init SSL client");
@@ -612,7 +646,7 @@ gupnp_device_proxy_create_and_init_ssl_client (GUPnPDeviceProxy *proxy,
         }
         
         // create SSL session (connection to server)
-        ret = ssl_create_client_session(proxy->ssl_client, https_url, NULL, NULL);
+        ret = ssl_create_client_session(proxy->priv->ssl_client, https_url, NULL, NULL);
         if (ret != 0)
         {
             g_warning("Failed create SSL session to '%s'",https_url);
@@ -636,10 +670,10 @@ gupnp_device_proxy_set_ssl_client (GUPnPDeviceProxy *proxy,
 {
         g_assert (proxy != NULL);
         
-        if (proxy->ssl_client == NULL)
-            proxy->ssl_client = g_slice_new(GUPnPSSLClient);//malloc(sizeof(GUPnPSSLClient));
+        if (proxy->priv->ssl_client == NULL)
+            proxy->priv->ssl_client = g_slice_new(GUPnPSSLClient);//malloc(sizeof(GUPnPSSLClient));
             
-        memcpy(proxy->ssl_client, client, sizeof(GUPnPSSLClient));
+        memcpy(proxy->priv->ssl_client, client, sizeof(GUPnPSSLClient));
 }
 
 /**
@@ -656,7 +690,9 @@ gupnp_device_proxy_get_ssl_client (GUPnPDeviceProxy *proxy)
 {
         g_assert (proxy != NULL);
 
-        return proxy->ssl_client;
+        //return proxy->priv->root_proxy->priv->ssl_client;
+        if (proxy->priv->root_proxy)
+            return proxy->priv->root_proxy->priv->ssl_client;
 }
 
 

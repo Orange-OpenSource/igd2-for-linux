@@ -65,8 +65,6 @@ typedef struct _GUPnPDeviceProxyPrivate GUPnPDeviceProxyPrivate;
 typedef struct {
         GUPnPDeviceInfo parent;
 
-        GUPnPSSLClient *ssl_client; // this is used for SSL connections
-
         GUPnPDeviceProxyPrivate *priv;
 } GUPnPDeviceProxy;
 
@@ -118,6 +116,10 @@ gboolean
 gupnp_device_proxy_init_ssl (GUPnPDeviceProxy *proxy,
                              GError          **error);
 
+
+void
+gupnp_device_proxy_set_root_proxy(GUPnPDeviceProxy *proxy,
+                                  GUPnPDeviceProxy *root);
 
 
 int

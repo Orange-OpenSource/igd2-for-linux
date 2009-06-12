@@ -48,9 +48,7 @@ G_DEFINE_TYPE (GUPnPServiceProxy,
                gupnp_service_proxy,
                GUPNP_TYPE_SERVICE_INFO);
 
-struct _GUPnPServiceProxyPrivate {
-        GUPnPDeviceProxy *device_proxy;
-        
+struct _GUPnPServiceProxyPrivate {        
         gboolean subscribed;
 
         GList *pending_actions;
@@ -68,6 +66,8 @@ struct _GUPnPServiceProxyPrivate {
 
         GList *pending_notifies; /* Pending notifications to be sent (xmlDoc) */
         GSource *notify_idle_src; /* Idle handler src of notification emiter */
+        
+        GUPnPDeviceProxy *device_proxy; // parent device proxy        
 };
 
 enum {
@@ -2035,3 +2035,6 @@ gupnp_service_proxy_get_subscribed (GUPnPServiceProxy *proxy)
 
         return proxy->priv->subscribed;
 }
+
+
+
