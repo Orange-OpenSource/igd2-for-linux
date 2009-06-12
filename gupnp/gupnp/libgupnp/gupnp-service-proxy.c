@@ -582,24 +582,6 @@ begin_action_msg (GUPnPServiceProxy              *proxy,
         control_url = gupnp_service_info_get_control_url
                                         (GUPNP_SERVICE_INFO (proxy));
 
-g_warning ("URL: %s",control_url);
-/*
-    SoupURI *uri;
-    uri = soup_uri_new (control_url);
-    uri->scheme = SOUP_URI_SCHEME_HTTPS;
-    uri->port = 443;
-    
-    control_url = soup_uri_to_string(uri, FALSE);
-    soup_uri_free (uri);
-    
-GUPnPSSLClient *client = malloc(sizeof(GUPnPSSLClient));
-g_warning ("INIT: %d",ssl_init_client(client,"./certstore/",NULL,NULL,NULL,NULL, "GUPNP Client"));
-g_warning ("URL: %s",control_url);
-g_warning ("CREATE: %d",ssl_create_client_session(client, control_url, NULL, NULL));
-char *response;
-ssl_client_send_and_receive_message(client, "this is send message", &response);
-g_warning ("RESPONSE: %s",response);
-*/
         if (control_url != NULL) {
                 ret->msg = soup_message_new (SOUP_METHOD_POST, control_url);
 

@@ -105,6 +105,8 @@ gupnp_device_proxy_begin_wps(GUPnPDeviceProxy           *proxy,
                              GUPnPDeviceProxyWpsCallback callback,
                              gpointer                    user_data);
 
+GError * 
+gupnp_device_proxy_wps_get_error (GUPnPDeviceProxyWps *deviceProxyWps);
 
 void
 gupnp_device_proxy_cancel_wps (GUPnPDeviceProxyWps *wps);

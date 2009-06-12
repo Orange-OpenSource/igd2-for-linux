@@ -70,6 +70,16 @@ enum {
         PROP_SESSION,
 };
 
+
+GError * 
+gupnp_device_proxy_wps_get_error (GUPnPDeviceProxyWps *deviceProxyWps)
+{
+    g_assert (deviceProxyWps != NULL);
+    
+    return deviceProxyWps->error;
+}
+
+
 static GUPnPDeviceInfo *
 gupnp_device_proxy_get_device (GUPnPDeviceInfo *info,
                                xmlNode         *element)
@@ -130,8 +140,8 @@ gupnp_device_proxy_get_service (GUPnPDeviceInfo *info,
                                                                location,
                                                                url_base);
                                                                
-        // set device proxy to GUPnPServiceProxy                                                             
-        gupnp_service_proxy_set_device_proxy(service, proxy);
+        // set device proxy for GUPnPServiceProxy                                                             
+        gupnp_service_proxy_set_device_proxy(service, proxy);        
 
         return GUPNP_SERVICE_INFO (service);
 }
@@ -583,7 +593,7 @@ gupnp_device_proxy_create_and_init_ssl_client (GUPnPDeviceProxy *proxy,
         int ret = 0;
         
         if (proxy->ssl_client == NULL)
-            proxy->ssl_client = malloc(sizeof(GUPnPSSLClient));
+            proxy->ssl_client = g_slice_new(GUPnPSSLClient);//malloc(sizeof(GUPnPSSLClient));
         else
             return -1;
 
@@ -627,7 +637,7 @@ gupnp_device_proxy_set_ssl_client (GUPnPDeviceProxy *proxy,
         g_assert (proxy != NULL);
         
         if (proxy->ssl_client == NULL)
-            proxy->ssl_client = malloc(sizeof(GUPnPSSLClient));
+            proxy->ssl_client = g_slice_new(GUPnPSSLClient);//malloc(sizeof(GUPnPSSLClient));
             
         memcpy(proxy->ssl_client, client, sizeof(GUPnPSSLClient));
 }
