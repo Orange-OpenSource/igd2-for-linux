@@ -1005,11 +1005,11 @@ static int createAuthenticator(const char *b64_stored, const char *b64_challenge
         return ret;
     }
 
-    // encode 20 first bytes of created hash as base64 authenticator
-    int maxb64len = 2*20; 
+    // encode 16 first bytes of created hash as base64 authenticator
+    int maxb64len = 2*DP_AUTH_BYTES; 
     *auth_len = 0;
     *b64_authenticator = (char *)malloc(maxb64len);
-    wpsu_bin_to_base64(20, hash, auth_len, (unsigned char *)*b64_authenticator, maxb64len);
+    wpsu_bin_to_base64(DP_AUTH_BYTES, hash, auth_len, (unsigned char *)*b64_authenticator, maxb64len);
     
     if (bin_concat) free(bin_concat);
     return 0;   
