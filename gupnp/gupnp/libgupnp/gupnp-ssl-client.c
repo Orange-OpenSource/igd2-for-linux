@@ -539,7 +539,8 @@ int ssl_client_send_and_receive(  GUPnPSSLClient *client,
             else
                 g_warning("Failed to parse response headers");
             
-            const char *clen = soup_message_headers_get_one (msg->response_headers, "content-length");
+            // this is deprecated call in newer versions of libsoup. Use soup_message_headers_get_one instead
+            const char *clen = soup_message_headers_get (msg->response_headers, "content-length");
             content_len = atoi(clen);            
             
             headers_ready = 1;
