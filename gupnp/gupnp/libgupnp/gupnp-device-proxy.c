@@ -590,6 +590,9 @@ gupnp_device_proxy_init_ssl (GUPnPDeviceProxy *proxy,
         GUPnPServiceProxy *found_device = find_device_protection_service (proxy);
         if (found_device == NULL) // no device protection service found for the device
         {
+            *error = g_error_new(GUPNP_SERVER_ERROR,
+                                 GUPNP_SERVER_ERROR_OTHER,
+                                 "No device protection service found.");
             return FALSE;
         }
         else
@@ -602,7 +605,12 @@ gupnp_device_proxy_init_ssl (GUPnPDeviceProxy *proxy,
                               URL, GUPNP_SSL_PORT);
                   
             if (ret != 0)
-                return FALSE;      
+            {
+                *error = g_error_new(GUPNP_SERVER_ERROR,
+                                     GUPNP_SERVER_ERROR_OTHER,
+                                     "Failed to create SSL client or failed to connect server.");
+                return FALSE;
+            }                      
         }
 
         return TRUE;
