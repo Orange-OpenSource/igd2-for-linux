@@ -27,7 +27,7 @@
 // for use with GetUserLoginChallenge action
 #define DP_PRF_ROUNDS    5000
 #define DP_SALT_BYTES    16
-#define DP_STORED_BYTES  20
+#define DP_STORED_BYTES  16
 #define DP_NONCE_BYTES   16
 
 #define DP_MAX_LOGIN_ATTEMPTS 5
