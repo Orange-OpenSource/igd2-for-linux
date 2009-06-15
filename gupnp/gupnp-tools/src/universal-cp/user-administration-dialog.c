@@ -153,8 +153,11 @@ add_new_user_to_table(guint row, const gchar *username, guint role)
 void
 init_user_administration_dialog_fields (void)
 {
-    gtk_entry_set_editable (GTK_ENTRY(ua_dialog_username_entry1), FALSE);
-	gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON(ua_dialog_admin_checkbutton1), TRUE);
+        gtk_entry_set_editable (GTK_ENTRY(ua_dialog_username_entry1), FALSE);
+	    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON(ua_dialog_admin_checkbutton1), TRUE);
+	    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON(ua_dialog_basic_checkbutton1), FALSE);
+	    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON(ua_dialog_public_checkbutton1), FALSE);
+
 }
 
 void

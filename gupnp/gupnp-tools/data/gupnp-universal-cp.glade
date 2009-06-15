@@ -74,11 +74,6 @@
                       </widget>
                     </child>
                     <child>
-                      <widget class="GtkSeparatorMenuItem" id="separator3">
-                        <property name="visible">True</property>
-                      </widget>
-                    </child>
-                    <child>
                       <widget class="GtkMenuItem" id="user_login_setup">
                         <property name="visible">True</property>
                         <property name="label" translatable="yes">User login setup</property>
