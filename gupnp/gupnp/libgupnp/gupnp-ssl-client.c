@@ -1,6 +1,7 @@
 #include <sys/stat.h>
 #include <netinet/in.h>
 #include <libsoup/soup.h>
+#include <libsoup/soup-message-headers.h>
 #include <glib.h>
 #include <string.h>
 #include <stdlib.h>
