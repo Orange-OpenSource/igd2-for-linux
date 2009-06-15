@@ -844,6 +844,9 @@ static IXML_Node *AddChildNodeWithAttribute(IXML_Document *doc, IXML_Node *paren
  */
 static int RemoveNode(IXML_Node *node)
 {
+    if (node == NULL)
+        return 0;
+        
     int ret = ixmlNode_removeChild(node->parentNode, node, NULL);
     
     if (ret == IXML_SUCCESS)
