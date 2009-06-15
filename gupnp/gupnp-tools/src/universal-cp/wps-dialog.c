@@ -39,7 +39,7 @@ begin_wps_dialog (void)
 	    GUPnPDeviceInfo *info;
 	    GUPnPDeviceProxy *deviceProxy;
 	    GUPnPDeviceProxyWps *deviceProxyWps;
-        GError *error;
+        GError *error = NULL;
 	    gpointer wps_user_data=NULL;
 
 	    init_wps_dialog_fields();
@@ -51,7 +51,28 @@ begin_wps_dialog (void)
 	    	g_assert (deviceProxy != NULL);
 
             // create ssl connection if doesn't exist already
-            gupnp_device_proxy_init_ssl(deviceProxy,NULL);
+            gupnp_device_proxy_init_ssl(deviceProxy, &error);
+            if (error)
+            {
+                GtkWidget *error_dialog;
+
+                error_dialog = gtk_message_dialog_new (GTK_WINDOW (wps_dialog),
+                                                       GTK_DIALOG_MODAL,
+                                                       GTK_MESSAGE_ERROR,
+                                                       GTK_BUTTONS_CLOSE,
+                                                       "SSL Client creation failed\n\nError %d: %s",
+                                                       error->code,
+                                                       error->message);
+
+                gtk_dialog_run (GTK_DIALOG (error_dialog));
+                gtk_widget_destroy (error_dialog);
+
+                gtk_widget_hide (wps_dialog);
+                
+                g_error_free(error);
+                
+                return;                
+            }
 
 	    	deviceProxyWps = gupnp_device_proxy_begin_wps (deviceProxy,
 	    			                                       GUPNP_DEVICE_WPS_METHOD_PIN,
@@ -76,6 +97,9 @@ begin_wps_dialog (void)
 	            gtk_widget_destroy (error_dialog);
 
 	            gtk_widget_hide (wps_dialog);
+                
+                g_error_free(error);
+                
 	            return;
 	    	}
 
@@ -159,7 +183,7 @@ wps_invocation (void)
         GUPnPDeviceInfo *info;
         GUPnPDeviceProxy *deviceProxy;
         GUPnPDeviceProxyWps *deviceProxyWps;
-        GError *error;
+        GError *error = NULL;
         guint method;
 
         device_pin = gtk_entry_get_text (GTK_ENTRY(wps_dialog_pin_entry));
