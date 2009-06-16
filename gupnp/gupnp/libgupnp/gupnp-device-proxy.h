@@ -126,7 +126,7 @@ gupnp_device_proxy_begin_wps(GUPnPDeviceProxy           *proxy,
                              GUPnPDeviceProxyWpsCallback callback,
                              gpointer                    user_data);
 
-GError * 
+GError *
 gupnp_device_proxy_wps_get_error (GUPnPDeviceProxyWps *deviceProxyWps);
 
 void
@@ -147,17 +147,19 @@ gupnp_device_proxy_set_root_proxy(GUPnPDeviceProxy *proxy,
 
 int
 gupnp_device_proxy_create_and_init_ssl_client (GUPnPDeviceProxy           *proxy,
-                                        const char *url, 
+                                        const char *url,
                                         int port);
 
 void
 gupnp_device_proxy_set_ssl_client           (GUPnPDeviceProxy           *proxy,
                                         GUPnPSSLClient *client);
-                                        
+
 GUPnPSSLClient *
 gupnp_device_proxy_get_ssl_client           (GUPnPDeviceProxy           *proxy);
 
 
+GError *
+gupnp_device_proxy_login_get_error (GUPnPDeviceProxyLogin *deviceProxyLogin);
 
 GUPnPDeviceProxyLogin *
 gupnp_device_proxy_begin_login (GUPnPDeviceProxy           *proxy,
@@ -165,9 +167,9 @@ gupnp_device_proxy_begin_login (GUPnPDeviceProxy           *proxy,
                                 const gchar                *password,
                                 GUPnPDeviceProxyLoginCallback callback,
                                 gpointer                    user_data);
-                                
+
 gboolean
-gupnp_device_proxy_end_login (GUPnPDeviceProxyLogin *logindata, GString *loginname);                                
+gupnp_device_proxy_end_login (GUPnPDeviceProxyLogin *logindata, GString *loginname);
 
 G_END_DECLS
 
