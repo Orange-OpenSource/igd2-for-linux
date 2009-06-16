@@ -1085,6 +1085,7 @@ Inspired by Intel Tools for UPnP.</property>
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="receives_default">True</property>
+                <signal name="clicked" handler="uls_dialog_login_clicked"/>
               </widget>
               <packing>
                 <property name="expand">False</property>

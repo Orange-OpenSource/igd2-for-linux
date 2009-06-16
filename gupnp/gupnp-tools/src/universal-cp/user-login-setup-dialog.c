@@ -32,11 +32,114 @@ static GtkWidget *uls_dialog_login_button;
 void
 start_user_login_setup (GladeXML *glade_xml)
 {
+	    GUPnPDeviceInfo *info;
 	    init_user_login_dialog_fields();
-        gtk_dialog_run (GTK_DIALOG (user_login_setup_dialog));
-        gtk_widget_hide (user_login_setup_dialog);
+
+	    info = get_selected_device_info ();
+	    if (get_selected_device_info ()) {
+	        gtk_dialog_run (GTK_DIALOG (user_login_setup_dialog));
+	        gtk_widget_hide (user_login_setup_dialog);
+	    } else {
+	    	/* Device must be selected before starting User login setup */
+	        GtkWidget *info_dialog;
+
+	    	info_dialog = gtk_message_dialog_new (GTK_WINDOW (user_login_setup_dialog),
+	    	                                      GTK_DIALOG_MODAL,
+	    	                                      GTK_MESSAGE_INFO,
+	    	                                      GTK_BUTTONS_CLOSE,
+	    	                                      "No Device selected for User login");
+	    	gtk_dialog_run (GTK_DIALOG (info_dialog));
+	        gtk_widget_destroy (info_dialog);
+	    }
 }
 
+void
+uls_dialog_login_clicked (GladeXML *glade_xml)
+{
+	    GUPnPDeviceProxyLogin *deviceProxyLogin;
+	    GError *error = NULL;
+	    GUPnPDeviceInfo *info;
+	    GUPnPDeviceProxy *deviceProxy;
+	    const gchar *username, *password;
+	    gpointer user_data = NULL;
+
+	    info = get_selected_device_info ();
+    	deviceProxy = GUPNP_DEVICE_PROXY (info);
+    	g_assert (deviceProxy != NULL);
+
+    	username = gtk_entry_get_text (GTK_ENTRY(uls_dialog_username_entry));
+    	password = gtk_entry_get_text (GTK_ENTRY(uls_dialog_password_entry));
+
+        deviceProxyLogin = gupnp_device_proxy_begin_login (deviceProxy,
+                                                           username,
+	                                                       password,
+	                                                       continue_login_cb,
+	                                                       user_data);
+
+        if ( (error = gupnp_device_proxy_login_get_error(deviceProxyLogin)) ) {
+           	GtkWidget *error_dialog;
+
+           	error_dialog = gtk_message_dialog_new (GTK_WINDOW (user_login_setup_dialog),
+	                                               GTK_DIALOG_MODAL,
+	                                               GTK_MESSAGE_ERROR,
+	                                               GTK_BUTTONS_CLOSE,
+	                                               "User login failed.\n\nError %d: %s",
+	                                               error->code,
+	                                               error->message);
+           	gtk_dialog_run (GTK_DIALOG (error_dialog));
+           	gtk_widget_destroy (error_dialog);
+           	gtk_widget_hide (user_login_setup_dialog);
+           	g_error_free(error);
+           	return;
+        }
+}
+
+void
+continue_login_cb (GUPnPDeviceProxy    *proxy,
+                   GUPnPDeviceProxyLogin *logindata,
+                   GError             **error,
+                   gpointer             user_data)
+{
+	    const gchar *username = gtk_entry_get_text (GTK_ENTRY(uls_dialog_username_entry));
+	    GString *loginname = g_string_new(username);
+
+	    if ((*error) != NULL) {
+
+	        GtkWidget *error_dialog;
+
+	        error_dialog = gtk_message_dialog_new (GTK_WINDOW (user_login_setup_dialog),
+	                                               GTK_DIALOG_MODAL,
+	                                               GTK_MESSAGE_ERROR,
+	                                               GTK_BUTTONS_CLOSE,
+	                                               "User login failed.\n\nError %d: %s",
+	                                               (*error)->code,
+	                                               (*error)->message);
+            gtk_dialog_run (GTK_DIALOG (error_dialog));
+            gtk_widget_destroy (error_dialog);
+
+            gtk_widget_hide (user_login_setup_dialog);
+            if ((*error))
+            	g_error_free ((*error));
+
+            gupnp_device_proxy_end_login (logindata, loginname);
+            return;
+        }
+
+        if (gupnp_device_proxy_end_login(logindata, loginname)) {
+            // User login successfully formed
+            GtkWidget *info_dialog;
+
+            info_dialog = gtk_message_dialog_new (GTK_WINDOW (user_login_setup_dialog),
+                                                  GTK_DIALOG_MODAL,
+                                                  GTK_MESSAGE_INFO,
+                                                  GTK_BUTTONS_CLOSE,
+                                                  "User login successfully performed");
+
+            gtk_dialog_run (GTK_DIALOG (info_dialog));
+            gtk_widget_destroy (info_dialog);
+    	    gtk_widget_hide (user_login_setup_dialog);
+        }
+}
 
 void
 init_user_login_dialog_fields (void)
