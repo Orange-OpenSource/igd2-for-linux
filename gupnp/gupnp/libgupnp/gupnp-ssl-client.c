@@ -401,6 +401,13 @@ static int parse_headers(SoupMessageHeaders *soup_headers, const char *headers)
     
     strcpy(headers_copy, headers);
 
+    // get rid of everything else after \r\n\r\n 
+    // headers are before that
+    if ((tmp = strstr(headers_copy, "\r\n\r\n")) != NULL )
+    {
+        *tmp = '\0';
+    }
+
     // Example header:
     // Accept-Language: en-us;q=1, en;q=0.5
     // 1. tokenize header string with '\r\n', different header-value pairs should be separated with that
@@ -417,7 +424,9 @@ static int parse_headers(SoupMessageHeaders *soup_headers, const char *headers)
                 *tmp = '\0';
                 
                 if (token && value)
+                {
                     soup_message_headers_append(soup_headers, token, value);
+                }
                 free(value);
             }
             else if ( (tmp = strstr(token, "HTTP/")) != NULL ) // this row contains statuscode of message
@@ -546,7 +555,8 @@ int ssl_client_send_and_receive(  GUPnPSSLClient *client,
             headers_ready = 1;
             
         }
-        else if (headers_ready && body != NULL && strlen(body) >= content_len)
+        
+        if (headers_ready && body != NULL && strlen(body) >= content_len) // TODO ei voi ottaa strlen' koska ei välttämättä nulia lopussa
         {   
             body[content_len] = '\0';
             // body should be ready    
