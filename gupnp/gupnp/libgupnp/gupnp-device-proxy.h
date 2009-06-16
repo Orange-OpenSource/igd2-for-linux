@@ -27,6 +27,13 @@
 
 G_BEGIN_DECLS
 
+#define GUPNP_DP_PRF_ROUNDS    5000
+#define GUPNP_DP_SALT_BYTES    16
+#define GUPNP_DP_STORED_BYTES  16
+#define GUPNP_DP_NONCE_BYTES   16
+#define GUPNP_DP_AUTH_BYTES    16
+
+
 GType
 gupnp_device_proxy_get_type (void) G_GNUC_CONST;
 
@@ -79,6 +86,7 @@ typedef struct {
 } GUPnPDeviceProxyClass;
 
 typedef struct _GUPnPDeviceProxyWps GUPnPDeviceProxyWps;
+typedef struct _GUPnPDeviceProxyLogin GUPnPDeviceProxyLogin;
 
 /**
  * GUPnPDeviceProxyWpsCallback:
@@ -94,6 +102,21 @@ typedef void (* GUPnPDeviceProxyWpsCallback) (
                                      GString             *device_name,
                                      GError             **error,
                                      gpointer             user_data);
+
+/**
+ * GUPnPDeviceProxyWpsCallback:
+ * @proxy: The #GUPnPDeviceProxy @wps is called from
+ * @action: The #GUPnPDevoceProxyWps in progress
+ * @user_data: User data
+ *
+ * Callback notifying that @wps on @proxy has done the next step.
+ **/
+typedef void (* GUPnPDeviceProxyLoginCallback) (
+                                     GUPnPDeviceProxy    *proxy,
+                                     GUPnPDeviceProxyLogin *logindata,
+                                     GError             **error,
+                                     gpointer             user_data);
+
 
 GUPnPDeviceProxyWps *
 gupnp_device_proxy_begin_wps(GUPnPDeviceProxy           *proxy,
@@ -133,6 +156,18 @@ gupnp_device_proxy_set_ssl_client           (GUPnPDeviceProxy           *proxy,
                                         
 GUPnPSSLClient *
 gupnp_device_proxy_get_ssl_client           (GUPnPDeviceProxy           *proxy);
+
+
+
+GUPnPDeviceProxyLogin *
+gupnp_device_proxy_begin_login (GUPnPDeviceProxy           *proxy,
+                                const gchar                *username,
+                                const gchar                *password,
+                                GUPnPDeviceProxyLoginCallback callback,
+                                gpointer                    user_data);
+                                
+gboolean
+gupnp_device_proxy_end_login (GUPnPDeviceProxyLogin *logindata, GString *loginname);                                
 
 G_END_DECLS
 

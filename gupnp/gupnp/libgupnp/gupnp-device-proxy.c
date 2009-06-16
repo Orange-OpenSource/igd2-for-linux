@@ -27,6 +27,7 @@
  * and services. #GUPnPDeviceProxy implements the #GUPnPDeviceInfo interface.
  */
 
+#include <glib.h>
 #include <string.h>
 #include <wpsutil/registrar_state_machine.h>
 #include <wpsutil/base64mem.h>
@@ -69,6 +70,25 @@ struct _GUPnPDeviceProxyWps {
         unsigned char     *wpsu_registrar_send_msg;
         int                wpsu_registrar_send_msg_len;
         unsigned char      uuid[WPSU_MAX_UUID_LEN];
+};
+
+struct _GUPnPDeviceProxyLogin {
+        GUPnPDeviceProxy  *proxy;
+        GUPnPServiceProxy *device_prot_service;
+
+        GUPnPDeviceProxyLoginCallback callback;
+
+        gpointer user_data;
+
+        GError *error;
+
+        GString *username;
+        GString *password;
+        
+        GString *salt;
+        GString *challenge;        
+
+        gboolean done;
 };
 
 enum {
@@ -500,6 +520,7 @@ gupnp_device_proxy_begin_wps (GUPnPDeviceProxy           *proxy,
         return wps;
 }
 
+// useless?
 GUPnPDeviceProxyWps *
 gupnp_device_proxy_continue_wps (GUPnPDeviceProxyWps        *wps,
                                  GString                    *pin,
@@ -623,7 +644,7 @@ gupnp_device_proxy_init_ssl (GUPnPDeviceProxy *proxy,
  * @url: Address of server. Address is changed into HTTPS address
  * @port: Port number on which client will connect on server
  *
- * Create and initialize ssl client of context. Connects to server.
+ * Create and initialize ssl client of proxy. Connects to server.
  **/
 int
 gupnp_device_proxy_create_and_init_ssl_client (GUPnPDeviceProxy *proxy,
@@ -670,7 +691,7 @@ gupnp_device_proxy_create_and_init_ssl_client (GUPnPDeviceProxy *proxy,
  * @context: A #GUPnPContext
  * @client: A #GUPnPSSLClient
  *
- * Sets ssl client of context.
+ * Sets ssl client of proxy.
  **/
 void
 gupnp_device_proxy_set_ssl_client (GUPnPDeviceProxy *proxy,
@@ -698,9 +719,288 @@ gupnp_device_proxy_get_ssl_client (GUPnPDeviceProxy *proxy)
 {
         g_assert (proxy != NULL);
 
-        //return proxy->priv->root_proxy->priv->ssl_client;
         if (proxy->priv->root_proxy)
             return proxy->priv->root_proxy->priv->ssl_client;
 }
 
 
+
+
+
+/*      UserLogin stuff       */
+
+/**
+ * Create authenticator value used in UserLogin
+ * Authenticator contains the Base64 encoding of the first 20 bytes of SHA-256(STORED || Challenge).
+ * 
+ * This function is taken from libupnp deviceprotection.c and modified bit.
+ * 
+ * @param bin_stored Binary value of STORED.
+ * @param bin_stored_len Length of STORED in bytes
+ * @param b64_challenge Base64 encoded value of Challenge.
+ * @param b64_authenticator Pointer to string where authenticator is created. User needs to use free() for this
+ * @param auth_len Pointer to integer which is set to contain length of created authenticator
+ * @return 0 if succeeded to create authenticato. Something else if error
+ */
+static int createAuthenticator(const unsigned char *bin_stored, int bin_stored_len, const char *b64_challenge, char **b64_authenticator, int *auth_len)
+{
+    if (bin_stored == NULL) 
+    {
+        return -1;
+    }
+    // challenge from base64 to binary
+
+    int b64msglen = strlen(b64_challenge);
+    unsigned char *bin_challenge = (unsigned char *)malloc(b64msglen);
+    if (bin_challenge == NULL) 
+    {
+        return -1;
+    }
+    int bin_challenge_len;    
+    wpsu_base64_to_bin(b64msglen, (const unsigned char *)b64_challenge, &bin_challenge_len, bin_challenge, b64msglen); 
+   
+    
+    // concatenate stored || challenge
+    int bin_concat_len = bin_stored_len + bin_challenge_len;
+    unsigned char *bin_concat = (unsigned char *)malloc(bin_concat_len);    
+    if (bin_concat == NULL) 
+    {
+        if (bin_challenge) free(bin_challenge);
+        return -1;
+    }
+    memcpy(bin_concat, bin_stored, bin_stored_len);
+    memcpy(bin_concat + bin_stored_len, bin_challenge, bin_challenge_len);
+
+    // release useless stuff
+    if (bin_challenge) free(bin_challenge);
+ 
+    // crete hash from concatenation
+    unsigned char hash[2*bin_concat_len];
+    int ret = wpsu_sha256(bin_concat, bin_concat_len, hash);
+    if (ret < 0)
+    {
+        if (bin_concat) free(bin_concat);
+        *b64_authenticator = NULL;
+        return ret;
+    }
+
+    // encode required amount of first bytes of created hash as base64 authenticator
+    int maxb64len = 2*GUPNP_DP_AUTH_BYTES; 
+    *auth_len = 0;
+    *b64_authenticator = (char *)malloc(maxb64len);
+    wpsu_bin_to_base64(GUPNP_DP_AUTH_BYTES, hash, auth_len, (unsigned char *)*b64_authenticator, maxb64len);
+    
+    if (bin_concat) free(bin_concat);
+    return 0;   
+}
+
+// this is called when library receives response for UserLogin-action
+static void
+login_response (GUPnPServiceProxy       *proxy,
+                GUPnPServiceProxyAction *action,
+                gpointer                 user_data)
+{
+        GUPnPDeviceProxyLogin *logindata = user_data;
+        GError *error = NULL;
+
+        if (!gupnp_service_proxy_end_action (proxy,
+                                             action,
+                                            &error,
+                                             NULL))
+        {
+                logindata->error = error;
+                g_warning("Error: %s", logindata->error->message);
+        }
+        else
+        {
+            logindata->done = TRUE;
+        }
+        logindata->callback(logindata->proxy, logindata, &logindata->error, logindata->user_data);
+}
+
+// this is called when library receives response for GetUserLoginChallenge-action
+static void
+login_challenge_response (GUPnPServiceProxy       *proxy,
+                          GUPnPServiceProxyAction *action,
+                          gpointer                 user_data)
+{
+        GUPnPDeviceProxyLogin *logindata = user_data;
+        char *salt;
+        char *challenge;
+        gchar* nameUPPER;
+        GError *error = NULL;
+        int err;
+
+        if (!gupnp_service_proxy_end_action (proxy,
+                                             action,
+                                            &error,
+                                             "Salt",
+                                             G_TYPE_STRING,
+                                             &salt,
+                                             "Challenge",
+                                             G_TYPE_STRING,
+                                             &challenge,
+                                             NULL))
+        {
+                logindata->error = error;
+                g_warning("Error: %s", logindata->error->message);
+                logindata->callback(logindata->proxy, logindata, &logindata->error, logindata->user_data);
+                return;
+        }
+
+        if (logindata->error != NULL || salt == NULL || challenge == NULL)
+        {
+                g_warning("Error: %s", logindata->error->message);
+                logindata->callback(logindata->proxy, logindata, &logindata->error, logindata->user_data);
+                return;
+        }
+        else
+        {
+                // create STORED. Needed values are salt, username (in uppercase) and password
+                // salt from base64 to binary
+                int b64_msg_len = strlen(salt);
+                unsigned char *bin_salt=(unsigned char *)g_malloc(b64_msg_len);
+                int bin_salt_len;
+                wpsu_base64_to_bin (b64_msg_len, (const unsigned char *)salt, &bin_salt_len, bin_salt, b64_msg_len);                
+                
+                
+                // username to utf8 uppercase
+                nameUPPER = g_utf8_strup(logindata->username->str, logindata->username->len);
+                if (!nameUPPER)
+                {
+                    logindata->error = g_error_new(GUPNP_SERVER_ERROR,
+                                                   GUPNP_SERVER_ERROR_OTHER,
+                                                   "Failed to convert username to uppercase");
+                    g_warning("%s", logindata->error->message);
+                    logindata->callback(logindata->proxy, logindata, &logindata->error, logindata->user_data);
+                    return;
+                }
+                
+                // concatenate NAME and binary salt
+                glong name_len = g_utf8_strlen(nameUPPER, -1);
+                glong namesalt_len = name_len + bin_salt_len;  // should it matter if salt_len is greater than 16. It shouldn't happen, but...
+                unsigned char namesalt[namesalt_len];
+                
+                memcpy(namesalt, nameUPPER, name_len);
+                memcpy(namesalt+name_len, salt, bin_salt_len);
+                
+                
+                // create STORED
+                unsigned char bin_stored[GUPNP_DP_STORED_BYTES];
+                err = wpsu_pbkdf2(logindata->password->str, logindata->password->len, namesalt,
+                                namesalt_len, GUPNP_DP_PRF_ROUNDS, GUPNP_DP_STORED_BYTES, bin_stored);
+                                             
+                if (err != 0)
+                {
+                    logindata->error = g_error_new(GUPNP_SERVER_ERROR,
+                                                   GUPNP_SERVER_ERROR_OTHER,
+                                                   "Failed to create STORED");
+                    g_warning("%s", logindata->error->message);
+                    logindata->callback(logindata->proxy, logindata, &logindata->error, logindata->user_data);
+                    return;                    
+                }
+                
+                
+                // create Authenticator
+                char *b64_authenticator = NULL;
+                int auth_len = 0;
+                err = createAuthenticator(bin_stored, GUPNP_DP_STORED_BYTES, challenge, &b64_authenticator, &auth_len);
+                
+                if (err != 0)
+                {
+                    logindata->error = g_error_new(GUPNP_SERVER_ERROR,
+                                                   GUPNP_SERVER_ERROR_OTHER,
+                                                   "Failed to create Authenticator");
+                    g_warning("%s", logindata->error->message);
+                    logindata->callback(logindata->proxy, logindata, &logindata->error, logindata->user_data);
+                    return;                    
+                } 
+                
+                // send UserLogin
+                gupnp_service_proxy_begin_action(logindata->device_prot_service,
+                                                 "UserLogin",
+                                                 login_response,
+                                                 logindata,
+                                                 "Challenge",
+                                                 G_TYPE_STRING,
+                                                 challenge,
+                                                 "Authenticator",
+                                                 G_TYPE_STRING,
+                                                 b64_authenticator,
+                                                 NULL);
+                                                 
+                g_free(b64_authenticator);                            
+        }      
+}
+
+
+// Begin login-process by calling this
+GUPnPDeviceProxyLogin *
+gupnp_device_proxy_begin_login (GUPnPDeviceProxy           *proxy,
+                                const gchar                *username,
+                                const gchar                *password,
+                                GUPnPDeviceProxyLoginCallback callback,
+                                gpointer                    user_data)
+{
+        GUPnPDeviceProxyLogin *logindata;
+        int error;
+
+        g_return_val_if_fail (GUPNP_IS_DEVICE_PROXY (proxy), NULL);
+        g_return_val_if_fail (callback, NULL);
+        g_return_val_if_fail (username, NULL);
+        g_return_val_if_fail (password, NULL);
+
+        logindata = g_slice_new (GUPnPDeviceProxyLogin);
+        logindata->proxy = proxy;
+        logindata->callback = callback;
+        logindata->user_data = user_data;
+        logindata->error = NULL;
+        logindata->device_prot_service = find_device_protection_service (proxy);
+        logindata->username = g_string_new(username);
+        logindata->password = g_string_new(password);
+        logindata->salt = NULL;
+        logindata->challenge = NULL;
+        logindata->done = FALSE;
+
+
+        if (logindata->device_prot_service == NULL)
+        {
+                logindata->error = g_error_new(GUPNP_SERVER_ERROR,
+                                         GUPNP_SERVER_ERROR_OTHER,
+                                         "No device protection service found.");
+                g_warning("Error: %s", logindata->error->message);
+                return logindata;
+        }
+
+
+
+        gupnp_service_proxy_begin_action(logindata->device_prot_service,
+                                         "GetUserLoginChallenge",
+                                         login_challenge_response,
+                                         logindata,
+                                         "Name",
+                                         G_TYPE_STRING,
+                                         username,
+                                         NULL);
+
+        return logindata;
+}
+
+// End login-process by calling this. Returns if logging is succeeded. Username which was logged in,
+// is returned in  loginname
+gboolean
+gupnp_device_proxy_end_login (GUPnPDeviceProxyLogin *logindata, GString *loginname)
+{        
+        // copy username logged in to loginname
+        if (loginname)
+            g_string_assign(loginname, logindata->username->str);
+        
+        gboolean done = logindata->done;
+        g_object_unref(logindata->proxy);
+        g_string_free(logindata->username, TRUE);
+        g_string_free(logindata->password, TRUE);
+
+        g_free(logindata);
+
+        return done;
+}
