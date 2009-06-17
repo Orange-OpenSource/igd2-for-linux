@@ -87,6 +87,7 @@ typedef struct {
 
 typedef struct _GUPnPDeviceProxyWps GUPnPDeviceProxyWps;
 typedef struct _GUPnPDeviceProxyLogin GUPnPDeviceProxyLogin;
+typedef struct _GUPnPDeviceProxyLogout GUPnPDeviceProxyLogout;
 
 /**
  * GUPnPDeviceProxyWpsCallback:
@@ -104,18 +105,33 @@ typedef void (* GUPnPDeviceProxyWpsCallback) (
                                      gpointer             user_data);
 
 /**
- * GUPnPDeviceProxyWpsCallback:
- * @proxy: The #GUPnPDeviceProxy @wps is called from
- * @action: The #GUPnPDevoceProxyWps in progress
+ * GUPnPDeviceProxyLoginCallback:
+ * @proxy: The #GUPnPDeviceProxy login is called
+ * @logindata: The #GUPnPDeviceProxyLogin in progress
  * @user_data: User data
  *
- * Callback notifying that @wps on @proxy has done the next step.
+ * Callback notifying that logging in on @proxy has done the next step.
  **/
 typedef void (* GUPnPDeviceProxyLoginCallback) (
                                      GUPnPDeviceProxy    *proxy,
                                      GUPnPDeviceProxyLogin *logindata,
                                      GError             **error,
                                      gpointer             user_data);
+                                     
+                                     
+/**
+ * GUPnPDeviceProxyLogoutCallback:
+ * @proxy: The #GUPnPDeviceProxy logout is called
+ * @logindata: The #GUPnPDeviceProxyLogout in progress
+ * @user_data: User data
+ *
+ * Callback notifying that logging out on @proxy has done the next step.
+ **/
+typedef void (* GUPnPDeviceProxyLogoutCallback) (
+                                     GUPnPDeviceProxy    *proxy,
+                                     GUPnPDeviceProxyLogout *logoutdata,
+                                     GError             **error,
+                                     gpointer             user_data);                                     
 
 
 GUPnPDeviceProxyWps *
@@ -170,6 +186,18 @@ gupnp_device_proxy_begin_login (GUPnPDeviceProxy           *proxy,
 
 gboolean
 gupnp_device_proxy_end_login (GUPnPDeviceProxyLogin *logindata, GString *loginname);
+
+
+GError *
+gupnp_device_proxy_logout_get_error (GUPnPDeviceProxyLogout *deviceProxyLogout);
+
+GUPnPDeviceProxyLogout *
+gupnp_device_proxy_begin_logout (GUPnPDeviceProxy           *proxy,
+                                 GUPnPDeviceProxyLogoutCallback callback,
+                                 gpointer                    user_data);
+
+gboolean
+gupnp_device_proxy_end_logout (GUPnPDeviceProxyLogout *logoutdata);
 
 G_END_DECLS
 

@@ -91,6 +91,24 @@ struct _GUPnPDeviceProxyLogin {
         gboolean done;
 };
 
+// this is actually quite useless, because Logout (currently doesn't do anything else than send
+// UserLogout-action which has no parameters. So CP could just send that action as normal, but 
+// lets add similar interface for logout than login if Logout changes in future.
+// And this is beatifully symmetrical with Login :)
+struct _GUPnPDeviceProxyLogout {
+        GUPnPDeviceProxy  *proxy;
+        GUPnPServiceProxy *device_prot_service;
+
+        GUPnPDeviceProxyLogoutCallback callback;
+
+        gpointer user_data;
+
+        GError *error;
+
+        gboolean done;
+};
+
+
 enum {
         PROP_0,
         PROP_SESSION,
@@ -101,6 +119,13 @@ gupnp_device_proxy_login_get_error (GUPnPDeviceProxyLogin *deviceProxyLogin)
 {
         g_assert (deviceProxyLogin != NULL);
         return deviceProxyLogin->error;
+}
+
+GError *
+gupnp_device_proxy_logout_get_error (GUPnPDeviceProxyLogout *deviceProxyLogout)
+{
+        g_assert (deviceProxyLogout != NULL);
+        return deviceProxyLogout->error;
 }
 
 GError *
@@ -1021,6 +1046,101 @@ gupnp_device_proxy_end_login (GUPnPDeviceProxyLogin *logindata, GString *loginna
         g_string_free(logindata->password, TRUE);
 
         //g_free(logindata); TODO: kaatuu tähän?
+
+        return done;
+}
+
+
+
+/*   Logout  */
+
+// this is called when library receives response for UserLogout-action
+static void
+logout_response (GUPnPServiceProxy       *proxy,
+                GUPnPServiceProxyAction *action,
+                gpointer                 user_data)
+{
+        GUPnPDeviceProxyLogout *logoutdata = user_data;
+        GError *error = NULL;
+
+        if (!gupnp_service_proxy_end_action (proxy,
+                                             action,
+                                            &error,
+                                             NULL))
+        {
+                logoutdata->error = error;
+                g_warning("Error: %s", logoutdata->error->message);
+        }
+        else
+        {
+            logoutdata->done = TRUE;
+        }
+        logoutdata->callback(logoutdata->proxy, logoutdata, &logoutdata->error, logoutdata->user_data);
+}
+
+// Begin logout-process by calling this
+GUPnPDeviceProxyLogout *
+gupnp_device_proxy_begin_logout (GUPnPDeviceProxy           *proxy,
+                                 GUPnPDeviceProxyLogoutCallback callback,
+                                 gpointer                    user_data)
+{
+        GUPnPDeviceProxyLogout *logoutdata;
+        int error;
+        GError *gerror;
+
+        g_return_val_if_fail (GUPNP_IS_DEVICE_PROXY (proxy), NULL);
+        g_return_val_if_fail (callback, NULL);
+
+        // we need to have SSL
+        // so let's create it (if not created already
+        gupnp_device_proxy_init_ssl (proxy, &gerror);
+
+        if (gupnp_device_proxy_get_ssl_client(proxy) == NULL)
+        {           
+                logoutdata->error = g_error_new(GUPNP_SERVER_ERROR,
+                             GUPNP_SERVER_ERROR_OTHER,
+                             "For logging out SSL connection is needed.");
+                g_warning("Error: %s", logoutdata->error->message);
+                return logoutdata;
+        }
+
+
+        logoutdata = g_slice_new (GUPnPDeviceProxyLogout);
+        logoutdata->proxy = proxy;
+        logoutdata->callback = callback;
+        logoutdata->user_data = user_data;
+        logoutdata->error = NULL;
+        logoutdata->device_prot_service = find_device_protection_service (proxy);
+        logoutdata->done = FALSE;
+
+
+        if (logoutdata->device_prot_service == NULL)
+        {
+                logoutdata->error = g_error_new(GUPNP_SERVER_ERROR,
+                                         GUPNP_SERVER_ERROR_OTHER,
+                                         "No device protection service found.");
+                g_warning("Error: %s", logoutdata->error->message);
+                return logoutdata;
+        }
+
+
+
+        gupnp_service_proxy_begin_action(logoutdata->device_prot_service,
+                                         "UserLogout",
+                                         logout_response,
+                                         logoutdata,
+                                         NULL);
+
+        return logoutdata;
+}
+
+
+gboolean
+gupnp_device_proxy_end_logout (GUPnPDeviceProxyLogout *logoutdata)
+{
+        gboolean done = logoutdata->done;
+
+        g_object_unref(logoutdata->proxy);
 
         return done;
 }
