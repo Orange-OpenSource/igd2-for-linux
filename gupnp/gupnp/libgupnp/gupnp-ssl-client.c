@@ -486,7 +486,7 @@ int ssl_client_send_and_receive(  GUPnPSSLClient *client,
     int content_len = 0;
 
     *response = malloc((alloc+1)*sizeof( char* ));
-    **response = '\0';
+    **response = '\0';    
 
     if (client->session == NULL)
         return GUPNP_E_SESSION_FAIL;
@@ -513,6 +513,7 @@ int ssl_client_send_and_receive(  GUPnPSSLClient *client,
         }
         else
         { 
+            recv[retVal] = '\0';
             //g_warning("Received %d bytes", retVal);
         }
        
@@ -528,6 +529,14 @@ int ssl_client_send_and_receive(  GUPnPSSLClient *client,
             }
   
             *response = new_resp;
+            // because *response may now locate somewhere else than before
+            // we need to update location of body.
+            // This needs to be done only if headers are parsed already and
+            // we are wiating for the body be finished 
+            if (headers_ready && (tmp = strstr(*response, "\r\n\r\n")) != NULL)
+            {
+                body = tmp + 4; // body of message is everything that comes after "\r\n\r\n"
+            }            
         }
          
         strcat(*response, recv);
@@ -538,8 +547,8 @@ int ssl_client_send_and_receive(  GUPnPSSLClient *client,
         // This "parser" doesn't support chunked encoding...    
         if (!headers_ready && (tmp = strstr(*response, "\r\n\r\n")) != NULL)
         {
-            body = tmp + 4; // body of message is everything that comes after "\r\n\r\n"
-            
+            body = tmp + 4; // body of message is everything that comes after "\r\n\r\n". body is just pointer to somewhere in the midle of *response
+           
             // add response header values to SoupMessage
             retVal = parse_headers(msg->response_headers, *response);
             if (retVal > 0)
@@ -555,7 +564,7 @@ int ssl_client_send_and_receive(  GUPnPSSLClient *client,
             headers_ready = 1;
             
         }
-        
+
         if (headers_ready && body != NULL && strlen(body) >= content_len) // TODO ei voi ottaa strlen' koska ei välttämättä nulia lopussa
         {   
             body[content_len] = '\0';
