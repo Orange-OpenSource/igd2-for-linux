@@ -1017,12 +1017,12 @@ static int createAuthenticator(const char *b64_stored, const char *b64_challenge
  
     // crete hash from concatenation
     unsigned char hash[2*bin_concat_len];
-    int ret = wpsu_sha256(bin_concat, bin_concat_len, hash);
-    if (ret < 0)
+    int hashlen = wpsu_sha256(bin_concat, bin_concat_len, hash);
+    if (hashlen < 0)
     {
         if (bin_concat) free(bin_concat);
         *b64_authenticator = NULL;
-        return ret;
+        return hashlen;
     }
 
     // encode 16 first bytes of created hash as base64 authenticator
@@ -1355,7 +1355,7 @@ int UserLogin(struct Upnp_Action_Request *ca_event)
                 // failure
                 trace(2, "%s: Failed to get STORED and Challenge from passwd file. (username: '%s')",ca_event->ActionName,loginName);
                 result = 706;
-                addErrorData(ca_event, result, "Invalid Context");                 
+                addErrorData(ca_event, result, "Invalid Context");
             }
             else
             {
