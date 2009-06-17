@@ -75,23 +75,6 @@ uls_dialog_login_clicked (GladeXML *glade_xml)
 	                                                       password,
 	                                                       continue_login_cb,
 	                                                       user_data);
-
-        if ( (error = gupnp_device_proxy_login_get_error(deviceProxyLogin)) ) {
-           	GtkWidget *error_dialog;
-
-           	error_dialog = gtk_message_dialog_new (GTK_WINDOW (user_login_setup_dialog),
-	                                               GTK_DIALOG_MODAL,
-	                                               GTK_MESSAGE_ERROR,
-	                                               GTK_BUTTONS_CLOSE,
-	                                               "User login failed.\n\nError %d: %s",
-	                                               error->code,
-	                                               error->message);
-           	gtk_dialog_run (GTK_DIALOG (error_dialog));
-           	gtk_widget_destroy (error_dialog);
-           	gtk_widget_hide (user_login_setup_dialog);
-           	g_error_free(error);
-           	return;
-        }
 }
 
 void
