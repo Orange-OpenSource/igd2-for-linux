@@ -178,19 +178,35 @@ int checkCPPrivileges(struct Upnp_Action_Request *ca_event, const char *targetRo
     {
         return ret;
     } 
+
+
+    // Let's add new entry to SIR with role value "Public". Identity is not inserted.
+    // If return value is -1, session was there already. If 0 CP was new and it was 
+    // succesfully added to SIR.
+    // Every action is checked through checkCPPrivileges, so that why every session is found from SIR
+    ret = SIR_addSession(SIRDoc, identifier, 0, NULL, "Public", NULL, NULL, NULL);
+    if (ret == 0)
+    {
+        trace(3, "New session was added to SIR. Id: '%s'",identifier);
+        trace(3, "Contents of SIR:\n%s\n",ixmlPrintDocument(SIRDoc));
+    }
+    else if (ret == -1)
+    {
+        // ok it was there already. Just continue   
+    }
+    else
+    {
+        trace(2,"SIR handling failed somehow when adding new session!");
+        return -1;
+    }
     
-    // 4. fetch current identity of CP from SIR. Identity may be username or identity created from certificate
+    // fetch current identity of CP from SIR. Identity may be username or identity created from certificate
     int active;
     char *roles = NULL;
     char *identity = SIR_getIdentityOfSession(SIRDoc, identifier, &active, &roles);
     if (identity == NULL)
     {
-        // if identity isn't found, that could only mean that we are dealing with a new CP
-        // Let's add new entry to SIR with role value "Public". Identity is not inserted
-        ret = SIR_addSession(SIRDoc, identifier, 0, NULL, "Public", NULL, NULL, NULL);
-        if (ret != 0)
-            return -1;
-            
+        // So session doesn't have any identity yet. This means that CP is privileged only to Public actions            
         // check if targetrole is public
         if (strcmp(targetRole, "Public") == 0)
             return 0;
@@ -201,7 +217,7 @@ int checkCPPrivileges(struct Upnp_Action_Request *ca_event, const char *targetRo
 //      but CP in ACL has Admin rights or something?
     if (active && roles == NULL) // this means that user is logged in as some username
     {
-        // 5. check if target role is one of current roles of identity
+        //  check if target role is one of current roles of identity
         if ( ACL_doesIdentityHasRole(ACLDoc, identity, targetRole) )
             return 0;
     }
@@ -924,12 +940,16 @@ static int createUserLoginChallengeResponse(struct Upnp_Action_Request *ca_event
             }
             
             // insert user login values to SIR document
-            char *identifier;
-    
+            char *identifier = NULL; 
             result = getIdentifierOfCP(ca_event, &identifier, &b64len, NULL);
             if (result == 0 )
             {
-                SIR_updateSession(SIRDoc, identifier, NULL, NULL, NULL, NULL, nameUPPER, (char *)b64_challenge);
+                trace(3,"Session with id '%s' is being updated in SIR. Add name '%s' and challenge '%s'",identifier,nameUPPER,(char *)b64_challenge);
+                result = SIR_updateSession(SIRDoc, identifier, NULL, NULL, NULL, NULL, nameUPPER, (char *)b64_challenge);
+                if (result == 0) 
+                    trace(3, "Contents of SIR:\n%s\n",ixmlPrintDocument(SIRDoc));
+                else 
+                    trace(2, "Failed to update session in SIR");
             } 
             else
                 trace(1, "Failure on inserting UserLoginChallenge values to SIR. Ignoring...");
@@ -1094,7 +1114,7 @@ result = 0;
         else if (!SetupReady )//&& (memcmp(prev_CP_id, CP_id, id_len) == 0)) // continue started introduction
         {
             // to bin
-            int b64msglen = strlen(inmessage);
+            int b64msglen = strlen(inmessage);            
             unsigned char *pBinMsg=(unsigned char *)malloc(b64msglen);
             int outlen;
             
@@ -1123,7 +1143,7 @@ result = 0;
         // response (next message) to base64   
         int maxb64len = 2*Enrollee_send_msg_len; 
         int b64len = 0;    
-        unsigned char *pB64Msg = (unsigned char *)malloc(maxb64len); 
+        unsigned char *pB64Msg = (unsigned char *)malloc(maxb64len);
         wpsu_bin_to_base64(Enrollee_send_msg_len,Enrollee_send_msg, &b64len, pB64Msg,maxb64len);
         
         trace(3,"Send response for SendSetupMessage request\n");
@@ -1275,6 +1295,7 @@ int UserLogin(struct Upnp_Action_Request *ca_event)
             && (authenticator = GetFirstDocumentItem(ca_event->ActionRequest, "Authenticator") ))
     {
         result = getIdentifierOfCP(ca_event, &id, &id_len, NULL);
+        trace(3,"CP with identifier '%s' is logging in",id);
         // here we could try "session resumption" by getting identity from SIR?
         // but not now, just continue as new login...
         result = SIR_getLoginDataOfSession(SIRDoc, (char *)id, &loginattempts, &loginName, &loginChallenge);
@@ -1309,6 +1330,7 @@ int UserLogin(struct Upnp_Action_Request *ca_event)
         if (result == 0 && strcmp(challenge, loginChallenge) != 0)
         {
             trace(1, "%s: Challenge value does not match value from SIR",ca_event->ActionName);
+            trace(3, "Received challenge was '%s' and local challenge was '%s'",challenge, loginChallenge);
             result = 706;
             addErrorData(ca_event, result, "Invalid Context");
         }
@@ -1351,12 +1373,14 @@ int UserLogin(struct Upnp_Action_Request *ca_event)
                 }
                 else if ( strcmp(authenticator, b64_authenticator) != 0 )
                 {
-                    trace(1, "%s: Authenticator values do not match value.",ca_event->ActionName);
+                    trace(1, "%s: Authenticator values do not match!",ca_event->ActionName);
+                    trace(3, "Received Authenticator was '%s' and local Authenticator was '%s'",authenticator, b64_authenticator);
                     result = 701;
                     addErrorData(ca_event, result, "Authentication Failure");                
                 }
                 else
                 {
+                    trace(2,"CP with id '%s' succeeded to log in as '%s'",id,loginName);
                     // Login is now succeeded
                     loginattempts = 0;
                     active = 1;

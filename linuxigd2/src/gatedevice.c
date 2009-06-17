@@ -2148,21 +2148,11 @@ int AuthorizeControlPoint(struct Upnp_Action_Request *ca_event, int managed)
         return result;
     }
 
-    // if accesslevel is something else than public then, require SSL
-    if ( strcmp(accessLevel, "Public") != 0 )
+    // If SSL is used, it is nice thing to check that CP really has privileges. Even if action is Public.
+    // (and note that checking also adds all new sessions to SIR which is quite important, at least with login)
+    if (ca_event->SSLSession != NULL)
     {
-        // is SSL used for connection
-        if (ca_event->SSLSession == NULL)
-        {
-            // SSL must be used
-            trace(1, "%s: SSL connection must be used for this",ca_event->ActionName);
-            result = 701;
-            addErrorData(ca_event, result, "Authentication Failure");
-
-            return result;                
-        }
-        
-        // check that CP has right privileges
+        // check that CP has right privileges (add's also new sessions to SIR)
         if ( (result = checkCPPrivileges(ca_event, accessLevel)) == 1 )
         {
             // CP doesn't have privileges for this
@@ -2179,6 +2169,21 @@ int AuthorizeControlPoint(struct Upnp_Action_Request *ca_event, int managed)
             addErrorData(ca_event, result, "Action Failed");
 
             return result;            
+        }        
+    }
+
+    // if accesslevel is something else than public then, require SSL. (not quite sure if this is right)
+    if ( strcmp(accessLevel, "Public") != 0 )
+    {
+        // is SSL used for connection
+        if (ca_event->SSLSession == NULL)
+        {
+            // SSL must be used
+            trace(1, "%s: SSL connection must be used for this",ca_event->ActionName);
+            result = 701;
+            addErrorData(ca_event, result, "Authentication Failure");
+
+            return result;                
         }
     }       
     

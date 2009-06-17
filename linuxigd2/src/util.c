@@ -1814,7 +1814,7 @@ IXML_Document *SIR_init()
 
 /**
  * Add new Session/Identity -pair into SIR. If session with same id already exist in SIR,
- * old session element is removed, and new one with given values is inserted.
+ * error is returned.
  * Identity is current username or id identifier created from client's certificate.
  * 
  * Logindata contains information received/send in GetUserLoginChallenge. "name" is username/
@@ -1842,7 +1842,7 @@ IXML_Document *SIR_init()
  * @param attempts Value of "loginattempts" attribute
  * @param loginName Username or role that CP wishes to login. If this parameter is given, also loginChallenge must be given.
  * @param loginChallenge Login challenge which was send to CP as challenge for this login attempt. If this parameter is given, also loginName must be given.
- * @return 0 on success, -1 else
+ * @return 0 on success, -1 if same id is exist, something neagetive else.
  */
 int SIR_addSession(IXML_Document *doc, const char *id, int active, const char *identity, const char *role, int *attempts, const char *loginName, const char *loginChallenge)
 {
@@ -1853,8 +1853,7 @@ int SIR_addSession(IXML_Document *doc, const char *id, int active, const char *i
     tmpNode = GetNodeWithNameAndAttribute(doc, "session", "id", id);
     if ( tmpNode != NULL )
     {
-        // if session exist, remove old and create new node with new values
-        RemoveNode(tmpNode); 
+        return -1;
     } 
 
     // create new element called "session"
@@ -1907,7 +1906,7 @@ int SIR_addSession(IXML_Document *doc, const char *id, int active, const char *i
         if ( ( tmpNode = ixmlNodeList_item( nodeList, 0 ) ) )    
             ixmlNode_appendChild(tmpNode, &sessionElement->n);
         else
-            ret = -1;
+            ret = -2;
     }
     
     //fprintf(stderr,"\n\n\n%s\n",ixmlPrintDocument(doc));
@@ -2001,6 +2000,9 @@ int SIR_updateSession(IXML_Document *doc, const char *id, int *active, const cha
     else
         newLoginChallenge = oldLoginChallenge;    
     
+    // first remove old session, then add new
+    SIR_removeSession(doc, id);
+    
     return SIR_addSession(doc, id , newActive, newIdentity, newRole, &newAttempts, newLoginName, newLoginChallenge);
 }
 
@@ -2029,11 +2031,10 @@ int SIR_removeSession(IXML_Document *doc, const char *id)
 
 
 /**
- * Get identity correspondign given id where id means 
- * base64 of 20 first bytes of sha-256(CP certificate)
+ * Get identity correspondign given id where id means that cool uuid thingy
  *
  * <SIR>
- *  <session id="AHHuendfn372jsuGDS==" active="1">
+ *  <session id="e7fd60a2-2053-447d-be2f-45f2d611cd1a" active="1">
  *      <identity>username</identity>
  *      <role>Basic</role>
  *  </session>
