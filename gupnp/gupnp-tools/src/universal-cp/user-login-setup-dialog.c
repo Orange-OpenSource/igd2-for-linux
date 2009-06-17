@@ -57,7 +57,6 @@ void
 uls_dialog_login_clicked (GladeXML *glade_xml)
 {
 	    GUPnPDeviceProxyLogin *deviceProxyLogin;
-	    GError *error = NULL;
 	    GUPnPDeviceInfo *info;
 	    GUPnPDeviceProxy *deviceProxy;
 	    const gchar *username=NULL, *password=NULL;
@@ -92,10 +91,10 @@ uls_dialog_login_clicked (GladeXML *glade_xml)
 }
 
 void
-continue_login_cb (GUPnPDeviceProxy    *proxy,
-                   GUPnPDeviceProxyLogin *logindata,
-                   GError             **error,
-                   gpointer             user_data)
+continue_login_cb (GUPnPDeviceProxy       *proxy,
+                   GUPnPDeviceProxyLogin  *logindata,
+                   GError                **error,
+                   gpointer                user_data)
 {
 	    const gchar *username = gtk_entry_get_text (GTK_ENTRY(uls_dialog_username_entry));
 	    GString *loginname = g_string_new(username);
@@ -115,8 +114,7 @@ continue_login_cb (GUPnPDeviceProxy    *proxy,
             gtk_widget_destroy (error_dialog);
 
             gtk_widget_hide (user_login_setup_dialog);
-            if ((*error))
-            	g_error_free ((*error));
+           	g_error_free ((*error));
 
             gupnp_device_proxy_end_login (logindata, loginname);
             return;
@@ -141,8 +139,63 @@ continue_login_cb (GUPnPDeviceProxy    *proxy,
 void
 uls_dialog_logout_clicked (GladeXML *glade_xml)
 {
+		GUPnPDeviceProxyLogout *deviceProxyLogout;
+		GUPnPDeviceInfo *info;
+		GUPnPDeviceProxy *deviceProxy;
+		gpointer user_data = NULL;
 
+		info = get_selected_device_info ();
+		deviceProxy = GUPNP_DEVICE_PROXY (info);
+		g_assert (deviceProxy != NULL);
+
+		deviceProxyLogout = gupnp_device_proxy_begin_logout (deviceProxy,
+															 continue_logout_cb,
+                                     	                     user_data);
 }
+
+void
+continue_logout_cb (GUPnPDeviceProxy        *proxy,
+					GUPnPDeviceProxyLogout  *logoutdata,
+                    GError                 **error,
+                    gpointer                 user_data)
+{
+	    if ((*error) != NULL) {
+
+	        GtkWidget *error_dialog;
+
+	        error_dialog = gtk_message_dialog_new (GTK_WINDOW (user_login_setup_dialog),
+	                                               GTK_DIALOG_MODAL,
+	                                               GTK_MESSAGE_ERROR,
+	                                               GTK_BUTTONS_CLOSE,
+	                                               "User logout failed.\n\nError %d: %s",
+	                                               (*error)->code,
+	                                               (*error)->message);
+            gtk_dialog_run (GTK_DIALOG (error_dialog));
+            gtk_widget_destroy (error_dialog);
+
+            gtk_widget_hide (user_login_setup_dialog);
+            g_error_free ((*error));
+
+            gupnp_device_proxy_end_logout (logoutdata);
+            return;
+        }
+
+        if (gupnp_device_proxy_end_logout (logoutdata)) {
+            // User logout successfully formed
+            GtkWidget *info_dialog;
+
+            info_dialog = gtk_message_dialog_new (GTK_WINDOW (user_login_setup_dialog),
+                                                  GTK_DIALOG_MODAL,
+                                                  GTK_MESSAGE_INFO,
+                                                  GTK_BUTTONS_CLOSE,
+                                                  "User logout successfully performed");
+
+            gtk_dialog_run (GTK_DIALOG (info_dialog));
+            gtk_widget_destroy (info_dialog);
+    	    gtk_widget_hide (user_login_setup_dialog);
+        }
+}
+
 
 void
 uls_dialog_change_password_clicked (GladeXML *glade_xml)

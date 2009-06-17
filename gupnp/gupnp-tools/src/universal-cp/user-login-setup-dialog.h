@@ -18,9 +18,15 @@ void
 deinit_user_login_setup_dialog (void);
 
 void
-continue_login_cb (GUPnPDeviceProxy    *proxy,
-                   GUPnPDeviceProxyLogin *logindata,
-                   GError             **error,
-                   gpointer             user_data);
+continue_login_cb (GUPnPDeviceProxy       *proxy,
+                   GUPnPDeviceProxyLogin  *logindata,
+                   GError                **error,
+                   gpointer                user_data);
+
+void
+continue_logout_cb (GUPnPDeviceProxy        *proxy,
+					GUPnPDeviceProxyLogout  *logoutdata,
+                    GError                 **error,
+                    gpointer                 user_data);
 
 #endif /* USERLOGINSETUPDIALOG_H_ */
