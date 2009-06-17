@@ -754,7 +754,6 @@ static int createAuthenticator(const unsigned char *bin_stored, int bin_stored_l
         return -1;
     }
     // challenge from base64 to binary
-
     int b64msglen = strlen(b64_challenge);
     unsigned char *bin_challenge = (unsigned char *)malloc(b64msglen);
     if (bin_challenge == NULL)
@@ -781,12 +780,12 @@ static int createAuthenticator(const unsigned char *bin_stored, int bin_stored_l
 
     // crete hash from concatenation
     unsigned char hash[2*bin_concat_len];
-    int ret = wpsu_sha256(bin_concat, bin_concat_len, hash);
-    if (ret < 0)
+    int hashlen = wpsu_sha256(bin_concat, bin_concat_len, hash);
+    if (hashlen < 0)
     {
         if (bin_concat) free(bin_concat);
         *b64_authenticator = NULL;
-        return ret;
+        return hashlen;
     }
 
     // encode required amount of first bytes of created hash as base64 authenticator
@@ -868,7 +867,6 @@ login_challenge_response (GUPnPServiceProxy       *proxy,
                 int bin_salt_len;
                 wpsu_base64_to_bin (b64_msg_len, (const unsigned char *)salt, &bin_salt_len, bin_salt, b64_msg_len);
 
-
                 // username to utf8 uppercase
                 nameUPPER = g_utf8_strup(logindata->username->str, logindata->username->len);
                 if (!nameUPPER)
@@ -882,12 +880,12 @@ login_challenge_response (GUPnPServiceProxy       *proxy,
                 }
 
                 // concatenate NAME and binary salt
-                glong name_len = g_utf8_strlen(nameUPPER, -1);
+                glong name_len = g_utf8_strlen(nameUPPER, -1);                
                 glong namesalt_len = name_len + bin_salt_len;  // should it matter if salt_len is greater than 16. It shouldn't happen, but...
                 unsigned char namesalt[namesalt_len];
 
                 memcpy(namesalt, nameUPPER, name_len);
-                memcpy(namesalt+name_len, salt, bin_salt_len);
+                memcpy(namesalt+name_len, bin_salt, bin_salt_len);
 
 
                 // create STORED
