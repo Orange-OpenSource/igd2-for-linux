@@ -931,6 +931,7 @@ Inspired by Intel Tools for UPnP.</property>
                 <property name="can_focus">True</property>
                 <property name="receives_default">True</property>
                 <property name="use_stock">True</property>
+                <signal name="clicked" handler="ua_dialog_remove_user"/>
               </widget>
               <packing>
                 <property name="expand">False</property>
@@ -945,6 +946,7 @@ Inspired by Intel Tools for UPnP.</property>
                 <property name="can_focus">True</property>
                 <property name="receives_default">True</property>
                 <property name="use_stock">True</property>
+                <signal name="clicked" handler="ua_dialog_role_setup"/>
               </widget>
               <packing>
                 <property name="expand">False</property>
@@ -1059,6 +1061,7 @@ Inspired by Intel Tools for UPnP.</property>
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="receives_default">True</property>
+                <signal name="clicked" handler="uls_dialog_change_password_clicked"/>
               </widget>
               <packing>
                 <property name="expand">False</property>
@@ -1072,6 +1075,7 @@ Inspired by Intel Tools for UPnP.</property>
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="receives_default">True</property>
+                <signal name="clicked" handler="uls_dialog_logout_clicked"/>
               </widget>
               <packing>
                 <property name="expand">False</property>

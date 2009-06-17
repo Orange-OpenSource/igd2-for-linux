@@ -60,7 +60,7 @@ uls_dialog_login_clicked (GladeXML *glade_xml)
 	    GError *error = NULL;
 	    GUPnPDeviceInfo *info;
 	    GUPnPDeviceProxy *deviceProxy;
-	    const gchar *username, *password;
+	    const gchar *username=NULL, *password=NULL;
 	    gpointer user_data = NULL;
 
 	    info = get_selected_device_info ();
@@ -69,6 +69,20 @@ uls_dialog_login_clicked (GladeXML *glade_xml)
 
     	username = gtk_entry_get_text (GTK_ENTRY(uls_dialog_username_entry));
     	password = gtk_entry_get_text (GTK_ENTRY(uls_dialog_password_entry));
+
+    	if ((strcmp (username, "") == 0) || (strcmp (password, "") == 0)) {
+	    	/* No username or password given for login */
+	        GtkWidget *info_dialog;
+
+	    	info_dialog = gtk_message_dialog_new (GTK_WINDOW (user_login_setup_dialog),
+	    	                                      GTK_DIALOG_MODAL,
+	    	                                      GTK_MESSAGE_INFO,
+	    	                                      GTK_BUTTONS_CLOSE,
+	    	                                      "WTF! Username or password missing! ");
+	    	gtk_dialog_run (GTK_DIALOG (info_dialog));
+	        gtk_widget_destroy (info_dialog);
+	        return;
+    	}
 
         deviceProxyLogin = gupnp_device_proxy_begin_login (deviceProxy,
                                                            username,
@@ -122,6 +136,18 @@ continue_login_cb (GUPnPDeviceProxy    *proxy,
             gtk_widget_destroy (info_dialog);
     	    gtk_widget_hide (user_login_setup_dialog);
         }
+}
+
+void
+uls_dialog_logout_clicked (GladeXML *glade_xml)
+{
+
+}
+
+void
+uls_dialog_change_password_clicked (GladeXML *glade_xml)
+{
+
 }
 
 void

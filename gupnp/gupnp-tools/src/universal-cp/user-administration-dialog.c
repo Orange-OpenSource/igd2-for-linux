@@ -210,6 +210,18 @@ deinit_user_administration_dialog (void)
         gtk_widget_destroy (user_admininistration_dialog);
 }
 
+void
+ua_dialog_remove_user (GladeXML *glade_xml)
+{
+	    // TODO: remove selected user from table etc...
+}
+
+void
+ua_dialog_role_setup (GladeXML *glade_xml)
+{
+	    // TODO: role change took place...
+}
+
 /*
  * Add User dialog functions
  */
@@ -220,6 +232,7 @@ start_add_user_dialog (GladeXML *glade_xml)
         gtk_dialog_run (GTK_DIALOG (add_user_dialog));
         gtk_widget_hide (add_user_dialog);
 }
+
 
 void
 add_user_dialog_ok_pressed (GladeXML *glade_xml)
