@@ -949,11 +949,26 @@ gupnp_device_proxy_begin_login (GUPnPDeviceProxy           *proxy,
 {
         GUPnPDeviceProxyLogin *logindata;
         int error;
+        GError *gerror;
 
         g_return_val_if_fail (GUPNP_IS_DEVICE_PROXY (proxy), NULL);
         g_return_val_if_fail (callback, NULL);
         g_return_val_if_fail (username, NULL);
         g_return_val_if_fail (password, NULL);
+
+        // we need to have SSL
+        // so let's create it
+        gupnp_device_proxy_init_ssl (proxy, &gerror);
+
+        if (gupnp_device_proxy_get_ssl_client(proxy) == NULL)
+        {           
+                logindata->error = g_error_new(GUPNP_SERVER_ERROR,
+                             GUPNP_SERVER_ERROR_OTHER,
+                             "For logging in SSL connection is needed.");
+                g_warning("Error: %s", logindata->error->message);
+                return logindata;
+        }
+
 
         logindata = g_slice_new (GUPnPDeviceProxyLogin);
         logindata->proxy = proxy;
