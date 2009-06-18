@@ -22,6 +22,8 @@
 #ifndef __GUPNP_SERVICE_PROXY_H__
 #define __GUPNP_SERVICE_PROXY_H__
 
+#include <libsoup/soup.h>
+
 #include "gupnp-error.h"
 #include "gupnp-service-info.h"
 #include "gupnp-device-proxy.h"
@@ -207,6 +209,13 @@ gupnp_service_proxy_get_subscribed (GUPnPServiceProxy              *proxy);
 void 
 gupnp_service_proxy_set_device_proxy(GUPnPServiceProxy *service_proxy,
                                      GUPnPDeviceProxy *device_proxy);
+
+
+
+void
+ssl_action_got_response (GUPnPSSLClient          *client,
+                         SoupMessage             *msg,
+                         gpointer                userdata);
 
 G_END_DECLS
 

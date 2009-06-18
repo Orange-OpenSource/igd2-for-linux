@@ -454,6 +454,15 @@ gupnp_device_proxy_begin_wps (GUPnPDeviceProxy           *proxy,
         g_return_val_if_fail (callback, NULL);
         g_return_val_if_fail (client_name, NULL);
 
+
+        // we need to have SSL
+        // so let's create it (if not created already)
+        if (!gupnp_device_proxy_init_ssl (proxy, &wps->error))
+        {           
+                g_warning("Error: %s", wps->error->message);
+                return wps;
+        }
+
         wps = g_slice_new (GUPnPDeviceProxyWps);
         wps->proxy = proxy;
         wps->callback = callback;

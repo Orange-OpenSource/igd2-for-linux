@@ -6,8 +6,6 @@
 
 #include <glib-object.h>
 
-//#include "gupnp-context.h"
-
 G_BEGIN_DECLS
 
 #define GUPNP_SSL_PORT  443
@@ -58,7 +56,16 @@ typedef struct {
 } GUPnPSSLClient;
 
 
+typedef struct _GUPnPSSLThreadData GUPnPSSLThreadData;
+// callback funciotn which is called when action returns
+typedef void (* GUPnPSSLClientCallback) (
+                                     GUPnPSSLClient          *client,
+                                     SoupMessage             *msg,
+                                     gpointer                user_data //GUPnPServiceProxyAction
+                                     );
+
 void ssl_create_https_url(const char *http_url, int port, char **https_url);
+
 
 int
 ssl_init_client(  GUPnPSSLClient *client,
@@ -82,12 +89,11 @@ int
 ssl_close_client_session( GUPnPSSLClient *client );                                             
 
 
-int
-ssl_client_send_and_receive(  GUPnPSSLClient *client,
-                            const char *message,
-                            char **response,
-                            SoupMessage *msg);
-
+int ssl_client_send_and_receive(  GUPnPSSLClient *client,
+                                  const char *message,
+                                  SoupMessage *msg,
+                                  GUPnPSSLClientCallback callback,
+                                  gpointer userdata);
 
 /************************************************************************
 *   Function :  clientCertCallback

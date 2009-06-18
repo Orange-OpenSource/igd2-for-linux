@@ -28,7 +28,6 @@
  * #GUPnPServiceInfo interface.
  */
 
-#include <libsoup/soup.h>
 #include <gobject/gvaluecollector.h>
 #include <string.h>
 #include <locale.h>
@@ -671,6 +670,17 @@ action_got_response (SoupSession             *session,
         }
 }
 
+// When SSL client finishes action, this should be called
+void
+ssl_action_got_response (GUPnPSSLClient          *client,
+                         SoupMessage             *msg,
+                         gpointer                userdata)
+{
+    GUPnPServiceProxyAction *action = userdata;
+    
+    action->callback (action->proxy, action, action->user_data);    
+}                         
+
 /* Callback function set in soup_message_headers_foreach. Used for creating string form headers */ 
 static void header_callback(const char *name,
                         const char *value,
@@ -776,18 +786,12 @@ finish_action_msg (GUPnPServiceProxyAction *action,
             g_warning("We do have SSL");
             SoupURI *uri = soup_message_get_uri (action->msg);
             char *message;
-            char *response = NULL;
             create_msg_string(action, uri->path, uri->host, GUPNP_SSL_PORT, &message);
             
-            ssl_client_send_and_receive(client, message, &response, action->msg);
-            //char headers[1000] = "\0";
-            //soup_message_headers_foreach (action->msg->response_headers, (SoupMessageHeadersForeachFunc)header_callback, headers);
-            //g_warning ("RESPONSE HEADERS: '%s'",headers);
-            //g_warning ("RESPONSE: %s",response);
-            g_free(response);
-            
-            action->callback (action->proxy, action, action->user_data);                                                 
-        }
+            ssl_client_send_and_receive(client, message, action->msg, (GUPnPSSLClientCallback)ssl_action_got_response, action);
+
+            //g_free(message);
+		}
 }
 
 /* Writes a parameter name and GValue pair to @msg */

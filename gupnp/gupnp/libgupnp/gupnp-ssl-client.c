@@ -6,7 +6,6 @@
 #include <string.h>
 #include <stdlib.h>
 
-
 #include "pki.h"
 #include "gupnp-ssl-client.h"
 
@@ -127,7 +126,13 @@ ssl_init_client( GUPnPSSLClient *client,
 {
     int retVal;
 
+    // init glib threads
+    if (!g_thread_supported ()) g_thread_init (NULL);
+    
+    // init gnutls and libgcrypt
     retVal = init_crypto_libraries();
+    
+    
     if (retVal != 0) {
         g_warning("Error: %s", "Crypto library initialization failed");
         return retVal;    
@@ -449,32 +454,16 @@ static int parse_headers(SoupMessageHeaders *soup_headers, const char *headers)
 }
 
 
-/**************************************************************************
- * Function: ssl_client_send_and_receive
- *
- * Parameters:
- *  IN  GUPnPSSLClient *client: Client used for sending message. This contains SSL-session
- *  IN  const char *message: Message which is send
- *  IN  char **response: Response for message is returned here as string
- *  IN  SoupMessage *msg: Into this SoupMessage, response information is inserted. This way we can mimic that normal soup-sending and receiving was used
- *
- * Description:
- *  Send and receive using SSL. Tries to mimic for the rest of gupnp normal soup.
- *  Puts response to SoupMessage as soup would have done.
- * 
- *  Problems with this implementation are:
- *      - doesn't support support chunked HTTP
- *      - doesn't support revival from Method Not Allowed status-code
- *      - not sure what happens if something goes wrong... 
- *
- * Return Values: int
- *      0 on success.
- *      
- ***************************************************************************/
-int ssl_client_send_and_receive(  GUPnPSSLClient *client,
-                                        const char *message,
-                                        char **response,
-                                        SoupMessage *msg)
+struct _GUPnPSSLThreadData {
+    GUPnPSSLClient *client;
+    char *message;
+    SoupMessage *soupmesg;
+    GUPnPSSLClientCallback callback;
+    gpointer userdata;     
+};
+
+
+static void *ssl_client_send_and_receive_thread(void *data)
 {
     int headers_ready = 0;
     char *tmp, *body = NULL;
@@ -485,11 +474,24 @@ int ssl_client_send_and_receive(  GUPnPSSLClient *client,
     char recv[len+1];
     int content_len = 0;
 
-    *response = malloc((alloc+1)*sizeof( char* ));
-    **response = '\0';    
+    GUPnPSSLThreadData *ssl_data = data;
+    
+    GUPnPSSLClient *client = ssl_data->client;
+    char *message = ssl_data->message;
+    SoupMessage *msg = ssl_data->soupmesg;
+
+    char *response = malloc((alloc+1)*sizeof( char* ));
+    //char response[alloc+1];
+    *response = '\0';    
+
+
 
     if (client->session == NULL)
-        return GUPNP_E_SESSION_FAIL;
+    {
+        g_free(data);
+        return;// GUPNP_E_SESSION_FAIL;
+    }
+ 
    
     // Send the message
     retVal = gnutls_record_send(client->session, message, strlen(message));
@@ -497,7 +499,8 @@ int ssl_client_send_and_receive(  GUPnPSSLClient *client,
     if (retVal < 0)
     {
         g_warning("Error: gnutls_record_send failed. %s", gnutls_strerror(retVal));
-        return retVal;  
+        g_free(data);
+        return;// retVal;  
     }
     
     // Start receiving until error occurs or whole message is received.
@@ -509,7 +512,8 @@ int ssl_client_send_and_receive(  GUPnPSSLClient *client,
         if (retVal < 0)
         {
             g_warning("Error: gnutls_record_recv failed. %s", gnutls_strerror(retVal));
-            return retVal;
+            g_free(data);
+            return;// retVal;
         }
         else
         { 
@@ -523,34 +527,35 @@ int ssl_client_send_and_receive(  GUPnPSSLClient *client,
             char *new_resp;
             alloc = alloc + retVal + 1;
             
-            new_resp = realloc (*response, alloc);
+            new_resp = realloc (response, alloc);
             if (!new_resp) {
-                return -1; // not enough memory
+                g_free(data);
+                return;// -1; // not enough memory
             }
   
-            *response = new_resp;
+            response = new_resp;
             // because *response may now locate somewhere else than before
             // we need to update location of body.
             // This needs to be done only if headers are parsed already and
             // we are wiating for the body be finished 
-            if (headers_ready && (tmp = strstr(*response, "\r\n\r\n")) != NULL)
+            if (headers_ready && (tmp = strstr(response, "\r\n\r\n")) != NULL)
             {
                 body = tmp + 4; // body of message is everything that comes after "\r\n\r\n"
             }            
         }
          
-        strcat(*response, recv);
-        size = strlen(*response);
+        strcat(response, recv);
+        size = strlen(response);
        
         // receive data until empty line containing only \r\n is received (also previous line must end with \r\n). 
         // That means that headers are done
         // This "parser" doesn't support chunked encoding...    
-        if (!headers_ready && (tmp = strstr(*response, "\r\n\r\n")) != NULL)
+        if (!headers_ready && (tmp = strstr(response, "\r\n\r\n")) != NULL)
         {
             body = tmp + 4; // body of message is everything that comes after "\r\n\r\n". body is just pointer to somewhere in the midle of *response
            
             // add response header values to SoupMessage
-            retVal = parse_headers(msg->response_headers, *response);
+            retVal = parse_headers(msg->response_headers, response);
             if (retVal > 0)
                 // set statuscode to SoupMessage
                 soup_message_set_status (msg, retVal);
@@ -574,7 +579,10 @@ int ssl_client_send_and_receive(  GUPnPSSLClient *client,
             msg->response_body->data = strdup(body);
             msg->response_body->length = strlen(body);
             
-            return 0;
+            g_free(response);
+            
+            ssl_data->callback(client, msg, ssl_data->userdata);
+            return;// 0;
         }
         else
         {
@@ -583,6 +591,61 @@ int ssl_client_send_and_receive(  GUPnPSSLClient *client,
         }
         
     }
-            
-    return retVal;   
+    g_free(data);    
+    return;// retVal; 
+}
+
+/**************************************************************************
+ * Function: ssl_client_send_and_receive
+ *
+ * Parameters:
+ *  IN  GUPnPSSLClient *client: Client used for sending message. This contains SSL-session
+ *  IN  const char *message: Message which is send
+ *  IN  char **response: Response for message is returned here as string
+ *  IN  SoupMessage *msg: Into this SoupMessage, response information is inserted. This way we can mimic that normal soup-sending and receiving was used
+ *
+ * Description:
+ *  Send and receive using SSL. Tries to mimic for the rest of gupnp normal soup.
+ *  Puts response to SoupMessage as soup would have done.
+ * 
+ *  Problems with this implementation are:
+ *      - doesn't support support chunked HTTP
+ *      - doesn't support revival from Method Not Allowed status-code
+ *      - not sure what happens if something goes wrong... 
+ *
+ * Return Values: int
+ *      0 on success.
+ *      
+ ***************************************************************************/                                  
+int ssl_client_send_and_receive(  GUPnPSSLClient *client,
+                                  const char *message,
+                                  SoupMessage *msg,
+                                  GUPnPSSLClientCallback callback,
+                                  gpointer userdata)                                       
+{
+    GError *error = NULL;
+    GThread *ssl_thread = NULL;
+    
+    GUPnPSSLThreadData *data = g_slice_new(GUPnPSSLThreadData);
+    data->client = client;
+    data->message = message;
+    data->soupmesg = msg;
+    data->callback = callback;
+    data->userdata = userdata;
+
+    
+    // create new thread for sending and receiving
+    ssl_thread = g_thread_create  ((GThreadFunc)ssl_client_send_and_receive_thread,
+                                    (void *)data,
+                                    FALSE,
+                                    &error);   
+    
+    if (ssl_thread == NULL)
+    {
+        g_warning("Failed to create thread for SSL sending and receiving. (%s)",error->message);
+        g_error_free (error);
+        return -1;
+    }
+    
+    return 0;
 }
