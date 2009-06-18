@@ -7,6 +7,7 @@
 #include "statusbar.h"
 #include "gui.h"
 #include "device-treeview.h"
+#include "user-login-setup-dialog.h"
 static GtkWidget *statusbar;
 
 void
@@ -19,33 +20,34 @@ statusbar_update (gboolean device_selected)
 	    empty_context_id = gtk_statusbar_get_context_id(GTK_STATUSBAR(statusbar),
 		    	                                        empty_statusbar);
 	    if (device_selected) {
-		    guint user_name_context_id;
-		    guint user_identifier;
-		    const gchar *user_name="Using secure connection";
 		    GUPnPDeviceInfo *info;
 		    GUPnPDeviceProxy *deviceProxy;
 
-		    user_name_context_id = gtk_statusbar_get_context_id(GTK_STATUSBAR(statusbar),
-			                	                                user_name);
-		    // TODO: Check whether connection is secured or not with library call...
-		    // if (wps_connection) {
-		    // TODO: find user name with library call...
 		    info = get_selected_device_info ();
-	    	deviceProxy = GUPNP_DEVICE_PROXY (info);
+		    deviceProxy = GUPNP_DEVICE_PROXY (info);
 
-			/* If SSL client exist, update status bar */
+		    /* If SSL client exist, update status bar */
 		    if (gupnp_device_proxy_get_ssl_client (deviceProxy)) {
-                user_identifier = gtk_statusbar_push(GTK_STATUSBAR(statusbar),
-        		                                     user_name_context_id,
-			                                         user_name);
+			    const gchar *user= "Jaakko";
+			    GString *loginname = g_string_new(user);
+
+   		        get_current_username(loginname);
+	 		    loginname = g_string_new(loginname->str);
+	 		    const gchar *end_text = " is using secure connection";
+	 		    GString * statusbar_output = g_string_append (loginname, end_text);
+            	guint statusbar_output_id = gtk_statusbar_get_context_id (GTK_STATUSBAR(statusbar),
+			 	   												          statusbar_output->str);
+                gtk_statusbar_push (GTK_STATUSBAR(statusbar),
+                		           statusbar_output_id,
+        		                   statusbar_output->str);
+
             } else {
-            	// Clearing statusbar...
 	       	    empty_identifier = gtk_statusbar_push(GTK_STATUSBAR(statusbar),
 	    		                                      empty_context_id,
 		                                              empty_statusbar);
             }
 	    } else {
-	        empty_identifier = gtk_statusbar_push(GTK_STATUSBAR(statusbar),
+	        empty_identifier = gtk_statusbar_push (GTK_STATUSBAR(statusbar),
 	    	    	                              empty_context_id,
 		                                          empty_statusbar);
 	    }

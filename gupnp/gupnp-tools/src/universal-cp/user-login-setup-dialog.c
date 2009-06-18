@@ -15,6 +15,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <config.h>
+#include <glib.h>
 
 #include "gui.h"
 #include "user-login-setup-dialog.h"
@@ -28,6 +29,15 @@ static GtkWidget *uls_dialog_password_entry;
 static GtkWidget *uls_dialog_change_password_button;
 static GtkWidget *uls_dialog_logout_button;
 static GtkWidget *uls_dialog_login_button;
+
+const gchar *current_username="";
+
+void
+get_current_username(GString *current_user)
+{
+    GString *user = g_string_new(current_username);
+	current_user->str = user->str;
+}
 
 void
 start_user_login_setup (GladeXML *glade_xml)
@@ -80,6 +90,7 @@ uls_dialog_login_clicked (GladeXML *glade_xml)
 	    	                                      "WTF! Username or password missing! ");
 	    	gtk_dialog_run (GTK_DIALOG (info_dialog));
 	        gtk_widget_destroy (info_dialog);
+
 	        return;
     	}
 
@@ -122,6 +133,10 @@ continue_login_cb (GUPnPDeviceProxy       *proxy,
 
         if (gupnp_device_proxy_end_login(logindata, loginname)) {
             // User login successfully formed
+        	// Save current username
+
+        	current_username = loginname->str;
+
             GtkWidget *info_dialog;
 
             info_dialog = gtk_message_dialog_new (GTK_WINDOW (user_login_setup_dialog),

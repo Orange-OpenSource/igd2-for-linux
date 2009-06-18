@@ -29,4 +29,8 @@ continue_logout_cb (GUPnPDeviceProxy        *proxy,
                     GError                 **error,
                     gpointer                 user_data);
 
+void
+get_current_username(GString *current_user);
+
+
 #endif /* USERLOGINSETUPDIALOG_H_ */
