@@ -8,7 +8,9 @@
 
 G_BEGIN_DECLS
 
-#define GUPNP_SSL_PORT  443
+#define GUPNP_SSL_PORT     443
+#define GUPNP_CERT_STORE  ".gupnp" // this is concatenated with users home dir, currently accepted directory depth is 1
+#define GUPNP_CERT_CN      "GUPNP Client"
 
 /*
 GType

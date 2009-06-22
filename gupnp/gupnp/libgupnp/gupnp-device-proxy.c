@@ -707,7 +707,15 @@ gupnp_device_proxy_create_and_init_ssl_client (GUPnPDeviceProxy *proxy,
             return -1;
         }
 
-        ret = ssl_init_client(proxy->priv->ssl_client,"./certstore/",NULL,NULL,NULL,NULL, "GUPNP Client");
+        // get home dir
+        const char *homedir = g_getenv ("HOME");
+        if (!homedir)
+            homedir = g_get_home_dir ();
+
+        const char *fullCertStore = g_build_path(G_DIR_SEPARATOR_S, homedir, GUPNP_CERT_STORE, NULL);
+
+        ret = ssl_init_client(proxy->priv->ssl_client, fullCertStore ,NULL,NULL,NULL,NULL, GUPNP_CERT_CN);
+        g_free(fullCertStore);
         if (ret != 0)
         {
             g_warning("Failed init SSL client");
@@ -761,6 +769,8 @@ gupnp_device_proxy_get_ssl_client (GUPnPDeviceProxy *proxy)
 
         if (proxy->priv->root_proxy)
             return proxy->priv->root_proxy->priv->ssl_client;
+            
+        return NULL;
 }
 
 

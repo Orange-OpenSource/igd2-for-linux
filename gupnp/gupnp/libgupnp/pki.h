@@ -15,22 +15,22 @@
 
 /* default file for client certificate storing */
 #ifndef GUPNP_X509_CLIENT_CERT_FILE
-#define GUPNP_X509_CLIENT_CERT_FILE      "libupnpX509.pem"
+#define GUPNP_X509_CLIENT_CERT_FILE      "gupnpX509.pem"
 #endif
 
 /* default file for client private key storing */
 #ifndef GUPNP_X509_CLIENT_PRIVKEY_FILE
-#define GUPNP_X509_CLIENT_PRIVKEY_FILE      "libupnpX509.pem"
+#define GUPNP_X509_CLIENT_PRIVKEY_FILE      "gupnpX509.pem"
 #endif
 
 /* default file for server certificate storing */
 #ifndef GUPNP_X509_SERVER_CERT_FILE
-#define GUPNP_X509_SERVER_CERT_FILE      "libupnpX509server.pem"
+#define GUPNP_X509_SERVER_CERT_FILE      "gupnpX509server.pem"
 #endif
 
 /* default file for server private key storing */
 #ifndef GUPNP_X509_SERVER_PRIVKEY_FILE
-#define GUPNP_X509_SERVER_PRIVKEY_FILE      "libupnpX509server.pem"
+#define GUPNP_X509_SERVER_PRIVKEY_FILE      "gupnpX509server.pem"
 #endif
 
 /* Used X.509 certificate version */

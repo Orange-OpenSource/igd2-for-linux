@@ -298,7 +298,7 @@ static int create_new_certificate(gnutls_x509_crt_t *crt, gnutls_x509_privkey_t 
     // create dir if doesn't exist yet
     ret = mkdir(directory, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
     if (ret != 0 && errno != EEXIST) {
-        g_warning("Error: Failed to create certificate directory %s", directory );
+        g_warning("Error: Failed to create certificate directory %s (%s)", directory, strerror(errno) );
         return GUPNP_E_FILE_NOT_FOUND;  
     }
     
