@@ -31,6 +31,7 @@
 #include <string.h>
 #include <wpsutil/registrar_state_machine.h>
 #include <wpsutil/base64mem.h>
+#include <wpsutil/cryptoutil.h>
 
 #include "gupnp-device-proxy.h"
 #include "gupnp-device-info-private.h"
