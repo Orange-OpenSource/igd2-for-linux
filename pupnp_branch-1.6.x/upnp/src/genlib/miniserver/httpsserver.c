@@ -455,7 +455,7 @@ handle_https_request(void *args)
 
     // this loop serves one SSL session
     while (TRUE) {
-        memset (buf, 0, MAX_BUF + 1);
+        memset (buf, 0, MAX_BUF);
         num_read = gnutls_record_recv (session, buf, MAX_BUF);
         if (num_read > 0) {            
             // got data        
@@ -515,7 +515,8 @@ handle_https_request(void *args)
             line = __LINE__;
             ret = num_read;
             UpnpPrintf( UPNP_INFO, HTTP, __FILE__, __LINE__,
-                    "(handle_https_request): gnutls received corrupted data\n");                
+                    "(handle_https_request): gnutls received corrupted data\n");
+            session = NULL;         // session may not exist anymore           
             goto ExitFunction;
         }
     }
