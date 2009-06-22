@@ -29,11 +29,16 @@ statusbar_update (gboolean device_selected)
 		    /* If SSL client exist, update status bar */
 		    if (gupnp_device_proxy_get_ssl_client (deviceProxy)) {
 			    const gchar *user= "Jaakko";
+			    const gchar *end_text;
 			    GString *loginname = g_string_new(user);
 
    		        get_current_username(loginname);
 	 		    loginname = g_string_new(loginname->str);
-	 		    const gchar *end_text = " is using secure connection";
+	 		    if (strcmp (loginname->str, "") == 0) {
+	 		    	end_text = " Using secure connection ";
+	 		    } else {
+	 		    	end_text = " is using secure connection";
+	 		    }
 	 		    GString * statusbar_output = g_string_append (loginname, end_text);
             	guint statusbar_output_id = gtk_statusbar_get_context_id (GTK_STATUSBAR(statusbar),
 			 	   												          statusbar_output->str);

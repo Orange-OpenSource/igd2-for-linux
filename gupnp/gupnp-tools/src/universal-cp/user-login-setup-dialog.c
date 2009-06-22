@@ -19,7 +19,9 @@
 
 #include "gui.h"
 #include "user-login-setup-dialog.h"
+#include "statusbar.h"
 #include "main.h"
+
 
 static GtkWidget *user_login_setup_dialog;
 static GtkWidget *uls_dialog_username_label;
@@ -148,6 +150,7 @@ continue_login_cb (GUPnPDeviceProxy       *proxy,
             gtk_dialog_run (GTK_DIALOG (info_dialog));
             gtk_widget_destroy (info_dialog);
     	    gtk_widget_hide (user_login_setup_dialog);
+    	    statusbar_update (TRUE);
         }
 }
 
