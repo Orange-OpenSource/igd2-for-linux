@@ -981,7 +981,6 @@ gupnp_device_proxy_begin_login (GUPnPDeviceProxy           *proxy,
                                 gpointer                    user_data)
 {
         GUPnPDeviceProxyLogin *logindata;
-        int error;
         GError *gerror;
 
         g_return_val_if_fail (GUPNP_IS_DEVICE_PROXY (proxy), NULL);
@@ -1095,7 +1094,6 @@ gupnp_device_proxy_begin_logout (GUPnPDeviceProxy           *proxy,
                                  gpointer                    user_data)
 {
         GUPnPDeviceProxyLogout *logoutdata;
-        int error;
         GError *gerror;
 
         g_return_val_if_fail (GUPNP_IS_DEVICE_PROXY (proxy), NULL);
