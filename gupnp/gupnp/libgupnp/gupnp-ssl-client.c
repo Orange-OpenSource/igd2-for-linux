@@ -125,9 +125,6 @@ ssl_init_client( GUPnPSSLClient *client,
                  const char *devName)
 {
     int retVal;
-
-    // init glib threads
-    if (!g_thread_supported ()) g_thread_init (NULL);
     
     // init gnutls and libgcrypt
     retVal = init_crypto_libraries();
