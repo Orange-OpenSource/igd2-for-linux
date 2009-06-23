@@ -567,7 +567,7 @@ static void *ssl_client_send_and_receive_thread(void *data)
             
         }
 
-        if (headers_ready && body != NULL && strlen(body) >= content_len) // TODO ei voi ottaa strlen' koska ei välttämättä nulia lopussa
+        if (headers_ready && body != NULL && strlen(body) >= content_len)
         {   
             body[content_len] = '\0';
             // body should be ready    

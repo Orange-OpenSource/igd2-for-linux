@@ -65,9 +65,9 @@ struct _GUPnPDeviceProxyWps {
         guint    method;
         gboolean done;
 
-        // WPSutil structures
+        // WPSutil structures       
+        WPSuRegistrarInput *wpsu_input;
         WPSuRegistrarSM   *wpsu_rsm;
-        WPSuRegistrarInput wpsu_input;
         unsigned char     *wpsu_registrar_send_msg;
         int                wpsu_registrar_send_msg_len;
         unsigned char      uuid[WPSU_MAX_UUID_LEN];
@@ -474,6 +474,8 @@ gupnp_device_proxy_begin_wps (GUPnPDeviceProxy           *proxy,
         wps->pin = g_string_new(pin);
         wps->method = method;
         wps->done = FALSE;
+        wps->wpsu_input = g_slice_new(WPSuRegistrarInput);
+
 
         if (wps->method == GUPNP_DEVICE_WPS_METHOD_PUSHBUTTON)
         {
@@ -496,7 +498,7 @@ gupnp_device_proxy_begin_wps (GUPnPDeviceProxy           *proxy,
         strncpy((char *)wps->uuid, gupnp_device_info_get_udn (GUPNP_DEVICE_INFO (proxy)), WPSU_MAX_UUID_LEN);
         wps->uuid[WPSU_MAX_UUID_LEN-1] = 0;
 
-        error = wpsu_registrar_input_add_device_info (&wps->wpsu_input,
+        error = wpsu_registrar_input_add_device_info (wps->wpsu_input,
                                                        wps->pin->str, //device_pin
                                                        NULL,
                                                        NULL,
@@ -535,7 +537,7 @@ gupnp_device_proxy_begin_wps (GUPnPDeviceProxy           *proxy,
                 return wps;
         }
 
-        wpsu_start_registrar_sm(wps->wpsu_rsm, &wps->wpsu_input, &error);
+        wpsu_start_registrar_sm(wps->wpsu_rsm, wps->wpsu_input, &error);
         if (error != WPSU_E_SUCCESS)
         {
                 wps->error = g_error_new(GUPNP_SERVER_ERROR,
@@ -567,7 +569,7 @@ gupnp_device_proxy_continue_wps (GUPnPDeviceProxyWps        *wps,
                                  gpointer                    user_data)
 {
         // TODO: wps messages m2..m8
-        int error = wpsu_registrar_input_add_device_info (&wps->wpsu_input,
+        int error = wpsu_registrar_input_add_device_info (wps->wpsu_input,
                                                        pin->str,
                                                        NULL,
                                                        NULL,
@@ -629,10 +631,10 @@ gupnp_device_proxy_end_wps (GUPnPDeviceProxyWps *wps)
         g_string_free(wps->pin, TRUE);
         //g_string_free(wps->device_name, TRUE);
 
-        wpsu_registrar_input_free(&wps->wpsu_input);
+        wpsu_registrar_input_free(wps->wpsu_input);
         wpsu_cleanup_registrar_sm(wps->wpsu_rsm, &err);
-
-        g_free(wps);
+        
+        //g_free(wps);
 
         return done;
 }
@@ -712,7 +714,7 @@ gupnp_device_proxy_create_and_init_ssl_client (GUPnPDeviceProxy *proxy,
         if (!homedir)
             homedir = g_get_home_dir ();
 
-        const char *fullCertStore = g_build_path(G_DIR_SEPARATOR_S, homedir, GUPNP_CERT_STORE, NULL);
+        char *fullCertStore = g_build_path(G_DIR_SEPARATOR_S, homedir, GUPNP_CERT_STORE, NULL);
 
         ret = ssl_init_client(proxy->priv->ssl_client, fullCertStore ,NULL,NULL,NULL,NULL, GUPNP_CERT_CN);
         g_free(fullCertStore);
