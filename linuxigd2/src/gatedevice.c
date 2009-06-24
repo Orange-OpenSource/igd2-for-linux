@@ -293,8 +293,8 @@ int HandleActionRequest(struct Upnp_Action_Request *ca_event)
                 result = AddUserLoginData(ca_event); 
             else if (strcmp(ca_event->ActionName,"RemoveUserLoginData") == 0)
                 result = RemoveUserLoginData(ca_event); 
-            else if (strcmp(ca_event->ActionName,"AddCPIdentityData") == 0)
-                result = AddCPIdentityData(ca_event); 
+            else if (strcmp(ca_event->ActionName,"AddIdentityList") == 0)
+                result = AddIdentityList(ca_event); 
             else if (strcmp(ca_event->ActionName,"RemoveCPIdentityData") == 0)
                 result = RemoveCPIdentityData(ca_event);
             else if (strcmp(ca_event->ActionName,"SetCPIdentityAlias") == 0)

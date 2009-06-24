@@ -1621,53 +1621,41 @@ int ACL_removeRolesFromCP(IXML_Document *doc, const char *id, const char *roles)
 
 
 /**
- * Validates given ixml document (identitiesDoc) which contains new CP's to add to ACL.
- * Validation checks that CP's doesn't contain 'RoleList' elements or 'introduced' attributes 
- * with value '1'.
- * Then add's all CP's to ACL. 
+ * This doesn't actually do much validating anymore. It adds all CP's and User's it found
+ * from identitiesDoc to ACL. If admin is true, then also Alias and RoleList values are tried to 
+ * read from identitiesDoc. Else NULL and 'Public' values are used.
  * 
- * This function is used by AddCPIdentityData() action.
+ * This function is used by AddIdentityList() action.
+ * 
+ * <Identities>
+ * <CP>
+ *    <Name>Vendor X Device</Name>
+ *    <Alias>Joe’s phone</Alias>
+ *    <ID>e593d8e6-6b8b-49d9-845a-21828db570e9</ID>
+ * </CP>
+ * <CP>…</CP>
+ * <User>
+ *    <Name>Mika</Name>
+ * </User>
+ * </Identities>
+ * 
  * 
  * @param doc ACL IXML_Document
  * @param identitiesDoc IXML_Document which contains new CP-elements to add to ACL
+ * @param admin Is identitiesDoc handled with admin rights
  * @return upnp error codes:
  *         0 on succes,
  *         707 if identitiesDoc contains invalid values
  *         501 if processing error occurs
  */
-int ACL_validateListAndUpdateACL(IXML_Document *ACLdoc, IXML_Document *identitiesDoc)
+int ACL_validateListAndUpdateACL(IXML_Document *ACLdoc, IXML_Document *identitiesDoc, int admin)
 {
     int result;
     IXML_Node *tmpNode = NULL;
-    IXML_NodeList *nodeList = NULL;
     char *name = NULL;
     char *id = NULL;
-    
-    nodeList = ixmlDocument_getElementsByTagName( identitiesDoc, "RoleList" );
-    // list must not contain RoleList elements
-    if (nodeList != NULL)
-    {
-        trace(2,"(ACL) CP must not contain 'RoleList' element");
-        ixmlNodeList_free( nodeList );
-        return 707;       
-    }
-
-    nodeList = ixmlDocument_getElementsByTagName( identitiesDoc, "Alias" );
-    // list must not contain RoleList elements
-    if (nodeList != NULL)
-    {
-        trace(2,"(ACL) CP must not contain 'Alias' element");
-        ixmlNodeList_free( nodeList );
-        return 707;       
-    }
-    
-    tmpNode = GetNodeWithNameAndAttribute(identitiesDoc, "CP", "introduced", "1");
-    // list must not contain CP element with attribute introduced with value 1
-    if (tmpNode != NULL)
-    {
-        trace(2,"(ACL) CP must not contain attribute 'introduced' with value '1'");
-        return 707;       
-    }    
+    char *alias = NULL;
+    char *rolelist =NULL;
 
     // let's start adding new CP's to ACL
     // get first ID from new list 
@@ -1678,12 +1666,25 @@ int ACL_validateListAndUpdateACL(IXML_Document *ACLdoc, IXML_Document *identitie
         
         if (name == NULL)
         {
-            trace(2,"(ACL) Name must be given for CP");
-            return 707;
+            trace(2,"(ACL) Name must be given for CP. Skip.");
+            continue;
+            //return 707;
+        }
+        
+        // if admin, try to get Alias and RoleList values
+        if (admin)
+        {
+            alias = GetTextValueOfNode( GetSiblingWithTagName(tmpNode, "Alias") );
+            rolelist = GetTextValueOfNode( GetSiblingWithTagName(tmpNode, "RoleList") );
+        }
+        else
+        {
+            alias = NULL;
+            rolelist = "Public";
         }
             
         // just try to add new
-        result = ACL_addCP(ACLdoc, name, NULL, id, "Public", 0);
+        result = ACL_addCP(ACLdoc, name, alias, id, rolelist, 0);
 
         // if same CP already exists, it is OK for us. All we care if something else has gone wrong      
         if (result != ACL_USER_ERROR && result != ACL_SUCCESS)
@@ -1695,10 +1696,42 @@ int ACL_validateListAndUpdateACL(IXML_Document *ACLdoc, IXML_Document *identitie
         // remove node from identitiesDoc, so we can proceed to next one (if there is one)
         RemoveNode(tmpNode);
     }
-    
-    
-    if ( nodeList )
-        ixmlNodeList_free( nodeList );  
+
+    // let's start adding new usernames to ACL
+    // get first User from new list 
+    while ( (tmpNode = GetNode(identitiesDoc, "User")) != NULL )
+    {
+        id = GetTextValueOfNode(tmpNode);
+        name = GetTextValueOfNode( GetSiblingWithTagName(tmpNode, "Name") );
+        
+        if (name == NULL)
+        {
+            trace(2,"(ACL) Name must be given for User. Skip.");
+            continue;
+            //return 707;
+        }
+        // if admin, try to get RoleList value
+        if (admin)
+        {
+            rolelist = GetTextValueOfNode( GetSiblingWithTagName(tmpNode, "RoleList") );
+        }
+        else
+        {
+            rolelist = "Public";
+        }            
+        // just try to add new
+        result = ACL_addUser(ACLdoc, name, rolelist);
+
+        // if same User already exists, it is OK for us. All we care if something else has gone wrong      
+        if (result != ACL_USER_ERROR && result != ACL_SUCCESS)
+        {
+            trace(2,"(ACL) Failed to add new User. Name: '%s'",name);
+            return 501;
+        }
+        
+        // remove node from identitiesDoc, so we can proceed to next one (if there is one)
+        RemoveNode(tmpNode);
+    }
         
     return 0;  
 }

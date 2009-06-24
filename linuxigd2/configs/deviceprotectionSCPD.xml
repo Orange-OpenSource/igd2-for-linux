@@ -163,7 +163,7 @@
       </argumentList>
     </action>  
     <action>
-      <name>AddCPIdentityData</name>
+      <name>AddIdentityList</name>
       <argumentList> 
         <argument>
           <name>IdentityList</name> 

@@ -1993,14 +1993,17 @@ int RemoveUserLoginData(struct Upnp_Action_Request *ca_event)
 
 
 /**
- * DeviceProtection:1 Action: AddCPIdentityData.
+ * DeviceProtection:1 Action: AddIdentityList.
  *
  * @param ca_event Upnp event struct.
  * @return Upnp error code.
  */
-int AddCPIdentityData(struct Upnp_Action_Request *ca_event)
+int AddIdentityList(struct Upnp_Action_Request *ca_event)
 {
     int result = 0;
+    int admin_handling = 0;
+    int len;
+    char *identifier = NULL;
     char *identitylist = NULL;
     IXML_Document *identitiesDoc = NULL;
     
@@ -2023,16 +2026,40 @@ int AddCPIdentityData(struct Upnp_Action_Request *ca_event)
         }
         else
         {
-            // validate contents of list and new CP's to ACL
-            result = ACL_validateListAndUpdateACL(ACLDoc, identitiesDoc);
-            if (result == 707)
+            // because how IdentityList is handled is based on role of CP sending this action
+            // we need to check if CP has Admin rights. If Admin rights exist, RoleList and Alias
+            // elements are used, else they are ignored 
+            
+            // get identifier of CP 
+            result = getIdentifierOfCP(ca_event, &identifier, &len, NULL);
+            if (result != 0 )
             {
-                addErrorData(ca_event, result, "Invalid Parameter");
-            } 
-            else if (result != 0)
-            {
+                trace(1, "%s: Failed to get identifier of CP",ca_event->ActionName);
                 result = 501;
-                addErrorData(ca_event, result, "Action Failed");
+                addErrorData(ca_event, result, "Action Failed");                
+            }
+            else
+            {
+                if ( ACL_doesIdentityHasRole(ACLDoc, identifier, "Admin") == 1 )
+                {
+                    admin_handling = 1;
+                }
+                else
+                {
+                    admin_handling = 0;
+                }
+            
+                // validate contents of list and add new identities to ACL
+                result = ACL_validateListAndUpdateACL(ACLDoc, identitiesDoc, admin_handling);
+                if (result == 707)
+                {
+                    addErrorData(ca_event, result, "Invalid Parameter");
+                } 
+                else if (result != 0)
+                {
+                    result = 501;
+                    addErrorData(ca_event, result, "Action Failed");
+                }
             }    
         }
         

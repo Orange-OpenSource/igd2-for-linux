@@ -245,8 +245,8 @@
                 <accessLevel>Admin</accessLevel>
             </action>
             <action>
-                <name>AddCPIdentityData</name>
-                <accessLevel>Admin</accessLevel>
+                <name>AddIdentityList</name>
+                <accessLevel>Basic</accessLevel>
             </action>
             <action>
                 <name>RemoveCPIdentityData</name>
