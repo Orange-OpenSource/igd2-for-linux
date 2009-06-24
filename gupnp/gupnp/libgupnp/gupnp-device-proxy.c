@@ -314,6 +314,17 @@ wps_got_response (GUPnPServiceProxy       *proxy,
                                  &wps->wpsu_registrar_send_msg_len,
                                  &status, &err);
 
+        if (err != 0 || wps->wpsu_registrar_send_msg_len <= 0)
+        {
+                wps->error = g_error_new(GUPNP_SERVER_ERROR,
+                                         GUPNP_SERVER_ERROR_OTHER,
+                                         "DeviceProtection introduction failed to update state machine (%d). Terminating...",err);
+                g_warning("Error: %s", wps->error->message);
+
+                wps->callback(wps->proxy, wps, wps->device_name, &wps->error, wps->user_data);
+                return;           
+        }
+
         int maxb64len = 2 * wps->wpsu_registrar_send_msg_len;
         int b64len;
         unsigned char *base64msg = (unsigned char *)g_malloc(maxb64len);
