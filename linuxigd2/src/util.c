@@ -1513,6 +1513,50 @@ int ACL_removeCP(IXML_Document *doc, const char *id)
 
 
 /**
+ * Add roles for given identity in ACL xml.
+ * Identity might be
+ * <CP><ID>9a43d8e6-3b8b-449d-812e-a13986b2b090</ID></CP>
+ * or
+ * <User><Name>Mika</Name></User>
+ * 
+ * 
+ * @param ACLdoc ACL IXML_Document
+ * @param identityDoc IXML_Document containing identity for which roles are added
+ * @param roles Space-separated string of rolenames which are added for user (Admin Basic)
+ * @return 0 on succes,
+ *         ACL_USER_ERROR if identity is not found, 
+ *         ACL_ROLE_ERROR if rolelist has invalid role
+ *         ACL_COMMON_ERROR else
+ */
+int ACL_addRolesForIdentity(IXML_Document *ACLdoc, IXML_Document *identityDoc, const char *roles)
+{
+    int result = -1;
+    char *id = NULL;
+
+    id = GetFirstDocumentItem(identityDoc, "ID");
+    if ( id == NULL )
+    {
+        id = GetFirstDocumentItem(identityDoc, "Name");
+        if ( id == NULL )
+        {
+            // identityDoc is invalid
+            return ACL_COMMON_ERROR;
+        }
+        else
+        {
+            result = ACL_addRolesForUser(ACLdoc, id, roles);
+        }               
+    }
+    else
+    {
+        result = ACL_addRolesForCP(ACLdoc, id, roles);
+    }
+    
+    return result;
+}
+
+
+/**
  * Add roles for User in ACL xml.
  * 
  * @param doc ACL IXML_Document
@@ -1575,6 +1619,50 @@ int ACL_addRolesForCP(IXML_Document *doc, const char *id, const char *roles)
     }    
     
     return ACL_addRolesToRoleList(doc, tmpNode, roles);
+}
+
+
+/**
+ * Remove roles from given identity in ACL xml.
+ * Identity might be
+ * <CP><ID>9a43d8e6-3b8b-449d-812e-a13986b2b090</ID></CP>
+ * or
+ * <User><Name>Mika</Name></User>
+ * 
+ * 
+ * @param ACLdoc ACL IXML_Document
+ * @param identityDoc IXML_Document containing identity for which roles are added
+ * @param roles Space-separated string of rolenames which are added for user (Admin Basic)
+ * @return 0 on succes,
+ *         ACL_USER_ERROR if identity is not found, 
+ *         ACL_ROLE_ERROR if rolelist has invalid role
+ *         ACL_COMMON_ERROR else
+ */
+int ACL_removeRolesFromIdentity(IXML_Document *ACLdoc, IXML_Document *identityDoc, const char *roles)
+{
+    int result = -1;
+    char *id = NULL;
+
+    id = GetFirstDocumentItem(identityDoc, "ID");
+    if ( id == NULL )
+    {
+        id = GetFirstDocumentItem(identityDoc, "Name");
+        if ( id == NULL )
+        {
+            // identityDoc is invalid
+            return ACL_COMMON_ERROR;
+        }
+        else
+        {
+            result = ACL_removeRolesFromUser(ACLdoc, id, roles);
+        }               
+    }
+    else
+    {
+        result = ACL_removeRolesFromCP(ACLdoc, id, roles);
+    }
+    
+    return result;
 }
 
 

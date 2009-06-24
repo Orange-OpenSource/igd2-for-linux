@@ -1543,6 +1543,7 @@ int AddRolesForIdentity(struct Upnp_Action_Request *ca_event)
     int result = 0;
     char *identity = NULL;
     char *rolelist = NULL;
+    IXML_Document *identityDoc = NULL;
     
         // TODO remove this from comments
 /*    if (ca_event->SSLSession == NULL)
@@ -1555,15 +1556,16 @@ int AddRolesForIdentity(struct Upnp_Action_Request *ca_event)
     else*/if ( (identity = GetFirstDocumentItem(ca_event->ActionRequest, "Identity") )
             && (rolelist = GetFirstDocumentItem(ca_event->ActionRequest, "RoleList") ))
     {
-        // try first to add roles for username
-        result = ACL_addRolesForUser(ACLDoc, identity, rolelist);
-
-        if (result == ACL_USER_ERROR)
+        identityDoc = ixmlParseBuffer(identity);
+        if (identityDoc == NULL)
         {
-            // identity wasn't username, so it must be control point hash
-            result = ACL_addRolesForCP(ACLDoc, identity, rolelist);
+            trace(1, "%s: Failed to parse Identity xml '%s'",ca_event->ActionName, identity);
+            result = 501;
+            addErrorData(ca_event, result, "Action Failed");
         }
         
+        // add roles for identity which is found from identityDoc
+        result = ACL_addRolesForIdentity(ACLDoc, identityDoc, rolelist);        
         if (result == ACL_USER_ERROR)
         {
             // ok, identity wasn't username or hash
@@ -1601,7 +1603,8 @@ int AddRolesForIdentity(struct Upnp_Action_Request *ca_event)
         trace(1, "  Identity: %s, RoleList: %s",identity,rolelist);
         addErrorData(ca_event, 402, "Invalid Args");
     }
-  
+    
+    if (identityDoc) ixmlDocument_free(identityDoc);
     if (identity) free(identity);
     if (rolelist) free(rolelist);
     
@@ -1621,6 +1624,7 @@ int RemoveRolesForIdentity(struct Upnp_Action_Request *ca_event)
     int result = 0;
     char *identity = NULL;
     char *rolelist = NULL;
+    IXML_Document *identityDoc = NULL;
     
         // TODO remove this from comments
 /*    if (ca_event->SSLSession == NULL)
@@ -1633,14 +1637,16 @@ int RemoveRolesForIdentity(struct Upnp_Action_Request *ca_event)
     else*/if ( (identity = GetFirstDocumentItem(ca_event->ActionRequest, "Identity") )
             && (rolelist = GetFirstDocumentItem(ca_event->ActionRequest, "RoleList") ))
     {       
-        // try first to remove roles from username
-        result = ACL_removeRolesFromUser(ACLDoc, identity, rolelist);
-        if (result == ACL_USER_ERROR)
+        identityDoc = ixmlParseBuffer(identity);
+        if (identityDoc == NULL)
         {
-            // identity wasn't username, so it must be control point hash
-            result = ACL_removeRolesFromCP(ACLDoc, identity, rolelist);
+            trace(1, "%s: Failed to parse Identity xml '%s'",ca_event->ActionName, identity);
+            result = 501;
+            addErrorData(ca_event, result, "Action Failed");
         }
         
+        // remove roles from identity which is found from identityDoc
+        result = ACL_removeRolesFromIdentity(ACLDoc, identityDoc, rolelist);
         if (result == ACL_USER_ERROR)
         {
             // ok, identity wasn't username or hash
@@ -1679,6 +1685,7 @@ int RemoveRolesForIdentity(struct Upnp_Action_Request *ca_event)
         addErrorData(ca_event, 402, "Invalid Args");
     }
   
+    if (identityDoc) ixmlDocument_free(identityDoc);
     if (identity) free(identity);
     if (rolelist) free(rolelist);
     
