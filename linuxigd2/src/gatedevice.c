@@ -275,6 +275,8 @@ int HandleActionRequest(struct Upnp_Action_Request *ca_event)
                 result = SendSetupMessage(ca_event);
             else if (strcmp(ca_event->ActionName,"GetSupportedProtocols") == 0)
                 result = GetSupportedProtocols(ca_event);
+            else if (strcmp(ca_event->ActionName,"GetCurrentRoles") == 0)
+                result = GetCurrentRoles(ca_event);                 
             else if (strcmp(ca_event->ActionName,"GetUserLoginChallenge") == 0)
                 result = GetUserLoginChallenge(ca_event);
             else if (strcmp(ca_event->ActionName,"UserLogin") == 0)
@@ -282,23 +284,17 @@ int HandleActionRequest(struct Upnp_Action_Request *ca_event)
             else if (strcmp(ca_event->ActionName,"UserLogout") == 0)
                 result = UserLogout(ca_event);
             else if (strcmp(ca_event->ActionName,"GetACLData") == 0)
-                result = GetACLData(ca_event);
+                result = GetACLData(ca_event); 
+            else if (strcmp(ca_event->ActionName,"AddIdentityList") == 0)
+                result = AddIdentityList(ca_event); 
+            else if (strcmp(ca_event->ActionName,"RemoveIdentity") == 0)
+                result = RemoveIdentity(ca_event);
             else if (strcmp(ca_event->ActionName,"AddRolesForIdentity") == 0)
                 result = AddRolesForIdentity(ca_event);
             else if (strcmp(ca_event->ActionName,"RemoveRolesForIdentity") == 0)
                 result = RemoveRolesForIdentity(ca_event);                
-            else if (strcmp(ca_event->ActionName,"GetCurrentRoles") == 0)
-                result = GetCurrentRoles(ca_event); 
-            else if (strcmp(ca_event->ActionName,"AddUserLoginData") == 0)
-                result = AddUserLoginData(ca_event); 
-            else if (strcmp(ca_event->ActionName,"RemoveUserLoginData") == 0)
-                result = RemoveUserLoginData(ca_event); 
-            else if (strcmp(ca_event->ActionName,"AddIdentityList") == 0)
-                result = AddIdentityList(ca_event); 
-            else if (strcmp(ca_event->ActionName,"RemoveCPIdentityData") == 0)
-                result = RemoveCPIdentityData(ca_event);
-            else if (strcmp(ca_event->ActionName,"SetCPIdentityAlias") == 0)
-                result = SetCPIdentityAlias(ca_event);                
+            else if (strcmp(ca_event->ActionName,"SetUserLoginPassword") == 0)
+                result = SetUserLoginPassword(ca_event);              
             else
             {
                 trace(1, "Invalid Action Request : %s",ca_event->ActionName);

@@ -128,13 +128,8 @@
       </argumentList>
     </action>
     <action>
-      <name>AddUserLoginData</name> 
+      <name>SetUserLoginPassword</name> 
       <argumentList>
-        <argument>
-          <name>Flags</name> 
-          <direction>in</direction> 
-          <relatedStateVariable>A_ARG_TYPE_int</relatedStateVariable> 
-        </argument>
        <argument>
           <name>Name</name> 
           <direction>in</direction> 
@@ -153,16 +148,6 @@
       </argumentList>
     </action>  
     <action>
-      <name>RemoveUserLoginData</name> 
-      <argumentList>
-       <argument>
-          <name>Name</name> 
-          <direction>in</direction> 
-          <relatedStateVariable>A_ARG_TYPE_string</relatedStateVariable> 
-        </argument>
-      </argumentList>
-    </action>  
-    <action>
       <name>AddIdentityList</name>
       <argumentList> 
         <argument>
@@ -173,20 +158,10 @@
       </argumentList>
     </action>
     <action>
-      <name>SetCPIdentityAlias</name>
+      <name>RemoveIdentity</name>
       <argumentList> 
         <argument>
           <name>Identity</name> 
-          <direction>in</direction> 
-          <relatedStateVariable>A_ARG_TYPE_string </relatedStateVariable> 
-        </argument>        
-      </argumentList>
-    </action>  
-    <action>
-      <name>RemoveCPIdentityData</name>
-      <argumentList> 
-        <argument>
-          <name>IdentityList</name> 
           <direction>in</direction> 
           <relatedStateVariable>A_ARG_TYPE_string</relatedStateVariable> 
         </argument>        

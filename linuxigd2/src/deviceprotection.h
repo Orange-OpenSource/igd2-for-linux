@@ -54,10 +54,8 @@ int GetACLData(struct Upnp_Action_Request *ca_event);
 int AddRolesForIdentity(struct Upnp_Action_Request *ca_event);
 int RemoveRolesForIdentity(struct Upnp_Action_Request *ca_event);
 int GetCurrentRoles(struct Upnp_Action_Request *ca_event);
-int AddUserLoginData(struct Upnp_Action_Request *ca_event);
-int RemoveUserLoginData(struct Upnp_Action_Request *ca_event);
-int AddCPIdentityData(struct Upnp_Action_Request *ca_event);
-int RemoveCPIdentityData(struct Upnp_Action_Request *ca_event);
-int SetCPIdentityAlias(struct Upnp_Action_Request *ca_event);
+int SetUserLoginPassword(struct Upnp_Action_Request *ca_event);
+int AddIdentityList(struct Upnp_Action_Request *ca_event);
+int RemoveIdentity(struct Upnp_Action_Request *ca_event);
 
 #endif /*_DEVICEPROTECTION_H_*/

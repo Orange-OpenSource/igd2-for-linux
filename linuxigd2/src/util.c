@@ -616,14 +616,23 @@ static char* GetTextValueOfNode(IXML_Node *tmpNode)
  * @param doc IXML_Document where node is searched
  * @param nodeName Name of searched element
  * @param nodeValue Value of searched element
+ * @param caseInsensitive Is value comparing case insensitive
  * @return Node or NULL
  */
-static IXML_Node *GetNodeWithValue(IXML_Document *doc, const char *nodeName, const char *nodeValue)
+static IXML_Node *GetNodeWithValue(IXML_Document *doc, const char *nodeName, const char *nodeValue, int caseInsensitive)
 {
     int listLen, i;
     IXML_NodeList *nodeList = NULL;
     IXML_Node *tmpNode = NULL;
-    char *tmp = NULL; 
+    char *tmp = NULL;
+    char *valueUP = NULL;
+    
+    if (caseInsensitive)
+    {
+        valueUP = toUpperCase(nodeValue);
+        if (!valueUP)
+            return NULL;
+    }
     
     nodeList = ixmlDocument_getElementsByTagName( doc, nodeName );
 
@@ -636,11 +645,26 @@ static IXML_Node *GetNodeWithValue(IXML_Document *doc, const char *nodeName, con
             if ( ( tmpNode = ixmlNodeList_item( nodeList, i ) ) )
             {
                 tmp = GetTextValueOfNode(tmpNode);
-                if ( tmp && (strcmp( tmp,  nodeValue) == 0))
+                
+                // if case insensitive, convert tmp to uppercase and compare to uppercased nodevalue
+                if (caseInsensitive)
                 {
-                    ixmlNodeList_free( nodeList );
-                    return tmpNode;
-                }                
+                    tmp = toUpperCase(tmp);
+                    if ( tmp && (strcmp( tmp,  valueUP) == 0))
+                    {
+                        ixmlNodeList_free( nodeList );
+                        return tmpNode;
+                    }                     
+                }
+                // case sensitive
+                else
+                {
+                    if ( tmp && (strcmp( tmp,  nodeValue) == 0))
+                    {
+                        ixmlNodeList_free( nodeList );
+                        return tmpNode;
+                    } 
+                }               
             }            
         }
     }
@@ -991,7 +1015,7 @@ char* getAccessLevel(const char *actionName, int manage)
     char *accesslevel = NULL;
     
     // lets assume that there is only one action with same name in document
-    IXML_Node *tmpNode = GetNodeWithValue(accessLevelDoc, "name", actionName);
+    IXML_Node *tmpNode = GetNodeWithValue(accessLevelDoc, "name", actionName, 0);
     
     if (tmpNode == NULL) return NULL;
     
@@ -1265,7 +1289,7 @@ int ACL_doesIdentityHasRole(IXML_Document *doc, const char *identity, const char
 char *ACL_getRolesOfUser(IXML_Document *doc, const char *username)
 {
     // get element with name "Name" and value username
-    IXML_Node *tmpNode = GetNodeWithValue(doc, "Name", username);
+    IXML_Node *tmpNode = GetNodeWithValue(doc, "Name", username, 1);
     if (tmpNode == NULL) return NULL;    
     
     tmpNode = GetSiblingWithTagName(tmpNode, "RoleList");
@@ -1285,7 +1309,7 @@ char *ACL_getRolesOfUser(IXML_Document *doc, const char *username)
 char *ACL_getRolesOfCP(IXML_Document *doc, const char *id)
 {
     // get element with name "ID" and value id
-    IXML_Node *tmpNode = GetNodeWithValue(doc, "ID", id);
+    IXML_Node *tmpNode = GetNodeWithValue(doc, "ID", id, 1);
     if (tmpNode == NULL) return NULL;    
 
     tmpNode = GetSiblingWithTagName(tmpNode, "RoleList");
@@ -1317,7 +1341,7 @@ char *ACL_getRolesOfCP(IXML_Document *doc, const char *id)
 int ACL_addCP(IXML_Document *doc, const char *name, const char *alias, const char *id, const char *roles, int introduced)
 {
     // Check that ID doesn't already exist
-    if ( GetNodeWithValue(doc, "ID", id) != NULL )
+    if ( GetNodeWithValue(doc, "ID", id, 1) != NULL )
     {
         return ACL_USER_ERROR;
     } 
@@ -1371,7 +1395,7 @@ int ACL_addCP(IXML_Document *doc, const char *name, const char *alias, const cha
  */
 int ACL_updateCPAlias(IXML_Document *doc, const char *id, const char *alias, int forceChange)
 {
-    IXML_Node *tmpNode = GetNodeWithValue(doc, "ID", id);
+    IXML_Node *tmpNode = GetNodeWithValue(doc, "ID", id, 1);
     IXML_Node *aliasNode = NULL;
     
     // Check that ID does exist
@@ -1418,7 +1442,7 @@ int ACL_updateCPAlias(IXML_Document *doc, const char *id, const char *alias, int
 int ACL_addUser(IXML_Document *doc, const char *name, const char *roles)
 {
     // Check that user doesn't already exist
-    if ( GetNodeWithValue(doc, "Name", name) != NULL )
+    if ( GetNodeWithValue(doc, "Name", name, 1) != NULL )
     {
         return ACL_USER_ERROR;
     } 
@@ -1461,7 +1485,7 @@ int ACL_removeUser(IXML_Document *doc, const char *name)
 {
     IXML_Node *userNode = NULL;  
     
-    userNode = GetNodeWithValue(doc, "Name", name);
+    userNode = GetNodeWithValue(doc, "Name", name, 1);
     if (!userNode) return ACL_USER_ERROR;
     
     return RemoveNode(userNode->parentNode);
@@ -1480,7 +1504,7 @@ int ACL_removeCP(IXML_Document *doc, const char *id)
 {
     IXML_Node *idNode = NULL;
     
-    idNode = GetNodeWithValue(doc, "ID", id);
+    idNode = GetNodeWithValue(doc, "ID", id, 1);
     if (!idNode) return ACL_USER_ERROR;
     
     // remove <CP> node
@@ -1501,7 +1525,7 @@ int ACL_removeCP(IXML_Document *doc, const char *id)
  */
 int ACL_addRolesForUser(IXML_Document *doc, const char *name, const char *roles)
 {
-    IXML_Node *tmpNode = GetNodeWithValue(doc, "Name", name);
+    IXML_Node *tmpNode = GetNodeWithValue(doc, "Name", name, 1);
     
     // Check that name does exist
     if ( tmpNode == NULL )
@@ -1534,7 +1558,7 @@ int ACL_addRolesForUser(IXML_Document *doc, const char *name, const char *roles)
  */
 int ACL_addRolesForCP(IXML_Document *doc, const char *id, const char *roles)
 {
-    IXML_Node *tmpNode = GetNodeWithValue(doc, "ID", id);
+    IXML_Node *tmpNode = GetNodeWithValue(doc, "ID", id, 1);
     
     // Check that CP with ID does exist
     if ( tmpNode == NULL )
@@ -1567,7 +1591,7 @@ int ACL_addRolesForCP(IXML_Document *doc, const char *id, const char *roles)
  */
 int ACL_removeRolesFromUser(IXML_Document *doc, const char *name, const char *roles)
 {
-    IXML_Node *tmpNode = GetNodeWithValue(doc, "Name", name);
+    IXML_Node *tmpNode = GetNodeWithValue(doc, "Name", name, 1);
     
     // Check that name does exist
     if ( tmpNode == NULL )
@@ -1600,7 +1624,7 @@ int ACL_removeRolesFromUser(IXML_Document *doc, const char *name, const char *ro
  */
 int ACL_removeRolesFromCP(IXML_Document *doc, const char *id, const char *roles)
 {
-    IXML_Node *tmpNode = GetNodeWithValue(doc, "ID", id);
+    IXML_Node *tmpNode = GetNodeWithValue(doc, "ID", id, 1);
     
     // Check that CP with id does exist
     if ( tmpNode == NULL )
@@ -1738,40 +1762,62 @@ int ACL_validateListAndUpdateACL(IXML_Document *ACLdoc, IXML_Document *identitie
 
 
 /**
- * Validates given ixml document (identityDoc) which contains CP to remove from ACL.
+ * Validates given ixml document (identityDoc) which contains CP/User to remove from ACL.
  * 
- * This function is used by RemoveCPIdentityData() action.
+ * This function is used by RemoveIdentity() action.
  * 
  * @param doc ACL IXML_Document
  * @param identitiesDoc IXML_Document which contains CP-elements to remove from ACL
  * @return upnp error codes:
- *         0 on succes,
+ *         0 on success,
  *         707 if identitiesDoc contains invalid values
  *         501 if processing error occurs
  */
-int ACL_validateAndRemoveCP(IXML_Document *ACLdoc, IXML_Document *identityDoc)
+int ACL_validateAndRemoveIdentity(IXML_Document *ACLdoc, IXML_Document *identityDoc)
 {
     int result;
     char *id = NULL;
 
+    // first try to get CP ID
     id = GetFirstDocumentItem(identityDoc, "ID");
     if (id == NULL)
     {
-        trace(2,"(ACL) Failed to find any ID from given parameter");
-        return 707;                
+        id = GetFirstDocumentItem(identityDoc, "Name");
+        if (id == NULL)
+        {
+            trace(2,"(ACL) Failed to find any ID or Name from given parameter");
+            return 707;
+        }
+        else
+        {
+            // remove User form ACL
+            result = ACL_removeUser(ACLdoc, id);
+            if (result == ACL_USER_ERROR)
+            {
+                trace(2,"(ACL) No User with Name '%s' is found from ACL",id);
+                return 707;
+            }
+            else if (result != ACL_SUCCESS)
+            {
+                trace(2,"(ACL) Failed to remove User with Name '%s' from ACL",id);
+                return 501;
+            }
+        }               
     }    
-    
-    // remove CP form ACL
-    result = ACL_removeCP(ACLdoc, id);
-    if (result == ACL_USER_ERROR)
+    else
     {
-        trace(2,"(ACL) No CP with ID '%s' is found from ACL",id);
-        return 707;
-    }
-    else if (result != ACL_SUCCESS)
-    {
-        trace(2,"(ACL) Failed to remove CP with ID '%s' from ACL",id);
-        return 501;
+        // remove CP form ACL
+        result = ACL_removeCP(ACLdoc, id);
+        if (result == ACL_USER_ERROR)
+        {
+            trace(2,"(ACL) No CP with ID '%s' is found from ACL",id);
+            return 707;
+        }
+        else if (result != ACL_SUCCESS)
+        {
+            trace(2,"(ACL) Failed to remove CP with ID '%s' from ACL",id);
+            return 501;
+        }
     }
     
     return 0;

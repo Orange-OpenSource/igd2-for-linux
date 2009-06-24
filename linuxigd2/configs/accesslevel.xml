@@ -237,11 +237,7 @@
                 <accessLevel>Admin</accessLevel>
             </action>
             <action>
-                <name>AddUserLoginData</name>
-                <accessLevel>Admin</accessLevel>
-            </action>
-            <action>
-                <name>RemoveUserLoginData</name>
+                <name>SetUserLoginPassword</name>
                 <accessLevel>Admin</accessLevel>
             </action>
             <action>
@@ -249,13 +245,9 @@
                 <accessLevel>Basic</accessLevel>
             </action>
             <action>
-                <name>RemoveCPIdentityData</name>
+                <name>RemoveIdentity</name>
                 <accessLevel>Admin</accessLevel>
-            </action>
-            <action>
-                <name>SetCPIdentityAlias</name>
-                <accessLevel>Admin</accessLevel>
-            </action>            
+            </action>         
         </actionList>
     </serviceEntry>    
 </serviceList>

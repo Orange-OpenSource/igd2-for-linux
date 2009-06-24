@@ -1739,15 +1739,14 @@ int GetCurrentRoles(struct Upnp_Action_Request *ca_event)
 }
 
 /**
- * DeviceProtection:1 Action: AddUserLoginData.
+ * DeviceProtection:1 Action: SetUserLoginPassword.
  *
  * @param ca_event Upnp event struct.
  * @return Upnp error code.
  */
-int AddUserLoginData(struct Upnp_Action_Request *ca_event)
+int SetUserLoginPassword(struct Upnp_Action_Request *ca_event)
 {
     int result = 0;
-    char *flags = NULL;
     char *name = NULL;
     char *stored = NULL;
     char *salt = NULL;
@@ -1762,8 +1761,7 @@ int AddUserLoginData(struct Upnp_Action_Request *ca_event)
         result = 701;
         addErrorData(ca_event, result, "Authentication Failure");        
     }
-    else*/if ( (flags = GetFirstDocumentItem(ca_event->ActionRequest, "Flags") )
-            && (name = GetFirstDocumentItem(ca_event->ActionRequest, "Name") )
+    else*/if ( (name = GetFirstDocumentItem(ca_event->ActionRequest, "Name") )
             && (stored = GetFirstDocumentItem(ca_event->ActionRequest, "Stored") )
             && (salt = GetFirstDocumentItem(ca_event->ActionRequest, "Salt") ))
     {      
@@ -1775,8 +1773,8 @@ int AddUserLoginData(struct Upnp_Action_Request *ca_event)
             result = 501;
             addErrorData(ca_event, result, "Action Failed");            
         }
-        // update existing username
-        else if (atoi(flags) == 0)
+        // First try to update existing username/password pair
+        else
         {
             getIdentityOfSession(ca_event, &identity);
             identity = toUpperCase(identity);
@@ -1790,12 +1788,46 @@ int AddUserLoginData(struct Upnp_Action_Request *ca_event)
             // or has "Admin" privileges 
             else if ( (checkCPPrivileges(ca_event, "Admin") == 0) || (strcmp(identity, nameUPPER) == 0))
             {
-                result = updateValuesToPasswdFile(nameUPPER, (unsigned char *)salt, (unsigned char *)stored, 0);
+                result = updateValuesToPasswdFile(nameUPPER, (unsigned char *)salt, (unsigned char *)stored, 0); // if this returns 0, all is well
                 if (result == -2)
                 {
-                    trace(1, "%s: Username '%s' not found from passwd file",ca_event->ActionName,name);
-                    result = 706;
-                    addErrorData(ca_event, result, "Invalid Name");                    
+                    // So we are after all adding new username! (Because username was not found from passwd-file)
+                    // lets Add new
+                    result = putValuesToPasswdFile(nameUPPER, (unsigned char *)salt, (unsigned char *)stored);
+                    if (result == -2)
+                    {
+                        trace(1, "%s: Same username '%s' exists in passwd file already",ca_event->ActionName,name);
+                        result = 706;
+                        addErrorData(ca_event, result, "Invalid Name");                    
+                    }
+                    else if (result != 0)
+                    {
+                        trace(1, "%s: Failed to write login values to passwordfile",ca_event->ActionName);
+                        result = 501;
+                        addErrorData(ca_event, result, "Action Failed");
+                        
+                        // if failed to add new logindata to file but reason wasn't that same username 
+                        // existed in passwd file already, try to remove added data
+                        updateValuesToPasswdFile(nameUPPER, (unsigned char *)salt, (unsigned char *)stored, 1);          
+                    } 
+                    else
+                    {
+                        // add user to ACL also
+                        result = ACL_addUser(ACLDoc, nameUPPER, "Public");  // if this return 0, all is well
+                        // if failed, try to clean up what have done so far
+                        if (result != ACL_SUCCESS)
+                        {
+                            trace(1, "%s: Failed to add username to ACL",ca_event->ActionName);
+                            result = 501;
+                            addErrorData(ca_event, result, "Action Failed");
+                            
+                            // remove added username from passwdfile
+                            updateValuesToPasswdFile(nameUPPER, (unsigned char *)salt, (unsigned char *)stored, 1);
+                            // try to remove username from ACL
+                            ACL_removeUser(ACLDoc, nameUPPER);
+                        }                    
+                    } // end of adding new            
+                   
                 }
                 else if (result != 0)
                 {
@@ -1811,62 +1843,7 @@ int AddUserLoginData(struct Upnp_Action_Request *ca_event)
                 addErrorData(ca_event, result, "Authorization Failure");                
             }            
         }
-        // add totally new username
-        else if (atoi(flags) == 1) 
-        {           
-            // if flags is 1, user must have Admin priviliges
-            if (checkCPPrivileges(ca_event, "Admin") != 0)
-            {
-                trace(1, "%s: Not enough privileges to do this, '%s' is required",ca_event->ActionName, "Admin");
-                result = 702;
-                addErrorData(ca_event, result, "Authorization Failure");                
-            }
-            else
-            {
-                // add new values to passwordfile
-                result = putValuesToPasswdFile(nameUPPER, (unsigned char *)salt, (unsigned char *)stored);
-                if (result == -2)
-                {
-                    trace(1, "%s: Same username '%s' exists in passwd file already",ca_event->ActionName,name);
-                    result = 706;
-                    addErrorData(ca_event, result, "Invalid Name");                    
-                }
-                else if (result != 0)
-                {
-                    trace(1, "%s: Failed to write login values to passwordfile",ca_event->ActionName);
-                    result = 501;
-                    addErrorData(ca_event, result, "Action Failed");
-                    
-                    // if failed to add new logindata to file but reason wasn't that same username 
-                    // existed in passwd file already, try to remove added data
-                    updateValuesToPasswdFile(nameUPPER, (unsigned char *)salt, (unsigned char *)stored, 1);          
-                } 
-                else
-                {
-                    // add user to ACL also
-                    result = ACL_addUser(ACLDoc, nameUPPER, "Public");
-                    // if failed, try to clean up what have done so far
-                    if (result != ACL_SUCCESS)
-                    {
-                        trace(1, "%s: Failed to add username to ACL",ca_event->ActionName);
-                        result = 501;
-                        addErrorData(ca_event, result, "Action Failed");
-                        
-                        // remove added username from passwdfile
-                        updateValuesToPasswdFile(nameUPPER, (unsigned char *)salt, (unsigned char *)stored, 1);
-                        // try to remove username from ACL
-                        ACL_removeUser(ACLDoc, nameUPPER);
-                    }                    
-                }            
-            }
-        }
-        else
-        {
-            trace(1, "%s: Invalid parameter value for Flags!", ca_event->ActionName);
-            trace(1, "  Flags: %s, Name: %s, Stored: %s, Salt: %s",flags,name,stored,salt);
-            result = 707;
-            addErrorData(ca_event, result, "Invalid Parameter");            
-        }
+
         
         // all is well
         if (result == 0)
@@ -1882,109 +1859,15 @@ int AddUserLoginData(struct Upnp_Action_Request *ca_event)
     else
     {
         trace(1, "%s: Invalid Arguments!", ca_event->ActionName);
-        trace(1, "  Flags: %s, Name: %s, Stored: %s, Salt: %s",flags,name,stored,salt);
+        trace(1, "   Name: %s, Stored: %s, Salt: %s",name,stored,salt);
         addErrorData(ca_event, 402, "Invalid Args");
     }
-  
-    if (flags) free(flags);
+
     if (name) free(name);
     if (stored) free(stored);
     if (salt) free(salt);
     if (nameUPPER) free(nameUPPER);
     if (identity) free(identity);
-
-    trace(3, "Contents of ACL:\n%s\n",ixmlPrintDocument(ACLDoc));
-
-    return ca_event->ErrCode;
-}
-
-
-/**
- * DeviceProtection:1 Action: RemoveUserLoginData.
- * Requires Admin rights
- *
- * @param ca_event Upnp event struct.
- * @return Upnp error code.
- */
-int RemoveUserLoginData(struct Upnp_Action_Request *ca_event)
-{
-    int result = 0;
-    char *name = NULL;
-    char *nameUPPER = NULL;
-    
-        // TODO remove this from comments
-/*    if (ca_event->SSLSession == NULL)
-    {
-        // SSL must be used
-        trace(1, "%s: SSL connection must be used for this",ca_event->ActionName);
-        result = 701;
-        addErrorData(ca_event, result, "Authentication Failure");        
-    }
-    else*/if ( (name = GetFirstDocumentItem(ca_event->ActionRequest, "Name") ))
-    {      
-        // change name to uppercase, because usernames are not case sensitive
-        nameUPPER = toUpperCase(name);
-        if (nameUPPER == NULL)
-        {
-            trace(1, "%s: Failed to turn name '%s' to uppercase",ca_event->ActionName,name);
-            result = 501;
-            addErrorData(ca_event, result, "Action Failed");            
-        }
-        else if (strcmp(nameUPPER, "ADMIN") == 0)
-        {
-            trace(1, "%s: Admin user cannot be removed!",ca_event->ActionName,name);
-            result = 702;
-            addErrorData(ca_event, result, "Authorization Failure");             
-        }
-        else
-        {
-            // remove user from passwd-file
-            result = updateValuesToPasswdFile(nameUPPER, NULL, NULL, 1);
-            if (result == -2)
-            {
-                trace(1, "%s: Username '%s' not found from passwd file",ca_event->ActionName,nameUPPER);
-                result = 706;
-                addErrorData(ca_event, result, "Invalid Name");                    
-            }
-            else if (result != 0)
-            {
-                trace(1, "%s: Failed to remove username '%s' from passwordfile",ca_event->ActionName,nameUPPER);
-                result = 501;
-                addErrorData(ca_event, result, "Action Failed");       
-            }                          
-            else
-            {
-                // remove user from ACL
-                result = ACL_removeUser(ACLDoc, nameUPPER);
-                if (result != ACL_SUCCESS)
-                {
-                    trace(1, "%s: Failed to remove username '%s' from ACL",ca_event->ActionName, nameUPPER);
-                    result = 501;
-                    addErrorData(ca_event, result, "Action Failed");
-                }     
-            }  
-        }
-        
-        
-        // all is well
-        if (result == 0)
-        {
-            // write ACL in filesystem
-            writeDocumentToFile(ACLDoc, ACL_XML);
-            ca_event->ActionResult = UpnpMakeActionResponse(ca_event->ActionName, DP_SERVICE_TYPE,
-                                        0, NULL);                                        
-            ca_event->ErrCode = UPNP_E_SUCCESS;   
-        }        
-    }
-    else
-    {
-        trace(1, "%s: Invalid Arguments!", ca_event->ActionName);
-        trace(1, "  Name: %s",name);
-        addErrorData(ca_event, 402, "Invalid Args");
-    }
-
-    if (name) free(name);
-    if (nameUPPER) free(nameUPPER);
 
     trace(3, "Contents of ACL:\n%s\n",ixmlPrintDocument(ACLDoc));
 
@@ -2103,12 +1986,12 @@ int AddIdentityList(struct Upnp_Action_Request *ca_event)
 }
 
 /**
- * DeviceProtection:1 Action: RemoveCPIdentityData.
+ * DeviceProtection:1 Action: RemoveIdentity.
  *
  * @param ca_event Upnp event struct.
  * @return Upnp error code.
  */
-int RemoveCPIdentityData(struct Upnp_Action_Request *ca_event)
+int RemoveIdentity(struct Upnp_Action_Request *ca_event)
 {
     int result = 0;
     char *identity = NULL;
@@ -2134,8 +2017,8 @@ int RemoveCPIdentityData(struct Upnp_Action_Request *ca_event)
         }
         else
         {
-            // validate input and remove CP
-            result = ACL_validateAndRemoveCP(ACLDoc, identityDoc);
+            // validate input and remove CP/User
+            result = ACL_validateAndRemoveIdentity(ACLDoc, identityDoc);
             
             if (result == 707)
             {
@@ -2186,91 +2069,3 @@ int RemoveCPIdentityData(struct Upnp_Action_Request *ca_event)
     
     return ca_event->ErrCode;
 }
-
-
-/**
- * DeviceProtection:1 Action: SetCPIdentityAlias.
- *
- * @param ca_event Upnp event struct.
- * @return Upnp error code.
- */
-int SetCPIdentityAlias(struct Upnp_Action_Request *ca_event)
-{
-    int result = 0;
-    char *identity = NULL;
-    IXML_Document *identityDoc = NULL;
-    
-    // TODO should it be tested that there is only one CP element in Identity?
-        // TODO remove this from comments
-/*    if (ca_event->SSLSession == NULL)
-    {
-        // SSL must be used
-        trace(1, "%s: SSL connection must be used for this",ca_event->ActionName);
-        result = 701;
-        addErrorData(ca_event, result, "Authentication Failure");        
-    }
-    else*/if ( (identity = GetFirstDocumentItem(ca_event->ActionRequest, "Identity") ))
-    {    
-        identityDoc = ixmlParseBuffer(identity);
-        if (identityDoc == NULL)
-        {
-            trace(1, "%s: Failed to parse Identity '%s'",ca_event->ActionName, identity);
-            result = 501;
-            addErrorData(ca_event, result, "Action Failed");
-        }
-        else
-        {
-            // validate input and remove CP
-            result = ACL_validateAndUpdateCPAlias(ACLDoc, identityDoc);
-            
-            if (result == 707)
-            {
-                addErrorData(ca_event, result, "Invalid Parameter");               
-            }
-            else if (result != 0)
-            {
-                result = 501;
-                addErrorData(ca_event, result, "Action Failed");
-            }
-        }
-        
-        
-        // all is well
-        if (result == 0)
-        {
-            // write ACL in filesystem
-            writeDocumentToFile(ACLDoc, ACL_XML);
-            ca_event->ActionResult = UpnpMakeActionResponse(ca_event->ActionName, DP_SERVICE_TYPE,
-                                        0, NULL);                                        
-            ca_event->ErrCode = UPNP_E_SUCCESS;   
-        }
-        else
-        {
-            // erase all possible changes done
-            ixmlDocument_free(ACLDoc);
-            // init ACL
-            ACLDoc = ixmlLoadDocument(ACL_XML);
-            if (ACLDoc == NULL)
-            {
-                trace(1, "Couldn't load ACL (Access Control List) document which should locate here: %s\nExiting...\n",ACL_XML);
-                UpnpFinish();
-                exit(1);
-            }               
-        }  
-    }
-    else
-    {
-        trace(1, "%s: Invalid Arguments!", ca_event->ActionName);
-        trace(1, "  Identity: %s",identity);
-        addErrorData(ca_event, 402, "Invalid Args");
-    }
-    
-    if (identityDoc) ixmlDocument_free(identityDoc);
-    if (identity) free(identity);
-    
-    trace(3, "Contents of ACL:\n%s\n",ixmlPrintDocument(ACLDoc));
-    
-    return ca_event->ErrCode;
-}
-
-
