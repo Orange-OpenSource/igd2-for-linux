@@ -1821,8 +1821,12 @@ int SetUserLoginPassword(struct Upnp_Action_Request *ca_event)
                     {
                         // add user to ACL also
                         result = ACL_addUser(ACLDoc, nameUPPER, "Public");  // if this return 0, all is well
+                        // user might have ben added through AddIdentityList previously
+                        if (result == ACL_USER_ERROR) 
+                            result = ACL_SUCCESS;
+                            
                         // if failed, try to clean up what have done so far
-                        if (result != ACL_SUCCESS)
+                        if (result != ACL_SUCCESS && result != ACL_USER_ERROR) 
                         {
                             trace(1, "%s: Failed to add username to ACL",ca_event->ActionName);
                             result = 501;

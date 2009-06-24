@@ -78,7 +78,7 @@ char *toUpperCase(const char * str)
     int slen = strlen(str);
     int wcslen;
     wchar_t wc[2*slen];  // doubling original string length should guarantee that there is enough space for wchar_t
-    char *UPPER = (char *)malloc(slen);
+    char *UPPER = (char *)malloc(slen+1);
     
     wcslen = mbsrtowcs(wc, &str, slen, NULL); // to wide-character string
 
@@ -597,12 +597,13 @@ static char* GetTextValueOfNode(IXML_Node *tmpNode)
     
     if ( tmpNode )
     {
-        value = strdup("");
         textNode = ixmlNode_getFirstChild( tmpNode );
         if ( textNode )
         {
             value = strdup(ixmlNode_getNodeValue(textNode));
         }
+        else
+            value = strdup("");
     } 
     
     return value;        
@@ -1814,7 +1815,7 @@ int ACL_validateListAndUpdateACL(IXML_Document *ACLdoc, IXML_Document *identitie
     while ( (tmpNode = GetNode(identitiesDoc, "User")) != NULL )
     {
         id = GetTextValueOfNode(tmpNode);
-        name = GetTextValueOfNode( GetSiblingWithTagName(tmpNode, "Name") );
+        name = GetTextValueOfNode( GetChildNodeWithName(tmpNode, "Name") );
         
         if (name == NULL)
         {
