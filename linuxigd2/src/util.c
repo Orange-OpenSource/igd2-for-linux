@@ -584,7 +584,7 @@ int writeDocumentToFile(IXML_Document *doc, const char *file)
 
 
 /**
- * Get text value of given IXML_Node. Node containing 'accessLevel>Admin</accessLevel>'
+ * Get text value of given IXML_Node. Node containing '<accessLevel>Admin</accessLevel>'
  * would return 'Admin'
  *
  * @param tmpNode Node which value is returned
@@ -594,13 +594,18 @@ static char* GetTextValueOfNode(IXML_Node *tmpNode)
 {
     IXML_Node *textNode = NULL;
     char *value = NULL;
-    
+    const char *tmp =NULL;
+        
     if ( tmpNode )
     {
         textNode = ixmlNode_getFirstChild( tmpNode );
         if ( textNode )
         {
-            value = strdup(ixmlNode_getNodeValue(textNode));
+            tmp = ixmlNode_getNodeValue(textNode);
+            if ( tmp == NULL)
+                value = strdup(""); // in this case node has childnodes
+            else    
+                value = strdup(tmp);
         }
         else
             value = strdup("");
@@ -1814,19 +1819,19 @@ int ACL_validateListAndUpdateACL(IXML_Document *ACLdoc, IXML_Document *identitie
     // get first User from new list 
     while ( (tmpNode = GetNode(identitiesDoc, "User")) != NULL )
     {
-        id = GetTextValueOfNode(tmpNode);
         name = GetTextValueOfNode( GetChildNodeWithName(tmpNode, "Name") );
         
         if (name == NULL)
         {
             trace(2,"(ACL) Name must be given for User. Skip.");
+            RemoveNode(tmpNode);
             continue;
             //return 707;
         }
         // if admin, try to get RoleList value
         if (admin)
         {
-            rolelist = GetTextValueOfNode( GetSiblingWithTagName(tmpNode, "RoleList") );
+            rolelist = GetTextValueOfNode( GetChildNodeWithName(tmpNode, "RoleList") );
         }
         else
         {
