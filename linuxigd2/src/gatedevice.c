@@ -124,7 +124,7 @@ int StateTableInit(char *descDocUrl)
     // read access level file
     if (initActionAccessLevels(g_vars.accessLevelXml) != 0)
     {
-        syslog(LOG_ERR, "Failed read Access level xml '%s'.  Exiting ...",g_vars.accessLevelXml);
+        syslog(LOG_ERR, "Failed to read Access level xml '%s'.  Exiting ...",g_vars.accessLevelXml);
         UpnpFinish();
         exit(1);
     }

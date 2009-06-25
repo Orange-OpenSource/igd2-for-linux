@@ -590,7 +590,7 @@ int writeDocumentToFile(IXML_Document *doc, const char *file)
  * @param tmpNode Node which value is returned
  * @return Value of node or NULL
  */
-static char* GetTextValueOfNode(IXML_Node *tmpNode)
+char* GetTextValueOfNode(IXML_Node *tmpNode)
 {
     IXML_Node *textNode = NULL;
     char *value = NULL;
@@ -816,7 +816,7 @@ static IXML_Node *GetNodeWithNameAndAttribute(IXML_Document *doc, const char *no
  * @param childNodeValue Value of new node
  * @return Pointer to new node or NULL
  */
-static IXML_Node *AddChildNode(IXML_Document *doc, IXML_Node *parent, const char *childNodeName, const char *childNodeValue)
+IXML_Node *AddChildNode(IXML_Document *doc, IXML_Node *parent, const char *childNodeName, const char *childNodeValue)
 {
     IXML_Element *tmpElement = NULL;
     IXML_Node *textNode = NULL;
@@ -872,7 +872,7 @@ static IXML_Node *AddChildNodeWithAttribute(IXML_Document *doc, IXML_Node *paren
  * @param node Pointer to node remove
  * @return 0 on success, -2 node or its parent is not found, -1 else
  */
-static int RemoveNode(IXML_Node *node)
+int RemoveNode(IXML_Node *node)
 {
     if (node == NULL)
         return 0;

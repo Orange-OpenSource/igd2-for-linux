@@ -113,6 +113,7 @@ int parseConfigFile(globals_p vars)
     regex_t re_desc_doc;
     regex_t re_xml_path;
     regex_t re_listenport;
+    regex_t re_https_listenport;
     regex_t re_dnsmasq;
     regex_t re_uci;
     regex_t re_resolv;
@@ -141,6 +142,7 @@ int parseConfigFile(globals_p vars)
     strcpy(vars->descDocName,"");
     strcpy(vars->xmlPath,"");
     vars->listenport = 0;
+    vars->httpsListenport = 0;
     strcpy(vars->dnsmasqCmd, "");
     strcpy(vars->uciCmd, "");
     strcpy(vars->resolvConf, "");
@@ -173,6 +175,7 @@ int parseConfigFile(globals_p vars)
     regcomp(&re_desc_doc,"description_document_name[[:blank:]]*=[[:blank:]]*([[:alpha:].]{1,20})",REG_EXTENDED);
     regcomp(&re_xml_path,"xml_document_path[[:blank:]]*=[[:blank:]]*([[:alpha:]_/.]{1,50})",REG_EXTENDED);
     regcomp(&re_listenport,"listenport[[:blank:]]*=[[:blank:]]*([[:digit:]]+)",REG_EXTENDED);
+    regcomp(&re_https_listenport,"https_listenport[[:blank:]]*=[[:blank:]]*([[:digit:]]+)",REG_EXTENDED);
     regcomp(&re_dnsmasq,"dnsmasq_script[[:blank:]]*=[[:blank:]]*([[:alpha:]_/.]{1,50})",REG_EXTENDED);
     regcomp(&re_uci,"uci_command[[:blank:]]*=[[:blank:]]*([[:alpha:]_/.]{1,50})",REG_EXTENDED);
     regcomp(&re_dhcrelay,"dhcrelay_script[[:blank:]]*=[[:blank:]]*([[:alpha:]_/.]{1,50})",REG_EXTENDED);
@@ -265,6 +268,12 @@ int parseConfigFile(globals_p vars)
                     getConfigOptionArgument(tmp,sizeof(tmp),line,submatch);
                     vars->listenport = atoi(tmp);
                 }
+                else if (regexec(&re_https_listenport,line,NMATCH,submatch,0) == 0)
+                {
+                    char tmp[6];
+                    getConfigOptionArgument(tmp,sizeof(tmp),line,submatch);
+                    vars->httpsListenport = atoi(tmp);
+                }                
                 else if (regexec(&re_dnsmasq,line,NMATCH,submatch,0) == 0)
                 {
                     getConfigOptionArgument(vars->dnsmasqCmd, OPTION_LEN, line, submatch);
@@ -342,6 +351,7 @@ int parseConfigFile(globals_p vars)
     regfree(&re_desc_doc);
     regfree(&re_xml_path);
     regfree(&re_listenport);
+    regfree(&re_https_listenport);
     regfree(&re_dnsmasq);
     regfree(&re_uci);
     regfree(&re_dhcrelay);
@@ -383,6 +393,10 @@ int parseConfigFile(globals_p vars)
     {
         snprintf(vars->xmlPath, OPTION_LEN, XML_PATH_DEFAULT);
     }
+    if (vars->httpsListenport == 0)
+    {
+        vars->httpsListenport = HTTPS_LISTENPORT_DEFAULT;
+    }
     if (strnlen(vars->dnsmasqCmd, OPTION_LEN) == 0)
     {
         snprintf(vars->dnsmasqCmd, OPTION_LEN, DNSMASQ_CMD_DEFAULT);
@@ -407,7 +421,7 @@ int parseConfigFile(globals_p vars)
     {
         snprintf(vars->networkCmd, OPTION_LEN, NETWORK_CMD_DEFAULT);
     }
-    if (vars->advertisementInterval < 300)
+    if (vars->advertisementInterval < 300) // smaller would mess everything
     {
         vars->advertisementInterval = 300;
     }

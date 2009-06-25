@@ -45,6 +45,112 @@
 // Global variables
 globals g_vars;
 
+/**
+ * Modify description document so that all secureSCPDURL, secureControlURL and
+ * secureEventSubURL elements have correct IP and port values.
+ * IP and port values might change and by changing them automatically those adderesses 
+ * need not be modified by hand.
+ * 
+ * Modified file is written to disk.
+ *
+ * @param descDocFile Full path to file which is modifed
+ * @param IP New value of IP in addresses
+ * @param port New value of port in addresses
+ * @return 0 on success, something else on error
+ */
+static int updateHttpsDescDoc(const char *descDocFile, const char *IP, int port)
+{
+    int ret;
+    int listLen, i;
+    char *tmp = NULL;
+    char newValue[150];
+    IXML_NodeList *nodeList = NULL;
+    IXML_Node *tmpNode = NULL;
+    
+    IXML_Document *descDoc = ixmlLoadDocument(descDocFile);
+    if (descDoc == NULL)
+        return -1; 
+    
+    // modify all secureSCPDURL's
+    nodeList = ixmlDocument_getElementsByTagName( descDoc, "secureSCPDURL" );
+    if (nodeList)
+    {
+        listLen = ixmlNodeList_length(nodeList);
+        
+        for (i = 0; i < listLen; i++)
+        {
+            if ( ( tmpNode = ixmlNodeList_item( nodeList, i ) ) )
+            {
+                tmp = GetTextValueOfNode(tmpNode);
+                if (tmp)
+                {
+                    // change IP and port values to new values
+                    // https://127.0.0.1:443/gateEthlcfgSCPD.xml
+                    tmp = strstr(tmp+8, "/");
+                    snprintf(newValue, 150, "https://%s:%d%s", IP, port, tmp);
+                    AddChildNode(descDoc, tmpNode->parentNode, "secureSCPDURL", newValue);
+                    RemoveNode(tmpNode);  
+                }
+            }            
+        }
+    }
+    
+    // modify all secureControlURL's
+    nodeList = ixmlDocument_getElementsByTagName( descDoc, "secureControlURL" );
+    if (nodeList)
+    {
+        listLen = ixmlNodeList_length(nodeList);
+        
+        for (i = 0; i < listLen; i++)
+        {
+            if ( ( tmpNode = ixmlNodeList_item( nodeList, i ) ) )
+            {
+                tmp = GetTextValueOfNode(tmpNode);
+                if (tmp)
+                {
+                    // change IP and port values to new values
+                    // https://127.0.0.1:443/gateEthlcfgSCPD.xml
+                    tmp = strstr(tmp+8, "/");
+                    snprintf(newValue, 150, "https://%s:%d%s", IP, port, tmp);
+                    AddChildNode(descDoc, tmpNode->parentNode, "secureControlURL", newValue);
+                    RemoveNode(tmpNode);  
+                }
+            }            
+        }
+    }
+        
+    // modify all secureEventSubURL's
+    nodeList = ixmlDocument_getElementsByTagName( descDoc, "secureEventSubURL" );
+    if (nodeList)
+    {
+        listLen = ixmlNodeList_length(nodeList);
+        
+        for (i = 0; i < listLen; i++)
+        {
+            if ( ( tmpNode = ixmlNodeList_item( nodeList, i ) ) )
+            {
+                tmp = GetTextValueOfNode(tmpNode);
+                if (tmp)
+                {
+                    // change IP and port values to new values
+                    // https://127.0.0.1:443/gateEthlcfgSCPD.xml
+                    tmp = strstr(tmp+8, "/");
+                    snprintf(newValue, 150, "https://%s:%d%s", IP, port, tmp);
+                    AddChildNode(descDoc, tmpNode->parentNode, "secureEventSubURL", newValue);
+                    RemoveNode(tmpNode);  
+                }
+            }            
+        }
+    }
+    
+    if ( nodeList ) ixmlNodeList_free( nodeList );
+    
+    ret = writeDocumentToFile(descDoc, descDocFile);
+    ixmlDocument_free(descDoc);
+    
+    return ret; 
+}
+
 int main (int argc, char** argv)
 {
     char descDocUrl[7+15+1+5+1+sizeof(g_vars.descDocName)+1]; // http://ipaddr:port/docName<null>
@@ -188,11 +294,24 @@ int main (int argc, char** argv)
         exit(1);
     }
     trace(2, "UPnP SDK Successfully Initialized.");
+
+
+    // Modify description document on the fly so that secure URL's have right IP and port
+    char descDocFile[sizeof(g_vars.xmlPath)+1+sizeof(g_vars.descDocName)+1];
+    sprintf(descDocFile, "%s/%s", g_vars.xmlPath, g_vars.descDocName);
+    if ( (ret = updateHttpsDescDoc(descDocFile, intIpAddress, g_vars.httpsListenport) ) != 0)
+    {
+        syslog (LOG_ERR, "Error Updating https URL's to Description document %s. IP %s port %d",descDocFile,intIpAddress,g_vars.httpsListenport);
+        UpnpFinish();
+        exit(1);
+    }
+    trace(2, "Description Document Updated Successfully.");
+    
     
     // start https server
-    if ( (ret = UpnpStartHttpsServer(443, g_vars.certPath, NULL, NULL, NULL, NULL, "LinuxIGD 2.0") ) != UPNP_E_SUCCESS)
+    if ( (ret = UpnpStartHttpsServer(g_vars.httpsListenport, g_vars.certPath, NULL, NULL, NULL, NULL, "LinuxIGD 2.0") ) != UPNP_E_SUCCESS)
     {
-        syslog (LOG_ERR, "Error Starting UPnP HTTPS server on IP %s port %d",intIpAddress,443);
+        syslog (LOG_ERR, "Error Starting UPnP HTTPS server on IP %s port %d",intIpAddress,g_vars.httpsListenport);
         syslog (LOG_ERR, "  UpnpStartHttpsServer returned %d", ret);
         UpnpFinish();
         exit(1);

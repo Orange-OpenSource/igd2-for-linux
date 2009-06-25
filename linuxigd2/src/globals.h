@@ -63,7 +63,8 @@ struct GLOBALS
     // <0 - expiration time
     char descDocName[OPTION_LEN];
     char xmlPath[OPTION_LEN];
-    int listenport;	//The port to listen on
+    int listenport;	//The port to listen on    
+    int httpsListenport; //The https port to listen on
 
     // dnsmasq start / stop script
     char dnsmasqCmd[OPTION_LEN];
@@ -112,6 +113,7 @@ extern globals g_vars;
 #define DESC_DOC_DEFAULT "gatedesc.xml"
 #define XML_PATH_DEFAULT "/etc/linuxigd"
 #define LISTENPORT_DEFAULT 0
+#define HTTPS_LISTENPORT_DEFAULT 443
 #define DNSMASQ_CMD_DEFAULT "/etc/init.d/dnsmasq"
 #define DHCRELAY_CMD_DEFAULT "dhcrelay"
 #define UCI_CMD_DEFAULT "/sbin/uci"

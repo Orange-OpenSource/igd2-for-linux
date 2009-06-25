@@ -53,6 +53,9 @@ int tokenizeAndSearch(const char *constList, const char *separator, const char *
 char* GetFirstDocumentItem( IN IXML_Document * doc, const char *item );
 char* GetDocumentItem(IXML_Document * doc, const char *item, int index);
 int writeDocumentToFile(IXML_Document *doc, const char *file);
+char* GetTextValueOfNode(IXML_Node *tmpNode);
+IXML_Node *AddChildNode(IXML_Document *doc, IXML_Node *parent, const char *childNodeName, const char *childNodeValue);
+int RemoveNode(IXML_Node *node);
 
 void ParseXMLResponse(struct Upnp_Action_Request *ca_event, const char *result);
 
