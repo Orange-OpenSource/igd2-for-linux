@@ -115,7 +115,8 @@ http_FixUrl( IN uri_type * url,
 
     *fixed_url = *url;
 
-    if( token_string_casecmp( &fixed_url->scheme, "http" ) != 0 ) {
+    if( (token_string_casecmp( &fixed_url->scheme, "http" ) != 0) &&
+            (token_string_casecmp( &fixed_url->scheme, "https" ) != 0) ) {
         return UPNP_E_INVALID_URL;
     }
 

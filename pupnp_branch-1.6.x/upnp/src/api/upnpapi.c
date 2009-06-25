@@ -1550,7 +1550,7 @@ UpnpFinishClientSSL()
  * Function: UpnpCreateClientSSLSession
  *
  * Parameters:  
- *  IN const char *ActionURL_const: The action URL of the service. Target IP is parsed from this.
+ *  IN const char *ActionURL_const: The action URL of the service. Target IP and port are parsed from this.
  *  INOUT void *SSLSessionData:  Pointer to space where SSL session data may be saved.
  *  INOUT size_t *DataSize:  Pointer to value which will tell how much size SSLSessionData uses. Value is automatically set.
  *  INOUT UpnpClient_Handle Hnd: Handle to add the SSL Session.
@@ -1560,6 +1560,7 @@ UpnpFinishClientSSL()
  *  data trasmission with secured device. Created SSL session can be terminated 
  *  with UpnpCloseClientSSLSession.
  *  Call UpnpInitClientSSL before using this function.
+ *  Use right HTTPS url as ActionURL_const.
  *
  * Return Values: int
  *  UPNP_E_SUCCESS on success, nonzero on failure. Less than zero values
@@ -1599,8 +1600,6 @@ UpnpCreateClientSSLSession( IN const char *ActionURL_const,
     if( http_FixStrUrl( ActionURL_const, strlen( ActionURL_const ), &url ) != 0 ) {
         return UPNP_E_INVALID_URL;
     }
-    // if session exists, use port 443. Nicely hard coded here. Fix this when know more how it should be Should this even exist
-    url.hostport.IPv4address.sin_port = htons( 443 );
 
     // connects to server
     sd = socket (AF_INET, SOCK_STREAM, 0);

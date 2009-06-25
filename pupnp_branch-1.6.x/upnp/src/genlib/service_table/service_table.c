@@ -774,6 +774,9 @@ getServiceList( IXML_Node * node,
     IXML_Node *SCPDURL = NULL;
     IXML_Node *controlURL = NULL;
     IXML_Node *eventURL = NULL;
+    IXML_Node *secureSCPDURL = NULL;
+    IXML_Node *secureControlURL = NULL;
+    IXML_Node *secureEventURL = NULL;    
     DOMString tempDOMString = NULL;
     service_info *head = NULL;
     service_info *current = NULL;
@@ -822,6 +825,9 @@ getServiceList( IXML_Node * node,
                 current->serviceType = NULL;
                 current->serviceId = NULL;
                 current->SCPDURL = NULL;
+                current->secureSCPDURL = NULL;
+                current->secureControlURL = NULL;
+                current->secureEventURL = NULL;
                 current->active = 1;
                 current->subscriptionList = NULL;
                 current->TotalSubscriptions = 0;
@@ -893,6 +899,28 @@ getServiceList( IXML_Node * node,
 
                 ixmlFreeDOMString( tempDOMString );
                 tempDOMString = NULL;
+
+                if( ( !getSubElement( "secureSCPDURL", current_service,
+                                      &secureSCPDURL ) ) ||
+                    ( !
+                      ( current->secureSCPDURL =
+                        getElementValue( secureSCPDURL ) ) ) )
+                    current->secureSCPDURL = NULL;
+
+                if( ( !getSubElement( "secureControlURL", current_service,
+                                      &secureControlURL ) ) ||
+                    ( !
+                      ( current->secureControlURL =
+                        getElementValue( secureControlURL ) ) ) )
+                    current->secureControlURL = NULL;
+
+                if( ( !getSubElement( "secureEventSubURL", current_service,
+                                      &secureEventURL ) ) ||
+                    ( !
+                      ( current->secureEventURL =
+                        getElementValue( secureEventURL ) ) ) )
+                    current->secureEventURL = NULL;
+                    
 
                 if( fail ) {
                     freeServiceList( current );
