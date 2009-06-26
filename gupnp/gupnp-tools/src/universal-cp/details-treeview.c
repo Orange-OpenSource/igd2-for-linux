@@ -324,6 +324,12 @@ show_service_details (GUPnPServiceInfo *info)
         details[i++] = gupnp_service_info_get_control_url (info);
         details[i++] = "Event Subscription URL";
         details[i++] = gupnp_service_info_get_event_subscription_url (info);
+        details[i++] = "Secure Service URL";
+        details[i++] = gupnp_service_info_get_secure_scpd_url (info);
+        details[i++] = "Secure Control URL";
+        details[i++] = gupnp_service_info_get_secure_control_url (info);
+        details[i++] = "Secure Event Subscription URL";
+        details[i++] = gupnp_service_info_get_secure_event_subscription_url (info);        
         details[i] = NULL;
 
         update_details ((const char **) details);
