@@ -671,12 +671,11 @@ gupnp_device_proxy_init_ssl (GUPnPDeviceProxy *proxy,
         }
         else
         {
-            const char *URL = gupnp_service_info_get_control_url (GUPNP_SERVICE_INFO(found_device));
+            const char *URL = gupnp_service_info_get_secure_control_url (GUPNP_SERVICE_INFO(found_device));
             g_object_unref (found_device);
 
             // create ssl
-            int ret = gupnp_device_proxy_create_and_init_ssl_client (proxy,
-                              URL, GUPNP_SSL_PORT);
+            int ret = gupnp_device_proxy_create_and_init_ssl_client (proxy, URL);
 
             if (ret != 0)
             {
@@ -694,18 +693,16 @@ gupnp_device_proxy_init_ssl (GUPnPDeviceProxy *proxy,
 /**
  * gupnp_context_create_and_init_ssl_client
  * @context: A #GUPnPContext
- * @url: Address of server. Address is changed into HTTPS address
- * @port: Port number on which client will connect on server
+ * @url: HTTPS Address of server.
  *
  * Create and initialize ssl client of proxy. Connects to server.
  **/
 int
 gupnp_device_proxy_create_and_init_ssl_client (GUPnPDeviceProxy *proxy,
-                              const char *url, int port)
+                                                const char *https_url)
 {
         g_assert (proxy != NULL);
 
-        char *https_url;
         int ret = 0;
 
         if (proxy->priv->ssl_client == NULL)
@@ -713,12 +710,8 @@ gupnp_device_proxy_create_and_init_ssl_client (GUPnPDeviceProxy *proxy,
         else
             return -1;
 
-        ssl_create_https_url(url, port, &https_url);
         if (https_url == NULL)
-        {
-            g_warning("Failed to create https url from '%s' and port %d",url,port);
-            return -1;
-        }
+            return -2;
 
         // get home dir
         const char *homedir = g_getenv ("HOME");

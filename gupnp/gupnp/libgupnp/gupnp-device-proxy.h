@@ -163,8 +163,7 @@ gupnp_device_proxy_set_root_proxy(GUPnPDeviceProxy *proxy,
 
 int
 gupnp_device_proxy_create_and_init_ssl_client (GUPnPDeviceProxy           *proxy,
-                                        const char *url,
-                                        int port);
+                                        const char *url);
 
 void
 gupnp_device_proxy_set_ssl_client           (GUPnPDeviceProxy           *proxy,

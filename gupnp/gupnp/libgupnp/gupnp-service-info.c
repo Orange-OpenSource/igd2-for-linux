@@ -532,6 +532,59 @@ gupnp_service_info_get_event_subscription_url (GUPnPServiceInfo *info)
                                                        info->priv->url_base);
 }
 
+
+/**
+ * gupnp_service_info_get_secure_scpd_url
+ * @info: A #GUPnPServiceInfo
+ *
+ * Get the SCPD URL for this service, or %NULL if there is no secureSCPDURL.
+ *
+ * Return value: A string. This string should be freed with g_free() after use.
+ **/
+char *
+gupnp_service_info_get_secure_scpd_url (GUPnPServiceInfo *info)
+{
+        g_return_val_if_fail (GUPNP_IS_SERVICE_INFO (info), NULL);
+
+        return xml_util_get_child_element_content (info->priv->element,
+                                                   "secureSCPDURL");
+}
+
+/**
+ * gupnp_service_info_get_secure_control_url
+ * @info: A #GUPnPServiceInfo
+ *
+ * Get the control URL for this service, or %NULL..
+ *
+ * Return value: A string. This string should be freed with g_free() after use.
+ **/
+char *
+gupnp_service_info_get_secure_control_url (GUPnPServiceInfo *info)
+{
+        g_return_val_if_fail (GUPNP_IS_SERVICE_INFO (info), NULL);
+
+        return xml_util_get_child_element_content (info->priv->element,
+                                                   "secureControlURL");
+}
+
+/**
+ * gupnp_service_info_get_secure_event_subscription_url
+ * @info: A #GUPnPServiceInfo
+ *
+ * Get the event subscription URL for this service, or %NULL.
+ *
+ * Return value: A string. This string should be freed with g_free() after use.
+ **/
+char *
+gupnp_service_info_get_secure_event_subscription_url (GUPnPServiceInfo *info)
+{
+        g_return_val_if_fail (GUPNP_IS_SERVICE_INFO (info), NULL);
+
+        return xml_util_get_child_element_content (info->priv->element,
+                                                   "secureEventSubURL");
+}
+
+
 /**
  * gupnp_service_info_get_introspection
  * @info: A #GUPnPServiceInfo
