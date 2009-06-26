@@ -486,8 +486,6 @@ static void *ssl_client_send_and_receive_thread(void *data)
     if (client->session == NULL)
     {
         g_free(data);
-        retVal = GUPNP_E_SESSION_FAIL;
-        g_thread_exit(&retVal);
         return;// GUPNP_E_SESSION_FAIL;
     }
  
@@ -499,7 +497,6 @@ static void *ssl_client_send_and_receive_thread(void *data)
     {
         g_warning("Error: gnutls_record_send failed. %s", gnutls_strerror(retVal));
         g_free(data);
-        g_thread_exit(&retVal);
         return;// retVal;  
     }
     
@@ -513,7 +510,6 @@ static void *ssl_client_send_and_receive_thread(void *data)
         {
             g_warning("Error: gnutls_record_recv failed. %s", gnutls_strerror(retVal));
             g_free(data);
-            g_thread_exit(&retVal);
             return;// retVal;
         }
         else
@@ -531,8 +527,6 @@ static void *ssl_client_send_and_receive_thread(void *data)
             new_resp = realloc (response, alloc);
             if (!new_resp) {
                 g_free(data);
-                retVal = -1;
-                g_thread_exit(&retVal);
                 return;// -1; // not enough memory
             }
   
@@ -585,8 +579,6 @@ static void *ssl_client_send_and_receive_thread(void *data)
             g_free(response);
             
             ssl_data->callback(client, msg, ssl_data->userdata);
-            retVal = 0;
-            g_thread_exit(&retVal);
             return;// 0;
         }
         else
@@ -596,8 +588,7 @@ static void *ssl_client_send_and_receive_thread(void *data)
         }
         
     }
-    g_free(data);
-    g_thread_exit(&retVal);
+    g_free(data);    
     return;// retVal; 
 }
 
@@ -643,7 +634,7 @@ int ssl_client_send_and_receive(  GUPnPSSLClient *client,
     // create new thread for sending and receiving
     ssl_thread = g_thread_create  ((GThreadFunc)ssl_client_send_and_receive_thread,
                                     (void *)data,
-                                    TRUE,
+                                    FALSE,
                                     &error);   
     
     if (ssl_thread == NULL)
@@ -652,8 +643,6 @@ int ssl_client_send_and_receive(  GUPnPSSLClient *client,
         g_error_free (error);
         return -1;
     }
-    
-    g_thread_join(ssl_thread);
     
     return 0;
 }
