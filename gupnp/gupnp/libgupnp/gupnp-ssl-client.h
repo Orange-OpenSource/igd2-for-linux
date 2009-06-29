@@ -55,6 +55,8 @@ typedef struct {
     // ssl session
     gnutls_session_t session;
 
+    GThreadPool *thread_pool;
+
 } GUPnPSSLClient;
 
 
@@ -92,7 +94,7 @@ ssl_close_client_session( GUPnPSSLClient *client );
 
 
 int ssl_client_send_and_receive(  GUPnPSSLClient *client,
-                                  const char *message,
+                                  char *message,
                                   SoupMessage *msg,
                                   GUPnPSSLClientCallback callback,
                                   gpointer userdata);

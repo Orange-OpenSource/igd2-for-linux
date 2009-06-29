@@ -34,6 +34,221 @@ gupnp_ssl_client_class_init (GUPnPSSLClientClass *klass)
 }
 */
 
+
+struct _GUPnPSSLThreadData {
+    GUPnPSSLClient *client;
+    char *message;
+    SoupMessage *soupmesg;
+    GUPnPSSLClientCallback callback;
+    gpointer userdata;     
+};
+
+/**************************************************************************
+ * Function: parse_headers
+ *
+ * Parameters:
+ *  OUT  SoupMessageHeaders *soup_headerst: Header name-value pairs are added to this struct
+ *  IN  const char *headers: String containing headers
+ * 
+ * Description:
+ *  Add headers parsed from string to given SoupMessageHeaders struct. Parse statuscode value
+ *  from headers and return it.
+ *
+ * Return Values: int
+ *      Statuscode value parsed from headers, 
+ *      Negative value on error. 
+ *      
+ ***************************************************************************/
+static int parse_headers(SoupMessageHeaders *soup_headers, const char *headers)
+{
+    char headers_copy[strlen(headers)];
+    char *tmp;
+    char *value;
+    int status_code = -1;
+    
+    strcpy(headers_copy, headers);
+
+    // get rid of everything else after \r\n\r\n 
+    // headers are before that
+    if ((tmp = strstr(headers_copy, "\r\n\r\n")) != NULL )
+    {
+        *tmp = '\0';
+    }
+
+    // Example header:
+    // Accept-Language: en-us;q=1, en;q=0.5
+    // 1. tokenize header string with '\r\n', different header-value pairs should be separated with that
+    // 2. If token contains ":", we have a pair
+    // 3. copy string after ":" as value and replace ':' with '\0'. This leaves only header name into token 
+    char *token = strtok(headers_copy, "\r\n");
+    if (token)
+    {
+        do 
+        {
+            if ( (tmp = strstr(token, ":")) != NULL )
+            {
+                value = strdup(tmp+1);
+                *tmp = '\0';
+                
+                if (token && value)
+                {
+                    soup_message_headers_append(soup_headers, token, value);
+                }
+                free(value);
+            }
+            else if ( (tmp = strstr(token, "HTTP/")) != NULL ) // this row contains statuscode of message
+            {
+                // HTTP/1.1 200 OK
+                // find last space and replace it with '\0'
+                tmp = strrchr(token, ' ');
+                *tmp = '\0';
+                // find first space and all after that is status code as string (maybe some white spaces too)
+                tmp = strstr(token, " ");
+                status_code = atoi(tmp);
+            }
+            
+                
+        } while ((token = strtok(NULL, "\r\n")));
+
+    } 
+    
+    return status_code;      
+}
+
+
+static void ssl_client_send_and_receive_thread(void *data)
+{
+    int headers_ready = 0;
+    char *tmp, *body = NULL;
+    int retVal = 0;
+    int size = 0;
+    int alloc = 1024;
+    int len = 1024;
+    char recv[len+1];
+    int content_len = 0;
+
+    GUPnPSSLThreadData *ssl_data = data;
+    
+    GUPnPSSLClient *client = ssl_data->client;
+    char *message = ssl_data->message;
+    SoupMessage *msg = ssl_data->soupmesg;
+
+    char *response = malloc((alloc+1)*sizeof( char* ));
+    //char response[alloc+1];
+    *response = '\0';    
+
+
+
+    if (client->session == NULL)
+    {
+        g_free(data);
+        return;// GUPNP_E_SESSION_FAIL;
+    }
+ 
+   
+    // Send the message
+    retVal = gnutls_record_send(client->session, message, strlen(message));
+     
+    if (retVal < 0)
+    {
+        g_warning("Error: gnutls_record_send failed. %s", gnutls_strerror(retVal));
+        g_free(data);
+        return;// retVal;  
+    }
+    
+    // Start receiving until error occurs or whole message is received.
+    while (retVal > 0) // if retVal is negative, then gnutls have returned error
+    {
+        memset(recv, '\0',len+1);// earlier receivings doesn't bother after this
+        retVal = gnutls_record_recv (client->session, recv, len);
+               
+        if (retVal < 0)
+        {
+            g_warning("Error: gnutls_record_recv failed. %s", gnutls_strerror(retVal));
+            g_free(data);
+            return;// retVal;
+        }
+        else
+        { 
+            recv[retVal] = '\0';
+            //g_warning("Received %d bytes", retVal);
+        }
+       
+        // does *response have enough space. If not realloc
+        if ( (size + retVal) > alloc )
+        {
+            char *new_resp;
+            alloc = alloc + retVal + 1;
+            
+            new_resp = realloc (response, alloc);
+            if (!new_resp) {
+                g_free(data);
+                return;// -1; // not enough memory
+            }
+  
+            response = new_resp;
+            // because *response may now locate somewhere else than before
+            // we need to update location of body.
+            // This needs to be done only if headers are parsed already and
+            // we are wiating for the body be finished 
+            if (headers_ready && (tmp = strstr(response, "\r\n\r\n")) != NULL)
+            {
+                body = tmp + 4; // body of message is everything that comes after "\r\n\r\n"
+            }            
+        }
+         
+        strcat(response, recv);
+        size = strlen(response);
+       
+        // receive data until empty line containing only \r\n is received (also previous line must end with \r\n). 
+        // That means that headers are done
+        // This "parser" doesn't support chunked encoding...    
+        if (!headers_ready && (tmp = strstr(response, "\r\n\r\n")) != NULL)
+        {
+            body = tmp + 4; // body of message is everything that comes after "\r\n\r\n". body is just pointer to somewhere in the midle of *response
+           
+            // add response header values to SoupMessage
+            retVal = parse_headers(msg->response_headers, response);
+            if (retVal > 0)
+                // set statuscode to SoupMessage
+                soup_message_set_status (msg, retVal);
+            else
+                g_warning("Failed to parse response headers");
+            
+            // this is deprecated call in newer versions of libsoup. Use soup_message_headers_get_one instead
+            const char *clen = soup_message_headers_get (msg->response_headers, "content-length");
+            content_len = atoi(clen);            
+            
+            headers_ready = 1;
+            
+        }
+
+        if (headers_ready && body != NULL && strlen(body) >= content_len)
+        {   
+            body[content_len] = '\0';
+            // body should be ready    
+            
+            // Put body to SoupMessage (soup_message_set_response() should do that also, but didn't get it working 
+            msg->response_body->data = strdup(body);
+            msg->response_body->length = strlen(body);
+            
+            g_free(response);
+            
+            ssl_data->callback(client, msg, ssl_data->userdata);
+            return;// 0;
+        }
+        else
+        {
+            //g_warning("RESPONSE SO FAR\n %s", *response); 
+            // whole message is not received yet...
+        }
+        
+    }
+    g_free(data);    
+    return;// retVal; 
+}
+
+
 /************************************************************************
 *   Function :  ssl_create_https_url
 *   Parameters:
@@ -127,9 +342,7 @@ ssl_init_client( GUPnPSSLClient *client,
     int retVal;
     
     // init gnutls and libgcrypt
-    retVal = init_crypto_libraries();
-    
-    
+    retVal = init_crypto_libraries();    
     if (retVal != 0) {
         g_warning("Error: %s", "Crypto library initialization failed");
         return retVal;    
@@ -168,6 +381,18 @@ ssl_init_client( GUPnPSSLClient *client,
     
     // init session to NULL
     client->session = NULL;
+
+    // create threadpool for sending and receiving
+    client->thread_pool = g_thread_pool_new ((GFunc) ssl_client_send_and_receive_thread,
+                                             NULL,
+                                             2,
+                                             TRUE,
+                                             NULL);
+    if (client->thread_pool == NULL) {
+        g_warning("Error: %s", "Failed to create threadpool for SSL action sending");
+        return -1;    
+    }  
+                                                     
     
     return GUPNP_E_SUCCESS;     
 }  /****************** End of ssl_init_client *********************/
@@ -188,6 +413,10 @@ ssl_init_client( GUPnPSSLClient *client,
 int
 ssl_finish_client( GUPnPSSLClient *client)
 {
+    g_thread_pool_free (client->thread_pool,
+                        TRUE,
+                        FALSE);
+    
     gnutls_x509_crt_deinit(client_crt);
     gnutls_x509_privkey_deinit(client_privkey);    
     gnutls_certificate_free_credentials (client->xcred);
@@ -378,219 +607,7 @@ ssl_close_client_session( GUPnPSSLClient *client )
 }  /****************** End of ssl_close_client_session   *********************/
 
 
-/**************************************************************************
- * Function: parse_headers
- *
- * Parameters:
- *  OUT  SoupMessageHeaders *soup_headerst: Header name-value pairs are added to this struct
- *  IN  const char *headers: String containing headers
- * 
- * Description:
- *  Add headers parsed from string to given SoupMessageHeaders struct. Parse statuscode value
- *  from headers and return it.
- *
- * Return Values: int
- *      Statuscode value parsed from headers, 
- *      Negative value on error. 
- *      
- ***************************************************************************/
-static int parse_headers(SoupMessageHeaders *soup_headers, const char *headers)
-{
-    char headers_copy[strlen(headers)];
-    char *tmp;
-    char *value;
-    int status_code = -1;
-    
-    strcpy(headers_copy, headers);
 
-    // get rid of everything else after \r\n\r\n 
-    // headers are before that
-    if ((tmp = strstr(headers_copy, "\r\n\r\n")) != NULL )
-    {
-        *tmp = '\0';
-    }
-
-    // Example header:
-    // Accept-Language: en-us;q=1, en;q=0.5
-    // 1. tokenize header string with '\r\n', different header-value pairs should be separated with that
-    // 2. If token contains ":", we have a pair
-    // 3. copy string after ":" as value and replace ':' with '\0'. This leaves only header name into token 
-    char *token = strtok(headers_copy, "\r\n");
-    if (token)
-    {
-        do 
-        {
-            if ( (tmp = strstr(token, ":")) != NULL )
-            {
-                value = strdup(tmp+1);
-                *tmp = '\0';
-                
-                if (token && value)
-                {
-                    soup_message_headers_append(soup_headers, token, value);
-                }
-                free(value);
-            }
-            else if ( (tmp = strstr(token, "HTTP/")) != NULL ) // this row contains statuscode of message
-            {
-                // HTTP/1.1 200 OK
-                // find last space and replace it with '\0'
-                tmp = strrchr(token, ' ');
-                *tmp = '\0';
-                // find first space and all after that is status code as string (maybe some white spaces too)
-                tmp = strstr(token, " ");
-                status_code = atoi(tmp);
-            }
-            
-                
-        } while ((token = strtok(NULL, "\r\n")));
-
-    } 
-    
-    return status_code;      
-}
-
-
-struct _GUPnPSSLThreadData {
-    GUPnPSSLClient *client;
-    char *message;
-    SoupMessage *soupmesg;
-    GUPnPSSLClientCallback callback;
-    gpointer userdata;     
-};
-
-
-static void *ssl_client_send_and_receive_thread(void *data)
-{
-    int headers_ready = 0;
-    char *tmp, *body = NULL;
-    int retVal = 0;
-    int size = 0;
-    int alloc = 1024;
-    int len = 1024;
-    char recv[len+1];
-    int content_len = 0;
-
-    GUPnPSSLThreadData *ssl_data = data;
-    
-    GUPnPSSLClient *client = ssl_data->client;
-    char *message = ssl_data->message;
-    SoupMessage *msg = ssl_data->soupmesg;
-
-    char *response = malloc((alloc+1)*sizeof( char* ));
-    //char response[alloc+1];
-    *response = '\0';    
-
-
-
-    if (client->session == NULL)
-    {
-        g_free(data);
-        return;// GUPNP_E_SESSION_FAIL;
-    }
- 
-   
-    // Send the message
-    retVal = gnutls_record_send(client->session, message, strlen(message));
-     
-    if (retVal < 0)
-    {
-        g_warning("Error: gnutls_record_send failed. %s", gnutls_strerror(retVal));
-        g_free(data);
-        return;// retVal;  
-    }
-    
-    // Start receiving until error occurs or whole message is received.
-    while (retVal > 0) // if retVal is negative, then gnutls have returned error
-    {
-        memset(recv, '\0',len+1);// earlier receivings doesn't bother after this
-        retVal = gnutls_record_recv (client->session, recv, len);
-               
-        if (retVal < 0)
-        {
-            g_warning("Error: gnutls_record_recv failed. %s", gnutls_strerror(retVal));
-            g_free(data);
-            return;// retVal;
-        }
-        else
-        { 
-            recv[retVal] = '\0';
-            //g_warning("Received %d bytes", retVal);
-        }
-       
-        // does *response have enough space. If not realloc
-        if ( (size + retVal) > alloc )
-        {
-            char *new_resp;
-            alloc = alloc + retVal + 1;
-            
-            new_resp = realloc (response, alloc);
-            if (!new_resp) {
-                g_free(data);
-                return;// -1; // not enough memory
-            }
-  
-            response = new_resp;
-            // because *response may now locate somewhere else than before
-            // we need to update location of body.
-            // This needs to be done only if headers are parsed already and
-            // we are wiating for the body be finished 
-            if (headers_ready && (tmp = strstr(response, "\r\n\r\n")) != NULL)
-            {
-                body = tmp + 4; // body of message is everything that comes after "\r\n\r\n"
-            }            
-        }
-         
-        strcat(response, recv);
-        size = strlen(response);
-       
-        // receive data until empty line containing only \r\n is received (also previous line must end with \r\n). 
-        // That means that headers are done
-        // This "parser" doesn't support chunked encoding...    
-        if (!headers_ready && (tmp = strstr(response, "\r\n\r\n")) != NULL)
-        {
-            body = tmp + 4; // body of message is everything that comes after "\r\n\r\n". body is just pointer to somewhere in the midle of *response
-           
-            // add response header values to SoupMessage
-            retVal = parse_headers(msg->response_headers, response);
-            if (retVal > 0)
-                // set statuscode to SoupMessage
-                soup_message_set_status (msg, retVal);
-            else
-                g_warning("Failed to parse response headers");
-            
-            // this is deprecated call in newer versions of libsoup. Use soup_message_headers_get_one instead
-            const char *clen = soup_message_headers_get (msg->response_headers, "content-length");
-            content_len = atoi(clen);            
-            
-            headers_ready = 1;
-            
-        }
-
-        if (headers_ready && body != NULL && strlen(body) >= content_len)
-        {   
-            body[content_len] = '\0';
-            // body should be ready    
-            
-            // Put body to SoupMessage (soup_message_set_response() should do that also, but didn't get it working 
-            msg->response_body->data = strdup(body);
-            msg->response_body->length = strlen(body);
-            
-            g_free(response);
-            
-            ssl_data->callback(client, msg, ssl_data->userdata);
-            return;// 0;
-        }
-        else
-        {
-            //g_warning("RESPONSE SO FAR\n %s", *response); 
-            // whole message is not received yet...
-        }
-        
-    }
-    g_free(data);    
-    return;// retVal; 
-}
 
 /**************************************************************************
  * Function: ssl_client_send_and_receive
@@ -615,13 +632,12 @@ static void *ssl_client_send_and_receive_thread(void *data)
  *      
  ***************************************************************************/                                  
 int ssl_client_send_and_receive(  GUPnPSSLClient *client,
-                                  const char *message,
+                                  char *message,
                                   SoupMessage *msg,
                                   GUPnPSSLClientCallback callback,
                                   gpointer userdata)                                       
 {
     GError *error = NULL;
-    GThread *ssl_thread = NULL;
     
     GUPnPSSLThreadData *data = g_slice_new(GUPnPSSLThreadData);
     data->client = client;
@@ -630,19 +646,8 @@ int ssl_client_send_and_receive(  GUPnPSSLClient *client,
     data->callback = callback;
     data->userdata = userdata;
 
-    
-    // create new thread for sending and receiving
-    ssl_thread = g_thread_create  ((GThreadFunc)ssl_client_send_and_receive_thread,
-                                    (void *)data,
-                                    FALSE,
-                                    &error);   
-    
-    if (ssl_thread == NULL)
-    {
-        g_warning("Failed to create thread for SSL sending and receiving. (%s)",error->message);
-        g_error_free (error);
-        return -1;
-    }
-    
+    g_thread_pool_push (client->thread_pool,
+                        data,
+                        NULL); 
     return 0;
 }
