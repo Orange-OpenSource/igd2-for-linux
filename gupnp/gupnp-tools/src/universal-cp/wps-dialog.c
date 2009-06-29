@@ -195,7 +195,7 @@ wps_invocation (void)
                                                        device_pin,
         	                                           continue_wps_cb,
         		                                       wps_user_data);
-        if ( (error = gupnp_device_proxy_wps_get_error(deviceProxyWps)) ) {
+/*        if ( (error = gupnp_device_proxy_wps_get_error(deviceProxyWps)) ) {
             GtkWidget *error_dialog;
 
         	error_dialog = gtk_message_dialog_new (GTK_WINDOW (wps_dialog),
@@ -210,7 +210,7 @@ wps_invocation (void)
         	gtk_widget_destroy (error_dialog);
         	gtk_widget_hide (wps_dialog);
         	return;
-        }
+        }*/
 }
 
 void
