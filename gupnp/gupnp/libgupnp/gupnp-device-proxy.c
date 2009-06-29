@@ -123,7 +123,7 @@ struct _GUPnPDeviceProxyChangePassword {
         GString *password;
 
         GString *salt;
-        GString *challenge;
+        GString *stored;
 
         gboolean done;
 };
@@ -1232,11 +1232,14 @@ gupnp_device_proxy_change_password (GUPnPDeviceProxy                       *prox
         g_return_val_if_fail (password, NULL);
 
         // we need to have SSL
+        // so let's create it
+        gupnp_device_proxy_init_ssl (proxy, &gerror);
+        
         if (gupnp_device_proxy_get_ssl_client(proxy) == NULL)
         {
                 passworddata->error = g_error_new(GUPNP_SERVER_ERROR,
                              GUPNP_SERVER_ERROR_OTHER,
-                             "For logging in SSL connection is needed.");
+                             "For changing user password SSL connection is needed.");
                 g_warning("Error: %s", passworddata->error->message);
                 return passworddata;
         }
@@ -1251,7 +1254,7 @@ gupnp_device_proxy_change_password (GUPnPDeviceProxy                       *prox
         passworddata->username = g_string_new(username);
         passworddata->password = g_string_new(password);
         passworddata->salt = NULL;
-        passworddata->challenge = NULL;
+        passworddata->stored = NULL;
         passworddata->done = FALSE;
 
 
@@ -1264,7 +1267,65 @@ gupnp_device_proxy_change_password (GUPnPDeviceProxy                       *prox
                 return passworddata;
         }
 
+        // create new salt and stored
+        // username to utf8 uppercase
+        int ret, salt_len, stored_len;
+        gchar *nameUPPER = g_utf8_strup(passworddata->username->str, passworddata->username->len);        
+        
+        int maxb64len = 2*GUPNP_DP_STORED_BYTES;     
+        unsigned char *b64_salt = (unsigned char *)malloc(maxb64len); 
+        unsigned char *b64_stored = (unsigned char *)malloc(maxb64len);        
+        
+        int name_len = strlen(nameUPPER);
+        int namesalt_len = name_len + GUPNP_DP_SALT_BYTES;
+        unsigned char namesalt[namesalt_len];
+    
+        // create SALT   
+        unsigned char *salt = wpsu_createRandomValue(GUPNP_DP_SALT_BYTES);
+        
+        memcpy(namesalt, nameUPPER, name_len);
+        memcpy(namesalt+name_len, salt, GUPNP_DP_SALT_BYTES);
+        
+        /* Create STORED = first 160 bits of the key T1, with T1 computed according to [PKCS#5] algorithm PBKDF2
+            
+            T1 is defined as the exclusive-or sum of the first c iterates of PRF applied to the concatenation 
+            of the Password, Name, Salt, and four-octet block index (0x00000001) in big-endian format.  
+            For DeviceProtection, the value for c is 5,000.  Name MUST be converted to upper-case, and 
+            Password and Name MUST be encoded in UTF-8 format prior to invoking the PRF operation.  
+            T1 = U1 \xor U2 \xor … \xor Uc
+            where
+            U1 = PRF(Password, Name || Salt || 0x0 || 0x0 || 0x0 || 0x1)
+            U2 = PRF(Password, U1),
+            …
+            Uc = PRF(Password, Uc-1).
+            
+            NOTE2: wpsu_pbkdf2 goes through whole PBKDF2 algorithm, even if in this case only first block
+                   is needed for result. First 160 bits are the same if all the data is processed or just 
+                   the first block. (block size should be defined to 160bits => DP_STORED_BYTES = 8)
+         */
+        unsigned char bin_stored[GUPNP_DP_STORED_BYTES];
+        ret = wpsu_pbkdf2(passworddata->password->str, passworddata->password->len, namesalt,
+                        namesalt_len, GUPNP_DP_PRF_ROUNDS, GUPNP_DP_STORED_BYTES, bin_stored);
+                        
+        if (ret != 0) 
+        {
+                passworddata->error = g_error_new(GUPNP_SERVER_ERROR,
+                             GUPNP_SERVER_ERROR_OTHER,
+                             "Failed to create stored value for password changing");
+                g_warning("Error: %s", passworddata->error->message);
+                return passworddata;  
+        }
+        
+        // SALT and STORED to base 64
+        wpsu_bin_to_base64(GUPNP_DP_SALT_BYTES, salt, &salt_len, b64_salt, maxb64len);                                                
+        wpsu_bin_to_base64(GUPNP_DP_STORED_BYTES, bin_stored, &stored_len, b64_stored, maxb64len);
 
+        // create GStrings from salt and stored
+        passworddata->salt = g_string_new_len(b64_salt, salt_len);
+        passworddata->stored = g_string_new_len(b64_stored, stored_len);
+
+        g_free(b64_salt);
+        g_free(b64_stored);
 
         gupnp_service_proxy_begin_action(passworddata->device_prot_service,
                                          "SetUserLoginPassword",
@@ -1273,6 +1334,12 @@ gupnp_device_proxy_change_password (GUPnPDeviceProxy                       *prox
                                          "Name",
                                          G_TYPE_STRING,
                                          username,
+                                         "Stored",
+                                         G_TYPE_STRING,
+                                         passworddata->stored->str,
+                                         "Salt",
+                                         G_TYPE_STRING,
+                                         passworddata->salt->str,                                                                                  
                                          NULL);
 
         return passworddata;
@@ -1293,8 +1360,8 @@ gupnp_device_proxy_end_change_password (GUPnPDeviceProxyChangePassword *password
 
         g_string_free(passworddata->username, TRUE);
         g_string_free(passworddata->password, TRUE);
-
-        g_free(passworddata);
+        g_string_free(passworddata->salt, TRUE);
+        g_string_free(passworddata->stored, TRUE);        
 
         return done;
 }
