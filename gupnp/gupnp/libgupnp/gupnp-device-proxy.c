@@ -65,7 +65,7 @@ struct _GUPnPDeviceProxyWps {
         guint    method;
         gboolean done;
 
-        // WPSutil structures       
+        // WPSutil structures
         WPSuRegistrarInput *wpsu_input;
         WPSuRegistrarSM   *wpsu_rsm;
         unsigned char     *wpsu_registrar_send_msg;
@@ -93,7 +93,7 @@ struct _GUPnPDeviceProxyLogin {
 };
 
 // this is actually quite useless, because Logout (currently doesn't do anything else than send
-// UserLogout-action which has no parameters. So CP could just send that action as normal, but 
+// UserLogout-action which has no parameters. So CP could just send that action as normal, but
 // lets add similar interface for logout than login if Logout changes in future.
 // And this is beatifully symmetrical with Login :)
 struct _GUPnPDeviceProxyLogout {
@@ -109,6 +109,24 @@ struct _GUPnPDeviceProxyLogout {
         gboolean done;
 };
 
+struct _GUPnPDeviceProxyChangePassword {
+        GUPnPDeviceProxy  *proxy;
+        GUPnPServiceProxy *device_prot_service;
+
+        GUPnPDeviceProxyChangePasswordCallback callback;
+
+        gpointer user_data;
+
+        GError *error;
+
+        GString *username;
+        GString *password;
+
+        GString *salt;
+        GString *challenge;
+
+        gboolean done;
+};
 
 enum {
         PROP_0,
@@ -322,7 +340,7 @@ wps_got_response (GUPnPServiceProxy       *proxy,
                 g_warning("Error: %s", wps->error->message);
 
                 wps->callback(wps->proxy, wps, wps->device_name, &wps->error, wps->user_data);
-                return;           
+                return;
         }
 
         int maxb64len = 2 * wps->wpsu_registrar_send_msg_len;
@@ -470,7 +488,7 @@ gupnp_device_proxy_begin_wps (GUPnPDeviceProxy           *proxy,
         // we need to have SSL
         // so let's create it (if not created already)
         if (!gupnp_device_proxy_init_ssl (proxy, &wps->error))
-        {           
+        {
                 g_warning("Error: %s", wps->error->message);
                 return wps;
         }
@@ -644,7 +662,7 @@ gupnp_device_proxy_end_wps (GUPnPDeviceProxyWps *wps)
 
         wpsu_registrar_input_free(wps->wpsu_input);
         wpsu_cleanup_registrar_sm(wps->wpsu_rsm, &err);
-        
+
         //g_free(wps);
 
         return done;
@@ -775,7 +793,7 @@ gupnp_device_proxy_get_ssl_client (GUPnPDeviceProxy *proxy)
 
         if (proxy->priv->root_proxy)
             return proxy->priv->root_proxy->priv->ssl_client;
-            
+
         return NULL;
 }
 
@@ -931,7 +949,7 @@ login_challenge_response (GUPnPServiceProxy       *proxy,
                 }
 
                 // concatenate NAME and binary salt
-                glong name_len = g_utf8_strlen(nameUPPER, -1);                
+                glong name_len = g_utf8_strlen(nameUPPER, -1);
                 glong namesalt_len = name_len + bin_salt_len;  // should it matter if salt_len is greater than 16. It shouldn't happen, but...
                 unsigned char namesalt[namesalt_len];
 
@@ -988,6 +1006,8 @@ login_challenge_response (GUPnPServiceProxy       *proxy,
 }
 
 
+
+
 // Begin login-process by calling this
 GUPnPDeviceProxyLogin *
 gupnp_device_proxy_begin_login (GUPnPDeviceProxy           *proxy,
@@ -1009,7 +1029,7 @@ gupnp_device_proxy_begin_login (GUPnPDeviceProxy           *proxy,
         gupnp_device_proxy_init_ssl (proxy, &gerror);
 
         if (gupnp_device_proxy_get_ssl_client(proxy) == NULL)
-        {           
+        {
                 logindata->error = g_error_new(GUPNP_SERVER_ERROR,
                              GUPNP_SERVER_ERROR_OTHER,
                              "For logging in SSL connection is needed.");
@@ -1120,7 +1140,7 @@ gupnp_device_proxy_begin_logout (GUPnPDeviceProxy           *proxy,
         gupnp_device_proxy_init_ssl (proxy, &gerror);
 
         if (gupnp_device_proxy_get_ssl_client(proxy) == NULL)
-        {           
+        {
                 logoutdata->error = g_error_new(GUPNP_SERVER_ERROR,
                              GUPNP_SERVER_ERROR_OTHER,
                              "For logging out SSL connection is needed.");
@@ -1165,6 +1185,116 @@ gupnp_device_proxy_end_logout (GUPnPDeviceProxyLogout *logoutdata)
         gboolean done = logoutdata->done;
 
         g_object_unref(logoutdata->proxy);
+
+        return done;
+}
+
+/* SetUserLoginPassword action stuff */
+
+// this is called when library receives response for SetUserLoginPassword-action
+static void
+set_user_login_password_response (GUPnPServiceProxy       *proxy,
+                                  GUPnPServiceProxyAction *action,
+                                  gpointer                 user_data)
+{
+        GUPnPDeviceProxyChangePassword *passworddata = user_data;
+        GError *error = NULL;
+
+        if (!gupnp_service_proxy_end_action (proxy,
+                                             action,
+                                            &error,
+                                             NULL))
+        {
+                passworddata->error = error;
+                g_warning("Error: %s", passworddata->error->message);
+        }
+        else
+        {
+            passworddata->done = TRUE;
+        }
+        passworddata->callback(passworddata->proxy, passworddata, &passworddata->error, passworddata->user_data);
+}
+
+// Change user login password input from GUI
+GUPnPDeviceProxyChangePassword *
+gupnp_device_proxy_change_password (GUPnPDeviceProxy                       *proxy,
+                                    const gchar                            *username,
+                                    const gchar                            *password,
+                                    GUPnPDeviceProxyChangePasswordCallback  callback,
+                                    gpointer                                user_data)
+{
+        GUPnPDeviceProxyChangePassword *passworddata;
+        GError *gerror;
+
+        g_return_val_if_fail (GUPNP_IS_DEVICE_PROXY (proxy), NULL);
+        g_return_val_if_fail (callback, NULL);
+        g_return_val_if_fail (username, NULL);
+        g_return_val_if_fail (password, NULL);
+
+        // we need to have SSL
+        if (gupnp_device_proxy_get_ssl_client(proxy) == NULL)
+        {
+                passworddata->error = g_error_new(GUPNP_SERVER_ERROR,
+                             GUPNP_SERVER_ERROR_OTHER,
+                             "For logging in SSL connection is needed.");
+                g_warning("Error: %s", passworddata->error->message);
+                return passworddata;
+        }
+
+
+        passworddata = g_slice_new (GUPnPDeviceProxyChangePassword);
+        passworddata->proxy = proxy;
+        passworddata->callback = callback;
+        passworddata->user_data = user_data;
+        passworddata->error = NULL;
+        passworddata->device_prot_service = find_device_protection_service (proxy);
+        passworddata->username = g_string_new(username);
+        passworddata->password = g_string_new(password);
+        passworddata->salt = NULL;
+        passworddata->challenge = NULL;
+        passworddata->done = FALSE;
+
+
+        if (passworddata->device_prot_service == NULL)
+        {
+                passworddata->error = g_error_new(GUPNP_SERVER_ERROR,
+                                         GUPNP_SERVER_ERROR_OTHER,
+                                         "No device protection service found.");
+                g_warning("Error: %s", passworddata->error->message);
+                return passworddata;
+        }
+
+
+
+        gupnp_service_proxy_begin_action(passworddata->device_prot_service,
+                                         "SetUserLoginPassword",
+                                         set_user_login_password_response,
+                                         passworddata,
+                                         "Name",
+                                         G_TYPE_STRING,
+                                         username,
+                                         NULL);
+
+        return passworddata;
+}
+
+// End password-change-process by calling this. Returns if operation is succeeded. Username which password is changed,
+// is returned in loginname
+gboolean
+gupnp_device_proxy_end_change_password (GUPnPDeviceProxyChangePassword *passworddata, GString *loginname)
+{
+        // copy username logged in to loginname
+        if (loginname)
+            g_string_assign(loginname, passworddata->username->str);
+
+        gboolean done = passworddata->done;
+
+        g_object_unref(passworddata->proxy);
+
+        g_string_free(passworddata->username, TRUE);
+        g_string_free(passworddata->password, TRUE);
+
+        g_free(passworddata);
 
         return done;
 }

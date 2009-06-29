@@ -88,6 +88,7 @@ typedef struct {
 typedef struct _GUPnPDeviceProxyWps GUPnPDeviceProxyWps;
 typedef struct _GUPnPDeviceProxyLogin GUPnPDeviceProxyLogin;
 typedef struct _GUPnPDeviceProxyLogout GUPnPDeviceProxyLogout;
+typedef struct _GUPnPDeviceProxyChangePassword GUPnPDeviceProxyChangePassword;
 
 /**
  * GUPnPDeviceProxyWpsCallback:
@@ -117,8 +118,8 @@ typedef void (* GUPnPDeviceProxyLoginCallback) (
                                      GUPnPDeviceProxyLogin *logindata,
                                      GError             **error,
                                      gpointer             user_data);
-                                     
-                                     
+
+
 /**
  * GUPnPDeviceProxyLogoutCallback:
  * @proxy: The #GUPnPDeviceProxy logout is called
@@ -131,8 +132,22 @@ typedef void (* GUPnPDeviceProxyLogoutCallback) (
                                      GUPnPDeviceProxy    *proxy,
                                      GUPnPDeviceProxyLogout *logoutdata,
                                      GError             **error,
-                                     gpointer             user_data);                                     
+                                     gpointer             user_data);
 
+
+/**
+ * GUPnPDeviceProxyChangePasswordCallback:
+ * @proxy: The #GUPnPDeviceProxy change password is called
+ * @changepassworddata: The #GUPnPDeviceProxyChangePassword in progress
+ * @user_data: User data
+ *
+ * Callback notifying that change password on @proxy has done the next step.
+ **/
+typedef void (* GUPnPDeviceProxyChangePasswordCallback) (
+                                     GUPnPDeviceProxy    *proxy,
+                                     GUPnPDeviceProxyChangePassword *passworddata,
+                                     GError             **error,
+                                     gpointer             user_data);
 
 GUPnPDeviceProxyWps *
 gupnp_device_proxy_begin_wps(GUPnPDeviceProxy           *proxy,
@@ -197,6 +212,21 @@ gupnp_device_proxy_begin_logout (GUPnPDeviceProxy           *proxy,
 
 gboolean
 gupnp_device_proxy_end_logout (GUPnPDeviceProxyLogout *logoutdata);
+
+GError *
+gupnp_device_proxy_change_password_get_error (GUPnPDeviceProxyChangePassword *deviceProxyChangePassword);
+
+GUPnPDeviceProxyChangePassword *
+gupnp_device_proxy_change_password (GUPnPDeviceProxy                       *proxy,
+                                    const gchar                            *username,
+                                    const gchar                            *password,
+                                    GUPnPDeviceProxyChangePasswordCallback  callback,
+                                    gpointer                                user_data);
+
+gboolean
+gupnp_device_proxy_end_change_password (GUPnPDeviceProxyChangePassword *passworddata, GString *loginname);
+
+
 
 G_END_DECLS
 
