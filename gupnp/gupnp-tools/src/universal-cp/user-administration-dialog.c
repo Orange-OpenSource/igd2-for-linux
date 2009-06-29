@@ -176,17 +176,17 @@ init_user_administration_dialog (GladeXML *glade_xml)
 	    g_assert (ua_dialog_table != NULL);
 
         /* User name label */
-        ua_dialog_username_label1 = glade_xml_get_widget (glade_xml, "ua-dialog-username-label1");
+        ua_dialog_username_label1 = glade_xml_get_widget (glade_xml, "ua-dialog-username-label");
         g_assert (ua_dialog_username_label1 != NULL);
 
         /* User name entry */
-        ua_dialog_username_entry1 = glade_xml_get_widget (glade_xml, "ua-username-entry1");
+        ua_dialog_username_entry1 = glade_xml_get_widget (glade_xml, "ua-username-entry");
         g_assert (ua_dialog_username_entry1 != NULL);
 
         /* All check buttons */
-        ua_dialog_public_checkbutton1 = glade_xml_get_widget (glade_xml, "username1-checkbutton1");
-        ua_dialog_basic_checkbutton1 = glade_xml_get_widget (glade_xml, "username1-checkbutton2");
-        ua_dialog_admin_checkbutton1 = glade_xml_get_widget (glade_xml, "username1-checkbutton3");
+        ua_dialog_public_checkbutton1 = glade_xml_get_widget (glade_xml, "ua-checkbutton-public");
+        ua_dialog_basic_checkbutton1 = glade_xml_get_widget (glade_xml, "ua-checkbutton-basic");
+        ua_dialog_admin_checkbutton1 = glade_xml_get_widget (glade_xml, "ua-checkbutton-admin");
         g_assert (ua_dialog_public_checkbutton1 != NULL);
         g_assert (ua_dialog_basic_checkbutton1 != NULL);
         g_assert (ua_dialog_admin_checkbutton1 != NULL);
