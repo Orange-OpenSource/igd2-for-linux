@@ -696,7 +696,7 @@ gupnp_device_proxy_init_ssl (GUPnPDeviceProxy *proxy,
 
             // create ssl
             int ret = gupnp_device_proxy_create_and_init_ssl_client (proxy, URL);
-
+            if (URL) free(URL);
             if (ret != 0)
             {
                 *error = g_error_new(GUPNP_SERVER_ERROR,
