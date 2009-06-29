@@ -268,11 +268,8 @@ uls_dialog_change_password_clicked (GladeXML *glade_xml)
 		const gchar *username=NULL, *password=NULL;
 		gpointer user_data = NULL;
 
-	    const gchar *user= "Jaakko";
-	    GString *loginname = g_string_new(user);
 		username = gtk_entry_get_text (GTK_ENTRY(uls_dialog_username_entry));
 	    password = gtk_entry_get_text (GTK_ENTRY(uls_dialog_password_entry));
-	    GString *username_entry = g_string_new(username);
 
 	    if ((strcmp (username, "") == 0) || (strcmp (password, "") == 0)) {
 	        /* No username or password given for login */
@@ -288,21 +285,6 @@ uls_dialog_change_password_clicked (GladeXML *glade_xml)
 
    	        return;
        	}
-
-        get_current_username(loginname);
-        if (strcmp (loginname->str, username_entry->str)) {
-	         /* Given username should be current username */
-	         GtkWidget *info_dialog;
-
-	    	 info_dialog = gtk_message_dialog_new (GTK_WINDOW (user_login_setup_dialog),
-	    	                                       GTK_DIALOG_MODAL,
-	    	                                       GTK_MESSAGE_INFO,
-	    	                                       GTK_BUTTONS_CLOSE,
-	    	                                       "Password change is only possible for current user! ");
-	    	 gtk_dialog_run (GTK_DIALOG (info_dialog));
-	         gtk_widget_destroy (info_dialog);
-	         return;
-        }
 
         GUPnPDeviceInfo *info = get_selected_device_info ();
         GUPnPDeviceProxy *deviceProxy = GUPNP_DEVICE_PROXY (info);
