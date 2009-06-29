@@ -504,7 +504,9 @@ gupnp_device_proxy_begin_wps (GUPnPDeviceProxy           *proxy,
         wps->method = method;
         wps->done = FALSE;
         wps->wpsu_input = g_slice_new(WPSuRegistrarInput);
-
+        
+        // nullify input
+        memset(wps->wpsu_input, 0, sizeof(*(wps->wpsu_input)));
 
         if (wps->method == GUPNP_DEVICE_WPS_METHOD_PUSHBUTTON)
         {
