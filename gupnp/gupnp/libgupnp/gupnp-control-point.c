@@ -726,6 +726,9 @@ gupnp_control_point_resource_unavailable
                         /* Remove proxy */
                         proxy = GUPNP_DEVICE_PROXY (info);
 
+                        /* delete SSL client */
+                        ssl_finish_client( gupnp_device_proxy_get_ssl_client(proxy) );
+
                         cur_l = l;
                         l = l->next;
 
