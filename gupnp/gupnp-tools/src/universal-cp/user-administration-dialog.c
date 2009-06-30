@@ -42,10 +42,10 @@ guint nbr_of_users=1;
 
 typedef enum
 {
-	 UNKNOWN_ROLE,
-     ADMIN_ROLE,
-     BASIC_ROLE,
-     PUBLIC_ROLE
+	     UNKNOWN_ROLE,
+         ADMIN_ROLE,
+         BASIC_ROLE,
+         PUBLIC_ROLE
 } userRole;
 
 
@@ -177,7 +177,7 @@ add_new_user_to_table(guint row, const gchar *username, userRole role)
 
         gtk_dialog_run (GTK_DIALOG (add_user_dialog));
         //gtk_widget_hide (add_user_dialog);
-        gtk_widget_destroy (add_user_dialog);
+        //gtk_widget_destroy (add_user_dialog);
 
         // TODO: Scrollbar ikkuna pitäisi saada jotenkin toimimaan, kun lisätään käyttäjiä..
 	    // gtk_container_add (GTK_CONTAINER(ua_dialog_scrolled_window), ua_dialog_table);
@@ -250,44 +250,44 @@ continue_remove_user_dialog_cb (GUPnPDeviceProxy            *proxy,
                                 gpointer                     user_data)
 {
 
-    if ((*error) != NULL) {
-        GtkWidget *error_dialog;
+		if ((*error) != NULL) {
+			GtkWidget *error_dialog;
 
-        error_dialog = gtk_message_dialog_new (GTK_WINDOW (user_admininistration_dialog),
-                                               GTK_DIALOG_MODAL,
-                                               GTK_MESSAGE_ERROR,
-                                               GTK_BUTTONS_CLOSE,
-                                               "Removing  user failed.\n\nError %d: %s",
-                                               (*error)->code,
-                                               (*error)->message);
-        gtk_dialog_run (GTK_DIALOG (error_dialog));
-        gtk_widget_destroy (error_dialog);
+			error_dialog = gtk_message_dialog_new (GTK_WINDOW (user_admininistration_dialog),
+                                                   GTK_DIALOG_MODAL,
+                                                   GTK_MESSAGE_ERROR,
+                                                   GTK_BUTTONS_CLOSE,
+                                                   "Removing  user failed.\n\nError %d: %s",
+                                                   (*error)->code,
+                                                   (*error)->message);
+			gtk_dialog_run (GTK_DIALOG (error_dialog));
+			gtk_widget_destroy (error_dialog);
 
-        gtk_widget_hide (user_admininistration_dialog);
-        g_error_free ((*error));
+			gtk_widget_hide (user_admininistration_dialog);
+			g_error_free ((*error));
 
-        gupnp_device_proxy_end_remove_user (removeuserdata);
-        return;
-    }
+			gupnp_device_proxy_end_remove_user (removeuserdata);
+			return;
+		}
 
-    if (gupnp_device_proxy_end_remove_user (removeuserdata)) {
-        // User successfully removed
-    	GtkWidget *info_dialog;
+		if (gupnp_device_proxy_end_remove_user (removeuserdata)) {
+			// User successfully removed
+			GtkWidget *info_dialog;
 
-        info_dialog = gtk_message_dialog_new (GTK_WINDOW (user_admininistration_dialog),
-                                              GTK_DIALOG_MODAL,
-                                              GTK_MESSAGE_INFO,
-                                              GTK_BUTTONS_CLOSE,
-                                              "User successfully removed");
+			info_dialog = gtk_message_dialog_new (GTK_WINDOW (user_admininistration_dialog),
+                                                  GTK_DIALOG_MODAL,
+                                                  GTK_MESSAGE_INFO,
+                                                  GTK_BUTTONS_CLOSE,
+                                                  "User successfully removed");
 
-        gtk_dialog_run (GTK_DIALOG (info_dialog));
-        gtk_widget_destroy (info_dialog);
-	    gtk_widget_hide (user_admininistration_dialog);
+			gtk_dialog_run (GTK_DIALOG (info_dialog));
+			gtk_widget_destroy (info_dialog);
+			gtk_widget_hide (user_admininistration_dialog);
 
-	    // TODO: remove user from table...
-	    // nbr_of_users--;
-	    // remove_user_from_table(row, new_username, role);
-    }
+			// TODO: remove user from table...
+			// nbr_of_users--;
+			// remove_user_from_table(row, new_username, role);
+		}
 
 }
 
@@ -328,63 +328,107 @@ start_add_user_dialog (GladeXML *glade_xml)
 }
 
 void
+add_user_dialog_password_cb (GUPnPDeviceProxy                *proxy,
+                             GUPnPDeviceProxyChangePassword  *passworddata,
+                             GError                         **error,
+                             gpointer                         user_data)
+{
+
+		const gchar *username = gtk_entry_get_text (GTK_ENTRY(add_user_dialog_username_entry));
+		GString *loginname = g_string_new(username);
+
+		if ((*error) != NULL) {
+			GtkWidget *error_dialog;
+
+			error_dialog = gtk_message_dialog_new (GTK_WINDOW (user_admininistration_dialog),
+												   GTK_DIALOG_MODAL,
+                                                   GTK_MESSAGE_ERROR,
+                                                   GTK_BUTTONS_CLOSE,
+                                                   "Adding new user failed.\n\nError %d: %s",
+                                                   (*error)->code,
+                                                   (*error)->message);
+			gtk_dialog_run (GTK_DIALOG (error_dialog));
+			gtk_widget_destroy (error_dialog);
+
+			gtk_widget_hide (user_admininistration_dialog);
+			g_error_free ((*error));
+
+			gupnp_device_proxy_end_change_password (passworddata, loginname);
+			return;
+		}
+
+		if (gupnp_device_proxy_end_change_password (passworddata, loginname)) {
+			// Password successfully changed
+			GtkWidget *info_dialog;
+			userRole role;
+
+			info_dialog = gtk_message_dialog_new (GTK_WINDOW (user_admininistration_dialog),
+                                                  GTK_DIALOG_MODAL,
+                                                  GTK_MESSAGE_INFO,
+                                                  GTK_BUTTONS_CLOSE,
+                                                  "New user successfully added");
+
+			gtk_dialog_run (GTK_DIALOG (info_dialog));
+			gtk_widget_destroy (info_dialog);
+			gtk_widget_hide (user_admininistration_dialog);
+
+			if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON(add_user_dialog_admin_checkbutton)))
+			    role = ADMIN_ROLE;
+			else if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON(add_user_dialog_basic_checkbutton)))
+				role = BASIC_ROLE;
+			else if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON(add_user_dialog_public_checkbutton)))
+				role = PUBLIC_ROLE;
+			else
+				role = UNKNOWN_ROLE;
+
+			nbr_of_users++;
+			add_new_user_to_table(nbr_of_users, username, role);
+		}
+}
+
+void
 continue_add_user_dialog_cb (GUPnPDeviceProxy         *proxy,
 		                     GUPnPDeviceProxyAddUser  *adduserdata,
                              GError                  **error,
                              gpointer                  user_data)
 {
 
-    if ((*error) != NULL) {
+		if ((*error) != NULL) {
+			GtkWidget *error_dialog;
 
-        GtkWidget *error_dialog;
+			error_dialog = gtk_message_dialog_new (GTK_WINDOW (user_admininistration_dialog),
+                                                   GTK_DIALOG_MODAL,
+                                                   GTK_MESSAGE_ERROR,
+                                                   GTK_BUTTONS_CLOSE,
+                                                   "Adding new user failed.\n\nError %d: %s",
+                                                   (*error)->code,
+                                                   (*error)->message);
+			gtk_dialog_run (GTK_DIALOG (error_dialog));
+			gtk_widget_destroy (error_dialog);
 
-        error_dialog = gtk_message_dialog_new (GTK_WINDOW (user_admininistration_dialog),
-                                               GTK_DIALOG_MODAL,
-                                               GTK_MESSAGE_ERROR,
-                                               GTK_BUTTONS_CLOSE,
-                                               "Adding new user failed.\n\nError %d: %s",
-                                               (*error)->code,
-                                               (*error)->message);
-        gtk_dialog_run (GTK_DIALOG (error_dialog));
-        gtk_widget_destroy (error_dialog);
+			gtk_widget_hide (user_admininistration_dialog);
+			g_error_free ((*error));
 
-        gtk_widget_hide (user_admininistration_dialog);
-        g_error_free ((*error));
+			gupnp_device_proxy_end_add_user (adduserdata);
+			return;
+		}
 
-        gupnp_device_proxy_end_add_user (adduserdata);
-        return;
-    }
+		if (gupnp_device_proxy_end_add_user (adduserdata)) {
+			// User successfully added, change password
+			GUPnPDeviceProxyChangePassword *deviceProxyChangePassword;
+			const gchar *new_username = gtk_entry_get_text (GTK_ENTRY(add_user_dialog_username_entry));
+			const gchar *new_password = gtk_entry_get_text (GTK_ENTRY(add_user_dialog_password_entry));
 
-    if (gupnp_device_proxy_end_add_user (adduserdata)) {
-        // User successfully added
-    	GtkWidget *info_dialog;
-    	userRole role;
+			GUPnPDeviceInfo *info = get_selected_device_info ();
+			GUPnPDeviceProxy *deviceProxy = GUPNP_DEVICE_PROXY (info);
+			g_assert (deviceProxy != NULL);
 
-        info_dialog = gtk_message_dialog_new (GTK_WINDOW (user_admininistration_dialog),
-                                              GTK_DIALOG_MODAL,
-                                              GTK_MESSAGE_INFO,
-                                              GTK_BUTTONS_CLOSE,
-                                              "New user successfully added");
-
-        gtk_dialog_run (GTK_DIALOG (info_dialog));
-        gtk_widget_destroy (info_dialog);
-	    gtk_widget_hide (user_admininistration_dialog);
-
-
-	    const gchar *new_username = gtk_entry_get_text (GTK_ENTRY(add_user_dialog_username_entry));
-
-	    if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON(add_user_dialog_admin_checkbutton)))
-			role = ADMIN_ROLE;
-	    else if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON(add_user_dialog_basic_checkbutton)))
-	    	role = BASIC_ROLE;
-	    else if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON(add_user_dialog_public_checkbutton)))
-	    	role = PUBLIC_ROLE;
-	    else
-	    	role = UNKNOWN_ROLE;
-
-	    nbr_of_users++;
-	    add_new_user_to_table(nbr_of_users, new_username, role);
-    }
+			deviceProxyChangePassword = gupnp_device_proxy_change_password (deviceProxy,
+        		                                                            new_username,
+                                                                            new_password,
+                                                                            add_user_dialog_password_cb,
+                                                                            user_data);
+		}
 
 }
 
