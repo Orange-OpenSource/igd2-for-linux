@@ -244,9 +244,70 @@ deinit_user_administration_dialog (void)
 }
 
 void
+continue_remove_user_dialog_cb (GUPnPDeviceProxy            *proxy,
+		                        GUPnPDeviceProxyRemoveUser  *removeuserdata,
+                                GError                     **error,
+                                gpointer                     user_data)
+{
+
+    if ((*error) != NULL) {
+        GtkWidget *error_dialog;
+
+        error_dialog = gtk_message_dialog_new (GTK_WINDOW (user_admininistration_dialog),
+                                               GTK_DIALOG_MODAL,
+                                               GTK_MESSAGE_ERROR,
+                                               GTK_BUTTONS_CLOSE,
+                                               "Removing  user failed.\n\nError %d: %s",
+                                               (*error)->code,
+                                               (*error)->message);
+        gtk_dialog_run (GTK_DIALOG (error_dialog));
+        gtk_widget_destroy (error_dialog);
+
+        gtk_widget_hide (user_admininistration_dialog);
+        g_error_free ((*error));
+
+        gupnp_device_proxy_end_remove_user (removeuserdata);
+        return;
+    }
+
+    if (gupnp_device_proxy_end_remove_user (removeuserdata)) {
+        // User successfully removed
+    	GtkWidget *info_dialog;
+
+        info_dialog = gtk_message_dialog_new (GTK_WINDOW (user_admininistration_dialog),
+                                              GTK_DIALOG_MODAL,
+                                              GTK_MESSAGE_INFO,
+                                              GTK_BUTTONS_CLOSE,
+                                              "User successfully removed");
+
+        gtk_dialog_run (GTK_DIALOG (info_dialog));
+        gtk_widget_destroy (info_dialog);
+	    gtk_widget_hide (user_admininistration_dialog);
+
+	    // TODO: remove user from table...
+	    // nbr_of_users--;
+	    // remove_user_from_table(row, new_username, role);
+    }
+
+}
+
+void
 ua_dialog_remove_user (GladeXML *glade_xml)
 {
-	    // TODO: remove selected user from table etc...
+	    GUPnPDeviceProxyRemoveUser *deviceProxyRemoveUser;
+		gpointer user_data = NULL;
+	    const gchar *username = "admin";
+
+        GUPnPDeviceInfo *info = get_selected_device_info ();
+        GUPnPDeviceProxy *deviceProxy = GUPNP_DEVICE_PROXY (info);
+		g_assert (deviceProxy != NULL);
+
+		// TODO: Get selected username from table.....
+
+	    deviceProxyRemoveUser = gupnp_device_proxy_remove_user (deviceProxy,
+	    		                                                username,
+	    		                                                continue_remove_user_dialog_cb,
+	                                                            user_data);
 }
 
 void
