@@ -75,6 +75,9 @@ static int get_sockfd(void)
  */
 char *toUpperCase(const char * str)
 {
+    if (str == NULL)
+        return NULL;
+    
     int slen = strlen(str);
     int wcslen;
     wchar_t wc[2*slen];  // doubling original string length should guarantee that there is enough space for wchar_t
@@ -1881,6 +1884,11 @@ int ACL_validateAndRemoveIdentity(IXML_Document *ACLdoc, IXML_Document *identity
         {
             trace(2,"(ACL) Failed to find any ID or Name from given parameter");
             return 707;
+        }
+        else if (strcmp(toUpperCase(id), "ADMIN") == 0) // username must not be Admin
+        {
+            trace(2,"(ACL) Trying to remove Admin, that's not allowed");
+            return 707;            
         }
         else
         {
