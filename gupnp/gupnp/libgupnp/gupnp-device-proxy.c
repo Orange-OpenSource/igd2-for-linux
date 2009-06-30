@@ -1470,7 +1470,7 @@ gupnp_device_proxy_add_user (GUPnPDeviceProxy           *proxy,
         adduserdata->username = g_string_new(username);
         adduserdata->password = g_string_new(password); // password is not used here, but let's keep it for change_password, if it is needed there
         adduserdata->rolelist = g_string_new(rolelist);
-        adduserdata->identitylist = NULL;
+        adduserdata->identitylist = g_string_new("");
 
         if (adduserdata->device_prot_service == NULL)
         {
@@ -1507,10 +1507,10 @@ gupnp_device_proxy_end_add_user (GUPnPDeviceProxyAddUser *adduserdata)
 
         g_object_unref(adduserdata->proxy);
         
-        g_free(adduserdata->username);
-        g_free(adduserdata->password);
-        g_free(adduserdata->rolelist);
-        g_free(adduserdata->identitylist);
+        g_string_free(adduserdata->username,TRUE);
+        g_string_free(adduserdata->password,TRUE);
+        g_string_free(adduserdata->rolelist,TRUE);
+        g_string_free(adduserdata->identitylist,TRUE);
 
         return done;
 }
@@ -1578,7 +1578,7 @@ gupnp_device_proxy_remove_user (GUPnPDeviceProxy           *proxy,
         removeuserdata->device_prot_service = find_device_protection_service (proxy);
         removeuserdata->done = FALSE;
         removeuserdata->username = g_string_new(username);
-        removeuserdata->identity = NULL;
+        removeuserdata->identity = g_string_new("");
 
         if (removeuserdata->device_prot_service == NULL)
         {
@@ -1612,8 +1612,8 @@ gupnp_device_proxy_end_remove_user (GUPnPDeviceProxyRemoveUser *removeuserdata)
 
         g_object_unref(removeuserdata->proxy);
         
-        g_free(removeuserdata->username);
-        g_free(removeuserdata->identity);
+        g_string_free(removeuserdata->username,TRUE);
+        g_string_free(removeuserdata->identity,TRUE);
 
         return done;
 }
