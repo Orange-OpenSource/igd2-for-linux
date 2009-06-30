@@ -91,6 +91,7 @@ typedef struct _GUPnPDeviceProxyLogout GUPnPDeviceProxyLogout;
 typedef struct _GUPnPDeviceProxyChangePassword GUPnPDeviceProxyChangePassword;
 typedef struct _GUPnPDeviceProxyAddUser GUPnPDeviceProxyAddUser;
 typedef struct _GUPnPDeviceProxyRemoveUser GUPnPDeviceProxyRemoveUser;
+typedef struct _GUPnPDeviceProxySetRoles GUPnPDeviceProxySetRoles;
 
 /**
  * GUPnPDeviceProxyWpsCallback:
@@ -165,10 +166,10 @@ typedef void (* GUPnPDeviceProxyAddUserCallback) (
                                      GError             **error,
                                      gpointer             user_data);
                                      
-                                                                          /**
+/**
  * GUPnPDeviceProxyRemoveUserCallback:
  * @proxy: The #GUPnPDeviceProxy add user is called
- * @removeuserdata: The #GUPnPDeviceProxyRemoveUser in progress
+ * @removeuserdata: The #GUPnPDeviceProxySetRoles in progress
  * @user_data: User data
  *
  * Callback notifying that remove user on @proxy has done the next step.
@@ -178,6 +179,20 @@ typedef void (* GUPnPDeviceProxyRemoveUserCallback) (
                                      GUPnPDeviceProxyRemoveUser *removeuserdata,
                                      GError             **error,
                                      gpointer             user_data);  
+
+/**
+ * GUPnPDeviceProxySetRolesCallback:
+ * @proxy: The #GUPnPDeviceProxy add user is called
+ * @adduserdata: The #GUPnPDeviceProxySetRoles in progress
+ * @user_data: User data
+ *
+ * Callback notifying that add or remove roles on @proxy has done the next step.
+ **/
+typedef void (* GUPnPDeviceProxySetRolesCallback) (
+                                     GUPnPDeviceProxy    *proxy,
+                                     GUPnPDeviceProxySetRoles *rolesdata,
+                                     GError             **error,
+                                     gpointer             user_data);
 
 
 
@@ -277,6 +292,28 @@ gupnp_device_proxy_remove_user (GUPnPDeviceProxy           *proxy,
 
 gboolean
 gupnp_device_proxy_end_remove_user (GUPnPDeviceProxyRemoveUser *removeuserdata);
+
+
+GUPnPDeviceProxySetRoles *
+gupnp_device_proxy_add_roles (GUPnPDeviceProxy           *proxy,
+                             const gchar                *username,
+                             const gchar                *rolelist,      
+                             GUPnPDeviceProxySetRolesCallback callback,
+                             gpointer                    user_data);
+                             
+gboolean
+gupnp_device_proxy_end_add_roles (GUPnPDeviceProxySetRoles *addrolesdata);                             
+
+GUPnPDeviceProxySetRoles *
+gupnp_device_proxy_remove_roles (GUPnPDeviceProxy           *proxy,
+                             const gchar                *username,
+                             const gchar                *rolelist,  
+                             GUPnPDeviceProxySetRolesCallback callback,
+                             gpointer                    user_data);
+
+gboolean
+gupnp_device_proxy_end_remove_roles (GUPnPDeviceProxySetRoles *removerolesdata);
+
 
 G_END_DECLS
 

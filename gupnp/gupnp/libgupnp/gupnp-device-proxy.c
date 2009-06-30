@@ -163,6 +163,24 @@ struct _GUPnPDeviceProxyRemoveUser {
 };
 
 
+struct _GUPnPDeviceProxySetRoles {
+        GUPnPDeviceProxy  *proxy;
+        GUPnPServiceProxy *device_prot_service;
+
+        GUPnPDeviceProxySetRolesCallback callback;
+
+        gpointer user_data;
+
+        GError *error;
+
+        GString *username;
+        GString *identity;
+        GString *rolelist;
+
+        gboolean done;
+};
+
+
 enum {
         PROP_0,
         PROP_SESSION,
@@ -1614,6 +1632,224 @@ gupnp_device_proxy_end_remove_user (GUPnPDeviceProxyRemoveUser *removeuserdata)
         
         g_string_free(removeuserdata->username,TRUE);
         g_string_free(removeuserdata->identity,TRUE);
+
+        return done;
+}
+
+/*   Add Roles For User  */
+
+// this is called when library receives response for AddRolesForIdentity-action
+static void
+add_roles_response (GUPnPServiceProxy       *proxy,
+                    GUPnPServiceProxyAction *action,
+                    gpointer                 user_data)
+{
+        GUPnPDeviceProxySetRoles *addrolesdata = user_data;
+        
+        GError *error = NULL;
+
+        if (!gupnp_service_proxy_end_action (proxy,
+                                             action,
+                                            &error,
+                                             NULL))
+        {
+                addrolesdata->error = error;
+                g_warning("Error: %s", addrolesdata->error->message);
+        }
+        else
+        {
+            addrolesdata->done = TRUE;
+        }
+        addrolesdata->callback(addrolesdata->proxy, addrolesdata, &addrolesdata->error, addrolesdata->user_data);
+}
+
+// Begin adding roles for user
+GUPnPDeviceProxySetRoles *
+gupnp_device_proxy_add_roles (GUPnPDeviceProxy           *proxy,
+                             const gchar                *username,  
+                             const gchar                *rolelist,  
+                             GUPnPDeviceProxySetRolesCallback callback,
+                             gpointer                    user_data)
+{
+        GUPnPDeviceProxySetRoles *addrolesdata;
+        GError *gerror;
+
+        g_return_val_if_fail (GUPNP_IS_DEVICE_PROXY (proxy), NULL);
+        g_return_val_if_fail (username, NULL);
+        g_return_val_if_fail (rolelist, NULL);
+
+        // we need to have SSL
+        // so let's create it (if not created already
+        gupnp_device_proxy_init_ssl (proxy, &gerror);
+
+        if (gupnp_device_proxy_get_ssl_client(proxy) == NULL)
+        {
+                addrolesdata->error = g_error_new(GUPNP_SERVER_ERROR,
+                             GUPNP_SERVER_ERROR_OTHER,
+                             "For adding roles for user SSL connection is needed.");
+                g_warning("Error: %s", addrolesdata->error->message);
+                return addrolesdata;
+        }
+
+
+        addrolesdata = g_slice_new (GUPnPDeviceProxySetRoles);
+        addrolesdata->proxy = proxy;
+        addrolesdata->callback = callback;
+        addrolesdata->user_data = user_data;
+        addrolesdata->error = NULL;
+        addrolesdata->device_prot_service = find_device_protection_service (proxy);
+        addrolesdata->done = FALSE;
+        addrolesdata->username = g_string_new(username);
+        addrolesdata->identity = g_string_new("");
+        addrolesdata->rolelist = g_string_new(rolelist);
+
+        if (addrolesdata->device_prot_service == NULL)
+        {
+                addrolesdata->error = g_error_new(GUPNP_SERVER_ERROR,
+                                         GUPNP_SERVER_ERROR_OTHER,
+                                         "No device protection service found.");
+                g_warning("Error: %s", addrolesdata->error->message);
+                return addrolesdata;
+        }
+
+        // create Identity XML fragment
+        g_string_printf(addrolesdata->identity, "<User><Name>%s</Name></User>", username);
+
+        gupnp_service_proxy_begin_action(addrolesdata->device_prot_service,
+                                         "AddRolesForIdentity",
+                                         add_roles_response,
+                                         addrolesdata,
+                                         "Identity",
+                                         G_TYPE_STRING,
+                                         addrolesdata->identity->str,
+                                         "RoleList",
+                                         G_TYPE_STRING,
+                                         rolelist,
+                                         NULL);
+
+        return addrolesdata;
+}
+
+
+gboolean
+gupnp_device_proxy_end_add_roles (GUPnPDeviceProxySetRoles *addrolesdata)
+{
+        gboolean done = addrolesdata->done;
+
+        g_object_unref(addrolesdata->proxy);
+        
+        g_string_free(addrolesdata->username,TRUE);
+        g_string_free(addrolesdata->identity,TRUE);
+        g_string_free(addrolesdata->rolelist,TRUE);
+
+        return done;
+}
+
+/*   Remove Roles From User  */
+
+// this is called when library receives response for RemoveRolesForIdentity-action
+static void
+remove_roles_response (GUPnPServiceProxy       *proxy,
+                    GUPnPServiceProxyAction *action,
+                    gpointer                 user_data)
+{
+        GUPnPDeviceProxySetRoles *removerolesdata = user_data;
+        
+        GError *error = NULL;
+
+        if (!gupnp_service_proxy_end_action (proxy,
+                                             action,
+                                            &error,
+                                             NULL))
+        {
+                removerolesdata->error = error;
+                g_warning("Error: %s", removerolesdata->error->message);
+        }
+        else
+        {
+            removerolesdata->done = TRUE;
+        }
+        removerolesdata->callback(removerolesdata->proxy, removerolesdata, &removerolesdata->error, removerolesdata->user_data);
+}
+
+// Begin adding roles for user
+GUPnPDeviceProxySetRoles *
+gupnp_device_proxy_remove_roles (GUPnPDeviceProxy           *proxy,
+                             const gchar                *username,  
+                             const gchar                *rolelist,  
+                             GUPnPDeviceProxySetRolesCallback callback,
+                             gpointer                    user_data)
+{
+        GUPnPDeviceProxySetRoles *removerolesdata;
+        GError *gerror;
+
+        g_return_val_if_fail (GUPNP_IS_DEVICE_PROXY (proxy), NULL);
+        g_return_val_if_fail (username, NULL);
+        g_return_val_if_fail (rolelist, NULL);
+
+        // we need to have SSL
+        // so let's create it (if not created already
+        gupnp_device_proxy_init_ssl (proxy, &gerror);
+
+        if (gupnp_device_proxy_get_ssl_client(proxy) == NULL)
+        {
+                removerolesdata->error = g_error_new(GUPNP_SERVER_ERROR,
+                             GUPNP_SERVER_ERROR_OTHER,
+                             "For removing roles for user SSL connection is needed.");
+                g_warning("Error: %s", removerolesdata->error->message);
+                return removerolesdata;
+        }
+
+
+        removerolesdata = g_slice_new (GUPnPDeviceProxySetRoles);
+        removerolesdata->proxy = proxy;
+        removerolesdata->callback = callback;
+        removerolesdata->user_data = user_data;
+        removerolesdata->error = NULL;
+        removerolesdata->device_prot_service = find_device_protection_service (proxy);
+        removerolesdata->done = FALSE;
+        removerolesdata->username = g_string_new(username);
+        removerolesdata->identity = g_string_new("");
+        removerolesdata->rolelist = g_string_new(rolelist);
+
+        if (removerolesdata->device_prot_service == NULL)
+        {
+                removerolesdata->error = g_error_new(GUPNP_SERVER_ERROR,
+                                         GUPNP_SERVER_ERROR_OTHER,
+                                         "No device protection service found.");
+                g_warning("Error: %s", removerolesdata->error->message);
+                return removerolesdata;
+        }
+
+        // create Identity XML fragment
+        g_string_printf(removerolesdata->identity, "<User><Name>%s</Name></User>", username);
+
+        gupnp_service_proxy_begin_action(removerolesdata->device_prot_service,
+                                         "RemoveRolesForIdentity",
+                                         remove_roles_response,
+                                         removerolesdata,
+                                         "Identity",
+                                         G_TYPE_STRING,
+                                         removerolesdata->identity->str,
+                                         "RoleList",
+                                         G_TYPE_STRING,
+                                         rolelist,
+                                         NULL);
+
+        return removerolesdata;
+}
+
+
+gboolean
+gupnp_device_proxy_end_remove_roles (GUPnPDeviceProxySetRoles *removerolesdata)
+{
+        gboolean done = removerolesdata->done;
+
+        g_object_unref(removerolesdata->proxy);
+        
+        g_string_free(removerolesdata->username,TRUE);
+        g_string_free(removerolesdata->identity,TRUE);
+        g_string_free(removerolesdata->rolelist,TRUE);
 
         return done;
 }
