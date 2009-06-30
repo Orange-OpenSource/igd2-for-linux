@@ -37,13 +37,24 @@ static GtkWidget *add_user_dialog_public_checkbutton;
 static GtkWidget *add_user_dialog_basic_checkbutton;
 static GtkWidget *add_user_dialog_admin_checkbutton;
 
+/* */
+guint nbr_of_users=1;
+
+typedef enum
+{
+	 UNKNOWN_ROLE,
+     ADMIN_ROLE,
+     BASIC_ROLE,
+     PUBLIC_ROLE
+} userRole;
+
+
 /*
  * User administration dialog functions
  */
 void
 start_user_administration (GladeXML *glade_xml)
 {
-		guint nbr_of_users=1;
 	    init_user_administration_dialog_fields();
 	    // TODO: parsi XML:stä montako käyttäjää = montako riviä taulukkoon
 	    // TODO: parsi XML:stä: username, nykyinen rooli
@@ -66,7 +77,7 @@ start_user_administration (GladeXML *glade_xml)
 }
 
 void
-add_new_user_to_table(guint row, const gchar *username, guint role)
+add_new_user_to_table(guint row, const gchar *username, userRole role)
 {
         /* Add "Username" label to table */
         GtkWidget* new_username_label = gtk_label_new ("Username");
@@ -101,13 +112,24 @@ add_new_user_to_table(guint row, const gchar *username, guint role)
         GtkWidget* new_basic_checkbutton = gtk_check_button_new_with_label ("Basic");
         GtkWidget* new_admin_checkbutton = gtk_check_button_new_with_label ("Admin");
 
-        // TODO: Set active role from xml
-        if (role==0)
-        	gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON(new_public_checkbutton), TRUE);
-        if (role==1)
+        // Set role
+        switch (role) {
+        case ADMIN_ROLE:
+        	gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON(new_admin_checkbutton), TRUE);
         	gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON(new_basic_checkbutton), TRUE);
-		if (role==2)
-			gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON(new_admin_checkbutton), TRUE);
+        	gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON(new_public_checkbutton), TRUE);
+        	break;
+        case BASIC_ROLE:
+        	gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON(new_basic_checkbutton), TRUE);
+        	gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON(new_public_checkbutton), TRUE);
+        	break;
+        case PUBLIC_ROLE:
+        	gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON(new_public_checkbutton), TRUE);
+        	break;
+        default:
+        	gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON(new_public_checkbutton), TRUE);
+            break;
+        }
 
         gtk_table_attach (GTK_TABLE (ua_dialog_table),
         		          new_public_checkbutton,
@@ -146,7 +168,18 @@ add_new_user_to_table(guint row, const gchar *username, guint role)
         gtk_widget_show (new_basic_checkbutton);
         gtk_widget_show (new_admin_checkbutton);
 
-	    // TODO: Scrollbar ikkuna pitäisi saada jotenkin toimimaan, kun lisätään käyttäjiä..
+	    gtk_window_resize (GTK_WINDOW (user_admininistration_dialog),
+	                       130,
+	                       (100+(nbr_of_users*30)));
+        //gtk_widget_destroy (user_admininistration_dialog);
+        gtk_dialog_run (GTK_DIALOG (user_admininistration_dialog));
+        //gtk_widget_hide (user_admininistration_dialog);
+
+        gtk_dialog_run (GTK_DIALOG (add_user_dialog));
+        //gtk_widget_hide (add_user_dialog);
+        gtk_widget_destroy (add_user_dialog);
+
+        // TODO: Scrollbar ikkuna pitäisi saada jotenkin toimimaan, kun lisätään käyttäjiä..
 	    // gtk_container_add (GTK_CONTAINER(ua_dialog_scrolled_window), ua_dialog_table);
 	    // gtk_widget_show (ua_dialog_scrolled_window);
 }
@@ -233,11 +266,98 @@ start_add_user_dialog (GladeXML *glade_xml)
         gtk_widget_hide (add_user_dialog);
 }
 
+void
+continue_add_user_dialog_cb (GUPnPDeviceProxy         *proxy,
+		                     GUPnPDeviceProxyAddUser  *adduserdata,
+                             GError                  **error,
+                             gpointer                  user_data)
+{
+
+    if ((*error) != NULL) {
+
+        GtkWidget *error_dialog;
+
+        error_dialog = gtk_message_dialog_new (GTK_WINDOW (user_admininistration_dialog),
+                                               GTK_DIALOG_MODAL,
+                                               GTK_MESSAGE_ERROR,
+                                               GTK_BUTTONS_CLOSE,
+                                               "Adding new user failed.\n\nError %d: %s",
+                                               (*error)->code,
+                                               (*error)->message);
+        gtk_dialog_run (GTK_DIALOG (error_dialog));
+        gtk_widget_destroy (error_dialog);
+
+        gtk_widget_hide (user_admininistration_dialog);
+        g_error_free ((*error));
+
+        gupnp_device_proxy_end_add_user (adduserdata);
+        return;
+    }
+
+    if (gupnp_device_proxy_end_add_user (adduserdata)) {
+        // User successfully added
+    	GtkWidget *info_dialog;
+    	userRole role;
+
+        info_dialog = gtk_message_dialog_new (GTK_WINDOW (user_admininistration_dialog),
+                                              GTK_DIALOG_MODAL,
+                                              GTK_MESSAGE_INFO,
+                                              GTK_BUTTONS_CLOSE,
+                                              "New user successfully added");
+
+        gtk_dialog_run (GTK_DIALOG (info_dialog));
+        gtk_widget_destroy (info_dialog);
+	    gtk_widget_hide (user_admininistration_dialog);
+
+
+	    const gchar *new_username = gtk_entry_get_text (GTK_ENTRY(add_user_dialog_username_entry));
+
+	    if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON(add_user_dialog_admin_checkbutton)))
+			role = ADMIN_ROLE;
+	    else if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON(add_user_dialog_basic_checkbutton)))
+	    	role = BASIC_ROLE;
+	    else if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON(add_user_dialog_public_checkbutton)))
+	    	role = PUBLIC_ROLE;
+	    else
+	    	role = UNKNOWN_ROLE;
+
+	    nbr_of_users++;
+	    add_new_user_to_table(nbr_of_users, new_username, role);
+    }
+
+}
+
 
 void
 add_user_dialog_ok_pressed (GladeXML *glade_xml)
 {
-        // TODO: Collect data...
+	    userRole role;
+	    GUPnPDeviceProxyAddUser *deviceProxyAddUser;
+		gpointer user_data = NULL;
+		const gchar *role_list = NULL;
+
+	    const gchar *new_username = gtk_entry_get_text (GTK_ENTRY(add_user_dialog_username_entry));
+	    const gchar *new_password = gtk_entry_get_text (GTK_ENTRY(add_user_dialog_password_entry));
+
+	    if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON(add_user_dialog_admin_checkbutton)))
+			role = ADMIN_ROLE;
+	    else if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON(add_user_dialog_basic_checkbutton)))
+	    	role = BASIC_ROLE;
+	    else if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON(add_user_dialog_public_checkbutton)))
+	    	role = PUBLIC_ROLE;
+	    else
+	    	role = UNKNOWN_ROLE;
+
+        GUPnPDeviceInfo *info = get_selected_device_info ();
+        GUPnPDeviceProxy *deviceProxy = GUPNP_DEVICE_PROXY (info);
+		g_assert (deviceProxy != NULL);
+
+	    deviceProxyAddUser = gupnp_device_proxy_add_user (deviceProxy,
+	    		                                          new_username,
+	    		                                          new_password,
+	    		                                          role_list,
+	    		                                          continue_add_user_dialog_cb,
+	                                                      user_data);
 }
 
 void
