@@ -146,6 +146,21 @@ struct _GUPnPDeviceProxyAddUser {
         gboolean done;
 };
 
+struct _GUPnPDeviceProxyRemoveUser {
+        GUPnPDeviceProxy  *proxy;
+        GUPnPServiceProxy *device_prot_service;
+
+        GUPnPDeviceProxyRemoveUserCallback callback;
+
+        gpointer user_data;
+
+        GError *error;
+
+        GString *username;
+        GString *identity;
+
+        gboolean done;
+};
 
 
 enum {
@@ -1500,3 +1515,105 @@ gupnp_device_proxy_end_add_user (GUPnPDeviceProxyAddUser *adduserdata)
         return done;
 }
 
+
+/*   Remove User  */
+
+// this is called when library receives response for RemoveIdentity-action
+static void
+remove_identity_response (GUPnPServiceProxy       *proxy,
+                           GUPnPServiceProxyAction *action,
+                           gpointer                 user_data)
+{
+        GUPnPDeviceProxyRemoveUser *removeuserdata = user_data;
+        
+        GError *error = NULL;
+
+        if (!gupnp_service_proxy_end_action (proxy,
+                                             action,
+                                            &error,
+                                             NULL))
+        {
+                removeuserdata->error = error;
+                g_warning("Error: %s", removeuserdata->error->message);
+        }
+        else
+        {
+            removeuserdata->done = TRUE;
+        }
+        removeuserdata->callback(removeuserdata->proxy, removeuserdata, &removeuserdata->error, removeuserdata->user_data);
+}
+
+// Begin logout-process by calling this
+GUPnPDeviceProxyRemoveUser *
+gupnp_device_proxy_remove_user (GUPnPDeviceProxy           *proxy,
+                             const gchar                *username,  
+                             GUPnPDeviceProxyRemoveUserCallback callback,
+                             gpointer                    user_data)
+{
+        GUPnPDeviceProxyRemoveUser *removeuserdata;
+        GError *gerror;
+
+        g_return_val_if_fail (GUPNP_IS_DEVICE_PROXY (proxy), NULL);
+        g_return_val_if_fail (username, NULL);
+
+        // we need to have SSL
+        // so let's create it (if not created already
+        gupnp_device_proxy_init_ssl (proxy, &gerror);
+
+        if (gupnp_device_proxy_get_ssl_client(proxy) == NULL)
+        {
+                removeuserdata->error = g_error_new(GUPNP_SERVER_ERROR,
+                             GUPNP_SERVER_ERROR_OTHER,
+                             "For removing user SSL connection is needed.");
+                g_warning("Error: %s", removeuserdata->error->message);
+                return removeuserdata;
+        }
+
+
+        removeuserdata = g_slice_new (GUPnPDeviceProxyRemoveUser);
+        removeuserdata->proxy = proxy;
+        removeuserdata->callback = callback;
+        removeuserdata->user_data = user_data;
+        removeuserdata->error = NULL;
+        removeuserdata->device_prot_service = find_device_protection_service (proxy);
+        removeuserdata->done = FALSE;
+        removeuserdata->username = g_string_new(username);
+        removeuserdata->identity = NULL;
+
+        if (removeuserdata->device_prot_service == NULL)
+        {
+                removeuserdata->error = g_error_new(GUPNP_SERVER_ERROR,
+                                         GUPNP_SERVER_ERROR_OTHER,
+                                         "No device protection service found.");
+                g_warning("Error: %s", removeuserdata->error->message);
+                return removeuserdata;
+        }
+
+        // create Identity XML fragment
+        g_string_printf(removeuserdata->identity, "<User><Name>%s</Name></User>", username);
+
+        gupnp_service_proxy_begin_action(removeuserdata->device_prot_service,
+                                         "RemoveIdentity",
+                                         remove_identity_response,
+                                         removeuserdata,
+                                         "Identity",
+                                         G_TYPE_STRING,
+                                         removeuserdata->identity->str,
+                                         NULL);
+
+        return removeuserdata;
+}
+
+
+gboolean
+gupnp_device_proxy_end_remove_user (GUPnPDeviceProxyRemoveUser *removeuserdata)
+{
+        gboolean done = removeuserdata->done;
+
+        g_object_unref(removeuserdata->proxy);
+        
+        g_free(removeuserdata->username);
+        g_free(removeuserdata->identity);
+
+        return done;
+}

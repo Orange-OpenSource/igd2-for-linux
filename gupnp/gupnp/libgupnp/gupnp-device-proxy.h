@@ -90,6 +90,7 @@ typedef struct _GUPnPDeviceProxyLogin GUPnPDeviceProxyLogin;
 typedef struct _GUPnPDeviceProxyLogout GUPnPDeviceProxyLogout;
 typedef struct _GUPnPDeviceProxyChangePassword GUPnPDeviceProxyChangePassword;
 typedef struct _GUPnPDeviceProxyAddUser GUPnPDeviceProxyAddUser;
+typedef struct _GUPnPDeviceProxyRemoveUser GUPnPDeviceProxyRemoveUser;
 
 /**
  * GUPnPDeviceProxyWpsCallback:
@@ -162,7 +163,21 @@ typedef void (* GUPnPDeviceProxyAddUserCallback) (
                                      GUPnPDeviceProxy    *proxy,
                                      GUPnPDeviceProxyAddUser *adduserdata,
                                      GError             **error,
-                                     gpointer             user_data);                                     
+                                     gpointer             user_data);
+                                     
+                                                                          /**
+ * GUPnPDeviceProxyRemoveUserCallback:
+ * @proxy: The #GUPnPDeviceProxy add user is called
+ * @removeuserdata: The #GUPnPDeviceProxyRemoveUser in progress
+ * @user_data: User data
+ *
+ * Callback notifying that remove user on @proxy has done the next step.
+ **/
+typedef void (* GUPnPDeviceProxyRemoveUserCallback) (
+                                     GUPnPDeviceProxy    *proxy,
+                                     GUPnPDeviceProxyRemoveUser *removeuserdata,
+                                     GError             **error,
+                                     gpointer             user_data);  
 
 
 
@@ -253,6 +268,15 @@ gupnp_device_proxy_add_user (GUPnPDeviceProxy           *proxy,
                              
 gboolean
 gupnp_device_proxy_end_add_user (GUPnPDeviceProxyAddUser *adduserdata);                             
+
+GUPnPDeviceProxyRemoveUser *
+gupnp_device_proxy_remove_user (GUPnPDeviceProxy           *proxy,
+                             const gchar                *username,  
+                             GUPnPDeviceProxyRemoveUserCallback callback,
+                             gpointer                    user_data);
+
+gboolean
+gupnp_device_proxy_end_remove_user (GUPnPDeviceProxyRemoveUser *removeuserdata);
 
 G_END_DECLS
 
