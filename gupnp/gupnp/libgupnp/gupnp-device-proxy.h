@@ -89,6 +89,7 @@ typedef struct _GUPnPDeviceProxyWps GUPnPDeviceProxyWps;
 typedef struct _GUPnPDeviceProxyLogin GUPnPDeviceProxyLogin;
 typedef struct _GUPnPDeviceProxyLogout GUPnPDeviceProxyLogout;
 typedef struct _GUPnPDeviceProxyChangePassword GUPnPDeviceProxyChangePassword;
+typedef struct _GUPnPDeviceProxyAddUser GUPnPDeviceProxyAddUser;
 
 /**
  * GUPnPDeviceProxyWpsCallback:
@@ -148,6 +149,22 @@ typedef void (* GUPnPDeviceProxyChangePasswordCallback) (
                                      GUPnPDeviceProxyChangePassword *passworddata,
                                      GError             **error,
                                      gpointer             user_data);
+                                     
+/**
+ * GUPnPDeviceProxyAddUserCallback:
+ * @proxy: The #GUPnPDeviceProxy add user is called
+ * @adduserdata: The #GUPnPDeviceProxyAddUser in progress
+ * @user_data: User data
+ *
+ * Callback notifying that add user on @proxy has done the next step.
+ **/
+typedef void (* GUPnPDeviceProxyAddUserCallback) (
+                                     GUPnPDeviceProxy    *proxy,
+                                     GUPnPDeviceProxyAddUser *adduserdata,
+                                     GError             **error,
+                                     gpointer             user_data);                                     
+
+
 
 GUPnPDeviceProxyWps *
 gupnp_device_proxy_begin_wps(GUPnPDeviceProxy           *proxy,
@@ -226,7 +243,16 @@ gupnp_device_proxy_change_password (GUPnPDeviceProxy                       *prox
 gboolean
 gupnp_device_proxy_end_change_password (GUPnPDeviceProxyChangePassword *passworddata, GString *loginname);
 
-
+GUPnPDeviceProxyAddUser *
+gupnp_device_proxy_add_user (GUPnPDeviceProxy           *proxy,
+                             const gchar                *username,
+                             const gchar                *password,
+                             const gchar                *rolelist,      
+                             GUPnPDeviceProxyAddUserCallback callback,
+                             gpointer                    user_data);
+                             
+gboolean
+gupnp_device_proxy_end_add_user (GUPnPDeviceProxyAddUser *adduserdata);                             
 
 G_END_DECLS
 

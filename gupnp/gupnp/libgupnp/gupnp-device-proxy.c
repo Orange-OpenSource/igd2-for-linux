@@ -128,6 +128,26 @@ struct _GUPnPDeviceProxyChangePassword {
         gboolean done;
 };
 
+struct _GUPnPDeviceProxyAddUser {
+        GUPnPDeviceProxy  *proxy;
+        GUPnPServiceProxy *device_prot_service;
+
+        GUPnPDeviceProxyAddUserCallback callback;
+
+        gpointer user_data;
+
+        GError *error;
+
+        GString *username;
+        GString *password;
+        GString *rolelist;
+        GString *identitylist;
+
+        gboolean done;
+};
+
+
+
 enum {
         PROP_0,
         PROP_SESSION,
@@ -696,7 +716,7 @@ gupnp_device_proxy_init_ssl (GUPnPDeviceProxy *proxy,
 
             // create ssl
             int ret = gupnp_device_proxy_create_and_init_ssl_client (proxy, URL);
-            if (URL) free(URL);
+            if (URL) free((char *)URL);
             if (ret != 0)
             {
                 *error = g_error_new(GUPNP_SERVER_ERROR,
@@ -1092,8 +1112,6 @@ gupnp_device_proxy_end_login (GUPnPDeviceProxyLogin *logindata, GString *loginna
         g_string_free(logindata->username, TRUE);
         g_string_free(logindata->password, TRUE);
 
-        //g_free(logindata); TODO: kaatuu tähän?
-
         return done;
 }
 
@@ -1367,3 +1385,118 @@ gupnp_device_proxy_end_change_password (GUPnPDeviceProxyChangePassword *password
 
         return done;
 }
+
+
+/*   Add new User  */
+
+// this is called when library receives response for AddIdentityList-action
+static void
+add_identitylist_response (GUPnPServiceProxy       *proxy,
+                           GUPnPServiceProxyAction *action,
+                           gpointer                 user_data)
+{
+        GUPnPDeviceProxyAddUser *adduserdata = user_data;
+        
+        GError *error = NULL;
+
+        if (!gupnp_service_proxy_end_action (proxy,
+                                             action,
+                                            &error,
+                                             NULL))
+        {
+                adduserdata->error = error;
+                g_warning("Error: %s", adduserdata->error->message);
+        }
+        else
+        {
+            adduserdata->done = TRUE;
+        }
+        adduserdata->callback(adduserdata->proxy, adduserdata, &adduserdata->error, adduserdata->user_data);
+}
+
+// Begin logout-process by calling this
+GUPnPDeviceProxyAddUser *
+gupnp_device_proxy_add_user (GUPnPDeviceProxy           *proxy,
+                             const gchar                *username,
+                             const gchar                *password,
+                             const gchar                *rolelist,      
+                             GUPnPDeviceProxyAddUserCallback callback,
+                             gpointer                    user_data)
+{
+        GUPnPDeviceProxyAddUser *adduserdata;
+        GError *gerror;
+
+        g_return_val_if_fail (GUPNP_IS_DEVICE_PROXY (proxy), NULL);
+        g_return_val_if_fail (username, NULL);
+        g_return_val_if_fail (password, NULL);
+        g_return_val_if_fail (callback, NULL);
+
+        // we need to have SSL
+        // so let's create it (if not created already
+        gupnp_device_proxy_init_ssl (proxy, &gerror);
+
+        if (gupnp_device_proxy_get_ssl_client(proxy) == NULL)
+        {
+                adduserdata->error = g_error_new(GUPNP_SERVER_ERROR,
+                             GUPNP_SERVER_ERROR_OTHER,
+                             "For adding user SSL connection is needed.");
+                g_warning("Error: %s", adduserdata->error->message);
+                return adduserdata;
+        }
+
+
+        adduserdata = g_slice_new (GUPnPDeviceProxyAddUser);
+        adduserdata->proxy = proxy;
+        adduserdata->callback = callback;
+        adduserdata->user_data = user_data;
+        adduserdata->error = NULL;
+        adduserdata->device_prot_service = find_device_protection_service (proxy);
+        adduserdata->done = FALSE;
+        adduserdata->username = g_string_new(username);
+        adduserdata->password = g_string_new(password); // password is not used here, but let's keep it for change_password, if it is needed there
+        adduserdata->rolelist = g_string_new(rolelist);
+        adduserdata->identitylist = NULL;
+
+        if (adduserdata->device_prot_service == NULL)
+        {
+                adduserdata->error = g_error_new(GUPNP_SERVER_ERROR,
+                                         GUPNP_SERVER_ERROR_OTHER,
+                                         "No device protection service found.");
+                g_warning("Error: %s", adduserdata->error->message);
+                return adduserdata;
+        }
+
+        // create Identities XML fragment
+        if (adduserdata->rolelist && adduserdata->rolelist->len > 0)
+            g_string_printf(adduserdata->identitylist, "<Identities><User><Name>%s</Name><RoleList>%s</RoleList></User></Identities>", username,rolelist );
+        else
+            g_string_printf(adduserdata->identitylist, "<Identities><User><Name>%s</Name></User></Identities>", username);
+
+        gupnp_service_proxy_begin_action(adduserdata->device_prot_service,
+                                         "AddIdentityList",
+                                         add_identitylist_response,
+                                         adduserdata,
+                                         "IdentityList",
+                                         G_TYPE_STRING,
+                                         adduserdata->identitylist->str,
+                                         NULL);
+
+        return adduserdata;
+}
+
+
+gboolean
+gupnp_device_proxy_end_add_user (GUPnPDeviceProxyAddUser *adduserdata)
+{
+        gboolean done = adduserdata->done;
+
+        g_object_unref(adduserdata->proxy);
+        
+        g_free(adduserdata->username);
+        g_free(adduserdata->password);
+        g_free(adduserdata->rolelist);
+        g_free(adduserdata->identitylist);
+
+        return done;
+}
+
