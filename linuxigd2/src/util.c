@@ -581,6 +581,8 @@ int writeDocumentToFile(IXML_Document *doc, const char *file)
         fprintf(stream, "%s\n", contents);
     
     fclose(stream);
+    
+    ixmlFreeDOMString(contents);
     return ret;         
 }
 
@@ -659,6 +661,7 @@ static IXML_Node *GetNodeWithValue(IXML_Document *doc, const char *nodeName, con
                     tmp = toUpperCase(tmp);
                     if ( tmp && (strcmp( tmp,  valueUP) == 0))
                     {
+                        if (valueUP) free(valueUP);
                         ixmlNodeList_free( nodeList );
                         return tmpNode;
                     }                     
@@ -668,6 +671,7 @@ static IXML_Node *GetNodeWithValue(IXML_Document *doc, const char *nodeName, con
                 {
                     if ( tmp && (strcmp( tmp,  nodeValue) == 0))
                     {
+                        if (valueUP) free(valueUP);
                         ixmlNodeList_free( nodeList );
                         return tmpNode;
                     } 
@@ -675,6 +679,7 @@ static IXML_Node *GetNodeWithValue(IXML_Document *doc, const char *nodeName, con
             }            
         }
     }
+    if (valueUP) free(valueUP);
     if ( nodeList ) ixmlNodeList_free( nodeList );
     
     return NULL;

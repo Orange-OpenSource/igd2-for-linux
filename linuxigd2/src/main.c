@@ -87,14 +87,15 @@ static int updateHttpsDescDoc(const char *descDocFile, const char *IP, int port)
                 {
                     // change IP and port values to new values
                     // https://127.0.0.1:443/gateEthlcfgSCPD.xml
-                    tmp = strstr(tmp+8, "/");
-                    snprintf(newValue, 150, "https://%s:%d%s", IP, port, tmp);
+                    snprintf(newValue, 150, "https://%s:%d%s", IP, port, strstr(tmp+8, "/"));
                     AddChildNode(descDoc, tmpNode->parentNode, "secureSCPDURL", newValue);
                     RemoveNode(tmpNode);
+                    free(tmp);
                 }
             }            
         }
     }
+    if ( nodeList ) ixmlNodeList_free( nodeList );
     
     // modify all secureControlURL's
     nodeList = ixmlDocument_getElementsByTagName( descDoc, "secureControlURL" );
@@ -111,14 +112,15 @@ static int updateHttpsDescDoc(const char *descDocFile, const char *IP, int port)
                 {
                     // change IP and port values to new values
                     // https://127.0.0.1:443/gateEthlcfgSCPD.xml
-                    tmp = strstr(tmp+8, "/");
-                    snprintf(newValue, 150, "https://%s:%d%s", IP, port, tmp);
+                    snprintf(newValue, 150, "https://%s:%d%s", IP, port, strstr(tmp+8, "/"));
                     AddChildNode(descDoc, tmpNode->parentNode, "secureControlURL", newValue);
                     RemoveNode(tmpNode);
+                    free(tmp);
                 }
             }            
         }
     }
+    if ( nodeList ) ixmlNodeList_free( nodeList );
         
     // modify all secureEventSubURL's
     nodeList = ixmlDocument_getElementsByTagName( descDoc, "secureEventSubURL" );
@@ -135,15 +137,14 @@ static int updateHttpsDescDoc(const char *descDocFile, const char *IP, int port)
                 {
                     // change IP and port values to new values
                     // https://127.0.0.1:443/gateEthlcfgSCPD.xml
-                    tmp = strstr(tmp+8, "/");
-                    snprintf(newValue, 150, "https://%s:%d%s", IP, port, tmp);
+                    snprintf(newValue, 150, "https://%s:%d%s", IP, port, strstr(tmp+8, "/"));
                     AddChildNode(descDoc, tmpNode->parentNode, "secureEventSubURL", newValue);
                     RemoveNode(tmpNode);
+                    free(tmp);
                 }
             }            
         }
     }
-    
     if ( nodeList ) ixmlNodeList_free( nodeList );
 
     ret = writeDocumentToFile(descDoc, descDocFile);

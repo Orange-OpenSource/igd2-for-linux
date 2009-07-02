@@ -117,7 +117,7 @@ int InitDP()
 {   
     DP_loadDocuments();
     
-    int err;
+    int err = 0;
     char descDocFile[sizeof(g_vars.xmlPath)+sizeof(g_vars.descDocName)+2];
     unsigned char MAC[WPSU_MAC_LEN];
     memset(MAC, 0x00, WPSU_MAC_LEN);
@@ -160,14 +160,12 @@ int InitDP()
                                             NULL,
                                             0,
                                             WPSU_CONF_METHOD_LABEL, 
-                                            WPSU_RFBAND_2_4GHZ);
-        if (err != WPSU_E_SUCCESS)
-            return err;                                                                             
+                                            WPSU_RFBAND_2_4GHZ);                                                                 
     }
     else return UPNP_E_FILE_NOT_FOUND;
     
-  
-    return 0;
+    ixmlDocument_free(descDoc);
+    return err;
 }
 
 
@@ -362,9 +360,11 @@ void createUuidFromData(char **uuid_str, unsigned char *hash, int hashLen)
  *  1. create sha-256 hash from CP certificate
  *  2. create uuid string from 16 first bytes of previously created hash
  * 
+ * 
  * @param ca_event Upnp event struct.
  * @param identifier Pointer to char* where identifier is created. Caller should use free() for this.
  * @param idLen Length of created base64 identifier
+ * @param CN Value of Common Name used in certificate is returned here. Use free() for this
  * @return 0 if succeeded to create identifier. Something else if error
  */
 static int getIdentifierOfCP(struct Upnp_Action_Request *ca_event, char **identifier, int *idLen, char **CN)
@@ -548,7 +548,7 @@ static void message_received(struct Upnp_Action_Request *ca_event, int error, un
             trace(3,"DeviceProtection introduction last message received!\n");
             // Add CP certificate hash into ACL
             int ret, len=0;
-            char *identifier;
+            char *identifier = NULL;
             char *CN = NULL;
     
             // get identity of CP 
@@ -564,6 +564,9 @@ static void message_received(struct Upnp_Action_Request *ca_event, int error, un
                 if (ret != ACL_SUCCESS && ret != ACL_USER_ERROR)
                     trace(1,"Failed to add new CP into ACL! Ignoring...");
             }
+            if (identifier) free(identifier);
+            if (CN) free(CN);
+            
             trace(3, "Contents of ACL:\n%s\n",ixmlPrintDocument(ACLDoc));
             //stopWPS();
             break;
