@@ -584,8 +584,6 @@ int writeDocumentToFile(IXML_Document *doc, const char *file)
     return ret;         
 }
 
-
-
 /**
  * Get text value of given IXML_Node. Node containing '<accessLevel>Admin</accessLevel>'
  * would return 'Admin'
@@ -715,6 +713,26 @@ static IXML_Node *GetNode(IXML_Document *doc, const char *nodeName)
     if ( nodeList ) ixmlNodeList_free( nodeList );
     
     return NULL;
+}
+
+/**
+ * Get first occurence of node with name nodeName
+ * and return that node as char array.
+ *
+ * @param doc IXML_Document from where node is searched
+ * @param nodeName Name of searched element
+ * @return Node as string or NULL
+ */
+char *NodeWithNameToString(IXML_Document *doc, char *nodeName)
+{
+    IXML_Node *tmpNode = GetNode(doc, nodeName);
+    
+    if (tmpNode == NULL)
+    {
+        return NULL;
+    }
+    
+    return ixmlNodetoString(tmpNode);
 }
 
 

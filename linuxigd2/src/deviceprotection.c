@@ -1963,9 +1963,25 @@ int AddIdentityList(struct Upnp_Action_Request *ca_event)
         {
             // write ACL in filesystem
             writeDocumentToFile(ACLDoc, ACL_XML);
-            ca_event->ActionResult = UpnpMakeActionResponse(ca_event->ActionName, DP_SERVICE_TYPE,
-                                        0, NULL);                                        
-            ca_event->ErrCode = UPNP_E_SUCCESS;   
+            
+            // get identities element from ACL and return it to CP
+            char *responseIdentities = NodeWithNameToString(ACLDoc, "Identities");
+            if (responseIdentities)
+            {
+                // Succesfull end happens here
+                ca_event->ActionResult = UpnpMakeActionResponse(ca_event->ActionName, DP_SERVICE_TYPE,
+                                            1, 
+                                            "IdentityListResult", responseIdentities,
+                                            NULL);                                        
+                ca_event->ErrCode = UPNP_E_SUCCESS;
+                free(responseIdentities);
+            }
+            else
+            {
+                trace(1, "%s: Failed to get IdentityListResult",ca_event->ActionName);
+                result = 501;
+                addErrorData(ca_event, result, "Action Failed");                
+            }
         }
         else
         {

@@ -153,8 +153,13 @@
         <argument>
           <name>IdentityList</name> 
           <direction>in</direction> 
-          <relatedStateVariable>A_ARG_TYPE_string </relatedStateVariable> 
-        </argument>        
+          <relatedStateVariable>A_ARG_TYPE_string</relatedStateVariable> 
+        </argument>
+        <argument>
+          <name>IdentityListResult</name> 
+          <direction>out</direction>
+          <relatedStateVariable>A_ARG_TYPE_string</relatedStateVariable> 
+        </argument> 
       </argumentList>
     </action>
     <action>
