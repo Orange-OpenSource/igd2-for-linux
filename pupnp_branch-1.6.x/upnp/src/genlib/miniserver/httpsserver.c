@@ -539,7 +539,7 @@ ExitFunction:
     if (session != NULL)
     {
         gnutls_bye (session, GNUTLS_SHUT_RDWR);
-        //gnutls_deinit (session);
+        gnutls_deinit (session);
     }
     close (sock);
     free( request );

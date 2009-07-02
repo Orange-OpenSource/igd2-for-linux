@@ -572,10 +572,10 @@ int load_x509_self_signed_certificate(gnutls_x509_crt_t *crt, gnutls_x509_privke
     ret = read_pem_data_file(tmp_privkeyfile, &pem_data);
     if (ret == 0) {
         ret = gnutls_x509_privkey_import(*key, &pem_data, GNUTLS_X509_FMT_PEM);
+        if (pem_data.data) free(pem_data.data); //release privkey, it's not needed anymore
         if (ret < 0) {
             UpnpPrintf( UPNP_CRITICAL, X509, __FILE__, __LINE__,
                 "gnutls_x509_privkey_import failed. %s \n", gnutls_strerror(ret) );
-            if (pem_data.data) free(pem_data.data);
             return ret;
         }         
 
