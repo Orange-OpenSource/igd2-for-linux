@@ -688,7 +688,7 @@ static IXML_Node *GetNodeWithValue(IXML_Document *doc, const char *nodeName, con
  * @param nodeName Name of searched element
  * @return Node or NULL
  */
-static IXML_Node *GetNode(IXML_Document *doc, const char *nodeName)
+IXML_Node *GetNode(IXML_Document *doc, const char *nodeName)
 {
     int listLen, i;
     IXML_NodeList *nodeList = NULL;

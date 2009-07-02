@@ -39,6 +39,7 @@
 #include "lanhostconfig.h"
 #include "deviceprotection.h" 
 #include <locale.h>
+#include <wpsutil/cryptoutil.h>
 
 
 
@@ -144,11 +145,61 @@ static int updateHttpsDescDoc(const char *descDocFile, const char *IP, int port)
     }
     
     if ( nodeList ) ixmlNodeList_free( nodeList );
-    
+
     ret = writeDocumentToFile(descDoc, descDocFile);
     ixmlDocument_free(descDoc);
     
     return ret; 
+}
+
+static int updateDescDocUuid(const char *descDocFile)
+{
+    int ret;
+    char newValue[150];
+    IXML_Node *tmpNode = NULL;
+
+    IXML_Document *descDoc = ixmlLoadDocument(descDocFile);
+    if (descDoc == NULL)
+        return -1;
+    
+    // update uuid. According to the DeviceProtection, Device impelementing DP 
+    // MUST have uuid created from it's certificate
+    int cert_size = 1000;
+    char *uuid = NULL;
+    unsigned char cert[cert_size]; 
+    unsigned char hash[cert_size];
+    
+    // get server certificate
+    ret = UpnpGetHttpsServerCertificate(cert, &cert_size);
+    if (ret != 0)
+        return ret;
+    
+    // create hash from certificate    
+    ret = wpsu_sha256(cert, cert_size, hash);
+    if (ret < 0)
+        return ret;
+    
+    // create uuid from certificate
+    createUuidFromData(&uuid, hash, 16);    
+    if (uuid == NULL)
+        return -2;
+        
+    // replace existing uuid with new
+    if ( (tmpNode = GetNode(descDoc, "UDN") ) )
+    {
+        snprintf(newValue, 150, "uuid:%s", uuid);
+        ret = ixmlNode_setNodeValue(ixmlNode_getFirstChild(tmpNode), newValue);
+    }
+    
+    if (uuid) free (uuid);
+    
+    if (ret != 0)
+        return ret;
+    
+    ret = writeDocumentToFile(descDoc, descDocFile);
+    ixmlDocument_free(descDoc);
+    
+    return ret;     
 }
 
 int main (int argc, char** argv)
@@ -317,6 +368,16 @@ int main (int argc, char** argv)
         exit(1);
     }
     trace(2, "UPnP HTTPS Server Started Successfully.");
+
+
+    // Modify description document on the fly again so that uuid is correct and created from certificate
+    if ( (ret = updateDescDocUuid(descDocFile) ) != 0)
+    {
+        syslog (LOG_ERR, "Error Updating Uuid to Description document");
+        UpnpFinish();
+        exit(1);
+    }
+    trace(2, "Description Document Updated Successfully.");
 
     
     // Set the Device Web Server Base Directory

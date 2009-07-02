@@ -247,7 +247,7 @@ int checkCPPrivileges(struct Upnp_Action_Request *ca_event, const char *targetRo
  * @param hashLen Length of input data. Or how much of it is used.
  * @return void
  */
-static void createUuidFromData(char **uuid_str, unsigned char *hash, int hashLen)
+void createUuidFromData(char **uuid_str, unsigned char *hash, int hashLen)
 {
     my_uuid_t *uuid = malloc(sizeof *uuid);
     int i;

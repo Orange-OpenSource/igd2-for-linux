@@ -56,6 +56,7 @@ int writeDocumentToFile(IXML_Document *doc, const char *file);
 char* GetTextValueOfNode(IXML_Node *tmpNode);
 IXML_Node *AddChildNode(IXML_Document *doc, IXML_Node *parent, const char *childNodeName, const char *childNodeValue);
 int RemoveNode(IXML_Node *node);
+IXML_Node *GetNode(IXML_Document *doc, const char *nodeName);
 char *NodeWithNameToString(IXML_Document *doc, char *nodeName);
 
 void ParseXMLResponse(struct Upnp_Action_Request *ca_event, const char *result);
