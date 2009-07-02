@@ -37,7 +37,8 @@
 int SetupReady;
 char SupportedProtocols[150];
 
-
+int InitDP();
+void FreeDP();
 void DPStateTableInit();
 void DP_loadDocuments();
 void DP_finishDocuments();

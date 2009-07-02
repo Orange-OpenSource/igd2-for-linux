@@ -31,8 +31,6 @@
 #include <upnp/upnptools.h>
 #include <upnp/upnp.h>
 
-static int InitDP();
-static void FreeDP();
 static void message_received(struct Upnp_Action_Request *ca_event, int error, unsigned char *data, int len, int *status);
 static int getSaltAndStoredForName(const char *nameUPPER, unsigned char **b64_salt, int *salt_len, unsigned char **b64_stored, int *stored_len);
 static int createUserLoginChallengeResponse(struct Upnp_Action_Request *ca_event, const char *nameUPPER);
@@ -46,7 +44,7 @@ static int createAuthenticator(const char *b64_stored, const char *b64_challenge
 static WPSuEnrolleeSM* esm;
 static unsigned char* Enrollee_send_msg;
 static int Enrollee_send_msg_len;
-static WPSuStationInput input;
+static WPSuStationInput *wpsu_input;
 
 // identifer of control point which is executing introduction process
 static unsigned char prev_CP_id[40];
@@ -110,6 +108,82 @@ void DPStateTableInit()
     strcpy(SupportedProtocols, "<SupportedProtocols><Introduction><Name>WPS</Name></Introduction></SupportedProtocols>");   
 }
 
+/**
+ * Initialize DeviceProtection. Create input for WPS
+ * 
+ * @return int. 0 on success
+ */
+int InitDP()
+{   
+    DP_loadDocuments();
+    
+    int err;
+    char descDocFile[sizeof(g_vars.xmlPath)+sizeof(g_vars.descDocName)+2];
+    unsigned char MAC[WPSU_MAC_LEN];
+    memset(MAC, 0x00, WPSU_MAC_LEN);
+    GetMACAddressStr(MAC, WPSU_MAC_LEN, g_vars.intInterfaceName);
+
+    // manufacturer and device info is read from device description XML
+    sprintf(descDocFile, "%s/%s", g_vars.xmlPath, g_vars.descDocName);
+    IXML_Document *descDoc = ixmlLoadDocument(descDocFile);
+    
+    if (descDoc)
+    {
+        char *UUID = GetFirstDocumentItem(descDoc, "UDN");
+        if (strlen(UUID) > 5)
+        {
+            UUID = UUID + 5; // remove text uuid: from beginning of string
+        }
+        if (strlen(UUID) > WPSU_MAX_UUID_LEN) // if uuid is too long, crop only allowed length from beginning
+        {
+            UUID[WPSU_MAX_UUID_LEN] = '\0';
+        }
+        
+        wpsu_input = (WPSuStationInput *)malloc(sizeof(WPSuStationInput));
+        memset(wpsu_input, 0, sizeof(*(wpsu_input)));
+       
+        err = wpsu_enrollee_station_input_add_device_info(wpsu_input, 
+                                            g_vars.pinCode,
+                                            GetFirstDocumentItem(descDoc, "manufacturer"),
+                                            GetFirstDocumentItem(descDoc, "modelName"),
+                                            GetFirstDocumentItem(descDoc, "modelNumber"),
+                                            GetFirstDocumentItem(descDoc, "serialNumber"),
+                                            GetFirstDocumentItem(descDoc, "friendlyName"),
+                                            NULL,
+                                            0,
+                                            MAC,
+                                            WPSU_MAC_LEN,
+                                            (unsigned char*)UUID,
+                                            strlen(UUID),
+                                            NULL,
+                                            0,
+                                            NULL,
+                                            0,
+                                            WPSU_CONF_METHOD_LABEL, 
+                                            WPSU_RFBAND_2_4GHZ);
+        if (err != WPSU_E_SUCCESS)
+            return err;                                                                             
+    }
+    else return UPNP_E_FILE_NOT_FOUND;
+    
+  
+    return 0;
+}
+
+
+/**
+ * Deinit DeviceProtection.
+ * Free WPS input. Counterpart of InitDP()
+ *
+ * @return void
+ */
+void FreeDP()
+{    
+    wpsu_enrollee_station_input_free(wpsu_input);
+    
+    // Save possible changes done in DeviceProtection XML's 
+    DP_finishDocuments();
+}
 
 /**
  * Initialize XML documents used in DeviceProtection.
@@ -170,15 +244,15 @@ void DP_finishDocuments()
 int checkCPPrivileges(struct Upnp_Action_Request *ca_event, const char *targetRole)
 {
     int ret, len=0;
-    char *identifier;
+    char *identifier = NULL;
 
     // get identity of CP 
     ret = getIdentifierOfCP(ca_event, &identifier, &len, NULL);
     if (ret != 0 )
     {
+        if (identifier) free(identifier);
         return ret;
     } 
-
 
     // Let's add new entry to SIR with role value "Public". Identity is not inserted.
     // If return value is -1, session was there already. If 0 CP was new and it was 
@@ -197,6 +271,7 @@ int checkCPPrivileges(struct Upnp_Action_Request *ca_event, const char *targetRo
     else
     {
         trace(2,"SIR handling failed somehow when adding new session!");
+        if (identifier) free(identifier);
         return -1;
     }
     
@@ -204,6 +279,8 @@ int checkCPPrivileges(struct Upnp_Action_Request *ca_event, const char *targetRo
     int active;
     char *roles = NULL;
     char *identity = SIR_getIdentityOfSession(SIRDoc, identifier, &active, &roles);
+    if (identifier) free(identifier);
+    
     if (identity == NULL)
     {
         // So session doesn't have any identity yet. This means that CP is privileged only to Public actions            
@@ -226,8 +303,6 @@ int checkCPPrivileges(struct Upnp_Action_Request *ca_event, const char *targetRo
         if ( tokenizeAndSearch(roles, " ", targetRole) )
             return 0;
     }
-    
-    if (identifier) free(identifier);
     
     return 1;
 }
@@ -276,6 +351,8 @@ void createUuidFromData(char **uuid_str, unsigned char *hash, int hashLen)
         snprintf(tmp, 3, "%2.2x", uuid->node[i]);
         strcat(*uuid_str,tmp);
     }
+    
+    if (uuid) free(uuid);
 }
 
 
@@ -396,89 +473,12 @@ static int getRolesOfSession(struct Upnp_Action_Request *ca_event, char **roles)
     return 0;
 }
 
-/**
- * Initialize DeviceProtection. Create input data and state machine for WPS
- * 
- * @return int. 0 on success
- */
-static int InitDP()
-{   
+
+static int startWPS()
+{
     int err;
-    char descDocFile[sizeof(g_vars.xmlPath)+sizeof(g_vars.descDocName)+2];
-    unsigned char MAC[WPSU_MAC_LEN];
-    memset(MAC, 0x00, WPSU_MAC_LEN);
-    GetMACAddressStr(MAC, WPSU_MAC_LEN, g_vars.intInterfaceName);
-
-    // manufacturer and device info is read from device description XML
-    sprintf(descDocFile, "%s/%s", g_vars.xmlPath, g_vars.descDocName);
-    IXML_Document *descDoc = ixmlLoadDocument(descDocFile);
-    
-    if (descDoc)
-    {
-        char *UUID = GetFirstDocumentItem(descDoc, "UDN");
-        if (strlen(UUID) > 5)
-        {
-            UUID = UUID + 5; // remove text uuid: from beginning of string
-        }
-        if (strlen(UUID) > WPSU_MAX_UUID_LEN) // if uuid is too long, crop only allowed length from beginning
-        {
-            UUID[WPSU_MAX_UUID_LEN] = '\0';
-        }
-        
-        err = wpsu_enrollee_station_input_add_device_info(&input, 
-                                            g_vars.pinCode,
-                                            GetFirstDocumentItem(descDoc, "manufacturer"),
-                                            GetFirstDocumentItem(descDoc, "modelName"),
-                                            GetFirstDocumentItem(descDoc, "modelNumber"),
-                                            GetFirstDocumentItem(descDoc, "serialNumber"),
-                                            GetFirstDocumentItem(descDoc, "friendlyName"),
-                                            NULL,
-                                            0,
-                                            MAC,
-                                            WPSU_MAC_LEN,
-                                            (unsigned char*)UUID,
-                                            strlen(UUID),
-                                            NULL,
-                                            0,
-                                            NULL,
-                                            0,
-                                            WPSU_CONF_METHOD_LABEL, 
-                                            WPSU_RFBAND_2_4GHZ);
-        if (err != WPSU_E_SUCCESS)
-            return err;                                                                             
-    }
-    else return UPNP_E_FILE_NOT_FOUND;
-    
-                                        
-    // station has applications A, B and C
-    //input.Apps = 3;
-/*
-    unsigned char UUID[WPSU_MAX_UUID_LEN];
-
-    memset(UUID, 0xAA, WPSU_MAX_UUID_LEN);
-
-    err =  wpsu_enrollee_station_input_add_app(&input,
-        UUID,WPSU_MAX_UUID_LEN,
-        NULL,0,
-        NULL,0);
-    
-    memset(UUID, 0xBB, WPSU_MAX_UUID_LEN);
-
-    err =  wpsu_enrollee_station_input_add_app(&input,
-        UUID,WPSU_MAX_UUID_LEN,
-        "B data from STA",strlen("B data from STA") + 1,
-        NULL,0);
-
-    memset(UUID, 0xCC, WPSU_MAX_UUID_LEN);
-    
-
-    err =  wpsu_enrollee_station_input_add_app(&input,
-        UUID,WPSU_MAX_UUID_LEN,
-        "C data from STA",strlen("C data from STA") + 1,
-        NULL,0);
-*/
     // create enrollee state machine
-    esm = wpsu_create_enrollee_sm_station(&input, &err);
+    esm = wpsu_create_enrollee_sm_station(wpsu_input, &err);
     if (err != WPSU_E_SUCCESS)
     {
         return err;
@@ -495,19 +495,11 @@ static int InitDP()
     return 0;
 }
 
-
-/**
- * Deinitialize WPS state machine. Counterpart of InitDP()
- *
- * @return void
- */
-static void FreeDP()
+static void stopWPS()
 {
-    int error;
-    
-    trace(2,"Finished DeviceProtection pairwise introduction process\n");
-    
-    
+    int error;    
+    trace(2,"Finished DeviceProtection pairwise introduction process\n");    
+
     /*WPSuStationOutput *smOutput;
     smOutput = wpsu_get_enrollee_sm_station_output(esm, &error);
     
@@ -515,7 +507,6 @@ static void FreeDP()
     printf("DeviceName: %s\n",smOutput->RegistrarInfo.DeviceName);
     printf("Uuid: %s\n",smOutput->RegistrarInfo.Uuid);*/
     
-    wpsu_enrollee_station_input_free(&input);
     wpsu_cleanup_enrollee_sm(esm, &error);
     
     // DP is free
@@ -524,13 +515,16 @@ static void FreeDP()
     trace(3, "DeviceProtection SetupReady: %d", SetupReady);
     UpnpAddToPropertySet(&propSet, "SetupReady", "1");
     UpnpNotifyExt(deviceHandle, gateUDN, "urn:upnp-org:serviceId:DeviceProtection1", propSet);
-    ixmlDocument_free(propSet);
+    ixmlDocument_free(propSet);    
 }
 
 
 /**
  * WPS introduction uses this function. SendSetupMessage calls this.
  * When message M2, M2D, M4, M6, M8 or Done ACK is received, enrollee state machine is updated here
+ * 
+ * Actual stopping of state machine must be done at the end of SendSetupMessage, because 
+ * stopping will release Enrollee_send_msg which is needed at SendSetupMessage after returning from here.
  * 
  * @param error Error code is passed through this.
  * @param data Received WPS introduction binary message
@@ -571,13 +565,13 @@ static void message_received(struct Upnp_Action_Request *ca_event, int error, un
                     trace(1,"Failed to add new CP into ACL! Ignoring...");
             }
             trace(3, "Contents of ACL:\n%s\n",ixmlPrintDocument(ACLDoc));
-            FreeDP();
+            //stopWPS();
             break;
         }
         case WPSU_SM_E_SUCCESSINFO:
         {
             trace(3,"DeviceProtection introduction last message received M2D!\n");
-            FreeDP();
+            //stopWPS();
             break;
         }
 
@@ -590,7 +584,7 @@ static void message_received(struct Upnp_Action_Request *ca_event, int error, un
         case WPSU_SM_E_FAILUREEXIT:
         {
             trace(3,"Received NACK from peer. Terminating state machine...\n");
-            FreeDP();
+            //stopWPS();
             break;
         }
         case WPSU_SM_E_PROCESS:
@@ -601,7 +595,7 @@ static void message_received(struct Upnp_Action_Request *ca_event, int error, un
         default:
         {
             trace(2, "DeviceProtection introduction state machine in unknown error state. Terminating...\n");
-            FreeDP();
+            //stopWPS();
         }
     }
 }
@@ -1094,7 +1088,7 @@ result = 0;
             
             // begin introduction
             trace(2,"Begin DeviceProtection pairwise introduction process. IP %s\n",IP_addr);
-            InitDP();
+            startWPS();
             // start the state machine and create M1
             wpsu_start_enrollee_sm(esm, &Enrollee_send_msg, &Enrollee_send_msg_len, &result);
             if (result != WPSU_E_SUCCESS)
@@ -1156,11 +1150,10 @@ result = 0;
     }
 
     
-    // if state machine is in this state, registrar has given wrong PIN
-    // We should stop state machine now and Send event telling SetupReady = 1
-    if (sm_status == WPSU_SM_E_FAILURE)  
+    // Any else state means that WPS is either ready or in error state and it must be terminated
+    if (sm_status != WPSU_SM_E_PROCESS)  
     {
-        FreeDP();
+        stopWPS();
     }
     
     if (CP_id) free(CP_id);

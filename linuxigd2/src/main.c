@@ -90,7 +90,7 @@ static int updateHttpsDescDoc(const char *descDocFile, const char *IP, int port)
                     tmp = strstr(tmp+8, "/");
                     snprintf(newValue, 150, "https://%s:%d%s", IP, port, tmp);
                     AddChildNode(descDoc, tmpNode->parentNode, "secureSCPDURL", newValue);
-                    RemoveNode(tmpNode);  
+                    RemoveNode(tmpNode);
                 }
             }            
         }
@@ -114,7 +114,7 @@ static int updateHttpsDescDoc(const char *descDocFile, const char *IP, int port)
                     tmp = strstr(tmp+8, "/");
                     snprintf(newValue, 150, "https://%s:%d%s", IP, port, tmp);
                     AddChildNode(descDoc, tmpNode->parentNode, "secureControlURL", newValue);
-                    RemoveNode(tmpNode);  
+                    RemoveNode(tmpNode);
                 }
             }            
         }
@@ -138,7 +138,7 @@ static int updateHttpsDescDoc(const char *descDocFile, const char *IP, int port)
                     tmp = strstr(tmp+8, "/");
                     snprintf(newValue, 150, "https://%s:%d%s", IP, port, tmp);
                     AddChildNode(descDoc, tmpNode->parentNode, "secureEventSubURL", newValue);
-                    RemoveNode(tmpNode);  
+                    RemoveNode(tmpNode);
                 }
             }            
         }
@@ -172,17 +172,26 @@ static int updateDescDocUuid(const char *descDocFile)
     // get server certificate
     ret = UpnpGetHttpsServerCertificate(cert, &cert_size);
     if (ret != 0)
+    {
+        ixmlDocument_free(descDoc);
         return ret;
+    }
     
     // create hash from certificate    
     ret = wpsu_sha256(cert, cert_size, hash);
     if (ret < 0)
+    {
+        ixmlDocument_free(descDoc);
         return ret;
+    }
     
     // create uuid from certificate
     createUuidFromData(&uuid, hash, 16);    
     if (uuid == NULL)
+    {
+        ixmlDocument_free(descDoc);
         return -2;
+    }
         
     // replace existing uuid with new
     if ( (tmpNode = GetNode(descDoc, "UDN") ) )
@@ -194,7 +203,10 @@ static int updateDescDocUuid(const char *descDocFile)
     if (uuid) free (uuid);
     
     if (ret != 0)
+    {
+        ixmlDocument_free(descDoc);
         return ret;
+    }
     
     ret = writeDocumentToFile(descDoc, descDocFile);
     ixmlDocument_free(descDoc);
@@ -449,7 +461,7 @@ int main (int argc, char** argv)
     InitLanHostConfig();
 
     // Initialize DeviceProtection
-    DP_loadDocuments();
+    InitDP();
 
     // Record the startup time, for uptime
     startup_time = time(NULL);
@@ -492,9 +504,9 @@ int main (int argc, char** argv)
 
     // Cleanup lanhostconfig module
     FreeLanHostConfig();
-
-    // Save possible changes done in DeviceProtection XML's 
-    DP_finishDocuments();
+    
+    // Cleanup deviceprotection module
+    FreeDP();
 
     UpnpUnRegisterRootDevice(deviceHandle);
     UpnpFinish();

@@ -363,6 +363,7 @@ int parseConfigFile(globals_p vars)
     regfree(&re_advertisement_interval);
     regfree(&re_cert_path);
     regfree(&re_acc_lvl_xml);
+    regfree(&re_passwd_file);
     
     // Set default values for options not found in config file
     if (strnlen(vars->forwardChainName, OPTION_LEN) == 0)
