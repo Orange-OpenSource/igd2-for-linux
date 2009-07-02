@@ -400,6 +400,29 @@ int UpnpStartHttpsServer( IN unsigned short port,
 
 
 /****************************************************************************
+ * Function: UpnpGetHttpsServerCertificate
+ *
+ * Get X.509 certificate that HTTPS server uses in DER format.
+ * 
+ * Parameters:      
+ *  OUT unsigned char *cert: Certificate is returned in DER format here
+ *  OUT int *cert_len: Pointer to integer which represents length of certificate. IN value must be allocated size of cert
+ * 
+ * Returns:
+ *  UPNP_E_SUCCESS on success, nonzero on failure. 
+ *  upnps or gnutls error code if exporting certificate fails.
+ *  UPNP_E_INIT if HTTPS server is not started
+ *****************************************************************************/
+int UpnpGetHttpsServerCertificate( OUT unsigned char *cert,
+                                   INOUT int *cert_len ) 
+{
+    if ( !HttpsServerInit ) return UPNP_E_INIT;
+    
+    return export_server_cert(cert, cert_len);
+}
+ /***************** end of UpnpGetHttpsServerCertificate ******************/
+
+/****************************************************************************
  * Function: UpnpTerminateSSLSession
  *
  * Terminate SSL session so that no messages are send or received anymore

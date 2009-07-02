@@ -33,8 +33,8 @@
 static gnutls_certificate_credentials_t x509_cred;
 static gnutls_priority_t priority_cache;
 static gnutls_dh_params_t dh_params;
-static gnutls_x509_crt_t server_crt;
-static gnutls_x509_privkey_t server_privkey;
+static gnutls_x509_crt_t server_crt = NULL;
+static gnutls_x509_privkey_t server_privkey= NULL;
 
 static int RUNNING = 0;
 static int PORT = 0;
@@ -895,4 +895,36 @@ tcp_close (int sd)
 {
     shutdown (sd, SHUT_RDWR); /* no more receptions */
     close (sd);
+}
+
+/************************************************************************
+ * Function: export_server_cert
+ *
+ * Parameters:
+ *  unsigned char *data - Certificate is returned in DER format here
+ *  int *data_size - Pointer to integer which represents length of certificate
+ *
+ * Description:
+ *  Get X.509 certificate that HTTPS server uses in DER format.
+ *
+ * Return: int
+ *      0 on success, gnutls error else. 
+ ************************************************************************/
+int
+export_server_cert (unsigned char *data, int *data_size)
+{
+    int ret;
+    
+    if (server_crt == NULL)
+        return GNUTLS_E_X509_CERTIFICATE_ERROR;
+            
+    // export certificate to data
+    ret = gnutls_x509_crt_export(server_crt, GNUTLS_X509_FMT_DER, data, (size_t *)data_size);
+    if (ret < 0) {       
+        UpnpPrintf( UPNP_INFO, MSERV, __FILE__, __LINE__,
+            "Error: gnutls_x509_crt_export failed. %s", gnutls_strerror(ret) );
+        return ret;  
+    }
+    
+    return UPNP_E_SUCCESS;
 }

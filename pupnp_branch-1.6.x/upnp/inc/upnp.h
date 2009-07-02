@@ -1075,6 +1075,24 @@ EXPORT_SPEC int UpnpStartHttpsServer(
 
 
 /*!
+ * \brief Get certificate that https server is using
+ *
+ * This function fetches X.509 certificate that HTTPS server is using in DER format.
+ * \c UpnpStartHttpsServer MUST have been called before this function can be called.
+ *
+ * \return An integer representing one of the following:
+ *     \li \c UPNP_E_SUCCESS: The operation completed successfully.
+ *     \li \c UPNP_E_INIT: HTTPS server is not started. (UpnpStartHttpsServer not called)
+ *     \li gnutls error code if fails to get certificate 
+ */
+EXPORT_SPEC int UpnpGetHttpsServerCertificate( 
+    /*! [out] Certificate is returned in DER format here */
+    unsigned char *cert,
+    /*! [out] Pointer to integer which represents length of certificate */
+    int *cert_len);
+     
+
+/*!
  * \brief Terminate given SSL session
  *
  * This function terminates given SSL session so that nothing is send or
