@@ -10,6 +10,8 @@ DISTFILES = Makefile Doxyfile bin/ configs/ doc/ inc/ lib/ src/
 
 CC=gcc
 INCLUDES= -I$(LIBUPNP_PREFIX)/include -I../include 
+# When building linuxIGD2 packet for OpenWRT, gnutls, gcrypt, etc must be listed here even if IGD2 doesn't directly use them
+#. Otherwise packet won't build
 LIBS= -lpthread -lupnp -lixml -lthreadutil -lwpsutil -lgnutls -lgcrypt -lgpg-error -lz -L$(LIBUPNP_PREFIX)/lib -L../libs
 FILES= gatedevice.o pmlist.o util.o config.o lanhostconfig.o deviceprotection.o 
 
