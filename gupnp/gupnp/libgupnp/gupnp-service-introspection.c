@@ -617,11 +617,13 @@ get_actions (xmlNode *list_element)
                         continue;
 
                 arguments = get_action_arguments (action_node);
+                /*  Action may exist without actions
                 if (!arguments) {
                         g_free (name);
 
                         continue;
                 }
+                */
 
                 action_info = g_slice_new0 (GUPnPServiceActionInfo);
                 action_info->name = name;
