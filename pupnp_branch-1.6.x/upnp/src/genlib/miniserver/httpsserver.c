@@ -507,8 +507,10 @@ handle_https_request(void *args)
             //peer has closed connection
             http_error_code = UPNP_E_SUCCESS;
             UpnpPrintf( UPNP_INFO, HTTP, __FILE__, __LINE__,
-                    "(handle_https_request): Peer has closed SSL connection\n"); 
-            session = NULL;         // session doesn't exist anymore 
+                    "(handle_https_request): Peer has closed SSL connection\n");
+            // because client has closed session, we can deinit session 
+            gnutls_deinit (session); 
+            session = NULL;         
             goto ExitFunction;
         } else {
             // received corrupted data
