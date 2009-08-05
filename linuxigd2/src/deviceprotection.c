@@ -667,6 +667,7 @@ static int getValuesFromPasswdFile(const char *nameUPPER, unsigned char **b64_sa
                     memcpy(*b64_stored, temp, *stored_len);
                 }
                 
+                free(name);
                 return 0;
             }
         }
@@ -900,7 +901,9 @@ static int createUserLoginChallengeResponse(struct Upnp_Action_Request *ca_event
         unsigned char storednonce[DP_STORED_BYTES+DP_NONCE_BYTES];
         memcpy(storednonce, bin_stored, DP_STORED_BYTES);
         memcpy(storednonce+DP_STORED_BYTES, nonce, DP_NONCE_BYTES);
-             
+        
+        if (nonce) free(nonce);
+            
         // Create CHALLENGE = SHA-256(STORED || nonce)
         unsigned char challenge[DP_STORED_BYTES+DP_NONCE_BYTES];
         if ( wpsu_sha256(storednonce, DP_STORED_BYTES+DP_NONCE_BYTES, challenge) < 0 )
