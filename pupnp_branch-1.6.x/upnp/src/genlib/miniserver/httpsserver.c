@@ -220,7 +220,7 @@ static SOCKET get_listener_socket(int port)
 }
 
 /************************************************************************
- * Function: get_listener_socket
+ * Function: initialize_tls_session
  *
  * Parameters:
  *  void
@@ -485,7 +485,8 @@ handle_https_request(void *args)
                     goto ExitFunction;
                 } 
                 
-                // init parser for next message              
+                // init parser for next message
+                httpmsg_destroy(&parser->msg);          
                 parser_request_init(parser);
                 
             } else if (status == PARSE_FAILURE) {
