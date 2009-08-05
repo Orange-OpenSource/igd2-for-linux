@@ -152,7 +152,20 @@ gupnp_control_point_dispose (GObject *object)
                 control_point->priv->factory = NULL;
         }
 
-        while (control_point->priv->devices) {
+        while (control_point->priv->devices) {           
+                // Remove SSL here
+                GUPnPDeviceInfo *info;
+                GUPnPDeviceProxy *proxy;
+
+                info = GUPNP_DEVICE_INFO (control_point->priv->devices->data);
+                proxy = GUPNP_DEVICE_PROXY (info);
+
+                /* delete SSL client */
+                ssl_finish_client( gupnp_device_proxy_get_ssl_client(proxy) );
+
+                g_object_unref (proxy);
+            
+            
                 g_object_unref (control_point->priv->devices->data);
                 control_point->priv->devices =
                         g_list_delete_link (control_point->priv->devices,
@@ -208,9 +221,6 @@ gupnp_control_point_finalize (GObject *object)
         object_class = G_OBJECT_CLASS (gupnp_control_point_parent_class);
         object_class->finalize (object);
 }
-
-// TODO: VLi add device proxy to both process_service_list and process_device_list as parameter
-// when creating a new service, include pointer to parent (or root maybe?) device proxy
 
 
 /* Search @element for matching services */
