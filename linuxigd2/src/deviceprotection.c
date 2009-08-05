@@ -260,7 +260,9 @@ int checkCPPrivileges(struct Upnp_Action_Request *ca_event, const char *targetRo
     if (ret == 0)
     {
         trace(3, "New session was added to SIR. Id: '%s'",identifier);
-        trace(3, "Contents of SIR:\n%s\n",ixmlPrintDocument(SIRDoc));
+        char *tmp = ixmlPrintDocument(SIRDoc);
+        trace(3, "Contents of SIR:\n%s\n",tmp);
+        if (tmp) free(tmp);
     }
     else if (ret == -1)
     {
@@ -404,7 +406,7 @@ static int getIdentifierOfCP(struct Upnp_Action_Request *ca_event, char **identi
 static int getIdentityOfSession(struct Upnp_Action_Request *ca_event, char **identity)
 {
     int ret, len=0;
-    char *identifier;
+    char *identifier = NULL;
     
     // 1. get identifier of CP 
     ret = getIdentifierOfCP(ca_event, &identifier, &len, NULL);
@@ -418,10 +420,10 @@ static int getIdentityOfSession(struct Upnp_Action_Request *ca_event, char **ide
     char *role = NULL;
     *identity = SIR_getIdentityOfSession(SIRDoc, identifier, &active, &role);
     
+    if (identifier) free(identifier);
+    
     if (*identity == NULL)
         return -1;
-    
-    if (identifier) free(identifier);
     
     return 0;
 }
@@ -762,6 +764,8 @@ static int updateValuesToPasswdFile(const char *nameUPPER, const unsigned char *
             {
                 fprintf(out, "%s\n", temp);
             }
+            
+            free(name);
         }
     }
     
@@ -1403,7 +1407,11 @@ int UserLogin(struct Upnp_Action_Request *ca_event)
                         addErrorData(ca_event, result, "Action Failed"); 
                     } 
                 }
+                
+                if (b64_authenticator) free(b64_authenticator);
             }
+            if (b64_salt) free(b64_salt);
+            if (b64_stored) free(b64_stored);
         }
     }
 
@@ -1607,7 +1615,9 @@ int AddRolesForIdentity(struct Upnp_Action_Request *ca_event)
     if (identity) free(identity);
     if (rolelist) free(rolelist);
     
-    trace(3, "Contents of ACL:\n%s\n",ixmlPrintDocument(ACLDoc));  
+    char *tmp = ixmlPrintDocument(ACLDoc);
+    trace(3, "Contents of ACL:\n%s\n",tmp);
+    if (tmp) free(tmp);
     
     return ca_event->ErrCode;
 }
@@ -1688,7 +1698,9 @@ int RemoveRolesForIdentity(struct Upnp_Action_Request *ca_event)
     if (identity) free(identity);
     if (rolelist) free(rolelist);
     
-    trace(3, "Contents of ACL:\n%s\n",ixmlPrintDocument(ACLDoc));
+    char *tmp = ixmlPrintDocument(ACLDoc);
+    trace(3, "Contents of ACL:\n%s\n",tmp);
+    if (tmp) free(tmp);
     
     return ca_event->ErrCode;
 }
@@ -1879,7 +1891,9 @@ int SetUserLoginPassword(struct Upnp_Action_Request *ca_event)
     if (nameUPPER) free(nameUPPER);
     if (identity) free(identity);
 
-    trace(3, "Contents of ACL:\n%s\n",ixmlPrintDocument(ACLDoc));
+    char *tmp = ixmlPrintDocument(ACLDoc);
+    trace(3, "Contents of ACL:\n%s\n",tmp);
+    if (tmp) free(tmp);
 
     return ca_event->ErrCode;
 }
@@ -2006,7 +2020,9 @@ int AddIdentityList(struct Upnp_Action_Request *ca_event)
     if (identitiesDoc) ixmlDocument_free(identitiesDoc);
     if (identitylist) free(identitylist);
 
-    trace(3, "Contents of ACL:\n%s\n",ixmlPrintDocument(ACLDoc));
+    char *tmp = ixmlPrintDocument(ACLDoc);
+    trace(3, "Contents of ACL:\n%s\n",tmp);
+    if (tmp) free(tmp);
     
     return ca_event->ErrCode;
 }
@@ -2091,7 +2107,9 @@ int RemoveIdentity(struct Upnp_Action_Request *ca_event)
     if (identityDoc) ixmlDocument_free(identityDoc);
     if (identity) free(identity);
     
-    trace(3, "Contents of ACL:\n%s\n",ixmlPrintDocument(ACLDoc));
+    char *tmp = ixmlPrintDocument(ACLDoc);
+    trace(3, "Contents of ACL:\n%s\n",tmp);
+    if (tmp) free(tmp);
     
     return ca_event->ErrCode;
 }

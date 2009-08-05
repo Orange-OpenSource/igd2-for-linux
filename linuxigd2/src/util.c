@@ -663,8 +663,10 @@ static IXML_Node *GetNodeWithValue(IXML_Document *doc, const char *nodeName, con
                     {
                         if (valueUP) free(valueUP);
                         ixmlNodeList_free( nodeList );
+                        free(tmp);
                         return tmpNode;
-                    }                     
+                    }
+                    if (tmp) free(tmp);                     
                 }
                 // case sensitive
                 else
