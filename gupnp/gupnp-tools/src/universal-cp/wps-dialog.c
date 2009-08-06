@@ -39,7 +39,6 @@ begin_wps_dialog (void)
 	    GUPnPDeviceInfo *info;
 	    GUPnPDeviceProxy *deviceProxy;
 	    GUPnPDeviceProxyWps *deviceProxyWps;
-        GError *error = NULL;
 	    gpointer wps_user_data=NULL;
 
 	    init_wps_dialog_fields();
@@ -56,28 +55,6 @@ begin_wps_dialog (void)
                                                            "",
             	                                           continue_wps_cb,
             		                                       wps_user_data);
-
-            g_assert (deviceProxyWps != NULL);
-	    	if ( (error = gupnp_device_proxy_wps_get_error(deviceProxyWps)) ) {
-	           	GtkWidget *error_dialog;
-
-	            error_dialog = gtk_message_dialog_new (GTK_WINDOW (wps_dialog),
-	                                                   GTK_DIALOG_MODAL,
-	                                                   GTK_MESSAGE_ERROR,
-	                                                   GTK_BUTTONS_CLOSE,
-	                                                   "WPS setup failed.\n\nError %d: %s",
-	                                                   error->code,
-	                                                   error->message);
-
-	            gtk_dialog_run (GTK_DIALOG (error_dialog));
-	            gtk_widget_destroy (error_dialog);
-
-	            gtk_widget_hide (wps_dialog);
-                
-                g_error_free(error);
-                
-	            return;
-	    	}
 
             gtk_dialog_run (GTK_DIALOG (wps_dialog));
             gtk_widget_hide (wps_dialog);
@@ -127,10 +104,12 @@ continue_wps_cb (GUPnPDeviceProxy    *proxy,
         }
 
         g_assert (wps_dialog_progressbar != NULL);
-        g_assert (wps_dialog_name_entry != NULL);
+        g_assert (wps_dialog_name_entry != NULL);              
 
         if (gupnp_device_proxy_end_wps(wps)) {
             // WPS setup successfully formed
+            gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(wps_dialog_progressbar),1); 
+            
             GtkWidget *info_dialog;
 
             info_dialog = gtk_message_dialog_new (GTK_WINDOW (wps_dialog),
@@ -147,7 +126,7 @@ continue_wps_cb (GUPnPDeviceProxy    *proxy,
             g_assert (device_name != NULL);
             // Display Device name for user
             gtk_entry_set_text (GTK_ENTRY (wps_dialog_name_entry), device_name->str);
-            gtk_progress_bar_pulse (GTK_PROGRESS_BAR(wps_dialog_progressbar));
+            gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(wps_dialog_progressbar),0.3);
         }
 }
 
@@ -159,7 +138,6 @@ wps_invocation (void)
         GUPnPDeviceInfo *info;
         GUPnPDeviceProxy *deviceProxy;
         GUPnPDeviceProxyWps *deviceProxyWps;
-        GError *error = NULL;
         guint method;
 
         device_pin = gtk_entry_get_text (GTK_ENTRY(wps_dialog_pin_entry));
@@ -195,22 +173,6 @@ wps_invocation (void)
                                                        device_pin,
         	                                           continue_wps_cb,
         		                                       wps_user_data);
-/*        if ( (error = gupnp_device_proxy_wps_get_error(deviceProxyWps)) ) {
-            GtkWidget *error_dialog;
-
-        	error_dialog = gtk_message_dialog_new (GTK_WINDOW (wps_dialog),
-        	                                       GTK_DIALOG_MODAL,
-        	                                       GTK_MESSAGE_ERROR,
-        	                                       GTK_BUTTONS_CLOSE,
-        	                                       "WPS setup failed.\n\nError %d: %s",
-        	                                       error->code,
-        	                                       error->message);
-
-        	gtk_dialog_run (GTK_DIALOG (error_dialog));
-        	gtk_widget_destroy (error_dialog);
-        	gtk_widget_hide (wps_dialog);
-        	return;
-        }*/
 }
 
 void
