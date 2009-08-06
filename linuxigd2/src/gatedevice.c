@@ -2155,8 +2155,8 @@ int AuthorizeControlPoint(struct Upnp_Action_Request *ca_event, int managed)
         {
             // CP doesn't have privileges for this
             trace(1, "%s: Not enough privileges to do this, '%s' is required",ca_event->ActionName, accessLevel);
-            result = 702;
-            addErrorData(ca_event, result, "Authorization Failure");
+            result = 606;
+            addErrorData(ca_event, result, "Action not authorized");
 
             return result;        
         }

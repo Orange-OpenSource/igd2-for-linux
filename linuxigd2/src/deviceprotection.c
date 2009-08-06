@@ -1081,8 +1081,8 @@ int SendSetupMessage(struct Upnp_Action_Request *ca_event)
         if (strcmp(protocoltype, "WPS") != 0)
         {
             trace(1, "Introduction protocol type must be 'WPS': Invalid ProtocolType=%s\n",protocoltype);
-            result = 703;
-            addErrorData(ca_event, result, "Unknown Protocol Type");       
+            result = 600;
+            addErrorData(ca_event, result, "Argument Value Invalid");       
         } 
         
         // get identifier of CP 
@@ -1239,8 +1239,8 @@ int GetUserLoginChallenge(struct Upnp_Action_Request *ca_event)
         if ((strcmp(nameUPPER, "ADMIN") != 0) && (getValuesFromPasswdFile(nameUPPER, NULL,NULL,NULL,NULL,0) != 0))
         {
             trace(1, "Unknown username %s",nameUPPER);
-            result = 706;
-            addErrorData(ca_event, result, "Invalid Name");                 
+            result = 600;
+            addErrorData(ca_event, result, "Argument Value Invalid");                 
         }
         
         // parameters OK
@@ -1334,8 +1334,8 @@ int UserLogin(struct Upnp_Action_Request *ca_event)
         {
             trace(1, "%s: Challenge value does not match value from SIR",ca_event->ActionName);
             trace(3, "Received challenge was '%s' and local challenge was '%s'",challenge, loginChallenge);
-            result = 706;
-            addErrorData(ca_event, result, "Invalid Context");
+            result = 600;
+            addErrorData(ca_event, result, "Argument Value Invalid");
         }
         
         if (result == 0)
@@ -1357,8 +1357,8 @@ int UserLogin(struct Upnp_Action_Request *ca_event)
             {
                 // failure
                 trace(2, "%s: Failed to get STORED and Challenge from passwd file. (username: '%s')",ca_event->ActionName,loginName);
-                result = 706;
-                addErrorData(ca_event, result, "Invalid Context");
+                result = 600;
+                addErrorData(ca_event, result, "Argument Value Invalid");
             }
             else
             {
@@ -1577,14 +1577,14 @@ int AddRolesForIdentity(struct Upnp_Action_Request *ca_event)
         {
             // ok, identity wasn't username or hash
             trace(1, "AddRolesForIdentity: Unknown identity %s",identity);
-            result = 706;
-            addErrorData(ca_event, result, "Unknown Identity");
+            result = 600;
+            addErrorData(ca_event, result, "Argument Value Invalid");
         }
         else if (result == ACL_ROLE_ERROR)
         {
             trace(1, "AddRolesForIdentity: Invalid rolelist received %s",rolelist);
-            result = 707;
-            addErrorData(ca_event, result, "Invalid RoleList");
+            result = 600;
+            addErrorData(ca_event, result, "Argument Value Invalid");
         }
         else if (result != ACL_SUCCESS)
         {
@@ -1660,14 +1660,14 @@ int RemoveRolesForIdentity(struct Upnp_Action_Request *ca_event)
         {
             // ok, identity wasn't username or hash
             trace(1, "RemoveRolesForIdentity: Unknown identity %s",identity);
-            result = 706;
-            addErrorData(ca_event, result, "Unknown Identity");
+            result = 600;
+            addErrorData(ca_event, result, "Argument Value Invalid");
         }
         else if (result == ACL_ROLE_ERROR)
         {
             trace(1, "RemoveRolesForIdentity: Invalid rolelist received %s",rolelist);
-            result = 707;
-            addErrorData(ca_event, result, "Invalid RoleList");
+            result = 600;
+            addErrorData(ca_event, result, "Argument Value Invalid");
         }
         else if (result != ACL_SUCCESS)
         {
@@ -1898,8 +1898,8 @@ int SetUserLoginPassword(struct Upnp_Action_Request *ca_event)
                     if (result == -2)
                     {
                         trace(1, "%s: Same username '%s' exists in passwd file already",ca_event->ActionName,name);
-                        result = 706;
-                        addErrorData(ca_event, result, "Invalid Name");                    
+                        result = 600;
+                        addErrorData(ca_event, result, "Argument Value Invalid");                    
                     }
                     else if (result != 0)
                     {
@@ -1944,8 +1944,8 @@ int SetUserLoginPassword(struct Upnp_Action_Request *ca_event)
             else
             {
                 trace(1, "%s: Not enough privileges to do this, '%s' is required",ca_event->ActionName, "Admin");
-                result = 702;
-                addErrorData(ca_event, result, "Authorization Failure");                
+                result = 606;
+                addErrorData(ca_event, result, "Action not authorized");                
             }            
         }
 
@@ -2041,9 +2041,9 @@ int AddIdentityList(struct Upnp_Action_Request *ca_event)
             
                 // validate contents of list and add new identities to ACL
                 result = ACL_validateListAndUpdateACL(ACLDoc, identitiesDoc, admin_handling);
-                if (result == 707)
+                if (result == 600)
                 {
-                    addErrorData(ca_event, result, "Invalid Parameter");
+                    addErrorData(ca_event, result, "Argument Value Invalid");
                 } 
                 else if (result != 0)
                 {
@@ -2145,9 +2145,9 @@ int RemoveIdentity(struct Upnp_Action_Request *ca_event)
             // validate input and remove CP/User
             result = ACL_validateAndRemoveIdentity(ACLDoc, identityDoc);
             
-            if (result == 707)
+            if (result == 600)
             {
-                addErrorData(ca_event, result, "Invalid Parameter");               
+                addErrorData(ca_event, result, "Argument Value Invalid");               
             }
             else if (result != 0)
             {

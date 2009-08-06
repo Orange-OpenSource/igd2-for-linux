@@ -1791,7 +1791,7 @@ int ACL_removeRolesFromCP(IXML_Document *doc, const char *id, const char *roles)
  * @param admin Is identitiesDoc handled with admin rights
  * @return upnp error codes:
  *         0 on succes,
- *         707 if identitiesDoc contains invalid values
+ *         600 if identitiesDoc contains invalid values
  *         501 if processing error occurs
  */
 int ACL_validateListAndUpdateACL(IXML_Document *ACLdoc, IXML_Document *identitiesDoc, int admin)
@@ -1814,7 +1814,7 @@ int ACL_validateListAndUpdateACL(IXML_Document *ACLdoc, IXML_Document *identitie
         {
             trace(2,"(ACL) Name must be given for CP. Skip.");
             continue;
-            //return 707;
+            //return 600;
         }
         
         // if admin, try to get Alias and RoleList values
@@ -1854,7 +1854,7 @@ int ACL_validateListAndUpdateACL(IXML_Document *ACLdoc, IXML_Document *identitie
             trace(2,"(ACL) Name must be given for User. Skip.");
             RemoveNode(tmpNode);
             continue;
-            //return 707;
+            //return 600;
         }
         // if admin, try to get RoleList value
         if (admin)
@@ -1892,7 +1892,7 @@ int ACL_validateListAndUpdateACL(IXML_Document *ACLdoc, IXML_Document *identitie
  * @param identitiesDoc IXML_Document which contains CP-elements to remove from ACL
  * @return upnp error codes:
  *         0 on success,
- *         707 if identitiesDoc contains invalid values
+ *         600 if identitiesDoc contains invalid values
  *         501 if processing error occurs
  */
 int ACL_validateAndRemoveIdentity(IXML_Document *ACLdoc, IXML_Document *identityDoc)
@@ -1908,12 +1908,12 @@ int ACL_validateAndRemoveIdentity(IXML_Document *ACLdoc, IXML_Document *identity
         if (id == NULL)
         {
             trace(2,"(ACL) Failed to find any ID or Name from given parameter");
-            return 707;
+            return 600;
         }
         else if (strcmp(toUpperCase(id), "ADMIN") == 0) // username must not be Admin
         {
             trace(2,"(ACL) Trying to remove Admin, that's not allowed");
-            return 707;            
+            return 600;            
         }
         else
         {
@@ -1922,7 +1922,7 @@ int ACL_validateAndRemoveIdentity(IXML_Document *ACLdoc, IXML_Document *identity
             if (result == ACL_USER_ERROR)
             {
                 trace(2,"(ACL) No User with Name '%s' is found from ACL",id);
-                return 707;
+                return 600;
             }
             else if (result != ACL_SUCCESS)
             {
@@ -1938,7 +1938,7 @@ int ACL_validateAndRemoveIdentity(IXML_Document *ACLdoc, IXML_Document *identity
         if (result == ACL_USER_ERROR)
         {
             trace(2,"(ACL) No CP with ID '%s' is found from ACL",id);
-            return 707;
+            return 600;
         }
         else if (result != ACL_SUCCESS)
         {
@@ -1960,7 +1960,7 @@ int ACL_validateAndRemoveIdentity(IXML_Document *ACLdoc, IXML_Document *identity
  * @param identitiesDoc IXML_Document which contains CP-elements alias value
  * @return upnp error codes:
  *         0 on succes,
- *         707 if identitiesDoc contains invalid values
+ *         600 if identitiesDoc contains invalid values
  *         501 if processing error occurs
  */
 int ACL_validateAndUpdateCPAlias(IXML_Document *ACLdoc, IXML_Document *identityDoc)
@@ -1975,14 +1975,14 @@ int ACL_validateAndUpdateCPAlias(IXML_Document *ACLdoc, IXML_Document *identityD
     if (id == NULL)
     {
         trace(2,"(ACL) Failed to find any ID from given parameter");
-        return 707;                
+        return 600;                
     } 
 
     alias = GetFirstDocumentItem(identityDoc, "Alias");
     if (alias == NULL)
     {
         trace(2,"(ACL) Failed to get value of Alias");
-        return 707;                
+        return 600;                
     } 
     
     // update alias
@@ -1990,7 +1990,7 @@ int ACL_validateAndUpdateCPAlias(IXML_Document *ACLdoc, IXML_Document *identityD
     if (result == ACL_USER_ERROR)
     {
         trace(2,"(ACL) No CP with ID '%s' is found from ACL",id);
-        return 707;
+        return 600;
     }
     else if (result != ACL_SUCCESS)
     {
