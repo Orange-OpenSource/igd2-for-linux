@@ -275,8 +275,10 @@ int HandleActionRequest(struct Upnp_Action_Request *ca_event)
                 result = SendSetupMessage(ca_event);
             else if (strcmp(ca_event->ActionName,"GetSupportedProtocols") == 0)
                 result = GetSupportedProtocols(ca_event);
-            else if (strcmp(ca_event->ActionName,"GetCurrentRoles") == 0)
-                result = GetCurrentRoles(ca_event);                 
+            else if (strcmp(ca_event->ActionName,"GetAssignedRoles") == 0)
+                result = GetAssignedRoles(ca_event);
+            else if (strcmp(ca_event->ActionName,"GetRolesForAction") == 0)
+                result = GetRolesForAction(ca_event); 
             else if (strcmp(ca_event->ActionName,"GetUserLoginChallenge") == 0)
                 result = GetUserLoginChallenge(ca_event);
             else if (strcmp(ca_event->ActionName,"UserLogin") == 0)

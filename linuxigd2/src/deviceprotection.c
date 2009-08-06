@@ -1706,12 +1706,12 @@ int RemoveRolesForIdentity(struct Upnp_Action_Request *ca_event)
 }
 
 /**
- * DeviceProtection:1 Action: GetCurrentRole.
+ * DeviceProtection:1 Action: GetAssignedRoles.
  *
  * @param ca_event Upnp event struct.
  * @return Upnp error code.
  */
-int GetCurrentRoles(struct Upnp_Action_Request *ca_event)
+int GetAssignedRoles(struct Upnp_Action_Request *ca_event)
 {    
     char *roles = NULL;
     int ret;
@@ -1749,12 +1749,95 @@ int GetCurrentRoles(struct Upnp_Action_Request *ca_event)
     }
     else
     {
-        trace(1, "Error parsing Response to GetCurrentRoles");
+        trace(1, "Error parsing Response to GetAssignedRoles");
         addErrorData(ca_event, 501, "Action Failed");
     }
 
     return ca_event->ErrCode;
 }
+
+
+/**
+ * DeviceProtection:1 Action: GetRolesForAction.
+ *
+ * @param ca_event Upnp event struct.
+ * @return Upnp error code.
+ */
+int GetRolesForAction(struct Upnp_Action_Request *ca_event)
+{    
+    int result = 0;
+
+    char *actionName = NULL;
+    char *accessLevel = NULL;
+    char *accessLevelManage = NULL;
+    char *roleList = NULL;
+    char *restricredRoleList = NULL;
+    
+    if ( (actionName = GetFirstDocumentItem(ca_event->ActionRequest, "ActionName")) )
+    {       
+        accessLevel = getAccessLevel(actionName, 0);
+        
+        if (accessLevel)
+        {
+            // role Admin contains privileges of Admin Basic Public
+            // role Basic contains privileges of Basic Public
+            // role Public contains privileges Public
+            if (strcmp(accessLevel, "Public") == 0)
+                roleList = "Public";
+            else if (strcmp(accessLevel, "Basic") == 0)
+                roleList = "Public Basic";
+            else if (strcmp(accessLevel, "Admin") == 0)
+                roleList = "Public Basic Admin";
+            else
+                roleList = "";           
+
+            // get managed accesslevel if it exists            
+            accessLevelManage = getAccessLevel(actionName, 1);
+            if (accessLevelManage)
+            {
+                if (strcmp(accessLevelManage, "Public") == 0)
+                    restricredRoleList = "Public";
+                else if (strcmp(accessLevelManage, "Basic") == 0)
+                    restricredRoleList = "Public Basic";
+                else if (strcmp(accessLevelManage, "Admin") == 0)
+                    restricredRoleList = "Public Basic Admin";
+                else
+                    restricredRoleList = "";
+            }
+            else 
+                restricredRoleList = "";
+        }
+        else
+        {
+            // invalid ActionName
+            trace(1, "GetRolesForAction: ActionName is not recognized %s",actionName);
+            result = 600;
+            addErrorData(ca_event, result, "Argument Value Invalid");            
+        }
+
+        // all is well
+        if (result == 0)
+        {
+            ca_event->ActionResult = UpnpMakeActionResponse(ca_event->ActionName, DP_SERVICE_TYPE,
+                                        2,
+                                        "RoleList", roleList,
+                                        "RestrictedRoleList", restricredRoleList);                                        
+            ca_event->ErrCode = UPNP_E_SUCCESS;   
+        }
+    }    
+    else
+    {
+        trace(1, "GetRolesForAction: Invalid Arguments!");
+        trace(1, "  ActionName: %s",actionName);
+        addErrorData(ca_event, 402, "Invalid Args");
+    }
+    
+    if (actionName) free(actionName);
+    if (accessLevel) free(accessLevel);
+
+    return ca_event->ErrCode;
+}
+
 
 /**
  * DeviceProtection:1 Action: SetUserLoginPassword.
