@@ -1298,7 +1298,7 @@ int UserLogin(struct Upnp_Action_Request *ca_event)
             && (authenticator = GetFirstDocumentItem(ca_event->ActionRequest, "Authenticator") ))
     {
         result = getIdentifierOfCP(ca_event, &id, &id_len, NULL);
-        trace(3,"CP with identifier '%s' is logging in",id);
+        trace(3,"CP with identifier '%s' is logging in.",id);
         // here we could try "session resumption" by getting identity from SIR?
         // but not now, just continue as new login...
         result = SIR_getLoginDataOfSession(SIRDoc, (char *)id, &loginattempts, &loginName, &loginChallenge);
@@ -1311,12 +1311,13 @@ int UserLogin(struct Upnp_Action_Request *ca_event)
         }
         
         // has CP tried to login too many times already?
-        if (++loginattempts > DP_MAX_LOGIN_ATTEMPTS)
+        if (++loginattempts >= DP_MAX_LOGIN_ATTEMPTS)
         {
+            trace(1,"CP with identifier '%s' has tried unsuccesfully to login too many times. Closing connection...",id);
             // out and away!
             // close SSL session on way out...
             UpnpTerminateSSLSession(ca_event->SSLSession, ca_event->Socket);
-            
+            trace(3,"Cleaning SIR...");
             // remove session from SIR
             SIR_removeSession(SIRDoc, (char *)id);
             
