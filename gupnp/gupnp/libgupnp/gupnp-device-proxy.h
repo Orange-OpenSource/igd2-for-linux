@@ -231,7 +231,7 @@ void
 gupnp_device_proxy_set_ssl_client           (GUPnPDeviceProxy           *proxy,
                                         GUPnPSSLClient *client);
 
-GUPnPSSLClient *
+GUPnPSSLClient **
 gupnp_device_proxy_get_ssl_client           (GUPnPDeviceProxy           *proxy);
 
 

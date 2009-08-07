@@ -769,8 +769,8 @@ finish_action_msg (GUPnPServiceProxyAction *action,
                                 (GUPNP_SERVICE_INFO (action->proxy));
 
         // get ssl-client from deviceproxy                      
-        GUPnPSSLClient *client = gupnp_device_proxy_get_ssl_client(action->proxy->priv->device_proxy);
-        if (client == NULL)
+        GUPnPSSLClient **client = gupnp_device_proxy_get_ssl_client(action->proxy->priv->device_proxy);
+        if (*client == NULL)
         {
             g_warning("We don't have SSL");                              
                                 

@@ -63,7 +63,7 @@ typedef struct {
 typedef struct _GUPnPSSLThreadData GUPnPSSLThreadData;
 // callback funciotn which is called when action returns
 typedef void (* GUPnPSSLClientCallback) (
-                                     GUPnPSSLClient          *client,
+                                     GUPnPSSLClient          **client,
                                      SoupMessage             *msg,
                                      gpointer                user_data //GUPnPServiceProxyAction
                                      );
@@ -72,7 +72,7 @@ void ssl_create_https_url(const char *http_url, int port, char **https_url);
 
 
 int
-ssl_init_client(  GUPnPSSLClient *client,
+ssl_init_client(  GUPnPSSLClient **client,
                   const char *directory,
                   const char *CertFile,
                   const char *PrivKeyFile,
@@ -81,19 +81,19 @@ ssl_init_client(  GUPnPSSLClient *client,
                   const char *devName);
                  
 int
-ssl_finish_client( GUPnPSSLClient *client );
+ssl_finish_client( GUPnPSSLClient **client );
 
 int
-ssl_create_client_session(  GUPnPSSLClient *client,
+ssl_create_client_session(  GUPnPSSLClient **client,
                             const char *ActionURL_const,
                             void *SSLSessionData,
                             size_t *DataSize);
                             
 int
-ssl_close_client_session( GUPnPSSLClient *client );                                             
+ssl_close_client_session( GUPnPSSLClient **client );                                             
 
 
-int ssl_client_send_and_receive(  GUPnPSSLClient *client,
+int ssl_client_send_and_receive(  GUPnPSSLClient **client,
                                   char *message,
                                   SoupMessage *msg,
                                   GUPnPSSLClientCallback callback,

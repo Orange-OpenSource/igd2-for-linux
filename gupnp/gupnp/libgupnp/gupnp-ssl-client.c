@@ -36,7 +36,7 @@ gupnp_ssl_client_class_init (GUPnPSSLClientClass *klass)
 
 
 struct _GUPnPSSLThreadData {
-    GUPnPSSLClient *client;
+    GUPnPSSLClient **client;
     char *message;
     SoupMessage *soupmesg;
     GUPnPSSLClientCallback callback;
@@ -129,7 +129,7 @@ static void ssl_client_send_and_receive_thread(void *data)
 
     GUPnPSSLThreadData *ssl_data = data;
     
-    GUPnPSSLClient *client = ssl_data->client;
+    GUPnPSSLClient **client = ssl_data->client;
     char *message = ssl_data->message;
     SoupMessage *msg = ssl_data->soupmesg;
 
@@ -139,20 +139,22 @@ static void ssl_client_send_and_receive_thread(void *data)
 
 
 
-    if (client->session == NULL)
+    if ((*client)->session == NULL)
     {
-        g_free(data);
+        g_slice_free(GUPnPSSLThreadData, data);
         return;// GUPNP_E_SESSION_FAIL;
     }
  
    
     // Send the message
-    retVal = gnutls_record_send(client->session, message, strlen(message));
+    retVal = gnutls_record_send((*client)->session, message, strlen(message));
      
     if (retVal < 0)
     {
         g_warning("Error: gnutls_record_send failed. %s", gnutls_strerror(retVal));
-        g_free(data);
+        // close the client
+        ssl_finish_client(client);
+        g_slice_free(GUPnPSSLThreadData, data);
         return;// retVal;  
     }
     
@@ -160,12 +162,15 @@ static void ssl_client_send_and_receive_thread(void *data)
     while (retVal > 0) // if retVal is negative, then gnutls have returned error
     {
         memset(recv, '\0',len+1);// earlier receivings doesn't bother after this
-        retVal = gnutls_record_recv (client->session, recv, len);
+        retVal = gnutls_record_recv ((*client)->session, recv, len);
                
-        if (retVal < 0)
+        if (retVal <= 0) // 0 should mean EOF, peer has closed session?
         {
             g_warning("Error: gnutls_record_recv failed. %s", gnutls_strerror(retVal));
-            g_free(data);
+            // close the client
+            ssl_finish_client(client);
+
+            g_slice_free(GUPnPSSLThreadData, data);
             return;// retVal;
         }
         else
@@ -182,7 +187,7 @@ static void ssl_client_send_and_receive_thread(void *data)
             
             new_resp = realloc (response, alloc);
             if (!new_resp) {
-                g_free(data);
+                g_slice_free(GUPnPSSLThreadData, data);
                 return;// -1; // not enough memory
             }
   
@@ -244,7 +249,7 @@ static void ssl_client_send_and_receive_thread(void *data)
         }
         
     }
-    g_free(data);    
+
     return;// retVal; 
 }
 
@@ -331,7 +336,7 @@ int clientCertCallback(gnutls_session_t session, const gnutls_datum_t* req_ca_dn
  *      
  ***************************************************************************/
 int
-ssl_init_client( GUPnPSSLClient *client,
+ssl_init_client( GUPnPSSLClient **client,
                  const char *directory,
                  const char *CertFile,
                  const char *PrivKeyFile,
@@ -340,7 +345,12 @@ ssl_init_client( GUPnPSSLClient *client,
                  const char *devName)
 {
     int retVal;
-    
+
+    if (*client == NULL)
+        *client = g_slice_new(GUPnPSSLClient);
+    else
+        return -1;
+  
     // init gnutls and libgcrypt
     retVal = init_crypto_libraries();    
     if (retVal != 0) {
@@ -355,7 +365,7 @@ ssl_init_client( GUPnPSSLClient *client,
             g_warning("Error: %s", "Certificate loading failed");
             return retVal;    
         }        
-        retVal = init_x509_certificate_credentials(&client->xcred, directory, CertFile, PrivKeyFile, TrustFile, CRLFile);
+        retVal = init_x509_certificate_credentials(&((*client)->xcred), directory, CertFile, PrivKeyFile, TrustFile, CRLFile);
         if ( retVal != GNUTLS_E_SUCCESS ) {
             g_warning("Error: %s", "Certificate credentials creating failed");
             return retVal;    
@@ -368,7 +378,7 @@ ssl_init_client( GUPnPSSLClient *client,
             g_warning("Error: %s", "Certificate loading failed");
             return retVal;    
         }          
-        retVal = init_x509_certificate_credentials(&client->xcred, directory, GUPNP_X509_CLIENT_CERT_FILE, GUPNP_X509_CLIENT_PRIVKEY_FILE, TrustFile, CRLFile);
+        retVal = init_x509_certificate_credentials(&((*client)->xcred), directory, GUPNP_X509_CLIENT_CERT_FILE, GUPNP_X509_CLIENT_PRIVKEY_FILE, TrustFile, CRLFile);
         if ( retVal != GNUTLS_E_SUCCESS ) {
             g_warning("Error: %s", "Certificate credentials creating failed");
             return retVal;    
@@ -377,18 +387,18 @@ ssl_init_client( GUPnPSSLClient *client,
 
     // set callback function for returning client certificate. (in default case server says in 
     // certificate request that who has to be the signer of cert. Our client may not be on that list)
-    gnutls_certificate_client_set_retrieve_function(client->xcred, (gnutls_certificate_client_retrieve_function *)clientCertCallback);
+    gnutls_certificate_client_set_retrieve_function((*client)->xcred, (gnutls_certificate_client_retrieve_function *)clientCertCallback);
     
     // init session to NULL
-    client->session = NULL;
+    (*client)->session = NULL;
 
     // create threadpool for sending and receiving
-    client->thread_pool = g_thread_pool_new ((GFunc) ssl_client_send_and_receive_thread,
+    (*client)->thread_pool = g_thread_pool_new ((GFunc) ssl_client_send_and_receive_thread,
                                              NULL,
                                              2,
                                              TRUE,
                                              NULL);
-    if (client->thread_pool == NULL) {
+    if ((*client)->thread_pool == NULL) {
         g_warning("Error: %s", "Failed to create threadpool for SSL action sending");
         return -1;    
     }  
@@ -404,6 +414,8 @@ ssl_init_client( GUPnPSSLClient *client,
  * Description:
  *  This function deinitializes gnutls and gnutls certificate credentials.
  *  Call this when SSL is no more needed. Propably at then end of program.
+ *  Free all memory allocated for ssl-client and NULLifies it so that SSL-
+ *  connection cannot be used anymore.
  *
  * Return Values: int
  *  GUPNP_E_SUCCESS on success, nonzero on failure. Less than zero values
@@ -411,21 +423,27 @@ ssl_init_client( GUPnPSSLClient *client,
  *      
  ***************************************************************************/
 int
-ssl_finish_client( GUPnPSSLClient *client)
+ssl_finish_client( GUPnPSSLClient **client)
 {
     if (!client)
         return GUPNP_E_SUCCESS;
   
     ssl_close_client_session(client);
-    
-    g_thread_pool_free (client->thread_pool,
+       
+    gnutls_x509_crt_deinit(client_crt);
+    gnutls_x509_privkey_deinit(client_privkey);    
+    gnutls_certificate_free_credentials ((*client)->xcred);
+    gnutls_global_deinit ();
+
+    g_thread_pool_free ((*client)->thread_pool,
                         TRUE,
                         FALSE);
     
-    gnutls_x509_crt_deinit(client_crt);
-    gnutls_x509_privkey_deinit(client_privkey);    
-    gnutls_certificate_free_credentials (client->xcred);
-    gnutls_global_deinit ();
+    g_slice_free(GUPnPSSLClient, *client);
+    *client = NULL;
+    
+    // It would be nice if this emits signal telling that client is finished
+    // Or ssl_close_client_session would emit signal telling that session is deinited
     
     return GUPNP_E_SUCCESS;
 }  /****************** End of ssl_finish_client *********************/
@@ -452,7 +470,7 @@ ssl_finish_client( GUPnPSSLClient *client)
  *      
  ***************************************************************************/
 int
-ssl_create_client_session(  GUPnPSSLClient *client,
+ssl_create_client_session(  GUPnPSSLClient **client,
                             const char *ActionURL_const,
                             void *SSLSessionData,
                             size_t *DataSize)
@@ -503,7 +521,7 @@ ssl_create_client_session(  GUPnPSSLClient *client,
     }
 
     // put the x509 credentials to the current session 
-    retVal = gnutls_credentials_set (session, GNUTLS_CRD_CERTIFICATE, client->xcred);
+    retVal = gnutls_credentials_set (session, GNUTLS_CRD_CERTIFICATE, (*client)->xcred);
     if (retVal != GNUTLS_E_SUCCESS) {
         g_warning("Error: gnutls_credentials_set failed. %s", gnutls_strerror(retVal));
         return retVal;  
@@ -555,7 +573,7 @@ ssl_create_client_session(  GUPnPSSLClient *client,
     }
  
     // put sesison to client
-    client->session = session;
+    (*client)->session = session;
 
     return GUPNP_E_SUCCESS;
 
@@ -576,19 +594,19 @@ ssl_create_client_session(  GUPnPSSLClient *client,
  *      
  ***************************************************************************/
 int
-ssl_close_client_session( GUPnPSSLClient *client )
+ssl_close_client_session( GUPnPSSLClient **client )
 {
     int retVal = 0;
     int sd;
 
     // check if session even exist
-    if (client->session == NULL) {
+    if ((*client)->session == NULL) {
 
         return GUPNP_E_SUCCESS;             
     }
 
     // send bye to peer
-    retVal = gnutls_bye (client->session, GNUTLS_SHUT_WR);
+    retVal = gnutls_bye ((*client)->session, GNUTLS_SHUT_WR);
     if (retVal != GNUTLS_E_SUCCESS)
     {
         g_warning("Error: gnutls_bye failed. %s", gnutls_strerror(retVal));
@@ -596,16 +614,13 @@ ssl_close_client_session( GUPnPSSLClient *client )
     }     
     
     // close socket
-    sd = (int)gnutls_transport_get_ptr(client->session);
+    sd = (int)gnutls_transport_get_ptr((*client)->session);
     shutdown (sd, SHUT_RDWR); /* no more receptions */
     close (sd);
     
-    gnutls_deinit (client->session);
-
-    //gnutls_certificate_free_credentials (SInfo->SSLInfo->tls_cred);
+    gnutls_deinit ((*client)->session);
  
-    client->session = NULL;
-    //SInfo->SSLInfo->tls_cred = NULL;
+    (*client)->session = NULL;
 
     return GUPNP_E_SUCCESS;
 
@@ -618,7 +633,7 @@ ssl_close_client_session( GUPnPSSLClient *client )
  * Function: ssl_client_send_and_receive
  *
  * Parameters:
- *  IN  GUPnPSSLClient *client: Client used for sending message. This contains SSL-session
+ *  IN  GUPnPSSLClient **client: Client used for sending message. This contains SSL-session
  *  IN  const char *message: Message which is send
  *  IN  char **response: Response for message is returned here as string
  *  IN  SoupMessage *msg: Into this SoupMessage, response information is inserted. This way we can mimic that normal soup-sending and receiving was used
@@ -636,14 +651,12 @@ ssl_close_client_session( GUPnPSSLClient *client )
  *      0 on success.
  *      
  ***************************************************************************/                                  
-int ssl_client_send_and_receive(  GUPnPSSLClient *client,
+int ssl_client_send_and_receive(  GUPnPSSLClient **client,
                                   char *message,
                                   SoupMessage *msg,
                                   GUPnPSSLClientCallback callback,
                                   gpointer userdata)                                       
 {
-    GError *error = NULL;
-    
     GUPnPSSLThreadData *data = g_slice_new(GUPnPSSLThreadData);
     data->client = client;
     data->message = message;
@@ -651,7 +664,7 @@ int ssl_client_send_and_receive(  GUPnPSSLClient *client,
     data->callback = callback;
     data->userdata = userdata;
 
-    g_thread_pool_push (client->thread_pool,
+    g_thread_pool_push ((*client)->thread_pool,
                         data,
                         NULL); 
     return 0;

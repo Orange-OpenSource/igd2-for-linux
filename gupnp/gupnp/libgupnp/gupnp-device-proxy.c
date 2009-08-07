@@ -778,11 +778,6 @@ gupnp_device_proxy_create_and_init_ssl_client (GUPnPDeviceProxy *proxy,
 
         int ret = 0;
 
-        if (proxy->priv->ssl_client == NULL)
-            proxy->priv->ssl_client = g_slice_new(GUPnPSSLClient);//malloc(sizeof(GUPnPSSLClient));
-        else
-            return -1;
-
         if (https_url == NULL)
             return -2;
 
@@ -793,7 +788,7 @@ gupnp_device_proxy_create_and_init_ssl_client (GUPnPDeviceProxy *proxy,
 
         char *fullCertStore = g_build_path(G_DIR_SEPARATOR_S, homedir, GUPNP_CERT_STORE, NULL);
 
-        ret = ssl_init_client(proxy->priv->ssl_client, fullCertStore ,NULL,NULL,NULL,NULL, GUPNP_CERT_CN);
+        ret = ssl_init_client(&(proxy->priv->ssl_client), fullCertStore ,NULL,NULL,NULL,NULL, GUPNP_CERT_CN);
         g_free(fullCertStore);
         if (ret != 0)
         {
@@ -802,7 +797,7 @@ gupnp_device_proxy_create_and_init_ssl_client (GUPnPDeviceProxy *proxy,
         }
 
         // create SSL session (connection to server)
-        ret = ssl_create_client_session(proxy->priv->ssl_client, https_url, NULL, NULL);
+        ret = ssl_create_client_session(&(proxy->priv->ssl_client), https_url, NULL, NULL);
         if (ret != 0)
         {
             g_warning("Failed create SSL session to '%s'",https_url);
@@ -841,13 +836,13 @@ gupnp_device_proxy_set_ssl_client (GUPnPDeviceProxy *proxy,
  * Return value: The #GUPnPSSLClient used by GUPnP. Do not unref this when
  * finished.
  **/
-GUPnPSSLClient *
+GUPnPSSLClient **
 gupnp_device_proxy_get_ssl_client (GUPnPDeviceProxy *proxy)
 {
         g_assert (proxy != NULL);
 
         if (proxy->priv->root_proxy)
-            return proxy->priv->root_proxy->priv->ssl_client;
+            return &(proxy->priv->root_proxy->priv->ssl_client);
 
         return NULL;
 }
