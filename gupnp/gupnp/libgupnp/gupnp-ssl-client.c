@@ -425,7 +425,7 @@ ssl_init_client( GUPnPSSLClient **client,
 int
 ssl_finish_client( GUPnPSSLClient **client)
 {
-    if (!client)
+    if (!*client)
         return GUPNP_E_SUCCESS;
   
     ssl_close_client_session(client);
