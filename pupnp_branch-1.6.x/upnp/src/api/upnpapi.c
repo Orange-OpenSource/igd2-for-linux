@@ -439,8 +439,8 @@ void UpnpTerminateSSLSession(gnutls_session_t session, int sock)
 {
     if (session != NULL)
     {
-        // no more send and receives are allowed
-        gnutls_bye (session, GNUTLS_SHUT_RDWR);
+        // no more send and receives are allowed      
+        gnutls_bye (session, GNUTLS_SHUT_WR);     
         close (sock);
         gnutls_deinit (session);
     }

@@ -900,21 +900,21 @@ getServiceList( IXML_Node * node,
                 ixmlFreeDOMString( tempDOMString );
                 tempDOMString = NULL;
 
-                if( ( !getSubElement( "secureSCPDURL", current_service,
+                if( ( !getSubElement( "dp:secureSCPDURL", current_service,
                                       &secureSCPDURL ) ) ||
                     ( !
                       ( current->secureSCPDURL =
                         getElementValue( secureSCPDURL ) ) ) )
                     current->secureSCPDURL = NULL;
 
-                if( ( !getSubElement( "secureControlURL", current_service,
+                if( ( !getSubElement( "dp:secureControlURL", current_service,
                                       &secureControlURL ) ) ||
                     ( !
                       ( current->secureControlURL =
                         getElementValue( secureControlURL ) ) ) )
                     current->secureControlURL = NULL;
 
-                if( ( !getSubElement( "secureEventSubURL", current_service,
+                if( ( !getSubElement( "dp:secureEventSubURL", current_service,
                                       &secureEventURL ) ) ||
                     ( !
                       ( current->secureEventURL =
