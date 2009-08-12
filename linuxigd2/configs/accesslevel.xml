@@ -209,9 +209,13 @@
                 <accessLevel>Public</accessLevel>
             </action>
             <action>
-                <name>GetCurrentRoles</name>
+                <name>GetAssignedRoles</name>
                 <accessLevel>Public</accessLevel>
             </action>
+            <action>
+                <name>GetRolesForAction</name>
+                <accessLevel>Public</accessLevel>
+            </action>            
             <action>
                 <name>GetUserLoginChallenge</name>
                 <accessLevel>Public</accessLevel>

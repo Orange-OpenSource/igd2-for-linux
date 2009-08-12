@@ -105,7 +105,11 @@ void DPStateTableInit()
 {
     // DeviceProtection is ready for introduction
     SetupReady = 1;
-    strcpy(SupportedProtocols, "<SupportedProtocols><Introduction><Name>WPS</Name></Introduction></SupportedProtocols>");   
+    strcpy(SupportedProtocols, "<SupportedProtocols xmlns=\"urn:schemas-upnp-org:gw:DeviceProtection\" \
+xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" \
+xsi:schemaLocation=\"urn:schemas-upnp-org:gw:DeviceProtection \
+http://www.upnp.org/schemas/gw/DeviceProtection.xsd\">\
+<Introduction><Name>WPS</Name></Introduction></SupportedProtocols>");   
 }
 
 /**
@@ -2063,15 +2067,25 @@ int AddIdentityList(struct Upnp_Action_Request *ca_event)
             
             // get identities element from ACL and return it to CP
             char *responseIdentities = NodeWithNameToString(ACLDoc, "Identities");
+            
+            // replace <Identities> from beginning with <Identities xmlns="...>
+            char responseIdentitiesWithNamespace[strlen(responseIdentities)+240];
+            strcpy(responseIdentitiesWithNamespace,"<Identities xmlns=\"urn:schemas-upnp-org:gw:DeviceProtection\" \
+xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" \
+xsi:schemaLocation=\"urn:schemas-upnp-org:gw:DeviceProtection \
+http://www.upnp.org/schemas/gw/DeviceProtection.xsd\">");
+
+            strcat(responseIdentitiesWithNamespace, responseIdentities+12);
+            free(responseIdentities);
+            
             if (responseIdentities)
             {
                 // Succesfull end happens here
                 ca_event->ActionResult = UpnpMakeActionResponse(ca_event->ActionName, DP_SERVICE_TYPE,
                                             1, 
-                                            "IdentityListResult", responseIdentities,
+                                            "IdentityListResult", responseIdentitiesWithNamespace,
                                             NULL);                                        
                 ca_event->ErrCode = UPNP_E_SUCCESS;
-                free(responseIdentities);
             }
             else
             {

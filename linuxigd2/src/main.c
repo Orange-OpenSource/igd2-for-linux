@@ -73,7 +73,7 @@ static int updateHttpsDescDoc(const char *descDocFile, const char *IP, int port)
         return -1; 
     
     // modify all secureSCPDURL's
-    nodeList = ixmlDocument_getElementsByTagName( descDoc, "secureSCPDURL" );
+    nodeList = ixmlDocument_getElementsByTagName( descDoc, "dp:secureSCPDURL" );
     if (nodeList)
     {
         listLen = ixmlNodeList_length(nodeList);
@@ -88,7 +88,7 @@ static int updateHttpsDescDoc(const char *descDocFile, const char *IP, int port)
                     // change IP and port values to new values
                     // https://127.0.0.1:443/gateEthlcfgSCPD.xml
                     snprintf(newValue, 150, "https://%s:%d%s", IP, port, strstr(tmp+8, "/"));
-                    AddChildNode(descDoc, tmpNode->parentNode, "secureSCPDURL", newValue);
+                    AddChildNode(descDoc, tmpNode->parentNode, "dp:secureSCPDURL", newValue);
                     RemoveNode(tmpNode);
                     free(tmp);
                 }
@@ -98,7 +98,7 @@ static int updateHttpsDescDoc(const char *descDocFile, const char *IP, int port)
     if ( nodeList ) ixmlNodeList_free( nodeList );
     
     // modify all secureControlURL's
-    nodeList = ixmlDocument_getElementsByTagName( descDoc, "secureControlURL" );
+    nodeList = ixmlDocument_getElementsByTagName( descDoc, "dp:secureControlURL" );
     if (nodeList)
     {
         listLen = ixmlNodeList_length(nodeList);
@@ -113,7 +113,7 @@ static int updateHttpsDescDoc(const char *descDocFile, const char *IP, int port)
                     // change IP and port values to new values
                     // https://127.0.0.1:443/gateEthlcfgSCPD.xml
                     snprintf(newValue, 150, "https://%s:%d%s", IP, port, strstr(tmp+8, "/"));
-                    AddChildNode(descDoc, tmpNode->parentNode, "secureControlURL", newValue);
+                    AddChildNode(descDoc, tmpNode->parentNode, "dp:secureControlURL", newValue);
                     RemoveNode(tmpNode);
                     free(tmp);
                 }
@@ -123,7 +123,7 @@ static int updateHttpsDescDoc(const char *descDocFile, const char *IP, int port)
     if ( nodeList ) ixmlNodeList_free( nodeList );
         
     // modify all secureEventSubURL's
-    nodeList = ixmlDocument_getElementsByTagName( descDoc, "secureEventSubURL" );
+    nodeList = ixmlDocument_getElementsByTagName( descDoc, "dp:secureEventSubURL" );
     if (nodeList)
     {
         listLen = ixmlNodeList_length(nodeList);
@@ -138,7 +138,7 @@ static int updateHttpsDescDoc(const char *descDocFile, const char *IP, int port)
                     // change IP and port values to new values
                     // https://127.0.0.1:443/gateEthlcfgSCPD.xml
                     snprintf(newValue, 150, "https://%s:%d%s", IP, port, strstr(tmp+8, "/"));
-                    AddChildNode(descDoc, tmpNode->parentNode, "secureEventSubURL", newValue);
+                    AddChildNode(descDoc, tmpNode->parentNode, "dp:secureEventSubURL", newValue);
                     RemoveNode(tmpNode);
                     free(tmp);
                 }
@@ -470,7 +470,7 @@ int main (int argc, char** argv)
     // Send out initial advertisements of our device's services (with timeouts of 30 minutes, default value,can be changed from config file)
     if ( (ret = UpnpSendAdvertisement(deviceHandle, g_vars.advertisementInterval) != UPNP_E_SUCCESS ))
     {
-        syslog(LOG_ERR, "Error Sending Advertisements.  Exiting ...");
+        syslog(LOG_ERR, "Error Sending Advertisements. Exiting ...");
         UpnpFinish();
         exit(1);
     }

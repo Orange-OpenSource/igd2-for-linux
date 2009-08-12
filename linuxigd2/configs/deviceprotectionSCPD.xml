@@ -1,10 +1,10 @@
 <?xml version="1.0"?>
 <scpd xmlns="urn:schemas-upnp-org:service-1-0">
 
-    <specVersion>
-        <major>1</major>
-        <minor>0</minor>
-    </specVersion>
+	<specVersion>
+		<major>1</major>
+		<minor>0</minor>
+	</specVersion>
 
   <actionList>
   <action>
@@ -38,6 +38,36 @@
       </argumentList>
     </action>
    <action>
+      <name>GetAssignedRoles</name> 
+      <argumentList>
+        <argument>
+          <name>RoleList</name> 
+          <direction>out</direction> 
+          <relatedStateVariable>A_ARG_TYPE_string</relatedStateVariable> 
+        </argument>        
+      </argumentList>
+    </action>  
+    <action>
+      <name>GetRolesForAction</name> 
+      <argumentList>
+        <argument>
+          <name>ActionName</name> 
+          <direction>in</direction> 
+          <relatedStateVariable>A_ARG_TYPE_string</relatedStateVariable> 
+        </argument>
+        <argument>
+          <name>RoleList</name> 
+          <direction>out</direction> 
+          <relatedStateVariable>A_ARG_TYPE_string</relatedStateVariable> 
+        </argument>       
+        <argument>
+          <name>RestrictedRoleList</name> 
+          <direction>out</direction> 
+          <relatedStateVariable>A_ARG_TYPE_string</relatedStateVariable> 
+        </argument>       
+      </argumentList>
+    </action>
+   <action>
       <name>GetUserLoginChallenge</name> 
       <argumentList>
         <argument>
@@ -48,12 +78,12 @@
         <argument>
           <name>Salt</name> 
           <direction>out</direction> 
-          <relatedStateVariable>A_ARG_TYPE_base64</relatedStateVariable> 
+          <relatedStateVariable>A_ARG_TYPE_string</relatedStateVariable> 
         </argument>
         <argument>
           <name>Challenge</name> 
           <direction>out</direction> 
-          <relatedStateVariable>A_ARG_TYPE_base64</relatedStateVariable> 
+          <relatedStateVariable>A_ARG_TYPE_string</relatedStateVariable> 
         </argument>
       </argumentList>
     </action> 
@@ -61,14 +91,14 @@
       <name>UserLogin</name> 
       <argumentList>
         <argument>
-          <name>Name</name> 
+          <name>Challenge</name> 
           <direction>in</direction> 
           <relatedStateVariable>A_ARG_TYPE_string</relatedStateVariable> 
         </argument>
         <argument>
           <name>Authenticator</name> 
           <direction>in</direction> 
-          <relatedStateVariable>A_ARG_TYPE_base64</relatedStateVariable> 
+          <relatedStateVariable>A_ARG_TYPE_string</relatedStateVariable> 
         </argument>
       </argumentList>
     </action> 
@@ -77,56 +107,41 @@
       <argumentList>
       </argumentList>
     </action> 
-    <action>
+   <action>
       <name>GetACLData</name> 
       <argumentList>
         <argument>
           <name>ACL</name> 
           <direction>out</direction> 
-          <relatedStateVariable>A_ARG_TYPE_string</relatedStateVariable> 
+          <relatedStateVariable>A_ARG_TYPE_ACL</relatedStateVariable> 
         </argument>        
       </argumentList>
     </action>  
-    <action>
-      <name>AddRolesForIdentity</name> 
-      <argumentList>
+     <action>
+      <name>AddIdentityList</name>
+      <argumentList> 
         <argument>
-          <name>Identity</name> 
+          <name>IdentityList</name> 
           <direction>in</direction> 
-          <relatedStateVariable>A_ARG_TYPE_string</relatedStateVariable> 
-        </argument>
+          <relatedStateVariable>A_ARG_TYPE_IDENTITY_LIST</relatedStateVariable> 
+        </argument>        
         <argument>
-          <name>RoleList</name> 
-          <direction>in</direction> 
-          <relatedStateVariable>A_ARG_TYPE_string</relatedStateVariable> 
-        </argument>       
-      </argumentList>
-    </action>
-    <action>
-      <name>RemoveRolesForIdentity</name> 
-      <argumentList>
-        <argument>
-          <name>Identity</name> 
-          <direction>in</direction> 
-          <relatedStateVariable>A_ARG_TYPE_string</relatedStateVariable> 
-        </argument>
-        <argument>
-          <name>RoleList</name> 
-          <direction>in</direction> 
-          <relatedStateVariable>A_ARG_TYPE_string</relatedStateVariable> 
-        </argument>       
+          <name>IdentityListResult</name> 
+          <direction>out</direction> 
+          <relatedStateVariable>A_ARG_TYPE_IDENTITY_LIST</relatedStateVariable> 
+        </argument>        
       </argumentList>
     </action>  
-    <action>
-      <name>GetCurrentRoles</name> 
-      <argumentList>
+   <action>
+      <name>RemoveIdentity</name>
+      <argumentList> 
         <argument>
-          <name>RoleList</name> 
-          <direction>out</direction> 
-          <relatedStateVariable>A_ARG_TYPE_string</relatedStateVariable> 
-        </argument>     
+          <name>Identity</name> 
+          <direction>in</direction> 
+          <relatedStateVariable>A_ARG_TYPE_IDENTITY</relatedStateVariable> 
+        </argument>        
       </argumentList>
-    </action>
+    </action>  
     <action>
       <name>SetUserLoginPassword</name> 
       <argumentList>
@@ -148,32 +163,49 @@
       </argumentList>
     </action>  
     <action>
-      <name>AddIdentityList</name>
-      <argumentList> 
-        <argument>
-          <name>IdentityList</name> 
-          <direction>in</direction> 
-          <relatedStateVariable>A_ARG_TYPE_string</relatedStateVariable> 
-        </argument>
-        <argument>
-          <name>IdentityListResult</name> 
-          <direction>out</direction>
-          <relatedStateVariable>A_ARG_TYPE_string</relatedStateVariable> 
-        </argument> 
-      </argumentList>
-    </action>
-    <action>
-      <name>RemoveIdentity</name>
-      <argumentList> 
+       <name>AddRolesForIdentity</name> 
+      <argumentList>
         <argument>
           <name>Identity</name> 
           <direction>in</direction> 
+          <relatedStateVariable>A_ARG_TYPE_IDENTITY</relatedStateVariable> 
+        </argument>
+        <argument>
+          <name>RoleList</name> 
+          <direction>in</direction> 
           <relatedStateVariable>A_ARG_TYPE_string</relatedStateVariable> 
-        </argument>        
+        </argument>       
       </argumentList>
     </action>  
- </actionList>
+    <action>
+      <name>RemoveRolesForIdentity</name> 
+      <argumentList>
+        <argument>
+          <name>Identity</name> 
+          <direction>in</direction> 
+          <relatedStateVariable>A_ARG_TYPE_IDENTITY</relatedStateVariable> 
+        </argument>
+        <argument>
+          <name>RoleList</name> 
+          <direction>in</direction> 
+          <relatedStateVariable>A_ARG_TYPE_string</relatedStateVariable> 
+        </argument>       
+      </argumentList>
+    </action>
+</actionList>
   <serviceStateTable>
+    <stateVariable sendEvents="no">
+      <name>A_ARG_TYPE_ACL</name> 
+      <dataType>string</dataType> 
+    </stateVariable>
+    <stateVariable sendEvents="no">
+      <name>A_ARG_TYPE_IDENTITY_LIST</name> 
+      <dataType>string</dataType> 
+    </stateVariable>
+    <stateVariable sendEvents="no">
+      <name>A_ARG_TYPE_IDENTITY</name> 
+      <dataType>string</dataType> 
+    </stateVariable>
     <stateVariable sendEvents="no">
       <name>A_ARG_TYPE_string</name> 
       <dataType>string</dataType> 
@@ -186,13 +218,13 @@
       <name>A_ARG_TYPE_int</name> 
       <dataType>i4</dataType> 
     </stateVariable>
+    <stateVariable sendEvents="no">
+      <name>SupportedProtocols</name> 
+      <dataType>string</dataType> 
+    </stateVariable>
     <stateVariable sendEvents="yes">
       <name>SetupReady</name> 
       <dataType>boolean</dataType> 
     </stateVariable>
-    <stateVariable sendEvents="no">
-      <name>SupportedProtocols</name> 
-      <dataType>string</dataType> 
-    </stateVariable>    
   </serviceStateTable>
 </scpd>
