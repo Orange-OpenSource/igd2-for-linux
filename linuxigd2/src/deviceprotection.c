@@ -1286,9 +1286,6 @@ int UserLogin(struct Upnp_Action_Request *ca_event)
     
     char *id =NULL;
     int id_len = 0;
-
-    // what if user is already logged in?
-    
     
     // TODO remove this from comments
 /*    if (ca_event->SSLSession == NULL)
@@ -1997,8 +1994,6 @@ int AddIdentityList(struct Upnp_Action_Request *ca_event)
 {
     int result = 0;
     int admin_handling = 0;
-    int len;
-    char *identifier = NULL;
     char *identitylist = NULL;
     IXML_Document *identitiesDoc = NULL;
     
@@ -2011,7 +2006,8 @@ int AddIdentityList(struct Upnp_Action_Request *ca_event)
         addErrorData(ca_event, result, "Authentication Failure");        
     }
     else*/if ( (identitylist = GetFirstDocumentItem(ca_event->ActionRequest, "IdentityList") ))
-    {    
+    {   
+        trace(3, "%s: Received IdentityList: \n%s",ca_event->ActionName,identitylist); 
         identitiesDoc = ixmlParseBuffer(identitylist);
         if (identitiesDoc == NULL)
         {
@@ -2023,39 +2019,29 @@ int AddIdentityList(struct Upnp_Action_Request *ca_event)
         {
             // because how IdentityList is handled is based on role of CP sending this action
             // we need to check if CP has Admin rights. If Admin rights exist, RoleList and Alias
-            // elements are used, else they are ignored 
-            
-            // get identifier of CP 
-            result = getIdentifierOfCP(ca_event, &identifier, &len, NULL);
-            if (result != 0 )
+            // elements are used, else they are ignored              
+            if ( checkCPPrivileges(ca_event, "Admin") == 0 )
             {
-                trace(1, "%s: Failed to get identifier of CP",ca_event->ActionName);
-                result = 501;
-                addErrorData(ca_event, result, "Action Failed");                
+                trace(3, "%s: User is Admin",ca_event->ActionName); 
+                admin_handling = 1;
             }
             else
             {
-                if ( ACL_doesIdentityHasRole(ACLDoc, identifier, "Admin") == 1 )
-                {
-                    admin_handling = 1;
-                }
-                else
-                {
-                    admin_handling = 0;
-                }
-            
-                // validate contents of list and add new identities to ACL
-                result = ACL_validateListAndUpdateACL(ACLDoc, identitiesDoc, admin_handling);
-                if (result == 600)
-                {
-                    addErrorData(ca_event, result, "Argument Value Invalid");
-                } 
-                else if (result != 0)
-                {
-                    result = 501;
-                    addErrorData(ca_event, result, "Action Failed");
-                }
-            }    
+                trace(3, "%s: User is not Admin",ca_event->ActionName); 
+                admin_handling = 0;
+            }
+        
+            // validate contents of list and add new identities to ACL
+            result = ACL_validateListAndUpdateACL(ACLDoc, identitiesDoc, admin_handling);
+            if (result == 600)
+            {
+                addErrorData(ca_event, result, "Argument Value Invalid");
+            } 
+            else if (result != 0)
+            {
+                result = 501;
+                addErrorData(ca_event, result, "Action Failed");
+            }  
         }
         
         
