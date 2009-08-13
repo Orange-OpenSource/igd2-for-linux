@@ -2311,6 +2311,9 @@ int SIR_getLoginDataOfSession(IXML_Document *doc, const char *id, int *loginatte
 {
     IXML_Node *tmpNode = NULL;
     
+    if (id == NULL)
+        return -1;
+    
     // Check that session id does exist
     tmpNode = GetNodeWithNameAndAttribute(doc, "session", "id", id);
     if ( tmpNode == NULL )
