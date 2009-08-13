@@ -180,6 +180,22 @@ struct _GUPnPDeviceProxySetRoles {
         gboolean done;
 };
 
+struct _GUPnPDeviceProxyGetACLData {
+        GUPnPDeviceProxy  *proxy;
+        GUPnPServiceProxy *device_prot_service;
+
+        GUPnPDeviceProxyGetACLDataCallback callback;
+
+        gpointer user_data;
+
+        GError *error;
+
+        XmlDocWrapper *ACL;
+        //GHashTable *users; // username as key, roles as value
+
+        gboolean done;
+};
+
 
 enum {
         PROP_0,
@@ -505,7 +521,7 @@ find_device_protection_service (GUPnPDeviceProxy *proxy)
         while (service)
         {
                 service_type = gupnp_service_info_get_service_type (GUPNP_SERVICE_INFO (service->data));
-                if (g_strcmp0 ("urn:schemas-upnp-org:service:DeviceProtection:1", service_type) == 0)
+                if (g_strcmp0 ("urn:schemas-upnp-org:gw:DeviceProtection:1", service_type) == 0)
                 {
                         serv = GUPNP_SERVICE_PROXY (service->data);
                         service = g_list_remove_link (service, service);
@@ -1845,6 +1861,118 @@ gupnp_device_proxy_end_remove_roles (GUPnPDeviceProxySetRoles *removerolesdata)
         g_string_free(removerolesdata->username,TRUE);
         g_string_free(removerolesdata->identity,TRUE);
         g_string_free(removerolesdata->rolelist,TRUE);
+
+        return done;
+}
+
+
+// this is called when library receives response for GetACLData-action
+static void
+get_ACL_data_response (GUPnPServiceProxy       *proxy,
+                       GUPnPServiceProxyAction *action,
+                       gpointer                 user_data)
+{    
+        GUPnPDeviceProxyGetACLData *ACLData = user_data;
+        GHashTable *users = ACLData->user_data;
+        
+        
+        GError *error = NULL;
+        char *acl;
+
+        if (!gupnp_service_proxy_end_action (proxy,
+                                             action,
+                                            &error,
+                                             "ACL",
+                                             G_TYPE_STRING,
+                                             &acl,
+                                             NULL))
+        {
+                ACLData->error = error;
+                g_warning("Error: %s", ACLData->error->message);
+        }
+        else
+        {
+            ACLData->done = TRUE;
+        
+        
+            // create hashtable from usernames in ACL. Name is key, rolelist is value
+            xmlDoc *xml_doc;
+            xmlNode *element;
+            xmlChar *name;
+            xmlChar *rolelist;
+            
+            xml_doc = xmlRecoverMemory(acl, strlen(acl));            
+            ACLData->ACL = xml_doc_wrapper_new (xml_doc);                    
+            element = xml_util_get_element ((xmlNode *) ACLData->ACL->doc,
+                                            "ACL",
+                                            NULL);
+            if (element)
+            {
+                for (element = element->children; element; element = element->next) {
+                    if (strcmp ((char *) element->name, "Identities") == 0)
+                        break;
+                }
+                
+                for (element = element->children; element; element = element->next) {
+                    name = xml_util_get_child_element_content (element, "Name");
+                    if (!name)
+                        continue;
+                    rolelist = xml_util_get_child_element_content (element, "RoleList");
+                    
+                    g_warning("Name: %s RoleList:%s",name,rolelist);
+                    
+                    // insert to hashtable name-rolelist pairs. Name is the key
+                    g_hash_table_insert(users, g_strdup(name), g_strdup(rolelist));           
+                }                           
+            }                                   
+        }
+    
+        ACLData->callback(ACLData->proxy, ACLData, &ACLData->error, ACLData->user_data);
+}
+
+GUPnPDeviceProxyGetACLData *
+gupnp_device_proxy_get_ACL_data (GUPnPDeviceProxy           *proxy,
+                             GUPnPDeviceProxyGetACLDataCallback callback,
+                             gpointer                    user_data)
+{
+        GUPnPDeviceProxyGetACLData *ACLData;
+        GError *gerror;
+
+        g_return_val_if_fail (GUPNP_IS_DEVICE_PROXY (proxy), NULL);
+
+        ACLData = g_slice_new (GUPnPDeviceProxyGetACLData);
+        ACLData->proxy = proxy;
+        ACLData->callback = callback;
+        ACLData->user_data = user_data;
+        ACLData->error = NULL;
+        ACLData->device_prot_service = find_device_protection_service (proxy);
+        ACLData->done = FALSE;
+
+        if (ACLData->device_prot_service == NULL)
+        {
+                ACLData->error = g_error_new(GUPNP_SERVER_ERROR,
+                                         GUPNP_SERVER_ERROR_OTHER,
+                                         "No device protection service found.");
+                g_warning("Error: %s", ACLData->error->message);
+                return ACLData;
+        }
+
+        gupnp_service_proxy_begin_action(ACLData->device_prot_service,
+                                         "GetACLData",
+                                         get_ACL_data_response,
+                                         ACLData,
+                                         NULL);
+
+        return ACLData;
+}
+
+
+gboolean
+gupnp_device_proxy_end_get_ACL_data (GUPnPDeviceProxyGetACLData *ACLData)
+{      
+        gboolean done = ACLData->done;       
+
+        g_object_unref(ACLData->proxy);
 
         return done;
 }

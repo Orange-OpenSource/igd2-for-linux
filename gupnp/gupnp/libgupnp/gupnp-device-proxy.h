@@ -92,6 +92,7 @@ typedef struct _GUPnPDeviceProxyChangePassword GUPnPDeviceProxyChangePassword;
 typedef struct _GUPnPDeviceProxyAddUser GUPnPDeviceProxyAddUser;
 typedef struct _GUPnPDeviceProxyRemoveUser GUPnPDeviceProxyRemoveUser;
 typedef struct _GUPnPDeviceProxySetRoles GUPnPDeviceProxySetRoles;
+typedef struct _GUPnPDeviceProxyGetACLData GUPnPDeviceProxyGetACLData;
 
 /**
  * GUPnPDeviceProxyWpsCallback:
@@ -194,6 +195,19 @@ typedef void (* GUPnPDeviceProxySetRolesCallback) (
                                      GError             **error,
                                      gpointer             user_data);
 
+/**
+ * GUPnPDeviceProxyGetACLDataCallback:
+ * @proxy: The #GUPnPDeviceProxy add user is called
+ * @adduserdata: The #GUPnPDeviceProxyGetACLData in progress
+ * @user_data: User data
+ *
+ * Callback notifying that get ACL on @proxy has done the next step.
+ **/
+typedef void (* GUPnPDeviceProxyGetACLDataCallback) (
+                                     GUPnPDeviceProxy    *proxy,
+                                     GUPnPDeviceProxyGetACLData *ACLData,
+                                     GError             **error,
+                                     gpointer             user_data);
 
 
 GUPnPDeviceProxyWps *
@@ -313,6 +327,14 @@ gupnp_device_proxy_remove_roles (GUPnPDeviceProxy           *proxy,
 
 gboolean
 gupnp_device_proxy_end_remove_roles (GUPnPDeviceProxySetRoles *removerolesdata);
+
+GUPnPDeviceProxyGetACLData *
+gupnp_device_proxy_get_ACL_data (GUPnPDeviceProxy           *proxy,
+                             GUPnPDeviceProxyGetACLDataCallback callback,
+                             gpointer                    user_data);
+
+gboolean
+gupnp_device_proxy_end_get_ACL_data (GUPnPDeviceProxyGetACLData *ACLData);
 
 
 G_END_DECLS
