@@ -15,13 +15,7 @@
 
 /* User administration dialog */
 static GtkWidget *user_admininistration_dialog;
-static GtkWidget *ua_dialog_scrolled_window;
 static GtkWidget *ua_dialog_table;
-static GtkWidget *ua_dialog_username_label1;
-static GtkWidget *ua_dialog_username_entry1;
-static GtkWidget *ua_dialog_public_checkbutton1;
-static GtkWidget *ua_dialog_basic_checkbutton1;
-static GtkWidget *ua_dialog_admin_checkbutton1;
 static GtkWidget *ua_dialog_add_button;
 static GtkWidget *ua_dialog_remove_button;
 static GtkWidget *ua_dialog_ok_button;
@@ -52,38 +46,36 @@ typedef enum
 /*
  * User administration dialog functions
  */
-void
-start_user_administration (GladeXML *glade_xml)
+
+static void clear_user_table()
 {
-	    init_user_administration_dialog_fields();
-	    // TODO: parsi XML:stä montako käyttäjää = montako riviä taulukkoon
-	    // TODO: parsi XML:stä: username, nykyinen rooli
+        GList     *child_node;        
+        GtkContainer *table = GTK_CONTAINER(ua_dialog_table);
+        
+        for (child_node = gtk_container_get_children (table);
+             child_node;
+             child_node = child_node->next) {
+                GtkWidget *widget;
 
-		/* ihan vain kokeiluja...
-	    nbr_of_users=7;
-	    add_new_user_to_table(1,"Pera",1);
-	    add_new_user_to_table(2,"Jake",2);
-	    add_new_user_to_table(3,"Make",3);
-	    add_new_user_to_table(4,"Make",2);
-	    add_new_user_to_table(5,"Make",0);
-	    add_new_user_to_table(6,"Make",1);
-	    */
-
-	    gtk_window_resize (GTK_WINDOW (user_admininistration_dialog),
-	                       130,
-	                       (100+(nbr_of_users*30)));
-        gtk_dialog_run (GTK_DIALOG (user_admininistration_dialog));
-        gtk_widget_hide (user_admininistration_dialog);
+                widget = GTK_WIDGET (child_node->data);
+     
+                gtk_container_remove (table, widget);
+        }        
 }
 
-void
-add_new_user_to_table(guint row, const gchar *username, userRole role)
+static void add_users_to_table(gpointer key,
+                       gpointer value,
+                       gpointer user_data)
 {
+        guint row = nbr_of_users++;
+        
+        gchar *username = key; 
+    
         /* Add "Username" label to table */
         GtkWidget* new_username_label = gtk_label_new ("Username");
         gtk_table_attach (GTK_TABLE (ua_dialog_table),
-    	    	          new_username_label,
-    		              0,
+                          new_username_label,
+                          0,
                           1,
                           row,
                           row + 1,
@@ -97,8 +89,8 @@ add_new_user_to_table(guint row, const gchar *username, userRole role)
         gtk_entry_set_text (GTK_ENTRY(new_username), username);
         gtk_entry_set_editable (GTK_ENTRY(new_username), FALSE);
         gtk_table_attach (GTK_TABLE (ua_dialog_table),
-    	    	          new_username,
-    		              1,
+                          new_username,
+                          1,
                           2,
                           row,
                           row + 1,
@@ -112,28 +104,17 @@ add_new_user_to_table(guint row, const gchar *username, userRole role)
         GtkWidget* new_basic_checkbutton = gtk_check_button_new_with_label ("Basic");
         GtkWidget* new_admin_checkbutton = gtk_check_button_new_with_label ("Admin");
 
-        // Set role
-        switch (role) {
-        case ADMIN_ROLE:
-        	gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON(new_admin_checkbutton), TRUE);
-        	gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON(new_basic_checkbutton), TRUE);
-        	gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON(new_public_checkbutton), TRUE);
-        	break;
-        case BASIC_ROLE:
-        	gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON(new_basic_checkbutton), TRUE);
-        	gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON(new_public_checkbutton), TRUE);
-        	break;
-        case PUBLIC_ROLE:
-        	gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON(new_public_checkbutton), TRUE);
-        	break;
-        default:
-        	gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON(new_public_checkbutton), TRUE);
-            break;
-        }
+        // Set roles
+        if (strstr((char*)value, "Admin"))
+            gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON(new_admin_checkbutton), TRUE);
+        if (strstr((char*)value, "Basic"))
+            gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON(new_basic_checkbutton), TRUE);
+        if (strstr((char*)value, "Public"))
+            gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON(new_public_checkbutton), TRUE);            
 
         gtk_table_attach (GTK_TABLE (ua_dialog_table),
-        		          new_public_checkbutton,
-    	    	          2,
+                          new_public_checkbutton,
+                          2,
                           3,
                           row,
                           row + 1,
@@ -142,8 +123,8 @@ add_new_user_to_table(guint row, const gchar *username, userRole role)
                           0,
                           0);
         gtk_table_attach (GTK_TABLE (ua_dialog_table),
-    	    	          new_basic_checkbutton,
-    		              3,
+                          new_basic_checkbutton,
+                          3,
                           4,
                           row,
                           row + 1,
@@ -152,8 +133,8 @@ add_new_user_to_table(guint row, const gchar *username, userRole role)
                           0,
                           0);
         gtk_table_attach (GTK_TABLE (ua_dialog_table),
-        		          new_admin_checkbutton,
-    	    	          4,
+                          new_admin_checkbutton,
+                          4,
                           5,
                           row,
                           row + 1,
@@ -168,29 +149,64 @@ add_new_user_to_table(guint row, const gchar *username, userRole role)
         gtk_widget_show (new_basic_checkbutton);
         gtk_widget_show (new_admin_checkbutton);
 
+        gtk_window_resize (GTK_WINDOW (user_admininistration_dialog),
+                           130,
+                           (100+(nbr_of_users*30)));
+        //gtk_widget_destroy (user_admininistration_dialog);
+        //gtk_dialog_run (GTK_DIALOG (user_admininistration_dialog));
+        //gtk_widget_hide (user_admininistration_dialog);
+
+
+        // TODO: Scrollbar ikkuna pitäisi saada jotenkin toimimaan, kun lisätään käyttäjiä..
+        // gtk_container_add (GTK_CONTAINER(ua_dialog_scrolled_window), ua_dialog_table);
+        // gtk_widget_show (ua_dialog_scrolled_window);    
+     
+}                       
+
+void 
+get_ACL_cb(GUPnPDeviceProxy    *proxy,
+           GUPnPDeviceProxyGetACLData *ACLData,
+           GError             **error,
+           gpointer             user_data)
+{        
+        nbr_of_users = 0;
+        
+        // user_data should contain ghashtable
+        GHashTable *users = user_data;        
+        g_hash_table_foreach(users, add_users_to_table, proxy);
+}
+ 
+ 
+void
+start_user_administration (GladeXML *glade_xml)
+{
+	    init_user_administration_dialog_fields();     
+        
+        GUPnPDeviceInfo *info = get_selected_device_info ();
+        GUPnPDeviceProxy *deviceProxy = GUPNP_DEVICE_PROXY (info);
+        g_assert (deviceProxy != NULL);
+        
+        GHashTable *users = g_hash_table_new (g_str_hash,
+                                           g_str_equal);
+        
+        gupnp_device_proxy_get_ACL_data(deviceProxy, get_ACL_cb, users);
+
+        gtk_dialog_run (GTK_DIALOG (user_admininistration_dialog));
+        gtk_widget_hide (user_admininistration_dialog);
+
+/*
 	    gtk_window_resize (GTK_WINDOW (user_admininistration_dialog),
 	                       130,
 	                       (100+(nbr_of_users*30)));
-        //gtk_widget_destroy (user_admininistration_dialog);
         gtk_dialog_run (GTK_DIALOG (user_admininistration_dialog));
-        //gtk_widget_hide (user_admininistration_dialog);
-
-        gtk_dialog_run (GTK_DIALOG (add_user_dialog));
-        //gtk_widget_hide (add_user_dialog);
-        //gtk_widget_destroy (add_user_dialog);
-
-        // TODO: Scrollbar ikkuna pitäisi saada jotenkin toimimaan, kun lisätään käyttäjiä..
-	    // gtk_container_add (GTK_CONTAINER(ua_dialog_scrolled_window), ua_dialog_table);
-	    // gtk_widget_show (ua_dialog_scrolled_window);
+        gtk_widget_hide (user_admininistration_dialog);*/
 }
+
+
 void
 init_user_administration_dialog_fields (void)
 {
-        gtk_entry_set_editable (GTK_ENTRY(ua_dialog_username_entry1), FALSE);
-	    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON(ua_dialog_admin_checkbutton1), TRUE);
-	    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON(ua_dialog_basic_checkbutton1), FALSE);
-	    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON(ua_dialog_public_checkbutton1), FALSE);
-
+        clear_user_table();
 }
 
 void
@@ -200,29 +216,9 @@ init_user_administration_dialog (GladeXML *glade_xml)
 	    user_admininistration_dialog = glade_xml_get_widget (glade_xml, "user-administration-dialog");
         g_assert (user_admininistration_dialog != NULL);
 
-        /* Scrolled window */
-        ua_dialog_scrolled_window = glade_xml_get_widget (glade_xml, "ua-dialog-scrolledwindow");
-	    g_assert (ua_dialog_scrolled_window != NULL);
-
 		/* Table */
         ua_dialog_table = glade_xml_get_widget (glade_xml, "ua-dialog-table");
 	    g_assert (ua_dialog_table != NULL);
-
-        /* User name label */
-        ua_dialog_username_label1 = glade_xml_get_widget (glade_xml, "ua-dialog-username-label");
-        g_assert (ua_dialog_username_label1 != NULL);
-
-        /* User name entry */
-        ua_dialog_username_entry1 = glade_xml_get_widget (glade_xml, "ua-username-entry");
-        g_assert (ua_dialog_username_entry1 != NULL);
-
-        /* All check buttons */
-        ua_dialog_public_checkbutton1 = glade_xml_get_widget (glade_xml, "ua-checkbutton-public");
-        ua_dialog_basic_checkbutton1 = glade_xml_get_widget (glade_xml, "ua-checkbutton-basic");
-        ua_dialog_admin_checkbutton1 = glade_xml_get_widget (glade_xml, "ua-checkbutton-admin");
-        g_assert (ua_dialog_public_checkbutton1 != NULL);
-        g_assert (ua_dialog_basic_checkbutton1 != NULL);
-        g_assert (ua_dialog_admin_checkbutton1 != NULL);
 
 		/* Add button */
         ua_dialog_add_button = glade_xml_get_widget (glade_xml, "ua-dialog-add");
@@ -316,6 +312,7 @@ ua_dialog_role_setup (GladeXML *glade_xml)
 	    // TODO: role change took place...
 }
 
+
 /*
  * Add User dialog functions
  */
@@ -382,7 +379,9 @@ add_user_dialog_password_cb (GUPnPDeviceProxy                *proxy,
 				role = UNKNOWN_ROLE;
 
 			nbr_of_users++;
-			add_new_user_to_table(nbr_of_users, username, role);
+            
+            // get acl and update
+			//add_new_user_to_table(nbr_of_users, username, role);
 		}
 }
 
@@ -392,7 +391,6 @@ continue_add_user_dialog_cb (GUPnPDeviceProxy         *proxy,
                              GError                  **error,
                              gpointer                  user_data)
 {
-
 		if ((*error) != NULL) {
 			GtkWidget *error_dialog;
 
@@ -436,23 +434,24 @@ continue_add_user_dialog_cb (GUPnPDeviceProxy         *proxy,
 void
 add_user_dialog_ok_pressed (GladeXML *glade_xml)
 {
-	    userRole role;
 	    GUPnPDeviceProxyAddUser *deviceProxyAddUser;
 		gpointer user_data = NULL;
-		const gchar *role_list = NULL;
+		GString *role_list = g_string_new("");
 
 	    const gchar *new_username = gtk_entry_get_text (GTK_ENTRY(add_user_dialog_username_entry));
 	    const gchar *new_password = gtk_entry_get_text (GTK_ENTRY(add_user_dialog_password_entry));
 
+        // create role_list by appending rolenames
 	    if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON(add_user_dialog_admin_checkbutton)))
-			role = ADMIN_ROLE;
-	    else if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON(add_user_dialog_basic_checkbutton)))
-	    	role = BASIC_ROLE;
-	    else if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON(add_user_dialog_public_checkbutton)))
-	    	role = PUBLIC_ROLE;
-	    else
-	    	role = UNKNOWN_ROLE;
+			g_string_append(role_list, "Admin ");
+	    if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON(add_user_dialog_basic_checkbutton)))
+	    	g_string_append(role_list, "Basic ");
+	    if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON(add_user_dialog_public_checkbutton)))
+	    	g_string_append(role_list, "Public ");
 
+        // remove extra space from the end of rolelist
+        g_string_set_size(role_list, role_list->len-1); 
+   
         GUPnPDeviceInfo *info = get_selected_device_info ();
         GUPnPDeviceProxy *deviceProxy = GUPNP_DEVICE_PROXY (info);
 		g_assert (deviceProxy != NULL);
@@ -460,9 +459,11 @@ add_user_dialog_ok_pressed (GladeXML *glade_xml)
 	    deviceProxyAddUser = gupnp_device_proxy_add_user (deviceProxy,
 	    		                                          new_username,
 	    		                                          new_password,
-	    		                                          role_list,
+	    		                                          role_list->str,
 	    		                                          continue_add_user_dialog_cb,
 	                                                      user_data);
+                                                          
+        g_string_free(role_list, TRUE);                                                          
 }
 
 void
@@ -510,3 +511,4 @@ deinit_add_user_dialog (void)
 {
         gtk_widget_destroy (add_user_dialog);
 }
+
