@@ -35,15 +35,6 @@ static GtkWidget *add_user_dialog_admin_checkbutton;
 /* */
 guint nbr_of_users=0;
 
-typedef enum
-{
-	     UNKNOWN_ROLE,
-         ADMIN_ROLE,
-         BASIC_ROLE,
-         PUBLIC_ROLE
-} userRole;
-
-
 /*
  * User administration dialog functions
  */
@@ -408,31 +399,15 @@ add_user_dialog_password_cb (GUPnPDeviceProxy                *proxy,
 		if (gupnp_device_proxy_end_change_password (passworddata, loginname)) {
 			// Password successfully changed
 			GtkWidget *info_dialog;
-			userRole role;
 
 			info_dialog = gtk_message_dialog_new (GTK_WINDOW (user_admininistration_dialog),
                                                   GTK_DIALOG_MODAL,
                                                   GTK_MESSAGE_INFO,
                                                   GTK_BUTTONS_CLOSE,
                                                   "New user successfully added");
-
-			gtk_dialog_run (GTK_DIALOG (info_dialog));
-			gtk_widget_destroy (info_dialog);
-			gtk_widget_hide (user_admininistration_dialog);
-
-			if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON(add_user_dialog_admin_checkbutton)))
-			    role = ADMIN_ROLE;
-			else if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON(add_user_dialog_basic_checkbutton)))
-				role = BASIC_ROLE;
-			else if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON(add_user_dialog_public_checkbutton)))
-				role = PUBLIC_ROLE;
-			else
-				role = UNKNOWN_ROLE;
-
-			nbr_of_users++;
-            
-            // get acl and update
-			//add_new_user_to_table(nbr_of_users, username, role);
+                                                  
+            gtk_dialog_run (GTK_DIALOG (info_dialog));
+            gtk_widget_destroy (info_dialog);
 		}
 }
 
