@@ -19,6 +19,7 @@ static GtkWidget *ua_dialog_table;
 static GtkWidget *ua_dialog_add_button;
 static GtkWidget *ua_dialog_remove_button;
 static GtkWidget *ua_dialog_ok_button;
+static GtkWidget *ua_dialog_radiobutton1;
 
 /* Add user dialog */
 static GtkWidget *add_user_dialog;
@@ -32,7 +33,7 @@ static GtkWidget *add_user_dialog_basic_checkbutton;
 static GtkWidget *add_user_dialog_admin_checkbutton;
 
 /* */
-guint nbr_of_users=1;
+guint nbr_of_users=0;
 
 typedef enum
 {
@@ -60,7 +61,9 @@ static void clear_user_table()
                 widget = GTK_WIDGET (child_node->data);
      
                 gtk_container_remove (table, widget);
-        }        
+        }
+        
+        ua_dialog_radiobutton1 = NULL;
 }
 
 static void add_users_to_table(gpointer key,
@@ -68,21 +71,55 @@ static void add_users_to_table(gpointer key,
                        gpointer user_data)
 {
         guint row = nbr_of_users++;
-        
+        guint column = 0;
         gchar *username = key; 
     
+        /* Add Selection radiobutton to table */
+        GtkWidget* new_radiobutton;
+        if (ua_dialog_radiobutton1 == NULL)
+        {
+            ua_dialog_radiobutton1 = gtk_radio_button_new(NULL);
+            gtk_table_attach (GTK_TABLE (ua_dialog_table),
+                              ua_dialog_radiobutton1,
+                              column,
+                              column + 1,
+                              row,
+                              row + 1,
+                              GTK_EXPAND | GTK_FILL,
+                              GTK_EXPAND | GTK_FILL,
+                              0,
+                              0);
+            new_radiobutton = ua_dialog_radiobutton1;
+        }
+        else
+        {
+              new_radiobutton = gtk_radio_button_new_from_widget (GTK_RADIO_BUTTON (ua_dialog_radiobutton1));
+              gtk_table_attach (GTK_TABLE (ua_dialog_table),
+                              new_radiobutton,
+                              column,
+                              column + 1,
+                              row,
+                              row + 1,
+                              GTK_EXPAND | GTK_FILL,
+                              GTK_EXPAND | GTK_FILL,
+                              0,
+                              0);                   
+        }
+        column++;
+                     
         /* Add "Username" label to table */
         GtkWidget* new_username_label = gtk_label_new ("Username");
         gtk_table_attach (GTK_TABLE (ua_dialog_table),
                           new_username_label,
-                          0,
-                          1,
+                          column,
+                          column + 1,
                           row,
                           row + 1,
                           GTK_EXPAND | GTK_FILL,
                           GTK_EXPAND | GTK_FILL,
                           0,
                           0);
+        column++;
 
         /* Add new Username to table   */
         GtkWidget* new_username = gtk_entry_new ();
@@ -90,14 +127,15 @@ static void add_users_to_table(gpointer key,
         gtk_entry_set_editable (GTK_ENTRY(new_username), FALSE);
         gtk_table_attach (GTK_TABLE (ua_dialog_table),
                           new_username,
-                          1,
-                          2,
+                          column,
+                          column + 1,
                           row,
                           row + 1,
                           GTK_EXPAND | GTK_FILL,
                           GTK_EXPAND | GTK_FILL,
                           0,
                           0);
+        column++;
 
         /* Add new checkbuttons to table   */
         GtkWidget* new_public_checkbutton = gtk_check_button_new_with_label ("Public");
@@ -114,28 +152,30 @@ static void add_users_to_table(gpointer key,
 
         gtk_table_attach (GTK_TABLE (ua_dialog_table),
                           new_public_checkbutton,
-                          2,
-                          3,
+                          column,
+                          column + 1,
                           row,
                           row + 1,
                           GTK_EXPAND | GTK_FILL,
                           GTK_EXPAND | GTK_FILL,
                           0,
                           0);
+        column++;
         gtk_table_attach (GTK_TABLE (ua_dialog_table),
                           new_basic_checkbutton,
-                          3,
-                          4,
+                          column,
+                          column + 1,
                           row,
                           row + 1,
                           GTK_EXPAND | GTK_FILL,
                           GTK_EXPAND | GTK_FILL,
                           0,
                           0);
+        column++;
         gtk_table_attach (GTK_TABLE (ua_dialog_table),
                           new_admin_checkbutton,
-                          4,
-                          5,
+                          column,
+                          column + 1,
                           row,
                           row + 1,
                           GTK_EXPAND | GTK_FILL,
@@ -143,6 +183,7 @@ static void add_users_to_table(gpointer key,
                           0,
                           0);
 
+        gtk_widget_show (new_radiobutton);
         gtk_widget_show (new_username_label);
         gtk_widget_show (new_username);
         gtk_widget_show (new_public_checkbutton);
@@ -151,19 +192,10 @@ static void add_users_to_table(gpointer key,
 
         gtk_window_resize (GTK_WINDOW (user_admininistration_dialog),
                            130,
-                           (100+(nbr_of_users*30)));
-        //gtk_widget_destroy (user_admininistration_dialog);
-        //gtk_dialog_run (GTK_DIALOG (user_admininistration_dialog));
-        //gtk_widget_hide (user_admininistration_dialog);
+                           (100+(nbr_of_users*30)));     
+}
 
-
-        // TODO: Scrollbar ikkuna pitäisi saada jotenkin toimimaan, kun lisätään käyttäjiä..
-        // gtk_container_add (GTK_CONTAINER(ua_dialog_scrolled_window), ua_dialog_table);
-        // gtk_widget_show (ua_dialog_scrolled_window);    
-     
-}                       
-
-void 
+static void 
 get_ACL_cb(GUPnPDeviceProxy    *proxy,
            GUPnPDeviceProxyGetACLData *ACLData,
            GError             **error,
@@ -175,13 +207,10 @@ get_ACL_cb(GUPnPDeviceProxy    *proxy,
         GHashTable *users = user_data;        
         g_hash_table_foreach(users, add_users_to_table, proxy);
 }
- 
- 
-void
-start_user_administration (GladeXML *glade_xml)
+
+static 
+void update_users_table()
 {
-	    init_user_administration_dialog_fields();     
-        
         GUPnPDeviceInfo *info = get_selected_device_info ();
         GUPnPDeviceProxy *deviceProxy = GUPNP_DEVICE_PROXY (info);
         g_assert (deviceProxy != NULL);
@@ -189,17 +218,20 @@ start_user_administration (GladeXML *glade_xml)
         GHashTable *users = g_hash_table_new (g_str_hash,
                                            g_str_equal);
         
-        gupnp_device_proxy_get_ACL_data(deviceProxy, get_ACL_cb, users);
+        gupnp_device_proxy_get_ACL_data(deviceProxy, get_ACL_cb, users);    
+}
+
+ 
+void
+start_user_administration (GladeXML *glade_xml)
+{
+	    init_user_administration_dialog_fields();     
+        
+        update_users_table();
 
         gtk_dialog_run (GTK_DIALOG (user_admininistration_dialog));
+        
         gtk_widget_hide (user_admininistration_dialog);
-
-/*
-	    gtk_window_resize (GTK_WINDOW (user_admininistration_dialog),
-	                       130,
-	                       (100+(nbr_of_users*30)));
-        gtk_dialog_run (GTK_DIALOG (user_admininistration_dialog));
-        gtk_widget_hide (user_admininistration_dialog);*/
 }
 
 
@@ -231,6 +263,9 @@ init_user_administration_dialog (GladeXML *glade_xml)
 		/* OK button */
         ua_dialog_ok_button = glade_xml_get_widget (glade_xml, "ua-dialog-ok");
         g_assert (ua_dialog_ok_button != NULL);
+        
+        /* Firts radio button (because of group) */
+        ua_dialog_radiobutton1 = NULL;
 }
 
 void
@@ -278,13 +313,10 @@ continue_remove_user_dialog_cb (GUPnPDeviceProxy            *proxy,
 
 			gtk_dialog_run (GTK_DIALOG (info_dialog));
 			gtk_widget_destroy (info_dialog);
+            
 			gtk_widget_hide (user_admininistration_dialog);
-
-			// TODO: remove user from table...
-			// nbr_of_users--;
-			// remove_user_from_table(row, new_username, role);
 		}
-
+        update_users_table();
 }
 
 void
@@ -292,13 +324,32 @@ ua_dialog_remove_user (GladeXML *glade_xml)
 {
 	    GUPnPDeviceProxyRemoveUser *deviceProxyRemoveUser;
 		gpointer user_data = NULL;
-	    const gchar *username = "admin";
+	    const gchar *username = NULL;
 
         GUPnPDeviceInfo *info = get_selected_device_info ();
         GUPnPDeviceProxy *deviceProxy = GUPNP_DEVICE_PROXY (info);
 		g_assert (deviceProxy != NULL);
 
 		// TODO: Get selected username from table.....
+        GList     *child_node;        
+        GtkContainer *table = GTK_CONTAINER(ua_dialog_table);
+        
+        for (child_node = gtk_container_get_children (table);
+             child_node;
+             child_node = child_node->next) {
+                GtkWidget *widget;
+
+                widget = GTK_WIDGET (child_node->data);
+                if (GTK_IS_RADIO_BUTTON (widget) && gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget)))
+                {
+                    // Yes I know this awful how this is done. But I don't know any better way to get 
+                    // value for selected username. So that is why there are radiobuttons for every row,
+                    // and lets just hope that username entry really is prev of prev of selected radiobutton...
+                    GtkWidget *username_widget = GTK_WIDGET (child_node->prev->prev->data);
+                    if (GTK_IS_ENTRY (username_widget))
+                        username = gtk_entry_get_text (GTK_ENTRY (username_widget));
+                }
+        }
 
 	    deviceProxyRemoveUser = gupnp_device_proxy_remove_user (deviceProxy,
 	    		                                                username,

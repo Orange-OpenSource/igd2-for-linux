@@ -1288,7 +1288,7 @@ Inspired by Intel Tools for UPnP.</property>
 	<widget class="GtkTable" id="ua-dialog-table">
 	  <property name="visible">True</property>
 	  <property name="n_rows">1</property>
-	  <property name="n_columns">5</property>
+	  <property name="n_columns">6</property>
 	  <property name="homogeneous">False</property>
 	  <property name="row_spacing">0</property>
 	  <property name="column_spacing">0</property>
