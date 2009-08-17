@@ -1069,15 +1069,14 @@ int SendSetupMessage(struct Upnp_Action_Request *ca_event)
     char *CP_id = NULL;
     int sm_status = 0;
 
-// TODO remove this from comments
-/*    if (ca_event->SSLSession == NULL)
+    if (ca_event->SSLSession == NULL)
     {
         // SSL must be used
         trace(1, "%s: SSL connection must be used for this",ca_event->ActionName);
         result = 701;
         addErrorData(ca_event, result, "Authentication Failure");        
     }
-    else*/ if ((protocoltype = GetFirstDocumentItem(ca_event->ActionRequest, "ProtocolType")) &&
+    else if ((protocoltype = GetFirstDocumentItem(ca_event->ActionRequest, "ProtocolType")) &&
             (inmessage = GetFirstDocumentItem(ca_event->ActionRequest, "InMessage")))
     {    
         inet_ntop(AF_INET, &ca_event->CtrlPtIPAddr, IP_addr, INET6_ADDRSTRLEN);
@@ -1092,8 +1091,6 @@ int SendSetupMessage(struct Upnp_Action_Request *ca_event)
         // get identifier of CP 
         // this will tell if the same CP is doing all setup messages
         result = getIdentifierOfCP(ca_event, &CP_id, &id_len, NULL);
-// TODO remove this!!!!!!!!!!!!!!!!!!!!!!!!     
-result = 0;   
         
         if (result == 0 && SetupReady && strcmp(inmessage, "") == 0) // ready to start introduction. InMessage MUST be empty for M1
         {
@@ -1118,8 +1115,8 @@ result = 0;
             result = 402;
             addErrorData(ca_event, result, "Invalid Args");            
         }
-// TODO: remove comment!!!!!        
-        else if (!SetupReady )//&& (memcmp(prev_CP_id, CP_id, id_len) == 0)) // continue started introduction
+      
+        else if (!SetupReady && (memcmp(prev_CP_id, CP_id, id_len) == 0)) // continue started introduction
         {
             // to bin
             int b64msglen = strlen(inmessage);            
@@ -1221,36 +1218,39 @@ int GetUserLoginChallenge(struct Upnp_Action_Request *ca_event)
     char *passwd = NULL;
 
     
-    // TODO remove this from comments
-/*    if (ca_event->SSLSession == NULL)
+    if (ca_event->SSLSession == NULL)
     {
         // SSL must be used
         trace(1, "%s: SSL connection must be used for this",ca_event->ActionName);
         result = 701;
         addErrorData(ca_event, result, "Authentication Failure");        
     }
-    else*/if ( (name = GetFirstDocumentItem(ca_event->ActionRequest, "Name") ))
+    else if ( (name = GetFirstDocumentItem(ca_event->ActionRequest, "Name") ))
     {
         // name to uppercase
-        nameUPPER = toUpperCase(name);
+        nameUPPER = toUpperCase(name);     
         if (nameUPPER == NULL)
         {
             trace(1, "Failed to convert name to upper case ");
             result = 501;
             addErrorData(ca_event, result, "Action Failed");
         }
-        // check if user exits
-        if ((strcmp(nameUPPER, "ADMIN") != 0) && (getValuesFromPasswdFile(nameUPPER, NULL,NULL,NULL,NULL,0) != 0))
+        // check if user exits in password file and also in ACL. "Admin" is an exception and it doesn't have to be in those files.
+        if ((strcmp(nameUPPER, "ADMIN") == 0) || 
+            ((getValuesFromPasswdFile(nameUPPER, NULL,NULL,NULL,NULL,0) == 0) &&
+            (ACL_getRolesOfUser(ACLDoc, nameUPPER) != NULL)))
+        {
+            // parameters OK
+            if (result == 0)
+            {
+                createUserLoginChallengeResponse(ca_event, nameUPPER);
+            }
+        }
+        else
         {
             trace(1, "Unknown username %s",nameUPPER);
             result = 600;
-            addErrorData(ca_event, result, "Argument Value Invalid");                 
-        }
-        
-        // parameters OK
-        if (result == 0)
-        {
-            createUserLoginChallengeResponse(ca_event, nameUPPER);
+            addErrorData(ca_event, result, "Argument Value Invalid");            
         }
     }
 
@@ -1287,15 +1287,14 @@ int UserLogin(struct Upnp_Action_Request *ca_event)
     char *id =NULL;
     int id_len = 0;
     
-    // TODO remove this from comments
-/*    if (ca_event->SSLSession == NULL)
+    if (ca_event->SSLSession == NULL)
     {
         // SSL must be used
         trace(1, "%s: SSL connection must be used for this",ca_event->ActionName);
         result = 701;
         addErrorData(ca_event, result, "Authentication Failure");        
     }
-    else*/if ( (challenge = GetFirstDocumentItem(ca_event->ActionRequest, "Challenge") )
+    else if ( (challenge = GetFirstDocumentItem(ca_event->ActionRequest, "Challenge") )
             && (authenticator = GetFirstDocumentItem(ca_event->ActionRequest, "Authenticator") ))
     {
         result = getIdentifierOfCP(ca_event, &id, &id_len, NULL);
@@ -1446,8 +1445,7 @@ int UserLogout(struct Upnp_Action_Request *ca_event)
     char *roles = NULL;  
 
     // what if user is not even logged in?
-    // TODO remove this from comments
-/*    if (ca_event->SSLSession == NULL)
+    if (ca_event->SSLSession == NULL)
     {
         // SSL must be used
         trace(1, "%s: SSL connection must be used for this",ca_event->ActionName);
@@ -1455,7 +1453,7 @@ int UserLogout(struct Upnp_Action_Request *ca_event)
         addErrorData(ca_event, result, "Authentication Failure");   
         return ca_event->ErrCode;     
     }
-    else*/
+    else
         result = getIdentifierOfCP(ca_event, &id, &id_len, NULL);
     
     if (result != 0)
@@ -1554,15 +1552,14 @@ int AddRolesForIdentity(struct Upnp_Action_Request *ca_event)
     char *rolelist = NULL;
     IXML_Document *identityDoc = NULL;
     
-        // TODO remove this from comments
-/*    if (ca_event->SSLSession == NULL)
+    if (ca_event->SSLSession == NULL)
     {
         // SSL must be used
         trace(1, "%s: SSL connection must be used for this",ca_event->ActionName);
         result = 701;
         addErrorData(ca_event, result, "Authentication Failure");        
     }
-    else*/if ( (identity = GetFirstDocumentItem(ca_event->ActionRequest, "Identity") )
+    else if ( (identity = GetFirstDocumentItem(ca_event->ActionRequest, "Identity") )
             && (rolelist = GetFirstDocumentItem(ca_event->ActionRequest, "RoleList") ))
     {
         identityDoc = ixmlParseBuffer(identity);
@@ -1637,15 +1634,14 @@ int RemoveRolesForIdentity(struct Upnp_Action_Request *ca_event)
     char *rolelist = NULL;
     IXML_Document *identityDoc = NULL;
     
-        // TODO remove this from comments
-/*    if (ca_event->SSLSession == NULL)
+    if (ca_event->SSLSession == NULL)
     {
         // SSL must be used
         trace(1, "%s: SSL connection must be used for this",ca_event->ActionName);
         result = 701;
         addErrorData(ca_event, result, "Authentication Failure");        
     }
-    else*/if ( (identity = GetFirstDocumentItem(ca_event->ActionRequest, "Identity") )
+    else if ( (identity = GetFirstDocumentItem(ca_event->ActionRequest, "Identity") )
             && (rolelist = GetFirstDocumentItem(ca_event->ActionRequest, "RoleList") ))
     {       
         identityDoc = ixmlParseBuffer(identity);
@@ -1716,10 +1712,9 @@ int RemoveRolesForIdentity(struct Upnp_Action_Request *ca_event)
 int GetAssignedRoles(struct Upnp_Action_Request *ca_event)
 {    
     char *roles = NULL;
-    int ret;
+    int result;
 
-    // TODO remove this from comments
-/*    if (ca_event->SSLSession == NULL)
+     if (ca_event->SSLSession == NULL)
     {
         // SSL must be used
         trace(1, "%s: SSL connection must be used for this",ca_event->ActionName);
@@ -1727,11 +1722,10 @@ int GetAssignedRoles(struct Upnp_Action_Request *ca_event)
         addErrorData(ca_event, result, "Authentication Failure");    
         return ca_event->ErrCode;   
     }
-    */
-    ret = getRolesOfSession(ca_event, &roles);
+    result = getRolesOfSession(ca_event, &roles);
     IXML_Document *ActionResult = NULL;
     
-    if (ret == 0 && roles)
+    if (result == 0 && roles)
     {
         ActionResult = UpnpMakeActionResponse(ca_event->ActionName, DP_SERVICE_TYPE,
                                         1,
@@ -1856,15 +1850,14 @@ int SetUserLoginPassword(struct Upnp_Action_Request *ca_event)
     char *nameUPPER = NULL;
     char *identity = NULL;
     
-        // TODO remove this from comments
-/*    if (ca_event->SSLSession == NULL)
+    if (ca_event->SSLSession == NULL)
     {
         // SSL must be used
         trace(1, "%s: SSL connection must be used for this",ca_event->ActionName);
         result = 701;
         addErrorData(ca_event, result, "Authentication Failure");        
     }
-    else*/if ( (name = GetFirstDocumentItem(ca_event->ActionRequest, "Name") )
+    else if ( (name = GetFirstDocumentItem(ca_event->ActionRequest, "Name") )
             && (stored = GetFirstDocumentItem(ca_event->ActionRequest, "Stored") )
             && (salt = GetFirstDocumentItem(ca_event->ActionRequest, "Salt") ))
     {      
@@ -1997,15 +1990,14 @@ int AddIdentityList(struct Upnp_Action_Request *ca_event)
     char *identitylist = NULL;
     IXML_Document *identitiesDoc = NULL;
     
-        // TODO remove this from comments
-/*    if (ca_event->SSLSession == NULL)
+    if (ca_event->SSLSession == NULL)
     {
         // SSL must be used
         trace(1, "%s: SSL connection must be used for this",ca_event->ActionName);
         result = 701;
         addErrorData(ca_event, result, "Authentication Failure");        
     }
-    else*/if ( (identitylist = GetFirstDocumentItem(ca_event->ActionRequest, "IdentityList") ))
+    else if ( (identitylist = GetFirstDocumentItem(ca_event->ActionRequest, "IdentityList") ))
     {   
         trace(3, "%s: Received IdentityList: \n%s",ca_event->ActionName,identitylist); 
         identitiesDoc = ixmlParseBuffer(identitylist);
@@ -2124,15 +2116,14 @@ int RemoveIdentity(struct Upnp_Action_Request *ca_event)
     IXML_Document *identityDoc = NULL;
     
     // TODO should it be tested that there is only one CP element in Identity?
-        // TODO remove this from comments
-/*    if (ca_event->SSLSession == NULL)
+    if (ca_event->SSLSession == NULL)
     {
         // SSL must be used
         trace(1, "%s: SSL connection must be used for this",ca_event->ActionName);
         result = 701;
         addErrorData(ca_event, result, "Authentication Failure");        
     }
-    else*/if ( (identity = GetFirstDocumentItem(ca_event->ActionRequest, "Identity") ))
+    else if ( (identity = GetFirstDocumentItem(ca_event->ActionRequest, "Identity") ))
     {    
         identityDoc = ixmlParseBuffer(identity);
         if (identityDoc == NULL)
