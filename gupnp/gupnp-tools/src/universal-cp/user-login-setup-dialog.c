@@ -126,7 +126,7 @@ continue_login_cb (GUPnPDeviceProxy       *proxy,
             gtk_dialog_run (GTK_DIALOG (error_dialog));
             gtk_widget_destroy (error_dialog);
 
-            gtk_widget_hide (user_login_setup_dialog);
+            //gtk_widget_hide (user_login_setup_dialog);
            	g_error_free ((*error));
 
             gupnp_device_proxy_end_login (logindata, loginname);
@@ -136,11 +136,10 @@ continue_login_cb (GUPnPDeviceProxy       *proxy,
         if (gupnp_device_proxy_end_login(logindata, loginname)) {
             // User login successfully formed
         	// Save current username
-
+            // TODO: Should username be saved in deviceproxy? 
         	current_username = loginname->str;
 
             GtkWidget *info_dialog;
-
             info_dialog = gtk_message_dialog_new (GTK_WINDOW (user_login_setup_dialog),
                                                   GTK_DIALOG_MODAL,
                                                   GTK_MESSAGE_INFO,
@@ -191,7 +190,7 @@ continue_logout_cb (GUPnPDeviceProxy        *proxy,
             gtk_dialog_run (GTK_DIALOG (error_dialog));
             gtk_widget_destroy (error_dialog);
 
-            gtk_widget_hide (user_login_setup_dialog);
+            //gtk_widget_hide (user_login_setup_dialog);
             g_error_free ((*error));
 
             gupnp_device_proxy_end_logout (logoutdata);
@@ -210,7 +209,7 @@ continue_logout_cb (GUPnPDeviceProxy        *proxy,
 
             gtk_dialog_run (GTK_DIALOG (info_dialog));
             gtk_widget_destroy (info_dialog);
-    	    gtk_widget_hide (user_login_setup_dialog);
+    	    //gtk_widget_hide (user_login_setup_dialog);
         }
 }
 
@@ -238,7 +237,7 @@ continue_change_password_cb (GUPnPDeviceProxy                *proxy,
         gtk_dialog_run (GTK_DIALOG (error_dialog));
         gtk_widget_destroy (error_dialog);
 
-        gtk_widget_hide (user_login_setup_dialog);
+        //gtk_widget_hide (user_login_setup_dialog);
         g_error_free ((*error));
 
         gupnp_device_proxy_end_change_password (passworddata, loginname);
@@ -257,7 +256,7 @@ continue_change_password_cb (GUPnPDeviceProxy                *proxy,
 
         gtk_dialog_run (GTK_DIALOG (info_dialog));
         gtk_widget_destroy (info_dialog);
-	    gtk_widget_hide (user_login_setup_dialog);
+	    //gtk_widget_hide (user_login_setup_dialog);
     }
 }
 

@@ -321,7 +321,7 @@ ua_dialog_remove_user (GladeXML *glade_xml)
         GUPnPDeviceProxy *deviceProxy = GUPNP_DEVICE_PROXY (info);
 		g_assert (deviceProxy != NULL);
 
-		// TODO: Get selected username from table.....
+		// Get selected username from table.....
         GList     *child_node;        
         GtkContainer *table = GTK_CONTAINER(ua_dialog_table);
         
@@ -348,11 +348,166 @@ ua_dialog_remove_user (GladeXML *glade_xml)
 	                                                            user_data);
 }
 
+
+static void
+add_roles_cb( GUPnPDeviceProxy    *proxy,
+                 GUPnPDeviceProxySetRoles *rolesdata,
+                 GError             **error,
+                 gpointer             user_data)
+{
+        if ((*error) != NULL) {
+            GtkWidget *error_dialog;
+
+            error_dialog = gtk_message_dialog_new (GTK_WINDOW (user_admininistration_dialog),
+                                                   GTK_DIALOG_MODAL,
+                                                   GTK_MESSAGE_ERROR,
+                                                   GTK_BUTTONS_CLOSE,
+                                                   "Adding user roles failed.\n\nError %d: %s",
+                                                   (*error)->code,
+                                                   (*error)->message);
+            gtk_dialog_run (GTK_DIALOG (error_dialog));
+            gtk_widget_destroy (error_dialog);
+
+            gtk_widget_hide (user_admininistration_dialog);
+            g_error_free ((*error));
+
+            gupnp_device_proxy_end_add_roles (rolesdata);
+            return;
+        }
+
+        if (gupnp_device_proxy_end_add_roles (rolesdata)) {
+            // Success
+            GtkWidget *info_dialog;
+
+            info_dialog = gtk_message_dialog_new (GTK_WINDOW (user_admininistration_dialog),
+                                                  GTK_DIALOG_MODAL,
+                                                  GTK_MESSAGE_INFO,
+                                                  GTK_BUTTONS_CLOSE,
+                                                  "Roles successfully changed");
+
+            gtk_dialog_run (GTK_DIALOG (info_dialog));
+            gtk_widget_destroy (info_dialog);
+            
+            gtk_widget_hide (user_admininistration_dialog);
+        }
+        update_users_table();        
+}
+
+
+static void
+remove_roles_cb( GUPnPDeviceProxy    *proxy,
+                 GUPnPDeviceProxySetRoles *rolesdata,
+                 GError             **error,
+                 gpointer             user_data)
+{
+        // we are not so interested of what happens during removing roles, because in current
+        // implementation add_roles is called right after removing. Adding should tell if setting
+        // roles succeeds or not.
+        
+        if ((*error) != NULL) {
+            GtkWidget *error_dialog;
+
+            error_dialog = gtk_message_dialog_new (GTK_WINDOW (user_admininistration_dialog),
+                                                   GTK_DIALOG_MODAL,
+                                                   GTK_MESSAGE_ERROR,
+                                                   GTK_BUTTONS_CLOSE,
+                                                   "Removeing user roles failed.\n\nError %d: %s",
+                                                   (*error)->code,
+                                                   (*error)->message);
+            gtk_dialog_run (GTK_DIALOG (error_dialog));
+            gtk_widget_destroy (error_dialog);
+
+            gtk_widget_hide (user_admininistration_dialog);
+            g_error_free ((*error));
+        } 
+        gupnp_device_proxy_end_remove_roles (rolesdata);    
+}
+
+
 void
 ua_dialog_role_setup (GladeXML *glade_xml)
 {
-	    // TODO: role change took place...
-}
+        // 1: Send removeRoles to device about roles which aren't selected for selected user
+        // 2: Send addRoles to device about roles which are selected for selected user
+        
+        GUPnPDeviceProxySetRoles *deviceProxySetRoles;
+        gpointer user_data = NULL;
+        const gchar *username = NULL;
+        GString *remove_role_list = g_string_new("");
+        GString *add_role_list = g_string_new("");
+        
+        // get the selected row and values of role check boxes from there
+        // Yes I know this awful how this is done. But I don't know any better way to get 
+        // value for selected roles.
+        // Role check buttons locate between two radio buttons, or between radio button and
+        // the end of list. Check CB's before selected radio button between those borders defined
+        // earlier.        
+        GList     *child_node;        
+        GtkContainer *table = GTK_CONTAINER(ua_dialog_table);
+        
+        for (child_node = gtk_container_get_children (table);
+             child_node;
+             child_node = child_node->next) {
+                GtkWidget *widget;
+
+                widget = GTK_WIDGET (child_node->data);
+                if (GTK_IS_RADIO_BUTTON (widget) && gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget)))
+                {
+                    GtkWidget *role_widget;
+                    while ((child_node = child_node->prev) && 
+                           (role_widget = GTK_WIDGET (child_node->data)) && 
+                           !GTK_IS_RADIO_BUTTON (role_widget))
+                    {
+                        // username
+                        if (GTK_IS_ENTRY (role_widget))
+                        {
+                            username = gtk_entry_get_text (GTK_ENTRY (role_widget));
+                        }
+                        
+                        // selected checkbox
+                        else if (GTK_IS_CHECK_BUTTON (role_widget) && gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (role_widget)))
+                        {
+                            // concatenate rolenames fetched from labels to rolelist
+                            g_string_append(add_role_list, gtk_button_get_label(GTK_BUTTON (role_widget)));
+                            g_string_append(add_role_list, " ");
+                        }
+                        // not selected checkbox
+                        else if (GTK_IS_CHECK_BUTTON (role_widget) && !gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (role_widget)))
+                        {
+                            g_string_append(remove_role_list, gtk_button_get_label(GTK_BUTTON (role_widget)));
+                            g_string_append(remove_role_list, " ");                            
+                        }
+                    }
+                    break;
+                }
+        }
+
+        // remove extra space from the end of rolelist
+        g_string_set_size(add_role_list, add_role_list->len-1);
+        g_string_set_size(remove_role_list, remove_role_list->len-1);  
+
+   
+        GUPnPDeviceInfo *info = get_selected_device_info ();
+        GUPnPDeviceProxy *deviceProxy = GUPNP_DEVICE_PROXY (info);
+        g_assert (deviceProxy != NULL);
+
+        deviceProxySetRoles = gupnp_device_proxy_remove_roles (deviceProxy,
+                                                          username,
+                                                          remove_role_list->str,
+                                                          remove_roles_cb,
+                                                          user_data);
+                                                          
+        deviceProxySetRoles = gupnp_device_proxy_add_roles (deviceProxy,
+                                                          username,
+                                                          add_role_list->str,
+                                                          add_roles_cb,
+                                                          user_data);        
+        
+
+
+        g_string_free(add_role_list, TRUE);
+        g_string_free(remove_role_list, TRUE); 
+}   
 
 
 /*
