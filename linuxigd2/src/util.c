@@ -1604,9 +1604,10 @@ int ACL_addRolesForIdentity(IXML_Document *ACLdoc, IXML_Document *identityDoc, c
 int ACL_addRolesForUser(IXML_Document *doc, const char *name, const char *roles)
 {
     IXML_Node *tmpNode = GetNodeWithValue(doc, "Name", name, 1);
-    
+
     // Check that name does exist
-    if ( tmpNode == NULL )
+    // remember to check that parent of "Name" is "User" 
+    if ( tmpNode == NULL || (strcmp(tmpNode->parentNode->nodeName, "User") != 0))
     {
         return ACL_USER_ERROR;
     } 
@@ -1639,7 +1640,8 @@ int ACL_addRolesForCP(IXML_Document *doc, const char *id, const char *roles)
     IXML_Node *tmpNode = GetNodeWithValue(doc, "ID", id, 1);
     
     // Check that CP with ID does exist
-    if ( tmpNode == NULL )
+    // remember to check that parent of "ID" is "CP" 
+    if ( tmpNode == NULL || (strcmp(tmpNode->parentNode->nodeName, "CP") != 0))
     {
         return ACL_USER_ERROR;
     } 
@@ -1716,7 +1718,7 @@ int ACL_removeRolesFromUser(IXML_Document *doc, const char *name, const char *ro
     IXML_Node *tmpNode = GetNodeWithValue(doc, "Name", name, 1);
     
     // Check that name does exist
-    if ( tmpNode == NULL )
+    if ( tmpNode == NULL || (strcmp(tmpNode->parentNode->nodeName, "User") != 0))
     {
         return ACL_USER_ERROR;
     } 
@@ -1749,7 +1751,7 @@ int ACL_removeRolesFromCP(IXML_Document *doc, const char *id, const char *roles)
     IXML_Node *tmpNode = GetNodeWithValue(doc, "ID", id, 1);
     
     // Check that CP with id does exist
-    if ( tmpNode == NULL )
+    if ( tmpNode == NULL || (strcmp(tmpNode->parentNode->nodeName, "CP") != 0))
     {
         return ACL_USER_ERROR;
     } 
@@ -1813,6 +1815,7 @@ int ACL_validateListAndUpdateACL(IXML_Document *ACLdoc, IXML_Document *identitie
         if (name == NULL)
         {
             trace(2,"(ACL) Name must be given for CP. Skip.");
+            RemoveNode(tmpNode);
             continue;
             //return 600;
         }

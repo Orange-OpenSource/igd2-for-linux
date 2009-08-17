@@ -262,8 +262,8 @@ int HandleActionRequest(struct Upnp_Action_Request *ca_event)
     if ( (result = AuthorizeControlPoint(ca_event, 0)) != 0 )
     {
         // TODO Remember to remove these from commments!!!!!
-        //ithread_mutex_unlock(&DevMutex);
-        //return result;        
+        ithread_mutex_unlock(&DevMutex);
+        return result;        
     }
     
 
