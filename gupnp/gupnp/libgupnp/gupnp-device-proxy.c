@@ -1724,7 +1724,15 @@ gupnp_device_proxy_add_roles (GUPnPDeviceProxy           *proxy,
         }
 
         // create Identity XML fragment
-        g_string_printf(addrolesdata->identity, "<User><Name>%s</Name></User>", username);
+        g_string_printf(addrolesdata->identity, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\
+<Identity xmlns=\"urn:schemas-upnp-org:gw:DeviceProtection\"\
+xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"\
+xsi:schemaLocation=\"urn:schemas-upnp-org:gw:DeviceProtection\
+http://www.upnp.org/schemas/gw/DeviceProtection.xsd\">\
+<User>\
+<Name>%s</Name>\
+</User>\
+</Identity>", username);
 
         gupnp_service_proxy_begin_action(addrolesdata->device_prot_service,
                                          "AddRolesForIdentity",
@@ -1833,7 +1841,15 @@ gupnp_device_proxy_remove_roles (GUPnPDeviceProxy           *proxy,
         }
 
         // create Identity XML fragment
-        g_string_printf(removerolesdata->identity, "<User><Name>%s</Name></User>", username);
+        g_string_printf(removerolesdata->identity, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\
+<Identity xmlns=\"urn:schemas-upnp-org:gw:DeviceProtection\"\
+xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"\
+xsi:schemaLocation=\"urn:schemas-upnp-org:gw:DeviceProtection\
+http://www.upnp.org/schemas/gw/DeviceProtection.xsd\">\
+<User>\
+<Name>%s</Name>\
+</User>\
+</Identity>", username);
 
         gupnp_service_proxy_begin_action(removerolesdata->device_prot_service,
                                          "RemoveRolesForIdentity",
@@ -1895,7 +1911,8 @@ get_ACL_data_response (GUPnPServiceProxy       *proxy,
             ACLData->done = TRUE;
         
         
-            // create hashtable from usernames in ACL. Name is key, rolelist is value
+            // create hashtable from usernames in ACL. Only <User><Name> is accepted, not <CP><Name>.
+            // Name is key, rolelist is value
             xmlDoc *xml_doc;
             xmlNode *element;
             xmlChar *name;
@@ -1914,15 +1931,18 @@ get_ACL_data_response (GUPnPServiceProxy       *proxy,
                 }
                 
                 for (element = element->children; element; element = element->next) {
-                    name = xml_util_get_child_element_content (element, "Name");
-                    if (!name)
-                        continue;
-                    rolelist = xml_util_get_child_element_content (element, "RoleList");
-                    
-                    g_warning("Name: %s RoleList:%s",name,rolelist);
-                    
-                    // insert to hashtable name-rolelist pairs. Name is the key
-                    g_hash_table_insert(users, g_strdup(name), g_strdup(rolelist));           
+                    if (strcmp ((char *) element->name, "User") == 0)
+                    {
+                        name = xml_util_get_child_element_content (element, "Name");
+                        if (!name)
+                            continue;
+                        rolelist = xml_util_get_child_element_content (element, "RoleList");
+                        
+                        g_warning("Name: %s RoleList:%s",name,rolelist);
+                        
+                        // insert to hashtable name-rolelist pairs. Name is the key
+                        g_hash_table_insert(users, g_strdup(name), g_strdup(rolelist));
+                    }         
                 }                           
             }                                   
         }
