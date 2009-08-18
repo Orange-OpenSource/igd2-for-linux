@@ -46,6 +46,7 @@ struct _GUPnPDeviceProxyPrivate {
         GUPnPDeviceProxy *root_proxy;
 
         GUPnPSSLClient *ssl_client; // this is used for SSL connections
+        GString *username;          // stores username which is logged in for this deviceproxy
 };
 
 struct _GUPnPDeviceProxyWps {
@@ -311,6 +312,7 @@ gupnp_device_proxy_init (GUPnPDeviceProxy *proxy)
 
         proxy->priv->root_proxy = NULL;
         proxy->priv->ssl_client = NULL;
+        proxy->priv->username = g_string_new("");
 }
 
 static void
@@ -863,7 +865,25 @@ gupnp_device_proxy_get_ssl_client (GUPnPDeviceProxy *proxy)
         return NULL;
 }
 
+/**
+ * gupnp_device_proxy_get_username
+ * @proxy: A #GUPnPDeviceProxy
+ *
+ * Get the username which deviceproxy is logged in. If not logged in empty string.
+ *
+ * Return value: Copy of username which is logged in for given GUPnPDeviceProxy. 
+ * Caller should call g_string_free for received stirng. 
+ **/
+GString *
+gupnp_device_proxy_get_username (GUPnPDeviceProxy *proxy)
+{
+        g_assert (proxy != NULL);
 
+        if (proxy->priv->root_proxy)
+            return g_string_new(proxy->priv->root_proxy->priv->username->str);
+
+        return NULL;
+}
 
 
 
@@ -1148,7 +1168,11 @@ gupnp_device_proxy_end_login (GUPnPDeviceProxyLogin *logindata, GString *loginna
         // copy username logged in to loginname
         if (loginname)
             g_string_assign(loginname, logindata->username->str);
-
+        
+        // copy username to deviceproxy
+        if (logindata->done)
+            g_string_assign(logindata->proxy->priv->username, logindata->username->str);
+        
         gboolean done = logindata->done;
 
         g_object_unref(logindata->proxy);
@@ -1246,6 +1270,10 @@ gupnp_device_proxy_begin_logout (GUPnPDeviceProxy           *proxy,
 gboolean
 gupnp_device_proxy_end_logout (GUPnPDeviceProxyLogout *logoutdata)
 {
+        // erase logged in username from proxy
+        if (logoutdata->done)
+            g_string_assign(logoutdata->proxy->priv->username, "");
+        
         gboolean done = logoutdata->done;
 
         g_object_unref(logoutdata->proxy);
