@@ -27,13 +27,10 @@ statusbar_update (gboolean device_selected)
 		    deviceProxy = GUPNP_DEVICE_PROXY (info);
 
 		    /* If SSL client exist, update status bar */
-		    if (gupnp_device_proxy_get_ssl_client (deviceProxy)) {
-			    const gchar *user= "Jaakko";
+		    if (*(gupnp_device_proxy_get_ssl_client (deviceProxy))) {
 			    const gchar *end_text;
-			    GString *loginname = g_string_new(user);
+			    GString *loginname = gupnp_device_proxy_get_username (deviceProxy);
 
-   		        get_current_username(loginname);
-	 		    loginname = g_string_new(loginname->str);
 	 		    if (strcmp (loginname->str, "") == 0) {
 	 		    	end_text = " Using secure connection ";
 	 		    } else {
@@ -45,6 +42,9 @@ statusbar_update (gboolean device_selected)
                 gtk_statusbar_push (GTK_STATUSBAR(statusbar),
                 		           statusbar_output_id,
         		                   statusbar_output->str);
+                                   
+                g_string_free(loginname, TRUE);
+                g_string_free(statusbar_output, TRUE);
 
             } else {
 	       	    empty_identifier = gtk_statusbar_push(GTK_STATUSBAR(statusbar),

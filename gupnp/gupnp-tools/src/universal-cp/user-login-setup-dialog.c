@@ -32,14 +32,6 @@ static GtkWidget *uls_dialog_change_password_button;
 static GtkWidget *uls_dialog_logout_button;
 static GtkWidget *uls_dialog_login_button;
 
-const gchar *current_username="";
-
-void
-get_current_username(GString *current_user)
-{
-    GString *user = g_string_new(current_username);
-	current_user->str = user->str;
-}
 
 void
 start_user_login_setup (GladeXML *glade_xml)
@@ -109,9 +101,6 @@ continue_login_cb (GUPnPDeviceProxy       *proxy,
                    GError                **error,
                    gpointer                user_data)
 {
-	    const gchar *username = gtk_entry_get_text (GTK_ENTRY(uls_dialog_username_entry));
-	    GString *loginname = g_string_new(username);
-
 	    if ((*error) != NULL) {
 
 	        GtkWidget *error_dialog;
@@ -129,16 +118,12 @@ continue_login_cb (GUPnPDeviceProxy       *proxy,
             //gtk_widget_hide (user_login_setup_dialog);
            	g_error_free ((*error));
 
-            gupnp_device_proxy_end_login (logindata, loginname);
+            gupnp_device_proxy_end_login (logindata, NULL);
             return;
         }
 
-        if (gupnp_device_proxy_end_login(logindata, loginname)) {
+        if (gupnp_device_proxy_end_login(logindata, NULL)) {
             // User login successfully formed
-        	// Save current username
-            // TODO: Should username be saved in deviceproxy? 
-        	current_username = loginname->str;
-
             GtkWidget *info_dialog;
             info_dialog = gtk_message_dialog_new (GTK_WINDOW (user_login_setup_dialog),
                                                   GTK_DIALOG_MODAL,
