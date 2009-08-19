@@ -134,12 +134,15 @@ static void add_users_to_table(gpointer key,
         GtkWidget* new_admin_checkbutton = gtk_check_button_new_with_label ("Admin");
 
         // Set roles
-        if (strstr((char*)value, "Admin"))
-            gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON(new_admin_checkbutton), TRUE);
-        if (strstr((char*)value, "Basic"))
-            gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON(new_basic_checkbutton), TRUE);
-        if (strstr((char*)value, "Public"))
-            gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON(new_public_checkbutton), TRUE);            
+        if (value)
+        {
+            if (strstr((char*)value, "Admin"))
+                gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON(new_admin_checkbutton), TRUE);
+            if (strstr((char*)value, "Basic"))
+                gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON(new_basic_checkbutton), TRUE);
+            if (strstr((char*)value, "Public"))
+                gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON(new_public_checkbutton), TRUE);    
+        }     
 
         gtk_table_attach (GTK_TABLE (ua_dialog_table),
                           new_public_checkbutton,
