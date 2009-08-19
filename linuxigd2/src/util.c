@@ -1824,7 +1824,9 @@ int ACL_validateListAndUpdateACL(IXML_Document *ACLdoc, IXML_Document *identitie
         if (admin)
         {
             alias = GetTextValueOfNode( GetSiblingWithTagName(tmpNode, "Alias") );
-            rolelist = GetTextValueOfNode( GetSiblingWithTagName(tmpNode, "RoleList") );
+            rolelist = GetTextValueOfNode( GetSiblingWithTagName(tmpNode, "RoleList") );          
+            if (rolelist == NULL || strlen(rolelist) < 1)
+                rolelist = "Public";
         }
         else
         {
@@ -1862,7 +1864,9 @@ int ACL_validateListAndUpdateACL(IXML_Document *ACLdoc, IXML_Document *identitie
         // if admin, try to get RoleList value
         if (admin)
         {
-            rolelist = GetTextValueOfNode( GetChildNodeWithName(tmpNode, "RoleList") );
+            rolelist = GetTextValueOfNode( GetChildNodeWithName(tmpNode, "RoleList") );           
+            if (rolelist == NULL || strlen(rolelist) < 1)
+                rolelist = "Public";
         }
         else
         {
