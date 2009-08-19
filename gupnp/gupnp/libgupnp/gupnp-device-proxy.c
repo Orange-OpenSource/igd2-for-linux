@@ -1994,6 +1994,7 @@ gupnp_device_proxy_get_ACL_data (GUPnPDeviceProxy           *proxy,
         ACLData->user_data = user_data;
         ACLData->error = NULL;
         ACLData->device_prot_service = find_device_protection_service (proxy);
+        ACLData->ACL = NULL;
         ACLData->done = FALSE;
 
         if (ACLData->device_prot_service == NULL)
@@ -2021,6 +2022,8 @@ gupnp_device_proxy_end_get_ACL_data (GUPnPDeviceProxyGetACLData *ACLData)
         gboolean done = ACLData->done;       
 
         g_object_unref(ACLData->proxy);
+
+        g_slice_free(GUPnPDeviceProxyGetACLData, ACLData);
 
         return done;
 }
