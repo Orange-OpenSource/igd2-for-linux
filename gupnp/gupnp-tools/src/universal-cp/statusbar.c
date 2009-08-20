@@ -9,16 +9,16 @@
 #include "device-treeview.h"
 #include "user-login-setup-dialog.h"
 static GtkWidget *statusbar;
+static GtkWidget *sslimage;
 
 void
 statusbar_update (gboolean device_selected)
 {
-	    guint empty_identifier;
-	    guint empty_context_id;
 	    const gchar *empty_statusbar="";
 
-	    empty_context_id = gtk_statusbar_get_context_id(GTK_STATUSBAR(statusbar),
-		    	                                        empty_statusbar);
+        guint statusbar_output_id = gtk_statusbar_get_context_id (GTK_STATUSBAR(statusbar),
+                                                                  "username");
+                                                                  
 	    if (device_selected) {
 		    GUPnPDeviceInfo *info;
 		    GUPnPDeviceProxy *deviceProxy;
@@ -28,40 +28,48 @@ statusbar_update (gboolean device_selected)
 
 		    /* If SSL client exist, update status bar */
 		    if (*(gupnp_device_proxy_get_ssl_client (deviceProxy))) {
-			    const gchar *end_text;
+                // update SSL lock, if SSL is used
+                gtk_image_set_from_stock(GTK_IMAGE(sslimage), GTK_STOCK_DIALOG_AUTHENTICATION, GTK_ICON_SIZE_SMALL_TOOLBAR);
+                
+                // update logged in username, if any
 			    GString *loginname = gupnp_device_proxy_get_username (deviceProxy);
+                
+                if (loginname && (strcmp (loginname->str, "") != 0))
+                {
+                    g_string_prepend(loginname, "Username: ");
 
-	 		    if (strcmp (loginname->str, "") == 0) {
-	 		    	end_text = " Using secure connection ";
-	 		    } else {
-	 		    	end_text = " is using secure connection";
-	 		    }
-	 		    GString * statusbar_output = g_string_append (loginname, end_text);
-            	guint statusbar_output_id = gtk_statusbar_get_context_id (GTK_STATUSBAR(statusbar),
-			 	   												          statusbar_output->str);
-                gtk_statusbar_push (GTK_STATUSBAR(statusbar),
-                		           statusbar_output_id,
-        		                   statusbar_output->str);
-                                   
-                g_string_free(loginname, TRUE);
-                g_string_free(statusbar_output, TRUE);
+                    gtk_statusbar_push (GTK_STATUSBAR(statusbar),
+                    		           statusbar_output_id,
+            		                   loginname->str);
+                }
+                if (loginname)
+                    g_string_free(loginname, TRUE);
 
             } else {
-	       	    empty_identifier = gtk_statusbar_push(GTK_STATUSBAR(statusbar),
-	    		                                      empty_context_id,
-		                                              empty_statusbar);
+                // clear ssl-lock image
+                gtk_image_clear(GTK_IMAGE(sslimage));
+	       	    gtk_statusbar_push(GTK_STATUSBAR(statusbar),
+                                   statusbar_output_id,
+                                   empty_statusbar);
             }
 	    } else {
-	        empty_identifier = gtk_statusbar_push (GTK_STATUSBAR(statusbar),
-	    	    	                              empty_context_id,
-		                                          empty_statusbar);
+            // clear ssl-lock image
+            gtk_image_clear(GTK_IMAGE(sslimage));
+	        gtk_statusbar_push (GTK_STATUSBAR(statusbar),
+                                statusbar_output_id,
+                                empty_statusbar);
 	    }
 }
 
 void
-setup_statusbar (GladeXML *glade_xml)
+init_statusbar (GladeXML *glade_xml)
 {
         /* Dialog box */
         statusbar = glade_xml_get_widget (glade_xml, "statusbar");
         g_assert (statusbar != NULL);
+        sslimage = glade_xml_get_widget (glade_xml, "ssl-image");
+        g_assert (sslimage != NULL);
+        
+        // initially clear sslimage. No SSL connection is created yet
+        gtk_image_clear(GTK_IMAGE(sslimage));
 }

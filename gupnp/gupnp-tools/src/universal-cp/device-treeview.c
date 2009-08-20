@@ -294,9 +294,6 @@ on_something_selected (GtkTreeSelection *selection,
 
                 gtk_tree_model_get (model, &iter, 5, &icon_type, -1);
 
-                /* Statusbar message may only appear with device selection */
-                statusbar_update (FALSE);
-
                 /* We recognise things by how they look, don't we? */
                 if (icon_type == ICON_DEVICE) {
                         GUPnPDeviceInfo *info;
@@ -304,6 +301,8 @@ on_something_selected (GtkTreeSelection *selection,
                         gtk_tree_model_get (model, &iter, 2, &info, -1);
                         show_device_details (info);
                         g_object_unref (info);
+                        /* statusbar is updated only when device is selected. In other cases parent device 
+                         * should be find out somehow and passed to statusbar.c */
                         statusbar_update (TRUE);
                 } else if (icon_type == ICON_SERVICE) {
                         GUPnPServiceInfo *info;
@@ -327,8 +326,13 @@ on_something_selected (GtkTreeSelection *selection,
 
                         gtk_tree_model_get (model, &iter, 4, &info, -1);
                         show_action_arg_details (info);
-                } else
+                } else if (icon_type == ICON_VARIABLES) {
                         update_details (default_details);
+                } else {
+                        update_details (default_details);
+                        /* Statusbar is cleared if selection is moved out from device */
+                        statusbar_update (FALSE);
+                }
         }
 
         else

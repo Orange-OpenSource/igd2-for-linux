@@ -124,6 +124,7 @@ continue_login_cb (GUPnPDeviceProxy       *proxy,
 
         if (gupnp_device_proxy_end_login(logindata, NULL)) {
             // User login successfully formed
+            statusbar_update (TRUE);
             GtkWidget *info_dialog;
             info_dialog = gtk_message_dialog_new (GTK_WINDOW (user_login_setup_dialog),
                                                   GTK_DIALOG_MODAL,
@@ -134,7 +135,6 @@ continue_login_cb (GUPnPDeviceProxy       *proxy,
             gtk_dialog_run (GTK_DIALOG (info_dialog));
             gtk_widget_destroy (info_dialog);
     	    gtk_widget_hide (user_login_setup_dialog);
-    	    statusbar_update (TRUE);
         }
 }
 
@@ -162,7 +162,7 @@ continue_logout_cb (GUPnPDeviceProxy        *proxy,
                     gpointer                 user_data)
 {
 	    if ((*error) != NULL) {
-
+            statusbar_update (TRUE);
 	        GtkWidget *error_dialog;
 
 	        error_dialog = gtk_message_dialog_new (GTK_WINDOW (user_login_setup_dialog),

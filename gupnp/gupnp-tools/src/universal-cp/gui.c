@@ -148,7 +148,7 @@ init_ui (gint   *argc,
 
         init_icons ();
         setup_treeviews ();
-        setup_statusbar (glade_xml);
+        init_statusbar (glade_xml);
         init_action_dialog (glade_xml);
         init_wps_dialog (glade_xml);
         init_user_administration_dialog (glade_xml);

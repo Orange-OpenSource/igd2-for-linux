@@ -15,6 +15,6 @@ void
 statusbar_update (gboolean device_selected);
 
 void
-setup_statusbar (GladeXML *glade_xml);
+init_statusbar (GladeXML *glade_xml);
 
 #endif /* STATUSBAR_H_ */
