@@ -95,6 +95,23 @@ typedef struct {
  */
 static IXML_Document *SIRDoc = NULL;
 
+/**
+ * Print contents of given IXML_Document as debug output to console.
+ * 
+ * @param debuglevel Debuglevel used for trace()-function
+ * @param msg Message printed before printing XML
+ * @param doc IXML_Document which is printed
+ * @return void
+ */
+static void trace_ixml(int debuglevel, const char *msg, IXML_Document *doc)
+{
+    if (!msg || !doc)
+        return;
+        
+    char *tmp = ixmlPrintDocument(doc);
+    trace(3, "%s\n%s\n",msg, tmp);
+    if (tmp) free(tmp);    
+}
 
 /**
  * Initialize DeviceProtection StateVariables for their default values.
@@ -264,9 +281,7 @@ int checkCPPrivileges(struct Upnp_Action_Request *ca_event, const char *targetRo
     if (ret == 0)
     {
         trace(3, "New session was added to SIR. Id: '%s'",identifier);
-        char *tmp = ixmlPrintDocument(SIRDoc);
-        trace(3, "Contents of SIR:\n%s\n",tmp);
-        if (tmp) free(tmp);
+        trace_ixml(3, "Contents of SIR:",SIRDoc);
     }
     else if (ret == -1)
     {
@@ -573,14 +588,12 @@ static void message_received(struct Upnp_Action_Request *ca_event, int error, un
             if (identifier) free(identifier);
             if (CN) free(CN);
             
-            trace(3, "Contents of ACL:\n%s\n",ixmlPrintDocument(ACLDoc));
-            //stopWPS();
+            trace_ixml(3, "Contents of ACL:",ACLDoc);
             break;
         }
         case WPSU_SM_E_SUCCESSINFO:
         {
             trace(3,"DeviceProtection introduction last message received M2D!\n");
-            //stopWPS();
             break;
         }
 
@@ -593,7 +606,6 @@ static void message_received(struct Upnp_Action_Request *ca_event, int error, un
         case WPSU_SM_E_FAILUREEXIT:
         {
             trace(3,"Received NACK from peer. Terminating state machine...\n");
-            //stopWPS();
             break;
         }
         case WPSU_SM_E_PROCESS:
@@ -604,7 +616,6 @@ static void message_received(struct Upnp_Action_Request *ca_event, int error, un
         default:
         {
             trace(2, "DeviceProtection introduction state machine in unknown error state. Terminating...\n");
-            //stopWPS();
         }
     }
 }
@@ -954,8 +965,8 @@ static int createUserLoginChallengeResponse(struct Upnp_Action_Request *ca_event
             {
                 trace(3,"Session with id '%s' is being updated in SIR. Add name '%s' and challenge '%s'",identifier,nameUPPER,(char *)b64_challenge);
                 result = SIR_updateSession(SIRDoc, identifier, NULL, NULL, NULL, NULL, nameUPPER, (char *)b64_challenge);
-                if (result == 0) 
-                    trace(3, "Contents of SIR:\n%s\n",ixmlPrintDocument(SIRDoc));
+                if (result == 0)
+                    trace_ixml(3, "Contents of SIR:",SIRDoc);
                 else 
                     trace(2, "Failed to update session in SIR");
             } 
@@ -1327,6 +1338,7 @@ int UserLogin(struct Upnp_Action_Request *ca_event)
             if (loginChallenge) free(loginChallenge);
             if (id) free(id);
             
+            trace_ixml(3, "Contents of SIR:",SIRDoc);
             return ca_event->ErrCode;            
         }
         
@@ -1428,6 +1440,7 @@ int UserLogin(struct Upnp_Action_Request *ca_event)
     if (loginChallenge) free(loginChallenge);
     if (id) free(id);
     
+    trace_ixml(3, "Contents of SIR:",SIRDoc);
     return ca_event->ErrCode;
 }
 
@@ -1464,14 +1477,8 @@ int UserLogout(struct Upnp_Action_Request *ca_event)
     }
     else
     {
-        // Fetch default role(s) for this CP from ACL
-        roles = ACL_getRolesOfCP(ACLDoc, (char *)id);
-        if (roles == NULL)
-            roles = "Public";
-        
-        // Add value of role default roles of this CP, and active to 0
-        active = 0;
-        result = SIR_updateSession(SIRDoc, (char *)id, &active, NULL, roles, NULL, NULL, NULL);
+        // Totally remove this session from SIR. No session resumption is supported.
+        SIR_removeSession(SIRDoc, id);
 
         // create response SOAP message
         IXML_Document *ActionResult = NULL;
@@ -1493,6 +1500,7 @@ int UserLogout(struct Upnp_Action_Request *ca_event)
     
     if (id) free(id);
     
+    trace_ixml(3, "Contents of SIR:",SIRDoc);
     return ca_event->ErrCode;
 }
 
@@ -1614,9 +1622,7 @@ int AddRolesForIdentity(struct Upnp_Action_Request *ca_event)
     if (identity) free(identity);
     if (rolelist) free(rolelist);
     
-    char *tmp = ixmlPrintDocument(ACLDoc);
-    trace(3, "Contents of ACL:\n%s\n",tmp);
-    if (tmp) free(tmp);
+    trace_ixml(3, "Contents of ACL:",ACLDoc);
     
     return ca_event->ErrCode;
 }
@@ -1696,9 +1702,7 @@ int RemoveRolesForIdentity(struct Upnp_Action_Request *ca_event)
     if (identity) free(identity);
     if (rolelist) free(rolelist);
     
-    char *tmp = ixmlPrintDocument(ACLDoc);
-    trace(3, "Contents of ACL:\n%s\n",tmp);
-    if (tmp) free(tmp);
+    trace_ixml(3, "Contents of ACL:",ACLDoc);
     
     return ca_event->ErrCode;
 }
@@ -1969,9 +1973,7 @@ int SetUserLoginPassword(struct Upnp_Action_Request *ca_event)
     if (nameUPPER) free(nameUPPER);
     if (identity) free(identity);
 
-    char *tmp = ixmlPrintDocument(ACLDoc);
-    trace(3, "Contents of ACL:\n%s\n",tmp);
-    if (tmp) free(tmp);
+    trace_ixml(3, "Contents of ACL:",ACLDoc);
 
     return ca_event->ErrCode;
 }
@@ -2096,10 +2098,7 @@ http://www.upnp.org/schemas/gw/DeviceProtection.xsd\">");
     if (identitiesDoc) ixmlDocument_free(identitiesDoc);
     if (identitylist) free(identitylist);
 
-    char *tmp = ixmlPrintDocument(ACLDoc);
-    trace(3, "Contents of ACL:\n%s\n",tmp);
-    if (tmp) free(tmp);
-    
+    trace_ixml(3, "Contents of ACL:",ACLDoc);    
     return ca_event->ErrCode;
 }
 
@@ -2182,9 +2181,7 @@ int RemoveIdentity(struct Upnp_Action_Request *ca_event)
     if (identityDoc) ixmlDocument_free(identityDoc);
     if (identity) free(identity);
     
-    char *tmp = ixmlPrintDocument(ACLDoc);
-    trace(3, "Contents of ACL:\n%s\n",tmp);
-    if (tmp) free(tmp);
+    trace_ixml(3, "Contents of ACL:",ACLDoc);
     
     return ca_event->ErrCode;
 }

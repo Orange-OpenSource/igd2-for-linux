@@ -477,10 +477,13 @@ int releaseIP(char *iface)
  * @param list String containing values separated with separator
  * @param separator Separator used in list
  * @param searchItem Token value which is searched from list
- * @return 1 if item is found, 0 if not
+ * @return 1 if item is found, 0 if not found or any of the parameters is NULL
  */
 int tokenizeAndSearch(const char *constList, const char *separator, const char *searchItem)
 {
+    if (!constList || !separator || !searchItem)
+        return 0;
+    
     char list[strlen(constList)];
     strcpy(list,constList);
     
