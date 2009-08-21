@@ -100,7 +100,7 @@ continue_login_cb (GUPnPDeviceProxy       *proxy,
                    GUPnPDeviceProxyLogin  *logindata,
                    GError                **error,
                    gpointer                user_data)
-{
+{                
 	    if ((*error) != NULL) {
 
 	        GtkWidget *error_dialog;
@@ -119,12 +119,15 @@ continue_login_cb (GUPnPDeviceProxy       *proxy,
            	g_error_free ((*error));
 
             gupnp_device_proxy_end_login (logindata, NULL);
+            
+            // gupnp_device_proxy_end_login must be called before statusbar_update, so that username is set correctly
+            statusbar_update (TRUE);
             return;
         }
 
         if (gupnp_device_proxy_end_login(logindata, NULL)) {
-            // User login successfully formed
             statusbar_update (TRUE);
+            // User login successfully formed
             GtkWidget *info_dialog;
             info_dialog = gtk_message_dialog_new (GTK_WINDOW (user_login_setup_dialog),
                                                   GTK_DIALOG_MODAL,
@@ -160,9 +163,8 @@ continue_logout_cb (GUPnPDeviceProxy        *proxy,
 					GUPnPDeviceProxyLogout  *logoutdata,
                     GError                 **error,
                     gpointer                 user_data)
-{
+{    
 	    if ((*error) != NULL) {
-            statusbar_update (TRUE);
 	        GtkWidget *error_dialog;
 
 	        error_dialog = gtk_message_dialog_new (GTK_WINDOW (user_login_setup_dialog),
@@ -179,10 +181,13 @@ continue_logout_cb (GUPnPDeviceProxy        *proxy,
             g_error_free ((*error));
 
             gupnp_device_proxy_end_logout (logoutdata);
+            
+            statusbar_update (TRUE);
             return;
         }
 
         if (gupnp_device_proxy_end_logout (logoutdata)) {
+            statusbar_update (TRUE);
             // User logout successfully formed
             GtkWidget *info_dialog;
 
@@ -204,7 +209,6 @@ continue_change_password_cb (GUPnPDeviceProxy                *proxy,
                              GError                         **error,
                              gpointer                         user_data)
 {
-
     const gchar *username = gtk_entry_get_text (GTK_ENTRY(uls_dialog_username_entry));
     GString *loginname = g_string_new(username);
 
@@ -226,10 +230,13 @@ continue_change_password_cb (GUPnPDeviceProxy                *proxy,
         g_error_free ((*error));
 
         gupnp_device_proxy_end_change_password (passworddata, loginname);
+        
+        statusbar_update (TRUE);
         return;
     }
 
     if (gupnp_device_proxy_end_change_password (passworddata, loginname)) {
+        statusbar_update (TRUE);
         // Password successfully changed
     	GtkWidget *info_dialog;
 

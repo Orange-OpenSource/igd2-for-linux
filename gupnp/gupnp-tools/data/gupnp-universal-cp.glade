@@ -314,8 +314,6 @@
 
 	  <child>
 	    <widget class="GtkImage" id="ssl-image">
-	      <property name="width_request">20</property>
-	      <property name="height_request">20</property>
 	      <property name="visible">True</property>
 	      <property name="xalign">0.5</property>
 	      <property name="yalign">0.5</property>
