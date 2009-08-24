@@ -24,23 +24,18 @@
 
 
 static GtkWidget *user_login_setup_dialog;
-static GtkWidget *uls_dialog_username_label;
-static GtkWidget *uls_dialog_password_label;
 static GtkWidget *uls_dialog_username_entry;
 static GtkWidget *uls_dialog_password_entry;
-static GtkWidget *uls_dialog_change_password_button;
-static GtkWidget *uls_dialog_logout_button;
-static GtkWidget *uls_dialog_login_button;
 
 
 void
 start_user_login_setup (GladeXML *glade_xml)
 {
 	    GUPnPDeviceInfo *info;
-	    init_user_login_dialog_fields();
-
+	    
 	    info = get_selected_device_info ();
 	    if (get_selected_device_info ()) {
+            init_user_login_dialog_fields();
 	        gtk_dialog_run (GTK_DIALOG (user_login_setup_dialog));
 	        gtk_widget_hide (user_login_setup_dialog);
 	    } else {
@@ -115,7 +110,6 @@ continue_login_cb (GUPnPDeviceProxy       *proxy,
             gtk_dialog_run (GTK_DIALOG (error_dialog));
             gtk_widget_destroy (error_dialog);
 
-            //gtk_widget_hide (user_login_setup_dialog);
            	g_error_free ((*error));
 
             gupnp_device_proxy_end_login (logindata, NULL);
@@ -137,7 +131,9 @@ continue_login_cb (GUPnPDeviceProxy       *proxy,
 
             gtk_dialog_run (GTK_DIALOG (info_dialog));
             gtk_widget_destroy (info_dialog);
-    	    gtk_widget_hide (user_login_setup_dialog);
+            
+            // We could close the dialog here if we wanted
+            //gtk_dialog_response(GTK_DIALOG (user_login_setup_dialog), GTK_RESPONSE_CLOSE);
         }
 }
 
@@ -177,7 +173,6 @@ continue_logout_cb (GUPnPDeviceProxy        *proxy,
             gtk_dialog_run (GTK_DIALOG (error_dialog));
             gtk_widget_destroy (error_dialog);
 
-            //gtk_widget_hide (user_login_setup_dialog);
             g_error_free ((*error));
 
             gupnp_device_proxy_end_logout (logoutdata);
@@ -199,7 +194,6 @@ continue_logout_cb (GUPnPDeviceProxy        *proxy,
 
             gtk_dialog_run (GTK_DIALOG (info_dialog));
             gtk_widget_destroy (info_dialog);
-    	    //gtk_widget_hide (user_login_setup_dialog);
         }
 }
 
@@ -226,7 +220,6 @@ continue_change_password_cb (GUPnPDeviceProxy                *proxy,
         gtk_dialog_run (GTK_DIALOG (error_dialog));
         gtk_widget_destroy (error_dialog);
 
-        //gtk_widget_hide (user_login_setup_dialog);
         g_error_free ((*error));
 
         gupnp_device_proxy_end_change_password (passworddata, loginname);
@@ -248,7 +241,6 @@ continue_change_password_cb (GUPnPDeviceProxy                *proxy,
 
         gtk_dialog_run (GTK_DIALOG (info_dialog));
         gtk_widget_destroy (info_dialog);
-	    //gtk_widget_hide (user_login_setup_dialog);
     }
 }
 
@@ -302,25 +294,11 @@ init_user_login_setup_dialog (GladeXML *glade_xml)
 	    user_login_setup_dialog = glade_xml_get_widget (glade_xml, "user-login-setup-dialog");
         g_assert (user_login_setup_dialog != NULL);
 
-        /* Labels */
-        uls_dialog_username_label = glade_xml_get_widget (glade_xml, "user-login-setup-dialog-username-label");
-        uls_dialog_password_label = glade_xml_get_widget (glade_xml, "user-login-setup-dialog-password-label");
-        g_assert (uls_dialog_username_label != NULL);
-        g_assert (uls_dialog_password_label != NULL);
-
         /* Entrys */
         uls_dialog_username_entry = glade_xml_get_widget (glade_xml, "user-login-setup-dialog-username-entry");
         uls_dialog_password_entry = glade_xml_get_widget (glade_xml, "user-login-setup-dialog-password-entry");
         g_assert (uls_dialog_username_entry != NULL);
         g_assert (uls_dialog_password_entry != NULL);
-
-		/* Buttons */
-        uls_dialog_change_password_button = glade_xml_get_widget (glade_xml, "user-login-setup-dialog-change-password-button");
-        uls_dialog_logout_button = glade_xml_get_widget (glade_xml, "user-login-setup-dialog-logout-button");
-        uls_dialog_login_button = glade_xml_get_widget (glade_xml, "user-login-setup-dialog-login-button");
-        g_assert (uls_dialog_change_password_button != NULL);
-        g_assert (uls_dialog_logout_button != NULL);
-        g_assert (uls_dialog_login_button != NULL);
 }
 
 void
