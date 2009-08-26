@@ -2171,6 +2171,8 @@ int AuthorizeControlPoint(struct Upnp_Action_Request *ca_event, int managed)
     }
 
     // if accesslevel is something else than public then, require SSL. (not quite sure if this is right)
+    // I think this is not needed
+    /*
     if ( strcmp(accessLevel, "Public") != 0 )
     {
         // is SSL used for connection
@@ -2184,6 +2186,7 @@ int AuthorizeControlPoint(struct Upnp_Action_Request *ca_event, int managed)
             return result;                
         }
     }       
+    */
     
     // Control point should be authorized
     return CONTROL_POINT_AUTHORIZED;
