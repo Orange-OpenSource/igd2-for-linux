@@ -15,8 +15,8 @@
 
 /* User administration dialog */
 static GtkWidget *user_admininistration_dialog;
-static GtkWidget *ua_dialog_table;
-static GtkWidget *ua_dialog_radiobutton1;
+static GtkListStore *user_list_store;
+static GtkWidget *user_list_tree_view;
 
 /* Add user dialog */
 static GtkWidget *add_user_dialog;
@@ -30,10 +30,16 @@ static GtkWidget *add_user_dialog_admin_checkbutton;
 static void init_add_user_dialog_fields (void);
 static void init_user_administration_dialog_fields (void);
 
-/* TODO: get rid of this */
-static guint nbr_of_users=0;
 
-
+// user administration dialog treeview columns
+enum
+{
+    COL_USER_NAME = 0,
+    COL_ADMIN_TOGGLE,
+    COL_BASIC_TOGGLE,
+    COL_PUBLIC_TOGGLE,
+    NUM_COLS
+};
 
 /*
  * User administration dialog functions
@@ -41,6 +47,8 @@ static guint nbr_of_users=0;
 
 static void clear_user_table()
 {
+        gtk_list_store_clear(user_list_store);
+    /*
         GList     *child_node;        
         GtkContainer *table = GTK_CONTAINER(ua_dialog_table);
         
@@ -54,139 +62,39 @@ static void clear_user_table()
                 gtk_container_remove (table, widget);
         }
         
-        ua_dialog_radiobutton1 = NULL;
+        ua_dialog_radiobutton1 = NULL;*/
 }
 
 static void add_user_to_table(gpointer key,
                        gpointer value,
                        gpointer user_data)
 {
-        guint row = nbr_of_users++;
-        guint column = 0;
-        gchar *username = key; 
-    
-        /* Add Selection radiobutton to table */
-        GtkWidget* new_radiobutton;
-        if (ua_dialog_radiobutton1 == NULL)
-        {
-            ua_dialog_radiobutton1 = gtk_radio_button_new(NULL);
-            gtk_table_attach (GTK_TABLE (ua_dialog_table),
-                              ua_dialog_radiobutton1,
-                              column,
-                              column + 1,
-                              row,
-                              row + 1,
-                              GTK_EXPAND | GTK_FILL,
-                              GTK_EXPAND | GTK_FILL,
-                              0,
-                              0);
-            new_radiobutton = ua_dialog_radiobutton1;
-        }
-        else
-        {
-              new_radiobutton = gtk_radio_button_new_from_widget (GTK_RADIO_BUTTON (ua_dialog_radiobutton1));
-              gtk_table_attach (GTK_TABLE (ua_dialog_table),
-                              new_radiobutton,
-                              column,
-                              column + 1,
-                              row,
-                              row + 1,
-                              GTK_EXPAND | GTK_FILL,
-                              GTK_EXPAND | GTK_FILL,
-                              0,
-                              0);                   
-        }
-        column++;
-                     
-        /* Add "Username" label to table */
-        GtkWidget* new_username_label = gtk_label_new ("Username");
-        gtk_table_attach (GTK_TABLE (ua_dialog_table),
-                          new_username_label,
-                          column,
-                          column + 1,
-                          row,
-                          row + 1,
-                          GTK_EXPAND | GTK_FILL,
-                          GTK_EXPAND | GTK_FILL,
-                          0,
-                          0);
-        column++;
-
-        /* Add new Username to table   */
-        GtkWidget* new_username = gtk_entry_new ();
-        gtk_entry_set_text (GTK_ENTRY(new_username), username);
-        gtk_entry_set_editable (GTK_ENTRY(new_username), FALSE);
-        gtk_table_attach (GTK_TABLE (ua_dialog_table),
-                          new_username,
-                          column,
-                          column + 1,
-                          row,
-                          row + 1,
-                          GTK_EXPAND | GTK_FILL,
-                          GTK_EXPAND | GTK_FILL,
-                          0,
-                          0);
-        column++;
-
-        /* Add new checkbuttons to table   */
-        GtkWidget* new_public_checkbutton = gtk_check_button_new_with_label ("Public");
-        GtkWidget* new_basic_checkbutton = gtk_check_button_new_with_label ("Basic");
-        GtkWidget* new_admin_checkbutton = gtk_check_button_new_with_label ("Admin");
-
-        // Set roles
+        gchar *username = key;
+        gboolean admin = FALSE;
+        gboolean basic = FALSE;
+        gboolean public = FALSE;
+        GtkTreeIter   iter;
+        
         if (value)
         {
             if (strstr((char*)value, "Admin"))
-                gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON(new_admin_checkbutton), TRUE);
+                admin = TRUE;
             if (strstr((char*)value, "Basic"))
-                gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON(new_basic_checkbutton), TRUE);
+                basic = TRUE;
             if (strstr((char*)value, "Public"))
-                gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON(new_public_checkbutton), TRUE);    
-        }     
-
-        gtk_table_attach (GTK_TABLE (ua_dialog_table),
-                          new_public_checkbutton,
-                          column,
-                          column + 1,
-                          row,
-                          row + 1,
-                          GTK_EXPAND | GTK_FILL,
-                          GTK_EXPAND | GTK_FILL,
-                          0,
-                          0);
-        column++;
-        gtk_table_attach (GTK_TABLE (ua_dialog_table),
-                          new_basic_checkbutton,
-                          column,
-                          column + 1,
-                          row,
-                          row + 1,
-                          GTK_EXPAND | GTK_FILL,
-                          GTK_EXPAND | GTK_FILL,
-                          0,
-                          0);
-        column++;
-        gtk_table_attach (GTK_TABLE (ua_dialog_table),
-                          new_admin_checkbutton,
-                          column,
-                          column + 1,
-                          row,
-                          row + 1,
-                          GTK_EXPAND | GTK_FILL,
-                          GTK_EXPAND | GTK_FILL,
-                          0,
-                          0);
-
-        gtk_widget_show (new_radiobutton);
-        gtk_widget_show (new_username_label);
-        gtk_widget_show (new_username);
-        gtk_widget_show (new_public_checkbutton);
-        gtk_widget_show (new_basic_checkbutton);
-        gtk_widget_show (new_admin_checkbutton);
-
-        gtk_window_resize (GTK_WINDOW (user_admininistration_dialog),
-                           130,
-                           (100+(nbr_of_users*30)));     
+                public = TRUE;    
+        }         
+        
+        gtk_list_store_append(user_list_store, &iter);
+        gtk_list_store_set (user_list_store, &iter,
+                      COL_USER_NAME, username,
+                      COL_ADMIN_TOGGLE, admin,
+                      COL_BASIC_TOGGLE, basic,
+                      COL_PUBLIC_TOGGLE, public,
+                      -1);                   
+        
+        // sets data to treeview
+        gtk_tree_view_set_model(GTK_TREE_VIEW(user_list_tree_view), GTK_TREE_MODEL(user_list_store));
 }
 
 static void 
@@ -195,11 +103,10 @@ get_ACL_cb(GUPnPDeviceProxy    *proxy,
            GError             **error,
            gpointer             user_data)
 {        
-        nbr_of_users = 0;
-        
         // user_data should contain ghashtable
         GHashTable *users = user_data;        
         g_hash_table_foreach(users, add_user_to_table, proxy);
+        g_hash_table_destroy(users);
 }
 
 static void 
@@ -243,6 +150,7 @@ start_user_administration (GladeXML *glade_xml)
             gtk_dialog_run (GTK_DIALOG (info_dialog));
             gtk_widget_destroy (info_dialog);
         }        
+    
 }
 
 
@@ -252,6 +160,49 @@ init_user_administration_dialog_fields (void)
         clear_user_table();
 }
 
+
+void set_toggle_value (gchar *path_string, gint column)
+{  
+    GtkTreeIter   iter;
+    gtk_tree_model_get_iter_from_string (GTK_TREE_MODEL(user_list_store),
+                                         &iter,
+                                         path_string);
+    gboolean old_value;
+     
+    // get old value
+    gtk_tree_model_get (GTK_TREE_MODEL(user_list_store), &iter, column, &old_value, -1);
+    
+    // create new value
+    GValue new_value = {0};
+    g_value_init (&new_value, G_TYPE_BOOLEAN);
+    g_value_set_boolean(&new_value, !old_value);
+    
+    // set new value                                    
+    gtk_list_store_set_value (user_list_store,
+                              &iter,
+                              column,
+                              &new_value);
+}
+
+void admin_toggled_callback (GtkCellRendererToggle *cell,
+                             gchar                 *path_string,
+                             gpointer               user_data)
+{
+        set_toggle_value(path_string, COL_ADMIN_TOGGLE);
+}
+void basic_toggled_callback (GtkCellRendererToggle *cell,
+                             gchar                 *path_string,
+                             gpointer               user_data)
+{
+        set_toggle_value(path_string, COL_BASIC_TOGGLE);
+}
+void public_toggled_callback (GtkCellRendererToggle *cell,
+                             gchar                 *path_string,
+                             gpointer               user_data)
+{
+        set_toggle_value(path_string, COL_PUBLIC_TOGGLE);
+}
+
 void
 init_user_administration_dialog (GladeXML *glade_xml)
 {
@@ -259,17 +210,77 @@ init_user_administration_dialog (GladeXML *glade_xml)
 	    user_admininistration_dialog = glade_xml_get_widget (glade_xml, "user-administration-dialog");
         g_assert (user_admininistration_dialog != NULL);
 
-		/* Table */
-        ua_dialog_table = glade_xml_get_widget (glade_xml, "ua-dialog-table");
-	    g_assert (ua_dialog_table != NULL);
+        /* Treeview for showing users */
+        user_list_tree_view = glade_xml_get_widget (glade_xml, "users-treeview");
+        g_assert (user_list_tree_view != NULL);
         
-        /* Firts radio button (because of group) */
-        ua_dialog_radiobutton1 = NULL;
+        // only one row can be selected from treeview. 
+        gtk_tree_selection_set_mode(gtk_tree_view_get_selection(GTK_TREE_VIEW(user_list_tree_view)),
+                                    GTK_SELECTION_SINGLE);
+
+        /* ListStore for actually containing users */
+        user_list_store = gtk_list_store_new (NUM_COLS, G_TYPE_STRING, G_TYPE_BOOLEAN, G_TYPE_BOOLEAN, G_TYPE_BOOLEAN);
+        g_assert (user_list_store != NULL);
+
+        /* Columns in treeview and renderers for showing cell contents */
+        GtkTreeViewColumn   *col;
+        GtkCellRenderer     *renderer;
+        
+        /* Column #1: "The User Name" */
+        col = gtk_tree_view_column_new();
+        gtk_tree_view_column_set_title(col, "User Name");
+        gtk_tree_view_append_column(GTK_TREE_VIEW(user_list_tree_view), col);
+
+        renderer = gtk_cell_renderer_text_new();
+        gtk_tree_view_column_set_sizing(col, GTK_TREE_VIEW_COLUMN_AUTOSIZE);
+        gtk_tree_view_column_pack_start(col, renderer, TRUE);
+        gtk_tree_view_column_add_attribute(col, renderer, "text", COL_USER_NAME);
+        
+
+        /* Column #2: "The Admin" */
+        col = gtk_tree_view_column_new();
+        gtk_tree_view_column_set_sizing(col, GTK_TREE_VIEW_COLUMN_FIXED);
+        gtk_tree_view_column_set_fixed_width(col, 50);
+        gtk_tree_view_column_set_title(col, "Admin");
+        gtk_tree_view_append_column(GTK_TREE_VIEW(user_list_tree_view), col);
+
+        renderer = gtk_cell_renderer_toggle_new();
+        g_signal_connect(renderer, "toggled", (GCallback) admin_toggled_callback, NULL);
+        g_object_set(renderer, "activatable", TRUE, NULL);
+        gtk_tree_view_column_pack_start(col, renderer, FALSE);
+        gtk_tree_view_column_add_attribute(col, renderer, "active", COL_ADMIN_TOGGLE);
+        
+        /* Column #3: "The Basic" */
+        col = gtk_tree_view_column_new();
+        gtk_tree_view_column_set_sizing(col, GTK_TREE_VIEW_COLUMN_FIXED);
+        gtk_tree_view_column_set_fixed_width(col, 50);
+        gtk_tree_view_column_set_title(col, "Basic");
+        gtk_tree_view_append_column(GTK_TREE_VIEW(user_list_tree_view), col);
+        
+        renderer = gtk_cell_renderer_toggle_new();
+        g_signal_connect(renderer, "toggled", (GCallback) basic_toggled_callback, NULL);
+        g_object_set(renderer, "activatable", TRUE, NULL);
+        gtk_tree_view_column_pack_start(col, renderer, FALSE);
+        gtk_tree_view_column_add_attribute(col, renderer, "active", COL_BASIC_TOGGLE);
+        
+        /* Column #3: "The Public" */
+        col = gtk_tree_view_column_new();
+        gtk_tree_view_column_set_sizing(col, GTK_TREE_VIEW_COLUMN_FIXED);
+        gtk_tree_view_column_set_fixed_width(col, 50);
+        gtk_tree_view_column_set_title(col, "Public");
+        gtk_tree_view_append_column(GTK_TREE_VIEW(user_list_tree_view), col);
+
+        renderer = gtk_cell_renderer_toggle_new();
+        g_signal_connect(renderer, "toggled", (GCallback) public_toggled_callback, NULL);
+        g_object_set(renderer, "activatable", TRUE, NULL);
+        gtk_tree_view_column_pack_start(col, renderer, FALSE);
+        gtk_tree_view_column_add_attribute(col, renderer, "active", COL_PUBLIC_TOGGLE);
 }
 
 void
 deinit_user_administration_dialog (void)
 {
+        g_object_unref(user_list_store);
         gtk_widget_destroy (user_admininistration_dialog);
 }
 
@@ -316,39 +327,36 @@ continue_remove_user_dialog_cb (GUPnPDeviceProxy            *proxy,
 void
 ua_dialog_remove_user (GladeXML *glade_xml)
 {
-	    GUPnPDeviceProxyRemoveUser *deviceProxyRemoveUser;
-		gpointer user_data = NULL;
-	    const gchar *username = NULL;
+        GtkTreeSelection *selection;
+        GtkTreeIter iter;
+        GtkTreeModel *model;
+        char *username = NULL;
+
+        GUPnPDeviceProxyRemoveUser *deviceProxyRemoveUser;
+        gpointer user_data = NULL;
 
         GUPnPDeviceInfo *info = get_selected_device_info ();
         GUPnPDeviceProxy *deviceProxy = GUPNP_DEVICE_PROXY (info);
-		g_assert (deviceProxy != NULL);
-
-		// Get selected username from table.....
-        GList     *child_node;        
-        GtkContainer *table = GTK_CONTAINER(ua_dialog_table);
-        
-        for (child_node = gtk_container_get_children (table);
-             child_node;
-             child_node = child_node->next) {
-                GtkWidget *widget;
-
-                widget = GTK_WIDGET (child_node->data);
-                if (GTK_IS_RADIO_BUTTON (widget) && gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget)))
-                {
-                    // Yes I know this awful how this is done. But I don't know any better way to get 
-                    // value for selected username. So that is why there are radiobuttons for every row,
-                    // and lets just hope that username entry really is prev of prev of selected radiobutton...
-                    GtkWidget *username_widget = GTK_WIDGET (child_node->prev->prev->data);
-                    if (GTK_IS_ENTRY (username_widget))
-                        username = gtk_entry_get_text (GTK_ENTRY (username_widget));
-                }
+        g_assert (deviceProxy != NULL);
+      
+            
+        // get selected row and value of username column in treeview
+        selection = gtk_tree_view_get_selection(GTK_TREE_VIEW(user_list_tree_view));
+        if (gtk_tree_selection_get_selected(selection, &model, &iter)) {
+            gtk_tree_model_get(model, &iter, COL_USER_NAME, &username,  -1);
         }
-
-	    deviceProxyRemoveUser = gupnp_device_proxy_remove_user (deviceProxy,
-	    		                                                username,
-	    		                                                continue_remove_user_dialog_cb,
-	                                                            user_data);
+    
+        if (username)
+        {
+            deviceProxyRemoveUser = gupnp_device_proxy_remove_user (deviceProxy,
+                                                                    username,
+                                                                    continue_remove_user_dialog_cb,
+                                                                    user_data);
+        }
+        else
+            g_warning("Failed to get username from treeview! Cannot remove user.");
+            
+        g_free(username);
 }
 
 
@@ -429,54 +437,31 @@ ua_dialog_set_roles (GladeXML *glade_xml)
         GUPnPDeviceProxySetRoles *deviceProxySetRoles;
         gpointer user_data = NULL;
         const gchar *username = NULL;
-        GString *remove_role_list = g_string_new("");
-        GString *add_role_list = g_string_new("");
+        GString *remove_role_list = g_string_new("");  // this contains roles which are NOT selected
+        GString *add_role_list = g_string_new(""); // this contains roles which ARE selected
         
-        // get the selected row and values of role check boxes from there
-        // Yes I know this awful how this is done. But I don't know any better way to get 
-        // value for selected roles.
-        // Role check buttons locate between two radio buttons, or between radio button and
-        // the end of list. Check CB's before selected radio button between those borders defined
-        // earlier.        
-        GList     *child_node;        
-        GtkContainer *table = GTK_CONTAINER(ua_dialog_table);
+        GtkTreeSelection *selection;
+        GtkTreeIter iter;
+        GtkTreeModel *model;
+        gboolean admin;
+        gboolean basic;
+        gboolean public;
+        // Get the selected row from treeview and the values of role checkboxes on that row
+        selection = gtk_tree_view_get_selection(GTK_TREE_VIEW(user_list_tree_view));
+        if (gtk_tree_selection_get_selected(selection, &model, &iter)) {
+            gtk_tree_model_get(model, &iter, 
+                               COL_ADMIN_TOGGLE, &admin,
+                               COL_BASIC_TOGGLE, &basic,
+                               COL_PUBLIC_TOGGLE, &public,
+                               -1);
+        }        
         
-        for (child_node = gtk_container_get_children (table);
-             child_node;
-             child_node = child_node->next) {
-                GtkWidget *widget;
-
-                widget = GTK_WIDGET (child_node->data);
-                if (GTK_IS_RADIO_BUTTON (widget) && gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget)))
-                {
-                    GtkWidget *role_widget;
-                    while ((child_node = child_node->prev) && 
-                           (role_widget = GTK_WIDGET (child_node->data)) && 
-                           !GTK_IS_RADIO_BUTTON (role_widget))
-                    {
-                        // username
-                        if (GTK_IS_ENTRY (role_widget))
-                        {
-                            username = gtk_entry_get_text (GTK_ENTRY (role_widget));
-                        }
-                        
-                        // selected checkbox
-                        else if (GTK_IS_CHECK_BUTTON (role_widget) && gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (role_widget)))
-                        {
-                            // concatenate rolenames fetched from labels to rolelist
-                            g_string_append(add_role_list, gtk_button_get_label(GTK_BUTTON (role_widget)));
-                            g_string_append(add_role_list, " ");
-                        }
-                        // not selected checkbox
-                        else if (GTK_IS_CHECK_BUTTON (role_widget) && !gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (role_widget)))
-                        {
-                            g_string_append(remove_role_list, gtk_button_get_label(GTK_BUTTON (role_widget)));
-                            g_string_append(remove_role_list, " ");                            
-                        }
-                    }
-                    break;
-                }
-        }
+        if (admin) g_string_append(add_role_list, "Admin ");
+        else       g_string_append(remove_role_list, "Admin ");
+        if (basic) g_string_append(add_role_list, "Basic ");
+        else       g_string_append(remove_role_list, "Basic ");
+        if (public) g_string_append(add_role_list, "Public ");
+        else       g_string_append(remove_role_list, "Public ");        
 
         // remove extra space from the end of rolelist
         g_string_set_size(add_role_list, add_role_list->len-1);
@@ -497,11 +482,9 @@ ua_dialog_set_roles (GladeXML *glade_xml)
                                                           add_role_list->str,
                                                           add_roles_cb,
                                                           user_data);        
-        
-
 
         g_string_free(add_role_list, TRUE);
-        g_string_free(remove_role_list, TRUE); 
+        g_string_free(remove_role_list, TRUE);
 }   
 
 
@@ -588,20 +571,7 @@ continue_add_user_dialog_cb (GUPnPDeviceProxy         *proxy,
 		}
 
 		if (gupnp_device_proxy_end_add_user (adduserdata)) {
-			// User successfully added, change password
-			GUPnPDeviceProxyChangePassword *deviceProxyChangePassword;
-			const gchar *new_username = gtk_entry_get_text (GTK_ENTRY(add_user_dialog_username_entry));
-			const gchar *new_password = gtk_entry_get_text (GTK_ENTRY(add_user_dialog_password_entry));
-
-			GUPnPDeviceInfo *info = get_selected_device_info ();
-			GUPnPDeviceProxy *deviceProxy = GUPNP_DEVICE_PROXY (info);
-			g_assert (deviceProxy != NULL);
-
-			deviceProxyChangePassword = gupnp_device_proxy_change_password (deviceProxy,
-        		                                                            new_username,
-                                                                            new_password,
-                                                                            add_user_dialog_password_cb,
-                                                                            user_data);
+            // don't do anything. Password is set back there where adding new user is started
 		}
 }
 
@@ -610,6 +580,7 @@ void
 add_user_dialog_ok_pressed (GladeXML *glade_xml)
 {
 	    GUPnPDeviceProxyAddUser *deviceProxyAddUser;
+        GUPnPDeviceProxyChangePassword *deviceProxyChangePassword;
 		gpointer user_data = NULL;
 		GString *role_list = g_string_new("");
 
@@ -637,8 +608,16 @@ add_user_dialog_ok_pressed (GladeXML *glade_xml)
 	    		                                          role_list->str,
 	    		                                          continue_add_user_dialog_cb,
 	                                                      user_data);
+        
+
+        deviceProxyChangePassword = gupnp_device_proxy_change_password (deviceProxy,
+                                                                        new_username,
+                                                                        new_password,
+                                                                        add_user_dialog_password_cb,
+                                                                        user_data);
                                                           
-        g_string_free(role_list, TRUE);                                                          
+        g_string_free(role_list, TRUE);
+       
 }
 
 static void
