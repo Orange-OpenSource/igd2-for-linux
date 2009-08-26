@@ -1454,7 +1454,7 @@ int UserLogout(struct Upnp_Action_Request *ca_event)
 {
     char *id =NULL;
     int id_len = 0;
-    int result, active;
+    int result;
     char *roles = NULL;  
 
     // what if user is not even logged in?
@@ -1517,7 +1517,7 @@ int GetACLData(struct Upnp_Action_Request *ca_event)
 {
     char *ACL = ixmlDocumenttoString(ACLDoc);
     IXML_Document *ActionResult = NULL;
-    
+
     if (ACL)
     {
         ActionResult = UpnpMakeActionResponse(ca_event->ActionName, DP_SERVICE_TYPE,
