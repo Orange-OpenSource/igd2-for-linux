@@ -259,13 +259,12 @@ int HandleActionRequest(struct Upnp_Action_Request *ca_event)
 
     // check if CP is authorized to use this action.
     // checking managed flag is left to action itself
-    if ( (result = AuthorizeControlPoint(ca_event, 0)) != 0 )
+    // This only matters if SSL is used
+    if ( ca_event->SSLSession != NULL && (result = AuthorizeControlPoint(ca_event, 0)) != 0 )
     {
-        // TODO Remember to remove these from commments!!!!!
         ithread_mutex_unlock(&DevMutex);
         return result;        
     }
-    
 
     if (strcmp(ca_event->DevUDN, gateUDN) == 0)
     {
@@ -2168,6 +2167,10 @@ int AuthorizeControlPoint(struct Upnp_Action_Request *ca_event, int managed)
 
             return result;            
         }        
+    }
+    else
+    {
+        return CONTROL_POINT_NOT_AUTHORIZED;
     }
 
     // if accesslevel is something else than public then, require SSL. (not quite sure if this is right)
