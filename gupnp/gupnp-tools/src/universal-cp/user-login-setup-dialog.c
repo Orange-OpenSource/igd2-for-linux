@@ -83,6 +83,9 @@ uls_dialog_login_clicked (GladeXML *glade_xml)
 	        return;
     	}
 
+        // change cursor
+        gdk_window_set_cursor (GTK_WIDGET(user_login_setup_dialog)->window, gdk_cursor_new(GDK_WATCH));
+
         deviceProxyLogin = gupnp_device_proxy_begin_login (deviceProxy,
                                                            username,
 	                                                       password,
@@ -95,7 +98,10 @@ continue_login_cb (GUPnPDeviceProxy       *proxy,
                    GUPnPDeviceProxyLogin  *logindata,
                    GError                **error,
                    gpointer                user_data)
-{                
+{       
+        // change cursor back
+        gdk_window_set_cursor (GTK_WIDGET(user_login_setup_dialog)->window, NULL);
+                 
 	    if ((*error) != NULL) {
 
 	        GtkWidget *error_dialog;
@@ -149,6 +155,9 @@ uls_dialog_logout_clicked (GladeXML *glade_xml)
 		deviceProxy = GUPNP_DEVICE_PROXY (info);
 		g_assert (deviceProxy != NULL);
 
+        // change cursor
+        gdk_window_set_cursor (GTK_WIDGET(user_login_setup_dialog)->window, gdk_cursor_new(GDK_WATCH));
+
 		deviceProxyLogout = gupnp_device_proxy_begin_logout (deviceProxy,
 															 continue_logout_cb,
                                      	                     user_data);
@@ -159,7 +168,10 @@ continue_logout_cb (GUPnPDeviceProxy        *proxy,
 					GUPnPDeviceProxyLogout  *logoutdata,
                     GError                 **error,
                     gpointer                 user_data)
-{    
+{
+        // change cursor back
+        gdk_window_set_cursor (GTK_WIDGET(user_login_setup_dialog)->window, NULL);    
+      
 	    if ((*error) != NULL) {
 	        GtkWidget *error_dialog;
 
@@ -203,45 +215,48 @@ continue_change_password_cb (GUPnPDeviceProxy                *proxy,
                              GError                         **error,
                              gpointer                         user_data)
 {
-    const gchar *username = gtk_entry_get_text (GTK_ENTRY(uls_dialog_username_entry));
-    GString *loginname = g_string_new(username);
-
-    if ((*error) != NULL) {
-
-        GtkWidget *error_dialog;
-
-        error_dialog = gtk_message_dialog_new (GTK_WINDOW (user_login_setup_dialog),
-                                               GTK_DIALOG_MODAL,
-                                               GTK_MESSAGE_ERROR,
-                                               GTK_BUTTONS_CLOSE,
-                                               "Password change failed.\n\nError %d: %s",
-                                               (*error)->code,
-                                               (*error)->message);
-        gtk_dialog_run (GTK_DIALOG (error_dialog));
-        gtk_widget_destroy (error_dialog);
-
-        g_error_free ((*error));
-
-        gupnp_device_proxy_end_change_password (passworddata, loginname);
-        
-        statusbar_update (TRUE);
-        return;
-    }
-
-    if (gupnp_device_proxy_end_change_password (passworddata, loginname)) {
-        statusbar_update (TRUE);
-        // Password successfully changed
-    	GtkWidget *info_dialog;
-
-        info_dialog = gtk_message_dialog_new (GTK_WINDOW (user_login_setup_dialog),
-                                              GTK_DIALOG_MODAL,
-                                              GTK_MESSAGE_INFO,
-                                              GTK_BUTTONS_CLOSE,
-                                              "Password successfully changed");
-
-        gtk_dialog_run (GTK_DIALOG (info_dialog));
-        gtk_widget_destroy (info_dialog);
-    }
+        const gchar *username = gtk_entry_get_text (GTK_ENTRY(uls_dialog_username_entry));
+        GString *loginname = g_string_new(username);
+    
+        // change cursor back
+        gdk_window_set_cursor (GTK_WIDGET(user_login_setup_dialog)->window, NULL);
+     
+        if ((*error) != NULL) {
+    
+            GtkWidget *error_dialog;
+    
+            error_dialog = gtk_message_dialog_new (GTK_WINDOW (user_login_setup_dialog),
+                                                   GTK_DIALOG_MODAL,
+                                                   GTK_MESSAGE_ERROR,
+                                                   GTK_BUTTONS_CLOSE,
+                                                   "Password change failed.\n\nError %d: %s",
+                                                   (*error)->code,
+                                                   (*error)->message);
+            gtk_dialog_run (GTK_DIALOG (error_dialog));
+            gtk_widget_destroy (error_dialog);
+    
+            g_error_free ((*error));
+    
+            gupnp_device_proxy_end_change_password (passworddata, loginname);
+            
+            statusbar_update (TRUE);
+            return;
+        }
+    
+        if (gupnp_device_proxy_end_change_password (passworddata, loginname)) {
+            statusbar_update (TRUE);
+            // Password successfully changed
+        	GtkWidget *info_dialog;
+    
+            info_dialog = gtk_message_dialog_new (GTK_WINDOW (user_login_setup_dialog),
+                                                  GTK_DIALOG_MODAL,
+                                                  GTK_MESSAGE_INFO,
+                                                  GTK_BUTTONS_CLOSE,
+                                                  "Password successfully changed");
+    
+            gtk_dialog_run (GTK_DIALOG (info_dialog));
+            gtk_widget_destroy (info_dialog);
+        }
 }
 
 void
@@ -272,6 +287,9 @@ uls_dialog_change_password_clicked (GladeXML *glade_xml)
         GUPnPDeviceInfo *info = get_selected_device_info ();
         GUPnPDeviceProxy *deviceProxy = GUPNP_DEVICE_PROXY (info);
 		g_assert (deviceProxy != NULL);
+
+        // change cursor
+        gdk_window_set_cursor (GTK_WIDGET(user_login_setup_dialog)->window, gdk_cursor_new(GDK_WATCH));
 
         deviceProxyChangePassword = gupnp_device_proxy_change_password (deviceProxy,
                                                                         username,

@@ -677,6 +677,9 @@ on_action_complete (GUPnPServiceProxy       *proxy,
                                              action,
                                              &error,
                                              out_args);
+        // change cursor back                                     
+        gdk_window_set_cursor (GTK_WIDGET(dialog)->window, NULL);
+                                               
         if (error) {
                 GtkWidget *error_dialog;
 
@@ -710,6 +713,9 @@ on_action_invocation (GtkButton *button,
         GUPnPServiceIntrospection *introspection;
         GUPnPServiceActionInfo    *action_info;
         GHashTable                *in_args;
+
+        // change cursor
+        gdk_window_set_cursor (GTK_WIDGET(dialog)->window, gdk_cursor_new(GDK_WATCH));
 
         action_info = get_selected_action (&proxy, &introspection);
         if (action_info == NULL)

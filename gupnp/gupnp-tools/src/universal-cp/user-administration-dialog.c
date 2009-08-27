@@ -48,21 +48,6 @@ enum
 static void clear_user_table()
 {
         gtk_list_store_clear(user_list_store);
-    /*
-        GList     *child_node;        
-        GtkContainer *table = GTK_CONTAINER(ua_dialog_table);
-        
-        for (child_node = gtk_container_get_children (table);
-             child_node;
-             child_node = child_node->next) {
-                GtkWidget *widget;
-
-                widget = GTK_WIDGET (child_node->data);
-     
-                gtk_container_remove (table, widget);
-        }
-        
-        ua_dialog_radiobutton1 = NULL;*/
 }
 
 static void add_user_to_table(gpointer key,
@@ -290,6 +275,8 @@ continue_remove_user_dialog_cb (GUPnPDeviceProxy            *proxy,
                                 GError                     **error,
                                 gpointer                     user_data)
 {
+        // change cursor back
+        gdk_window_set_cursor (GTK_WIDGET(user_admininistration_dialog)->window, NULL);
 
 		if ((*error) != NULL) {
 			GtkWidget *error_dialog;
@@ -338,7 +325,9 @@ ua_dialog_remove_user (GladeXML *glade_xml)
         GUPnPDeviceInfo *info = get_selected_device_info ();
         GUPnPDeviceProxy *deviceProxy = GUPNP_DEVICE_PROXY (info);
         g_assert (deviceProxy != NULL);
-      
+
+        // change cursor
+        gdk_window_set_cursor (GTK_WIDGET(user_admininistration_dialog)->window, gdk_cursor_new(GDK_WATCH));
             
         // get selected row and value of username column in treeview
         selection = gtk_tree_view_get_selection(GTK_TREE_VIEW(user_list_tree_view));
@@ -354,7 +343,22 @@ ua_dialog_remove_user (GladeXML *glade_xml)
                                                                     user_data);
         }
         else
-            g_warning("Failed to get username from treeview! Cannot remove user.");
+        {
+            // change cursor back
+            gdk_window_set_cursor (GTK_WIDGET(user_admininistration_dialog)->window, NULL);            
+            
+            GtkWidget *error_dialog;
+
+            error_dialog = gtk_message_dialog_new (GTK_WINDOW (user_admininistration_dialog),
+                                                   GTK_DIALOG_MODAL,
+                                                   GTK_MESSAGE_ERROR,
+                                                   GTK_BUTTONS_CLOSE,
+                                                   "User must be selected.");
+            gtk_dialog_run (GTK_DIALOG (error_dialog));
+            gtk_widget_destroy (error_dialog);
+            
+            return;          
+        }
             
         g_free(username);
 }
@@ -366,6 +370,9 @@ add_roles_cb( GUPnPDeviceProxy    *proxy,
                  GError             **error,
                  gpointer             user_data)
 {
+        // change cursor back
+        gdk_window_set_cursor (GTK_WIDGET(user_admininistration_dialog)->window, NULL);    
+    
         if ((*error) != NULL) {
             GtkWidget *error_dialog;
 
@@ -439,6 +446,9 @@ ua_dialog_set_roles (GladeXML *glade_xml)
         const gchar *username = NULL;
         GString *remove_role_list = g_string_new("");  // this contains roles which are NOT selected
         GString *add_role_list = g_string_new(""); // this contains roles which ARE selected
+ 
+        // change cursor
+        gdk_window_set_cursor (GTK_WIDGET(user_admininistration_dialog)->window, gdk_cursor_new(GDK_WATCH)); 
         
         GtkTreeSelection *selection;
         GtkTreeIter iter;
@@ -449,12 +459,32 @@ ua_dialog_set_roles (GladeXML *glade_xml)
         // Get the selected row from treeview and the values of role checkboxes on that row
         selection = gtk_tree_view_get_selection(GTK_TREE_VIEW(user_list_tree_view));
         if (gtk_tree_selection_get_selected(selection, &model, &iter)) {
-            gtk_tree_model_get(model, &iter, 
+            gtk_tree_model_get(model, &iter,
+                               COL_USER_NAME, &username,
                                COL_ADMIN_TOGGLE, &admin,
                                COL_BASIC_TOGGLE, &basic,
                                COL_PUBLIC_TOGGLE, &public,
                                -1);
         }        
+        
+        // user must be selected
+        if (username == NULL)
+        {
+            // change cursor back
+            gdk_window_set_cursor (GTK_WIDGET(user_admininistration_dialog)->window, NULL);            
+            
+            GtkWidget *error_dialog;
+
+            error_dialog = gtk_message_dialog_new (GTK_WINDOW (user_admininistration_dialog),
+                                                   GTK_DIALOG_MODAL,
+                                                   GTK_MESSAGE_ERROR,
+                                                   GTK_BUTTONS_CLOSE,
+                                                   "User must be selected.");
+            gtk_dialog_run (GTK_DIALOG (error_dialog));
+            gtk_widget_destroy (error_dialog);
+            
+            return;          
+        }
         
         if (admin) g_string_append(add_role_list, "Admin ");
         else       g_string_append(remove_role_list, "Admin ");
@@ -510,6 +540,9 @@ add_user_dialog_password_cb (GUPnPDeviceProxy                *proxy,
 
 		const gchar *username = gtk_entry_get_text (GTK_ENTRY(add_user_dialog_username_entry));
 		GString *loginname = g_string_new(username);
+
+        // change cursor back
+        gdk_window_set_cursor (GTK_WIDGET(user_admininistration_dialog)->window, NULL);
 
 		if ((*error) != NULL) {
 			GtkWidget *error_dialog;
@@ -583,6 +616,9 @@ add_user_dialog_ok_pressed (GladeXML *glade_xml)
         GUPnPDeviceProxyChangePassword *deviceProxyChangePassword;
 		gpointer user_data = NULL;
 		GString *role_list = g_string_new("");
+
+        // change cursor
+        gdk_window_set_cursor (GTK_WIDGET(user_admininistration_dialog)->window, gdk_cursor_new(GDK_WATCH));
 
 	    const gchar *new_username = gtk_entry_get_text (GTK_ENTRY(add_user_dialog_username_entry));
 	    const gchar *new_password = gtk_entry_get_text (GTK_ENTRY(add_user_dialog_password_entry));
