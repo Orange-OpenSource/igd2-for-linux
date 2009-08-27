@@ -1068,12 +1068,25 @@ unless control port is authorized. external_port:%s, internal_port:%s internal_c
         if (result == 0)
             {
                 // If port map with the same External Port, Protocol, and Internal Client exists
-                // then get next free port map
-                if ((ret = pmlist_Find(new_remote_host, new_external_port, new_protocol, new_internal_client)) != NULL)
+                // we should just update it, NOT create new
+                if ((ret = pmlist_FindBy_extPort_proto_intClient(new_external_port, new_protocol, new_internal_client)) != NULL)
+                {
+                    trace(3, "Port map with same ExternalPort, Protocol and InternalClient exists. Updating existing.");
+                    // update existing (Remove old one and after that create new one with new values)
+                    // TODO: Create functions which really updates existing portmappings found from iptables
+                    //       Or at least find out if it is even possible.
+                    pmlist_Delete(ret);
+                    
+                    result = AddNewPortMapping(ca_event, new_enabled, leaseDuration, new_remote_host,
+                                                new_external_port, new_internal_port, new_protocol,
+                                                new_internal_client, new_port_mapping_description);    
+                }
+                // Else if port mapping using same external port and protocol,
+                // get new external port and create new port mapping
+                else if ((ret = pmlist_FindBy_extPort_proto(new_external_port, new_protocol)) != NULL)
                 {
                     // Find searches free external port...
-                    // TODO: free port mapping search
-                    trace(3, "Found port map to already exist.  Finding next free");
+                    trace(3, "Port map with same ExternalPort and protocol exists. Finding next free ExternalPort...");
                     next_free_port = pmlist_FindNextFreePort(new_protocol);
                     if (next_free_port > 0)
                     {
@@ -1386,11 +1399,12 @@ int DeletePortMapping(struct Upnp_Action_Request *ca_event)
                     trace(1, "Failure in DeletePortMapping: Remote Host:%s Proto:%s Port:%s\n",remote_host, proto, ext_port);
                     addErrorData(ca_event, 730, "ActionNotPermitted");
                 }
-                
+               
                 if (result==1)
                 {
                     trace(2, "DeletePortMap: Remote Host: %s Proto:%s Port:%s\n", remote_host, proto, ext_port);
-                    sprintf(num,"%d",pmlist_Size());
+                    PortMappingNumberOfEntries = pmlist_Size();
+                    sprintf(num,"%d",PortMappingNumberOfEntries);
                     UpnpAddToPropertySet(&propSet,"PortMappingNumberOfEntries", num);
                     snprintf(tmp,11,"%ld",++SystemUpdateID);
                     UpnpAddToPropertySet(&propSet,"SystemUpdateID", tmp);
@@ -1525,7 +1539,8 @@ int DeletePortMappingRange(struct Upnp_Action_Request *ca_event)
             if (action_succeeded)
             {
                 SystemUpdateID++;
-                snprintf(tmp,11,"%d",pmlist_Size());
+                PortMappingNumberOfEntries = pmlist_Size();
+                sprintf(tmp,"%d",PortMappingNumberOfEntries);
                 UpnpAddToPropertySet(&propSet,"PortMappingNumberOfEntries", tmp);
                 snprintf(tmp,11,"%ld",SystemUpdateID);
                 UpnpAddToPropertySet(&propSet,"SystemUpdateID", tmp);
@@ -1912,7 +1927,8 @@ void ExpireMapping(void *input)
     event->mapping->expirationEventId = -1;
     pmlist_Delete(event->mapping);
 
-    sprintf(num, "%d", pmlist_Size());
+    PortMappingNumberOfEntries = pmlist_Size();
+    sprintf(num,"%d",PortMappingNumberOfEntries);
     UpnpAddToPropertySet(&propSet, "PortMappingNumberOfEntries", num);
     snprintf(tmp,11,"%ld",++SystemUpdateID);
     UpnpAddToPropertySet(&propSet,"SystemUpdateID", tmp);
@@ -2046,7 +2062,9 @@ void DeleteAllPortMappings(void)
 
     pmlist_FreeList();
 
-    UpnpAddToPropertySet(&propSet, "PortMappingNumberOfEntries", "0");
+    PortMappingNumberOfEntries = pmlist_Size();
+    sprintf(tmp,"%d",PortMappingNumberOfEntries);
+    UpnpAddToPropertySet(&propSet, "PortMappingNumberOfEntries", tmp);
     snprintf(tmp,11,"%ld",++SystemUpdateID);
     UpnpAddToPropertySet(&propSet,"SystemUpdateID", tmp);
     UpnpNotifyExt(deviceHandle, wanConnectionUDN, "urn:upnp-org:serviceId:WANIPConn2", propSet);
@@ -2097,7 +2115,8 @@ int AddNewPortMapping(struct Upnp_Action_Request *ca_event, char* new_enabled, i
     if (result==1)
     {
         ScheduleMappingExpiration(new,ca_event->DevUDN,ca_event->ServiceID);
-        sprintf(num, "%d", pmlist_Size());
+        PortMappingNumberOfEntries = pmlist_Size();
+        sprintf(num,"%d",PortMappingNumberOfEntries);
         trace(3, "PortMappingNumberOfEntries: %d", pmlist_Size());
         UpnpAddToPropertySet(&propSet, "PortMappingNumberOfEntries", num);
         snprintf(tmp,11,"%ld",++SystemUpdateID);

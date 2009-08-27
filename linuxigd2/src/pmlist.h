@@ -57,6 +57,8 @@ struct portMap* pmlist_NewNode(int enabled, long int duration, char *remoteHost,
                                            char *protocol, char *internalClient, char *desc);
 
 struct portMap* pmlist_Find(char * remoteHost, char *externalPort, char *proto, char *internalClient);
+struct portMap* pmlist_FindBy_extPort_proto_intClient(char *externalPort, char *proto, char *internalClient);
+struct portMap* pmlist_FindBy_extPort_proto(char *externalPort, char *proto);
 struct portMap* pmlist_FindByIndex(int index);
 struct portMap* pmlist_FindRangeAfter(int, int, char *, char *, struct portMap*);
 struct portMap* pmlist_FindSpecific(char * remoteHost, char *externalPort, char *protocol);

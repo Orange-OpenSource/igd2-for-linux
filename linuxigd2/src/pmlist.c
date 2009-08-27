@@ -110,6 +110,66 @@ struct portMap* pmlist_Find(char * remoteHost, char *externalPort, char *proto, 
 }
 
 /**
+ * Search if portmapping with given parameters exist in IGD's portmapping list. 
+ * Starts searching from the beginning of list. 
+ *
+ * @param externalPort TCP or UDP port number of the Client as seen by the remote host.
+ * @param proto Portmapping protocol, either TCP or UDP.
+ * @param internalClient The local IP address of the client.
+ * @return Pointer to found portmapping. If portmapping is not found, return NULL.
+ */
+struct portMap* pmlist_FindBy_extPort_proto_intClient(char *externalPort, char *proto, char *internalClient)
+{
+    struct portMap* temp;
+
+    temp = pmlist_Head;
+    if (temp == NULL)
+        return NULL;
+    do
+    {
+        if  (  (strcmp(temp->m_ExternalPort, externalPort) == 0) &&
+               (strcmp(temp->m_PortMappingProtocol, proto) == 0) &&
+               (strcmp(temp->m_InternalClient, internalClient) == 0) )
+            return temp; // We found a match, return pointer to it
+        else
+            temp = temp->next;
+    }
+    while (temp != NULL);
+
+    // If we made it here, we didn't find it, so return NULL
+    return NULL;
+}
+
+/**
+ * Search if portmapping with given parameters exist in IGD's portmapping list. 
+ * Starts searching from the beginning of list. 
+ *
+ * @param externalPort TCP or UDP port number of the Client as seen by the remote host.
+ * @param proto Portmapping protocol, either TCP or UDP.
+ * @return Pointer to found portmapping. If portmapping is not found, return NULL.
+ */
+struct portMap* pmlist_FindBy_extPort_proto(char *externalPort, char *proto)
+{
+    struct portMap* temp;
+
+    temp = pmlist_Head;
+    if (temp == NULL)
+        return NULL;
+    do
+    {
+        if  (  (strcmp(temp->m_ExternalPort, externalPort) == 0) &&
+               (strcmp(temp->m_PortMappingProtocol, proto) == 0) )
+            return temp; // We found a match, return pointer to it
+        else
+            temp = temp->next;
+    }
+    while (temp != NULL);
+
+    // If we made it here, we didn't find it, so return NULL
+    return NULL;
+}
+
+/**
  * Fetch portmapping from given index in portmapping list. 
  *
  * @param index Index of searched portmapping. 0 is first.
