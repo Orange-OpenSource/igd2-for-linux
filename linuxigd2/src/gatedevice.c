@@ -188,18 +188,19 @@ int HandleSubscriptionRequest(struct Upnp_Subscription_Request *sr_event)
     {
         // WAN IP Connection Device Notifications
         if (strcmp(sr_event->ServiceId, "urn:upnp-org:serviceId:WANIPConn2") == 0)
-        {
-            char tmp[11];
-            snprintf(tmp,11,"%ld",SystemUpdateID);
-                   
+        {                   
             GetIpAddressStr(ExternalIPAddress, g_vars.extInterfaceName);
             GetConnectionStatus(ConnectionStatus, g_vars.extInterfaceName);
             trace(3, "Received request to subscribe to WANIPConn2");
             UpnpAddToPropertySet(&propSet, "PossibleConnectionTypes","IP_Routed");
             UpnpAddToPropertySet(&propSet, "ExternalIPAddress", ExternalIPAddress);
-            UpnpAddToPropertySet(&propSet, "PortMappingNumberOfEntries","0");
             UpnpAddToPropertySet(&propSet, "ConnectionStatus", ConnectionStatus);
+            
+            char tmp[11];
+            snprintf(tmp,11,"%ld",SystemUpdateID);            
             UpnpAddToPropertySet(&propSet, "SystemUpdateID",tmp);
+            snprintf(tmp,11,"%d",PortMappingNumberOfEntries);
+            UpnpAddToPropertySet(&propSet, "PortMappingNumberOfEntries",tmp);           
 
             UpnpAcceptSubscriptionExt(deviceHandle, sr_event->UDN, sr_event->ServiceId,
                                       propSet, sr_event->Sid);
