@@ -945,7 +945,7 @@ unless control port is authorized. external_port:%s, internal_port:%s internal_c
                 pmlist_Delete(ret);
             }
 
-            result = AddNewPortMapping(ca_event,bool_enabled,atoi(int_duration),remote_host,ext_port,int_port,proto,int_ip,desc);
+            result = AddNewPortMapping(ca_event,bool_enabled,atoi(int_duration),remote_host,ext_port,int_port,proto,int_ip,desc,0);
 
             if (result == 1)
             {
@@ -1079,7 +1079,7 @@ unless control port is authorized. external_port:%s, internal_port:%s internal_c
                     
                     result = AddNewPortMapping(ca_event, new_enabled, leaseDuration, new_remote_host,
                                                 new_external_port, new_internal_port, new_protocol,
-                                                new_internal_client, new_port_mapping_description);    
+                                                new_internal_client, new_port_mapping_description, 1);    
                 }
                 // Else if port mapping using same external port and protocol,
                 // get new external port and create new port mapping
@@ -1094,7 +1094,7 @@ unless control port is authorized. external_port:%s, internal_port:%s internal_c
                         sprintf(freePort, "%d", next_free_port);
                         result = AddNewPortMapping(ca_event, new_enabled, leaseDuration, new_remote_host,
                                                     freePort, new_internal_port, new_protocol,
-                                                    new_internal_client, new_port_mapping_description);
+                                                    new_internal_client, new_port_mapping_description, 0);
                     }
                     else 
                     {
@@ -1106,7 +1106,7 @@ unless control port is authorized. external_port:%s, internal_port:%s internal_c
                     // Otherwise just add the port map
                     result = AddNewPortMapping(ca_event, new_enabled, leaseDuration, new_remote_host,
                                                 new_external_port, new_internal_port, new_protocol,
-                                                new_internal_client, new_port_mapping_description);
+                                                new_internal_client, new_port_mapping_description, 0);
                 }
         }
         if (result==728)
@@ -2079,6 +2079,13 @@ void DeleteAllPortMappings(void)
  * Create new portmapping.
  * AddPortMapping and AddAnyPortMapping actions use this function.
  * 
+ * Because it is possible to "update" port mappings, meaning that old one is first 
+ * removed and after that new one is created with new values, with is_update flag it 
+ * is possible to control if PortMappingNumberOfEntries is evented. 
+ * PortMappingNumberOfEntries should be evented only if number of portmappings is changed and 
+ * when updating it really isn't changing, even if port mapping is first removed and then added new.
+ * 
+ * 
  * @param ca_event Upnp_Action_Request struct.
  * @param new_enabled Is rule enabled. Rule is added only if it is enabled (1).
  * @param leaseDuration Lease duration of portmapping. Value between 0 and 604800.
@@ -2088,11 +2095,13 @@ void DeleteAllPortMappings(void)
  * @param new_protocol Portmapping protocol, either TCP or UDP.
  * @param new_internal_client The local IP address of the client.
  * @param new_port_mapping_description Textual description of portmapping.
+ * @param is_update With this value it is controlled if PortMappingNumberOfEntries is evented. 0 is no eventing.
  * @return Upnp error code.
  */
 int AddNewPortMapping(struct Upnp_Action_Request *ca_event, char* new_enabled, int leaseDuration,
                       char* new_remote_host, char* new_external_port, char* new_internal_port,
-                      char* new_protocol, char* new_internal_client, char* new_port_mapping_description)
+                      char* new_protocol, char* new_internal_client, char* new_port_mapping_description,
+                      int is_update)
 {
     int result;
     char num[5]; // Maximum number of port mapping entries 9999
@@ -2116,9 +2125,13 @@ int AddNewPortMapping(struct Upnp_Action_Request *ca_event, char* new_enabled, i
     {
         ScheduleMappingExpiration(new,ca_event->DevUDN,ca_event->ServiceID);
         PortMappingNumberOfEntries = pmlist_Size();
-        sprintf(num,"%d",PortMappingNumberOfEntries);
-        trace(3, "PortMappingNumberOfEntries: %d", pmlist_Size());
-        UpnpAddToPropertySet(&propSet, "PortMappingNumberOfEntries", num);
+        // no enventing on PortMappingNumberOfEntries if updating
+        if (!is_update)
+        {
+            sprintf(num,"%d",PortMappingNumberOfEntries);
+            trace(3, "PortMappingNumberOfEntries: %d", pmlist_Size());
+            UpnpAddToPropertySet(&propSet, "PortMappingNumberOfEntries", num);
+        }
         snprintf(tmp,11,"%ld",++SystemUpdateID);
         UpnpAddToPropertySet(&propSet,"SystemUpdateID", tmp);
         UpnpNotifyExt(deviceHandle, ca_event->DevUDN, ca_event->ServiceID, propSet);

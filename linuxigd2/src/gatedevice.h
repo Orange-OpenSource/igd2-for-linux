@@ -108,7 +108,8 @@ int CancelMappingExpiration(int eventId);
 void DeleteAllPortMappings(void);
 int AddNewPortMapping(struct Upnp_Action_Request *ca_event, char* new_enabled, int leaseDuration,
                      char* new_remote_host, char* new_external_port, char* new_internal_port,
-                     char* new_protocol, char* new_internal_client, char* new_port_mapping_description);
+                     char* new_protocol, char* new_internal_client, char* new_port_mapping_description,
+                     int is_update);
 
 int createEventUpdateTimer(void);
 void UpdateEvents(void *input);
