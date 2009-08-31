@@ -122,11 +122,25 @@ void DPStateTableInit()
 {
     // DeviceProtection is ready for introduction
     SetupReady = 1;
-    strcpy(SupportedProtocols, "<SupportedProtocols xmlns=\"urn:schemas-upnp-org:gw:DeviceProtection\" \
-xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" \
-xsi:schemaLocation=\"urn:schemas-upnp-org:gw:DeviceProtection \
+    strcpy(SupportedProtocols, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\
+<SupportedProtocols xmlns=\"urn:schemas-upnp-org:gw:DeviceProtection\"\
+xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"\
+xsi:schemaLocation=\"urn:schemas-upnp-org:gw:DeviceProtection\
 http://www.upnp.org/schemas/gw/DeviceProtection.xsd\">\
-<Introduction><Name>WPS</Name></Introduction></SupportedProtocols>");   
+<Introduction><Name>WPS</Name></Introduction></SupportedProtocols>");
+    
+    // escape XML string
+    char *tmp = escapeXMLString(SupportedProtocols);
+    if (tmp)
+    {
+        strcpy(SupportedProtocols, tmp);
+        free(tmp);
+    }
+    else
+    {
+        trace(1, "Failed to initialize value for 'SupportedProtocols' state variable");
+        strcpy(SupportedProtocols, "");
+    }
 }
 
 /**
@@ -1516,13 +1530,16 @@ int UserLogout(struct Upnp_Action_Request *ca_event)
 int GetACLData(struct Upnp_Action_Request *ca_event)
 {
     char *ACL = ixmlDocumenttoString(ACLDoc);
+    char *escACL = escapeXMLString(ACL);
     IXML_Document *ActionResult = NULL;
 
-    if (ACL)
+    if (escACL)
     {
         ActionResult = UpnpMakeActionResponse(ca_event->ActionName, DP_SERVICE_TYPE,
                                         1,
-                                        "ACL", ACL);
+                                        "ACL", escACL);
+        free (ACL);                               
+        free (escACL);                                     
     }
     else
     {
@@ -2061,11 +2078,16 @@ http://www.upnp.org/schemas/gw/DeviceProtection.xsd\">");
             if (responseIdentities)
             {
                 // Succesfull end happens here
+                
+                //escape response xml
+                char *escResponse = escapeXMLString(responseIdentitiesWithNamespace);
+                
                 ca_event->ActionResult = UpnpMakeActionResponse(ca_event->ActionName, DP_SERVICE_TYPE,
                                             1, 
-                                            "IdentityListResult", responseIdentitiesWithNamespace,
+                                            "IdentityListResult", escResponse,
                                             NULL);                                        
                 ca_event->ErrCode = UPNP_E_SUCCESS;
+                if (escResponse) free (escResponse);
             }
             else
             {

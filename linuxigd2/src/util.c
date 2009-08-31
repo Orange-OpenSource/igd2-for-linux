@@ -41,6 +41,7 @@
 // Document containing action access levels.
 static IXML_Document *accessLevelDoc = NULL;
 
+
 /**
  * Open new socket.
  *
@@ -59,6 +60,239 @@ static int get_sockfd(void)
         }
     }
     return sockfd;
+}
+
+
+/**
+ * Change given XML string in escaped form. 
+ * Following characters are converted:
+ *  '<'  -->  "&lt;"
+ *  '>'  -->  "&gt;"
+ *  '"'  -->  "&quot;"
+ *  '''  -->  "&apos;"
+ *  '&'  -->  "&amp;"
+ * 
+ * User should free returned pointer.
+ *
+ * @param xml String to turn escaped xml.
+ * @return Escaped xml string or NULL if failure.
+ */
+char* escapeXMLString(const char *xml)
+{
+    if (xml == NULL)
+        return NULL;
+    
+    char *escXML = NULL;
+    size_t size = strlen(xml);
+    size_t alloc = size +1;
+    
+    escXML = realloc(NULL, alloc);
+    if (!escXML)
+        return NULL;
+       
+    int i,j; // i goes through original xml and j through escaped escXML
+    for (i=0,j=0; i < size; i++)
+    {
+        switch (xml[i])
+        {
+            case '<' :
+            {
+                char *new_buf;
+                alloc += strlen("&lt;");
+                new_buf = realloc (escXML, alloc);
+                if (!new_buf) {
+                    return NULL;
+                }
+                escXML = new_buf;
+                
+                strcpy(escXML+j, "&lt;");  
+                j += strlen("&lt;");              
+                break;
+            }
+            case '>' :
+            {
+                char *new_buf;
+                alloc += strlen("&gt;");
+                new_buf = realloc (escXML, alloc);
+                if (!new_buf) {
+                    return NULL;
+                }
+                escXML = new_buf;
+                
+                strcpy(escXML+j, "&gt;");  
+                j += strlen("&gt;");             
+                break;
+            }
+            case '"' :
+            {
+                char *new_buf;
+                alloc += strlen("&quot;");
+                new_buf = realloc (escXML, alloc);
+                if (!new_buf) {
+                    return NULL;
+                }
+                escXML = new_buf;
+                
+                strcpy(escXML+j, "&quot;");  
+                j += strlen("&quot;");             
+                break;
+            }
+            case '\'' :
+            {
+                char *new_buf;
+                alloc += strlen("&apos;");
+                new_buf = realloc (escXML, alloc);
+                if (!new_buf) {
+                    return NULL;
+                }
+                escXML = new_buf;
+                
+                strcpy(escXML+j, "&apos;");  
+                j += strlen("&apos;");             
+                break;
+            }
+            case '&' :
+            {
+                char *new_buf;
+                alloc += strlen("&amp;");
+                new_buf = realloc (escXML, alloc);
+                if (!new_buf) {
+                    return NULL;
+                }
+                escXML = new_buf;
+                
+                strcpy(escXML+j, "&amp;");  
+                j += strlen("&amp;");             
+                break;
+            }
+            default :
+            {
+                escXML[j++] = xml[i];
+                break;
+            }
+        }   
+    }
+
+    if (j > 0)
+        escXML[j] = '\0';
+        
+    return escXML;         
+}
+
+/**
+ * Change given XML string in unescaped form. 
+ * Following characters are converted:
+ *  "&lt;"    -->  '<'
+ *  "&gt;"    -->  '>'
+ *  "&quot;"  -->  '"'  
+ *  "&apos;"  -->  '''  
+ *  "&amp;"   -->  '&'  
+ * 
+ * User should free returned pointer.
+ *
+ * @param xml String to turn unescaped xml.
+ * @return Unescaped xml string or NULL if failure.
+ */
+char* unescapeXMLString(const char *xml)
+{
+    if (xml == NULL)
+        return NULL;
+    
+    char *escXML = NULL;
+    size_t size = strlen(xml);
+    size_t alloc = size +1;
+    
+    escXML = realloc(NULL, alloc);
+    if (!escXML)
+        return NULL;
+       
+    int i,j; // i goes through original xml and j through escaped escXML
+    for (i=0,j=0; i < size; i++)
+    {
+        switch (xml[i])
+        {
+            case '<' :
+            {
+                char *new_buf;
+                alloc += strlen("&lt;");
+                new_buf = realloc (escXML, alloc);
+                if (!new_buf) {
+                    return NULL;
+                }
+                escXML = new_buf;
+                
+                strcpy(escXML+j, "&lt;");  
+                j += strlen("&lt;");              
+                break;
+            }
+            case '>' :
+            {
+                char *new_buf;
+                alloc += strlen("&gt;");
+                new_buf = realloc (escXML, alloc);
+                if (!new_buf) {
+                    return NULL;
+                }
+                escXML = new_buf;
+                
+                strcpy(escXML+j, "&gt;");  
+                j += strlen("&gt;");             
+                break;
+            }
+            case '"' :
+            {
+                char *new_buf;
+                alloc += strlen("&quot;");
+                new_buf = realloc (escXML, alloc);
+                if (!new_buf) {
+                    return NULL;
+                }
+                escXML = new_buf;
+                
+                strcpy(escXML+j, "&quot;");  
+                j += strlen("&quot;");             
+                break;
+            }
+            case '\'' :
+            {
+                char *new_buf;
+                alloc += strlen("&apos;");
+                new_buf = realloc (escXML, alloc);
+                if (!new_buf) {
+                    return NULL;
+                }
+                escXML = new_buf;
+                
+                strcpy(escXML+j, "&apos;");  
+                j += strlen("&apos;");             
+                break;
+            }
+            case '&' :
+            {
+                char *new_buf;
+                alloc += strlen("&amp;");
+                new_buf = realloc (escXML, alloc);
+                if (!new_buf) {
+                    return NULL;
+                }
+                escXML = new_buf;
+                
+                strcpy(escXML+j, "&amp;");  
+                j += strlen("&amp;");             
+                break;
+            }
+            default :
+            {
+                escXML[j++] = xml[i];
+                break;
+            }
+        }   
+    }
+
+    if (j > 0)
+        escXML[j] = '\0';
+        
+    return escXML;         
 }
 
 

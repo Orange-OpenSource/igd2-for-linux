@@ -33,6 +33,7 @@ typedef enum {
 } ACL_ERRORCODE;
 
 
+char* escapeXMLString(const char *xml);
 char *toUpperCase(const char * str);
 int GetIpAddressStr(char *address, char *ifname);
 int GetMACAddressStr(unsigned char *address, int addressSize, char *ifname);
