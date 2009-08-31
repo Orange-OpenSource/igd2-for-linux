@@ -292,3 +292,43 @@ xml_util_add_content (GString    *xml_str,
                 p = next;
         }
 }
+
+
+/**
+ * Change given XML string in unescaped form. 
+ * Following characters are converted:
+ *  "&lt;"    -->  '<'
+ *  "&gt;"    -->  '>'
+ *  "&quot;"  -->  '"'  
+ *  "&apos;"  -->  '''  
+ *  "&amp;"   -->  '&'  
+ * 
+ * User should free returned pointer.
+ */
+void 
+xml_util_unescape(const char *escaped,
+                  char **unescaped)
+{
+        GRegex *regex = NULL;
+        regex = g_regex_new("&lt;", G_REGEX_OPTIMIZE,
+                            0, NULL);  
+        *unescaped =  g_regex_replace_literal(regex, escaped, -1, 0, "<", 0, NULL);
+        
+        regex = g_regex_new("&gt;", G_REGEX_OPTIMIZE,
+                            0, NULL);  
+        *unescaped =  g_regex_replace_literal(regex, *unescaped, -1, 0, ">", 0, NULL);            
+
+        regex = g_regex_new("&quot;", G_REGEX_OPTIMIZE,
+                            0, NULL);  
+        *unescaped =  g_regex_replace_literal(regex, *unescaped, -1, 0, "\"", 0, NULL);  
+        
+        regex = g_regex_new("&apos;", G_REGEX_OPTIMIZE,
+                            0, NULL);  
+        *unescaped =  g_regex_replace_literal(regex, *unescaped, -1, 0, "'", 0, NULL);                          
+
+        regex = g_regex_new("&amp;", G_REGEX_OPTIMIZE,
+                            0, NULL);  
+        *unescaped =  g_regex_replace_literal(regex, *unescaped, -1, 0, "&", 0, NULL);  
+        
+        g_regex_unref(regex);        
+}

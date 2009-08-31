@@ -1544,13 +1544,17 @@ gupnp_device_proxy_add_user (GUPnPDeviceProxy           *proxy,
         else
             g_string_printf(adduserdata->identitylist, "<Identities><User><Name>%s</Name></User></Identities>", username);
 
+        // escape identitylist xml
+        GString *escIdList = g_string_new("");
+        xml_util_add_content(escIdList, adduserdata->identitylist->str);
+        
         gupnp_service_proxy_begin_action(adduserdata->device_prot_service,
                                          "AddIdentityList",
                                          add_identitylist_response,
                                          adduserdata,
                                          "IdentityList",
                                          G_TYPE_STRING,
-                                         adduserdata->identitylist->str,
+                                         escIdList->str,
                                          NULL);
 
         return adduserdata;
@@ -1647,7 +1651,19 @@ gupnp_device_proxy_remove_user (GUPnPDeviceProxy           *proxy,
         }
 
         // create Identity XML fragment
-        g_string_printf(removeuserdata->identity, "<User><Name>%s</Name></User>", username);
+        g_string_printf(removeuserdata->identity, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\
+<Identity xmlns=\"urn:schemas-upnp-org:gw:DeviceProtection\"\
+xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"\
+xsi:schemaLocation=\"urn:schemas-upnp-org:gw:DeviceProtection\
+http://www.upnp.org/schemas/gw/DeviceProtection.xsd\">\
+<User>\
+<Name>%s</Name>\
+</User>\
+</Identity>", username);
+
+        // escape identity xml
+        GString *escId = g_string_new("");
+        xml_util_add_content(escId, removeuserdata->identity->str);
 
         gupnp_service_proxy_begin_action(removeuserdata->device_prot_service,
                                          "RemoveIdentity",
@@ -1655,7 +1671,7 @@ gupnp_device_proxy_remove_user (GUPnPDeviceProxy           *proxy,
                                          removeuserdata,
                                          "Identity",
                                          G_TYPE_STRING,
-                                         removeuserdata->identity->str,
+                                         escId->str,
                                          NULL);
 
         return removeuserdata;
@@ -1762,13 +1778,17 @@ http://www.upnp.org/schemas/gw/DeviceProtection.xsd\">\
 </User>\
 </Identity>", username);
 
+        // escape identity xml
+        GString *escId = g_string_new("");
+        xml_util_add_content(escId, addrolesdata->identity->str);
+
         gupnp_service_proxy_begin_action(addrolesdata->device_prot_service,
                                          "AddRolesForIdentity",
                                          add_roles_response,
                                          addrolesdata,
                                          "Identity",
                                          G_TYPE_STRING,
-                                         addrolesdata->identity->str,
+                                         escId->str,
                                          "RoleList",
                                          G_TYPE_STRING,
                                          rolelist,
@@ -1879,13 +1899,17 @@ http://www.upnp.org/schemas/gw/DeviceProtection.xsd\">\
 </User>\
 </Identity>", username);
 
+        // escape identity xml
+        GString *escId = g_string_new("");
+        xml_util_add_content(escId, removerolesdata->identity->str);
+
         gupnp_service_proxy_begin_action(removerolesdata->device_prot_service,
                                          "RemoveRolesForIdentity",
                                          remove_roles_response,
                                          removerolesdata,
                                          "Identity",
                                          G_TYPE_STRING,
-                                         removerolesdata->identity->str,
+                                         escId->str,
                                          "RoleList",
                                          G_TYPE_STRING,
                                          rolelist,
@@ -1918,10 +1942,9 @@ get_ACL_data_response (GUPnPServiceProxy       *proxy,
 {    
         GUPnPDeviceProxyGetACLData *ACLData = user_data;
         GHashTable *users = ACLData->user_data;
-        
-        
+            
         GError *error = NULL;
-        char *acl;
+        char *acl, *acl_unescaped;
 
         if (!gupnp_service_proxy_end_action (proxy,
                                              action,
@@ -1945,8 +1968,11 @@ get_ACL_data_response (GUPnPServiceProxy       *proxy,
             xmlNode *element;
             xmlChar *name;
             xmlChar *rolelist;
+          
+            // first unescape string
+            xml_util_unescape(acl, &acl_unescaped);
             
-            xml_doc = xmlRecoverMemory(acl, strlen(acl));            
+            xml_doc = xmlRecoverMemory(acl_unescaped, strlen(acl_unescaped));            
             ACLData->ACL = xml_doc_wrapper_new (xml_doc);                    
             element = xml_util_get_element ((xmlNode *) ACLData->ACL->doc,
                                             "ACL",
@@ -1974,7 +2000,8 @@ get_ACL_data_response (GUPnPServiceProxy       *proxy,
                 }                           
             }                                   
         }
-    
+        
+        g_free(acl_unescaped);
         ACLData->callback(ACLData->proxy, ACLData, &ACLData->error, ACLData->user_data);
 }
 
