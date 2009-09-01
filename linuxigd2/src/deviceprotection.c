@@ -1588,12 +1588,12 @@ int AddRolesForIdentity(struct Upnp_Action_Request *ca_event)
             && (rolelist = GetFirstDocumentItem(ca_event->ActionRequest, "RoleList") ))
     {
         // unescape identity
-        identity = unescapeXMLString(identity);
+        char *unescValue = unescapeXMLString(identity);
         
-        identityDoc = ixmlParseBuffer(identity);
+        identityDoc = ixmlParseBuffer(unescValue);
         if (identityDoc == NULL)
         {
-            trace(1, "%s: Failed to parse Identity xml '%s'",ca_event->ActionName, identity);
+            trace(1, "%s: Failed to parse Identity xml '%s'",ca_event->ActionName, unescValue);
             result = 501;
             addErrorData(ca_event, result, "Action Failed");
         }
@@ -1619,6 +1619,7 @@ int AddRolesForIdentity(struct Upnp_Action_Request *ca_event)
             result = 501;
             addErrorData(ca_event, result, "Action Failed");
         }
+        if (unescValue) free(unescValue);
         
         // all is well
         if (result == 0)
@@ -1671,12 +1672,12 @@ int RemoveRolesForIdentity(struct Upnp_Action_Request *ca_event)
             && (rolelist = GetFirstDocumentItem(ca_event->ActionRequest, "RoleList") ))
     {   
         // unescape identity
-        identity = unescapeXMLString(identity);
+        char *unescValue = unescapeXMLString(identity);
             
-        identityDoc = ixmlParseBuffer(identity);
+        identityDoc = ixmlParseBuffer(unescValue);
         if (identityDoc == NULL)
         {
-            trace(1, "%s: Failed to parse Identity xml '%s'",ca_event->ActionName, identity);
+            trace(1, "%s: Failed to parse Identity xml '%s'",ca_event->ActionName, unescValue);
             result = 501;
             addErrorData(ca_event, result, "Action Failed");
         }
@@ -1702,6 +1703,7 @@ int RemoveRolesForIdentity(struct Upnp_Action_Request *ca_event)
             result = 501;
             addErrorData(ca_event, result, "Action Failed");
         }
+        if (unescValue) free(unescValue);
         
         // all is well
         if (result == 0)
@@ -2025,13 +2027,13 @@ int AddIdentityList(struct Upnp_Action_Request *ca_event)
     else if ( (identitylist = GetFirstDocumentItem(ca_event->ActionRequest, "IdentityList") ))
     {   
         // unescape identitylist
-        identitylist = unescapeXMLString(identitylist);
+        char *unescValue = unescapeXMLString(identitylist);
         
-        trace(3, "%s: Received IdentityList: \n%s",ca_event->ActionName,identitylist); 
-        identitiesDoc = ixmlParseBuffer(identitylist);
+        trace(3, "%s: Received IdentityList: \n%s",ca_event->ActionName,unescValue); 
+        identitiesDoc = ixmlParseBuffer(unescValue);
         if (identitiesDoc == NULL)
         {
-            trace(1, "%s: Failed to parse IdentityList '%s'",ca_event->ActionName, identitylist);
+            trace(1, "%s: Failed to parse IdentityList '%s'",ca_event->ActionName, unescValue);
             result = 501;
             addErrorData(ca_event, result, "Action Failed");
         }
@@ -2063,7 +2065,7 @@ int AddIdentityList(struct Upnp_Action_Request *ca_event)
                 addErrorData(ca_event, result, "Action Failed");
             }  
         }
-        
+        if (unescValue) free(unescValue);
         
         // all is well
         if (result == 0)
@@ -2156,12 +2158,12 @@ int RemoveIdentity(struct Upnp_Action_Request *ca_event)
     else if ( (identity = GetFirstDocumentItem(ca_event->ActionRequest, "Identity") ))
     {   
         // unescape identity
-        identity = unescapeXMLString(identity);
+        char *unescValue = unescapeXMLString(identity);
          
-        identityDoc = ixmlParseBuffer(identity);
+        identityDoc = ixmlParseBuffer(unescValue);
         if (identityDoc == NULL)
         {
-            trace(1, "%s: Failed to parse Identity xml '%s'",ca_event->ActionName, identity);
+            trace(1, "%s: Failed to parse Identity xml '%s'",ca_event->ActionName, unescValue);
             result = 501;
             addErrorData(ca_event, result, "Action Failed");
         }
@@ -2180,7 +2182,7 @@ int RemoveIdentity(struct Upnp_Action_Request *ca_event)
                 addErrorData(ca_event, result, "Action Failed");
             }
         }
-        
+        if (unescValue) free(unescValue);
         
         // all is well
         if (result == 0)

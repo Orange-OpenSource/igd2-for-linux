@@ -201,7 +201,7 @@ char* unescapeXMLString(const char *escXML)
     char *xml = NULL;
     size_t size = strlen(escXML);
     
-    xml = realloc(NULL, size);
+    xml = (char *)malloc(size);
     if (!xml)
         return NULL;
 
@@ -243,16 +243,6 @@ char* unescapeXMLString(const char *escXML)
     }
 
     xml[i] = '\0';
-        
-    // release extra space reserved
-    char *new_buf;
-    size = strlen(xml);
-    new_buf = realloc (xml, size);
-    if (!new_buf) {
-        return NULL;
-    }
-    xml = new_buf;
-    xml[size] = '\0';
         
     return xml;         
 }
