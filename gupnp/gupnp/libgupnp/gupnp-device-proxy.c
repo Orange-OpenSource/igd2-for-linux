@@ -866,6 +866,25 @@ gupnp_device_proxy_get_ssl_client (GUPnPDeviceProxy *proxy)
 }
 
 /**
+ * gupnp_device_proxy_set_username
+ * @proxy: A #GUPnPDeviceProxy
+ * @username: Username which is added for root proxy
+ *
+ * Set the username which is logged in to root device of given deviceproxy.
+ *
+ * Return value: void
+ **/
+void
+gupnp_device_proxy_set_username (GUPnPDeviceProxy *proxy, const gchar *username)
+{
+        g_assert (proxy != NULL);
+        g_assert (username != NULL);
+        // make sure that username is inserted into root device in deviceproxy
+        if (proxy->priv->root_proxy)
+            g_string_assign(proxy->priv->root_proxy->priv->username, username);
+}
+
+/**
  * gupnp_device_proxy_get_username
  * @proxy: A #GUPnPDeviceProxy
  *
@@ -1171,7 +1190,7 @@ gupnp_device_proxy_end_login (GUPnPDeviceProxyLogin *logindata, GString *loginna
         
         // copy username to deviceproxy
         if (logindata->done)
-            g_string_assign(logindata->proxy->priv->username, logindata->username->str);
+            gupnp_device_proxy_set_username(logindata->proxy, logindata->username->str);
         
         gboolean done = logindata->done;
 
@@ -1272,7 +1291,7 @@ gupnp_device_proxy_end_logout (GUPnPDeviceProxyLogout *logoutdata)
 {
         // erase logged in username from proxy
         if (logoutdata->done)
-            g_string_assign(logoutdata->proxy->priv->username, "");
+            gupnp_device_proxy_set_username(logoutdata->proxy, "");
         
         gboolean done = logoutdata->done;
 

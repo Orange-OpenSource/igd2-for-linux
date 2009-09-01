@@ -248,6 +248,9 @@ gupnp_device_proxy_set_ssl_client           (GUPnPDeviceProxy           *proxy,
 GUPnPSSLClient **
 gupnp_device_proxy_get_ssl_client           (GUPnPDeviceProxy           *proxy);
 
+void
+gupnp_device_proxy_set_username (GUPnPDeviceProxy *proxy, const gchar *username);
+
 GString *
 gupnp_device_proxy_get_username (GUPnPDeviceProxy *proxy);
 
