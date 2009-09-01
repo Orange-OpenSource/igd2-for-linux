@@ -1587,6 +1587,9 @@ int AddRolesForIdentity(struct Upnp_Action_Request *ca_event)
     else if ( (identity = GetFirstDocumentItem(ca_event->ActionRequest, "Identity") )
             && (rolelist = GetFirstDocumentItem(ca_event->ActionRequest, "RoleList") ))
     {
+        // unescape identity
+        identity = unescapeXMLString(identity);
+        
         identityDoc = ixmlParseBuffer(identity);
         if (identityDoc == NULL)
         {
@@ -1666,7 +1669,10 @@ int RemoveRolesForIdentity(struct Upnp_Action_Request *ca_event)
     }
     else if ( (identity = GetFirstDocumentItem(ca_event->ActionRequest, "Identity") )
             && (rolelist = GetFirstDocumentItem(ca_event->ActionRequest, "RoleList") ))
-    {       
+    {   
+        // unescape identity
+        identity = unescapeXMLString(identity);
+            
         identityDoc = ixmlParseBuffer(identity);
         if (identityDoc == NULL)
         {
@@ -2018,6 +2024,9 @@ int AddIdentityList(struct Upnp_Action_Request *ca_event)
     }
     else if ( (identitylist = GetFirstDocumentItem(ca_event->ActionRequest, "IdentityList") ))
     {   
+        // unescape identitylist
+        identitylist = unescapeXMLString(identitylist);
+        
         trace(3, "%s: Received IdentityList: \n%s",ca_event->ActionName,identitylist); 
         identitiesDoc = ixmlParseBuffer(identitylist);
         if (identitiesDoc == NULL)
@@ -2145,7 +2154,10 @@ int RemoveIdentity(struct Upnp_Action_Request *ca_event)
         addErrorData(ca_event, result, "Authentication Failure");        
     }
     else if ( (identity = GetFirstDocumentItem(ca_event->ActionRequest, "Identity") ))
-    {    
+    {   
+        // unescape identity
+        identity = unescapeXMLString(identity);
+         
         identityDoc = ixmlParseBuffer(identity);
         if (identityDoc == NULL)
         {

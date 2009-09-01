@@ -34,6 +34,7 @@ typedef enum {
 
 
 char* escapeXMLString(const char *xml);
+char* unescapeXMLString(const char *escXML);
 char *toUpperCase(const char * str);
 int GetIpAddressStr(char *address, char *ifname);
 int GetMACAddressStr(unsigned char *address, int addressSize, char *ifname);
