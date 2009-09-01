@@ -204,13 +204,12 @@ char* unescapeXMLString(const char *escXML)
     xml = realloc(NULL, size);
     if (!xml)
         return NULL;
-    
+
     memset(xml, '\0', size);
-      
+     
     int i,j; // i goes through unescaped xml and j through escaped escXML
     for (i=0,j=0; i < size && j < size; i++)
     {
-        trace(1,"CHAR %c",escXML[j]);
         if (strncmp(escXML+j, "&lt;", strlen("&lt;")) == 0)
         {
             xml[i] = '<';
@@ -242,7 +241,9 @@ char* unescapeXMLString(const char *escXML)
             j++;
         }
     }
-    
+
+    xml[i] = '\0';
+        
     // release extra space reserved
     char *new_buf;
     size = strlen(xml);
@@ -251,7 +252,8 @@ char* unescapeXMLString(const char *escXML)
         return NULL;
     }
     xml = new_buf;
-      
+    xml[size] = '\0';
+        
     return xml;         
 }
 
