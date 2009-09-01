@@ -42,6 +42,12 @@ statusbar_update (gboolean device_selected)
                     		           statusbar_output_id,
             		                   loginname->str);
                 }
+                else // no username is logged in, clear the statusbar text
+                {
+                    gtk_statusbar_push (GTK_STATUSBAR(statusbar),
+                                        statusbar_output_id,
+                                        empty_statusbar);
+                }
                 if (loginname)
                     g_string_free(loginname, TRUE);
 
