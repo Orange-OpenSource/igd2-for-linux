@@ -41,9 +41,9 @@
 		<widget class="GtkMenu" id="file_menuitem_menu">
 
 		  <child>
-		    <widget class="GtkImageMenuItem" id="clear_event_log">
+		    <widget class="GtkMenuItem" id="clear_event_log">
 		      <property name="visible">True</property>
-		      <property name="label">Clear event log</property>
+		      <property name="label" translatable="yes">Clear event log</property>
 		      <property name="use_underline">True</property>
 		      <signal name="activate" handler="on_clear_event_log_activate"/>
 		    </widget>
@@ -92,20 +92,20 @@
 		  </child>
 
 		  <child>
-		    <widget class="GtkMenuItem" id="user_administration">
-		      <property name="visible">True</property>
-		      <property name="label" translatable="yes">User administration</property>
-		      <property name="use_underline">True</property>
-		      <signal name="activate" handler="start_user_administration"/>
-		    </widget>
-		  </child>
-
-		  <child>
 		    <widget class="GtkMenuItem" id="user_login_setup">
 		      <property name="visible">True</property>
 		      <property name="label" translatable="yes">User login setup</property>
 		      <property name="use_underline">True</property>
 		      <signal name="activate" handler="start_user_login_setup"/>
+		    </widget>
+		  </child>
+
+		  <child>
+		    <widget class="GtkMenuItem" id="user_administration">
+		      <property name="visible">True</property>
+		      <property name="label" translatable="yes">User administration</property>
+		      <property name="use_underline">True</property>
+		      <signal name="activate" handler="start_user_administration"/>
 		    </widget>
 		  </child>
 		</widget>
@@ -430,6 +430,30 @@ Inspired by Intel Tools for UPnP.</property>
       <property name="label" translatable="yes">Start wps setup</property>
       <property name="use_underline">True</property>
       <signal name="activate" handler="on_start_wps_setup_activate"/>
+    </widget>
+  </child>
+
+  <child>
+    <widget class="GtkSeparatorMenuItem" id="separator7">
+      <property name="visible">True</property>
+    </widget>
+  </child>
+
+  <child>
+    <widget class="GtkMenuItem" id="user_login_setup1">
+      <property name="visible">True</property>
+      <property name="label" translatable="yes">User login setup</property>
+      <property name="use_underline">True</property>
+      <signal name="activate" handler="start_user_login_setup" last_modification_time="Wed, 02 Sep 2009 09:16:51 GMT"/>
+    </widget>
+  </child>
+
+  <child>
+    <widget class="GtkMenuItem" id="user_administration1">
+      <property name="visible">True</property>
+      <property name="label" translatable="yes">User administration</property>
+      <property name="use_underline">True</property>
+      <signal name="activate" handler="start_user_administration" last_modification_time="Wed, 02 Sep 2009 09:16:51 GMT"/>
     </widget>
   </child>
 
