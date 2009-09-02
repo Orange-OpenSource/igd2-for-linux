@@ -1232,6 +1232,60 @@ EXPORT_SPEC int UpnpRegisterRootDevice(
 
 /*!
  * \brief Registers a device application with the UPnP Library. Similar to
+ * \b UpnpRegisterRootDevice, except that it also takes the Secure https 
+ * address of description document as parameter.
+ * Secure https address of description document is used for advertising 
+ * SECURELOCATION.UPNP.ORG (DeviceProtection spec chapter 2.3.1)
+ *
+ * A device application cannot make any other API calls until it registers
+ * using this function.
+ *
+ * Device applications can also register as control points (see 
+ * \b UpnpRegisterClient to get a control point handle to perform control
+ * point functionality).
+ *
+ * This is a synchronous call and does not generate any callbacks. Callbacks
+ * can occur as soon as this function returns.
+ *
+ *  \return An integer representing one of the following:
+ *      \li \c UPNP_E_SUCCESS: The operation completed successfully.
+ *      \li \c UPNP_E_FINISH: The SDK is already terminated or is not
+ *      initialized.
+ *      \li \c UPNP_E_INVALID_DESC: The description document was not 
+ *      a valid device description.
+ *      \li \c UPNP_E_INVALID_URL: The URL for the description document 
+ *              is not valid.
+ *      \li \c UPNP_E_INVALID_PARAM: Either \b Callback or \b Hnd 
+ *              is not a valid pointer or \b DescURL is \c NULL.
+ *      \li \c UPNP_E_NETWORK_ERROR: A network error occurred.
+ *      \li \c UPNP_E_SOCKET_WRITE: An error or timeout occurred writing 
+ *              to a socket.
+ *      \li \c UPNP_E_SOCKET_READ: An error or timeout occurred reading 
+ *              from a socket.
+ *      \li \c UPNP_E_SOCKET_BIND: An error occurred binding a socket.
+ *      \li \c UPNP_E_SOCKET_CONNECT: An error occurred connecting the 
+ *              socket.
+ *      \li \c UPNP_E_OUTOF_SOCKET: Too many sockets are currently 
+ *              allocated.
+ *      \li \c UPNP_E_OUTOF_MEMORY: There are insufficient resources to 
+ *              register this root device.
+ */
+EXPORT_SPEC int UpnpRegisterRootDeviceHTTPS(
+    /*! [in] Pointer to a string containing the description URL for this root device
+     * instance. */
+    const char *DescUrl,
+    /*! [in] Pointer to a string containing the secuer https description URL for this root device
+     * instance. */
+    const char *SecureDescUrl,    
+    /*! [in] Pointer to the callback function for receiving asynchronous events. */
+    Upnp_FunPtr Callback,
+    /*! [in] Pointer to user data returned with the callback function when invoked. */
+    const void *Cookie,
+    /*! [out] Pointer to a variable to store the new device handle. */
+    UpnpDevice_Handle *Hnd);
+
+/*!
+ * \brief Registers a device application with the UPnP Library. Similar to
  * \b UpnpRegisterRootDevice, except that it also allows the description
  * document to be specified as a file or a memory buffer.
  *

@@ -689,7 +689,7 @@ UpnpGetServerIpAddress( void )
  * Description:
  *  This function registers a device application with
  *  the UPnP Library.  A device application cannot make any other API
- *  calls until it registers using this function.  
+ *  calls until it registers using this function.
  *
  * Return Values:
  *  UPNP_E_SUCCESS on success, nonzero on failure.
@@ -700,7 +700,45 @@ UpnpRegisterRootDevice( IN const char *DescUrl,
                         IN const void *Cookie,
                         OUT UpnpDevice_Handle * Hnd )
 {
+    return UpnpRegisterRootDeviceHTTPS(DescUrl, "", Fun, Cookie, Hnd);
+}
+#endif // INCLUDE_DEVICE_APIS
 
+
+#ifdef INCLUDE_DEVICE_APIS
+/****************************************************************************
+ * Function: UpnpRegisterRootDeviceHTTPS
+ *
+ * Parameters:  
+ *  IN const char *DescUrl:Pointer to a string containing the 
+ *      description URL for this root device instance.
+ *  IN const char *SecureDescUrl:Pointer to a string containing the 
+ *      secure https description URL for this root device instance. 
+ *  IN Upnp_FunPtr Callback: Pointer to the callback function for 
+ *      receiving asynchronous events. 
+ *  IN const void *Cookie: Pointer to user data returned with the 
+ *      callback function when invoked.
+ *  OUT UpnpDevice_Handle *Hnd: Pointer to a variable to store the 
+ *      new device handle.
+ *
+ * Description:
+ *  This function registers a device application with
+ *  the UPnP Library. This function takes secure https address of description document as parameter.
+ *  It is the only difference with UpnpRegisterRootDevice-function.
+ *  Secure https address of description document is used for advertising SECURELOCATION.UPNP.ORG (DeviceProtection spec chapter 2.3.1)
+ *  A device application cannot make any other API
+ *  calls until it registers using this function.  
+ *
+ * Return Values:
+ *  UPNP_E_SUCCESS on success, nonzero on failure.
+ *****************************************************************************/
+int
+UpnpRegisterRootDeviceHTTPS( IN const char *DescUrl,
+                             IN const char *SecureDescUrl,
+                             IN Upnp_FunPtr Fun,
+                             IN const void *Cookie,
+                             OUT UpnpDevice_Handle * Hnd )
+{
     struct Handle_Info *HInfo;
     int retVal = 0;
 
@@ -741,6 +779,7 @@ UpnpRegisterRootDevice( IN const char *DescUrl,
     HInfo->aliasInstalled = 0;
     HInfo->HType = HND_DEVICE;
     strcpy( HInfo->DescURL, DescUrl );
+    strcpy(HInfo->SecureDescURL, SecureDescUrl);
     HInfo->Callback = Fun;
     HInfo->Cookie = ( void * )Cookie;
     HInfo->MaxAge = DEFAULT_MAXAGE;
@@ -811,7 +850,6 @@ UpnpRegisterRootDevice( IN const char *DescUrl,
     return UPNP_E_SUCCESS;
 }
 #endif // INCLUDE_DEVICE_APIS
-
 
 #ifdef INCLUDE_DEVICE_APIS
 /****************************************************************************

@@ -234,10 +234,10 @@ int AdvertiseAndReply( IN int AdFlag,
             // send the device advertisement 
             if( AdFlag == 1 ) {
                 DeviceAdvertisement( devType, i == 0,
-                                     UDNstr, SInfo->DescURL, Exp );
+                                     UDNstr, SInfo->DescURL, SInfo->SecureDescURL, Exp );
             } else {             // AdFlag == -1
                 DeviceShutdown( devType, i == 0, UDNstr,
-                                SERVER, SInfo->DescURL, Exp );
+                                SERVER, SInfo->DescURL, SInfo->SecureDescURL, Exp );
             }
         } else {
             switch ( SearchType ) {
@@ -245,13 +245,13 @@ int AdvertiseAndReply( IN int AdFlag,
                 case SSDP_ALL:
                     DeviceReply( DestAddr,
                                  devType, i == 0,
-                                 UDNstr, SInfo->DescURL, defaultExp );
+                                 UDNstr, SInfo->DescURL, SInfo->SecureDescURL, defaultExp );
                     break;
 
                 case SSDP_ROOTDEVICE:
                     if( i == 0 ) {
                         SendReply( DestAddr, devType, 1,
-                                   UDNstr, SInfo->DescURL, defaultExp, 0 );
+                                   UDNstr, SInfo->DescURL, SInfo->SecureDescURL, defaultExp, 0 );
                     }
                     break;
                 case SSDP_DEVICEUDN:
@@ -269,7 +269,7 @@ int AdvertiseAndReply( IN int AdFlag,
                                     "UDN=%s MATCH\n", UDNstr,
                                     DeviceUDN );
                                     SendReply( DestAddr, devType, 0,
-                                               UDNstr, SInfo->DescURL,
+                                               UDNstr, SInfo->DescURL, SInfo->SecureDescURL,
                                                defaultExp, 0 );
                                 break;
                             }
@@ -284,7 +284,7 @@ int AdvertiseAndReply( IN int AdFlag,
                                 "DeviceType=%s and search devType=%s MATCH\n",
                                 devType, DeviceType );
                             SendReply( DestAddr, devType, 0, UDNstr,
-                                       SInfo->DescURL, defaultExp, 1 );
+                                       SInfo->DescURL, SInfo->SecureDescURL, defaultExp, 1 );
                         } else {
                             UpnpPrintf( UPNP_INFO, API, __FILE__, __LINE__,
                                 "DeviceType=%s and search devType=%s"
@@ -364,16 +364,16 @@ int AdvertiseAndReply( IN int AdFlag,
             if( AdFlag ) {
                 if( AdFlag == 1 ) {
                     ServiceAdvertisement( UDNstr, servType,
-                                          SInfo->DescURL, Exp );
+                                          SInfo->DescURL, SInfo->SecureDescURL, Exp );
                 } else {         // AdFlag == -1
                     ServiceShutdown( UDNstr, servType,
-                                     SInfo->DescURL, Exp );
+                                     SInfo->DescURL, SInfo->SecureDescURL, Exp );
                 }
             } else {
                 switch ( SearchType ) {
                     case SSDP_ALL:
                         ServiceReply( DestAddr, servType,
-                                      UDNstr, SInfo->DescURL,
+                                      UDNstr, SInfo->DescURL, SInfo->SecureDescURL,
                                       defaultExp );
                         break;
                     case SSDP_SERVICE:
@@ -382,7 +382,7 @@ int AdvertiseAndReply( IN int AdFlag,
                                               servType,
                                               strlen( ServiceType ) ) ) {
                                 ServiceReply( DestAddr, servType,
-                                              UDNstr, SInfo->DescURL,
+                                              UDNstr, SInfo->DescURL, SInfo->SecureDescURL,
                                               defaultExp );
                             }
                         }

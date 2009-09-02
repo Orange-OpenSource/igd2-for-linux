@@ -283,6 +283,7 @@ NewRequestHandler( IN struct sockaddr_in *DestAddr,
 *	IN char * nt : ssdp type
 *	IN char * usn : unique service name ( go in the HTTP Header)
 *	IN char * location :Location URL.
+*   IN char * securelocation :HTTPS location URL.
 *	IN int  duration :Service duration in sec.
 *	OUT char** packet :Output buffer filled with HTTP statement.
 *
@@ -299,6 +300,7 @@ CreateServicePacket( IN int msg_type,
                      IN char *nt,
                      IN char *usn,
                      IN char *location,
+                     IN char *SecureLocation,
                      IN int duration,
                      OUT char **packet )
 {
@@ -315,16 +317,30 @@ CreateServicePacket( IN int msg_type,
     *packet = NULL;
 
     if( msg_type == MSGTYPE_REPLY ) {
-        ret_code = http_MakeMessage(
-            &buf, 1, 1,
-            "R" "sdc" "D" "sc" "ssc" "S" "Xc" "ssc" "sscc",
-            HTTP_OK,
-            "CACHE-CONTROL: max-age=", duration,
-	    "EXT:",
-            "LOCATION: ", location,
-            X_USER_AGENT,
-            "ST: ", nt,
-            "USN: ", usn);
+        if ( SecureLocation && (strlen(SecureLocation) > 0) ) {
+            ret_code = http_MakeMessage(
+                &buf, 1, 1,
+                "R" "sdc" "D" "sc" "ssc" "S" "Xc" "ssc" "sscc",
+                HTTP_OK,
+                "CACHE-CONTROL: max-age=", duration,
+                "EXT:",
+                "LOCATION: ", location,
+                "SECURELOCATION.UPNP.ORG: ", SecureLocation,
+                X_USER_AGENT,
+                "ST: ", nt,
+                "USN: ", usn);            
+        } else {        
+            ret_code = http_MakeMessage(
+                &buf, 1, 1,
+                "R" "sdc" "D" "sc" "ssc" "S" "Xc" "ssc" "sscc",
+                HTTP_OK,
+                "CACHE-CONTROL: max-age=", duration,
+    	        "EXT:",
+                "LOCATION: ", location,
+                X_USER_AGENT,
+                "ST: ", nt,
+                "USN: ", usn);
+        }
         if( ret_code != 0 ) {
             return;
         }
@@ -340,17 +356,32 @@ CreateServicePacket( IN int msg_type,
         // NOTE: The CACHE-CONTROL and LOCATION headers are not present in
         //  a shutdown msg, but are present here for MS WinMe interop.
 
-        ret_code = http_MakeMessage(
-            &buf, 1, 1,
-            "Q" "sssdc" "sdc" "ssc" "ssc" "ssc" "S" "Xc" "sscc",
-            HTTPMETHOD_NOTIFY, "*", (size_t)1,
-            "HOST: ", SSDP_IP, ":", SSDP_PORT,
-            "CACHE-CONTROL: max-age=", duration,
-            "LOCATION: ", location,
-            "NT: ", nt,
-            "NTS: ", nts,
-            X_USER_AGENT,
-            "USN: ", usn );
+        if ( SecureLocation && (strlen(SecureLocation) > 0) ) {
+            ret_code = http_MakeMessage(
+                &buf, 1, 1,
+                "Q" "sssdc" "sdc" "ssc" "ssc" "ssc" "S" "Xc" "sscc",
+                HTTPMETHOD_NOTIFY, "*", (size_t)1,
+                "HOST: ", SSDP_IP, ":", SSDP_PORT,
+                "CACHE-CONTROL: max-age=", duration,
+                "LOCATION: ", location,
+                "SECURELOCATION.UPNP.ORG: ", SecureLocation,
+                "NT: ", nt,
+                "NTS: ", nts,
+                X_USER_AGENT,
+                "USN: ", usn );            
+        } else {
+            ret_code = http_MakeMessage(
+                &buf, 1, 1,
+                "Q" "sssdc" "sdc" "ssc" "ssc" "ssc" "S" "Xc" "sscc",
+                HTTPMETHOD_NOTIFY, "*", (size_t)1,
+                "HOST: ", SSDP_IP, ":", SSDP_PORT,
+                "CACHE-CONTROL: max-age=", duration,
+                "LOCATION: ", location,
+                "NT: ", nt,
+                "NTS: ", nts,
+                X_USER_AGENT,
+                "USN: ", usn );
+        }
         if( ret_code != 0 ) {
             return;
         }
@@ -375,6 +406,7 @@ CreateServicePacket( IN int msg_type,
 *	IN char * nt : ssdp type
 *	IN char * usn : unique service name
 *	IN char * location :Location URL.
+*   IN char * securelocation :HTTPS location URL.
 *	IN int  duration :Service duration in sec.
 *
 * Description:
@@ -389,6 +421,7 @@ DeviceAdvertisement( IN char *DevType,
                      int RootDev,
                      char *Udn,
                      IN char *Location,
+                     IN char *SecureLocation,
                      IN int Duration )
 {
     struct sockaddr_in DestAddr;
@@ -414,17 +447,17 @@ DeviceAdvertisement( IN char *DevType,
     if( RootDev ) {
         sprintf( Mil_Usn, "%s::upnp:rootdevice", Udn );
         CreateServicePacket( MSGTYPE_ADVERTISEMENT, "upnp:rootdevice",
-		Mil_Usn, Location, Duration, &msgs[0] );
+		Mil_Usn, Location, SecureLocation, Duration, &msgs[0] );
     }
     // both root and sub-devices need to send these two messages
     //
 
     CreateServicePacket( MSGTYPE_ADVERTISEMENT, Udn, Udn,
-                         Location, Duration, &msgs[1] );
+                         Location, SecureLocation, Duration, &msgs[1] );
 
     sprintf( Mil_Usn, "%s::%s", Udn, DevType );
     CreateServicePacket( MSGTYPE_ADVERTISEMENT, DevType, Mil_Usn,
-                         Location, Duration, &msgs[2] );
+                         Location, SecureLocation, Duration, &msgs[2] );
 
     // check error
     if( ( RootDev && msgs[0] == NULL ) ||
@@ -461,6 +494,7 @@ DeviceAdvertisement( IN char *DevType,
 *	IN int RootDev: 1 means root device 0 means embedded device.
 *	IN char * Udn: Device UDN
 *	IN char * Location: Location of Device description document.
+*   IN char * securelocation :HTTPS location URL.
 *	IN int  Duration :Life time of this device.
 *	IN int ByType:
 *
@@ -477,6 +511,7 @@ SendReply( IN struct sockaddr_in *DestAddr,
            IN int RootDev,
            IN char *Udn,
            IN char *Location,
+           IN char *SecureLocation,
            IN int Duration,
            IN int ByType )
 {
@@ -495,19 +530,19 @@ SendReply( IN struct sockaddr_in *DestAddr,
 
         sprintf( Mil_Usn, "%s::upnp:rootdevice", Udn );
         CreateServicePacket( MSGTYPE_REPLY, "upnp:rootdevice",
-                             Mil_Usn, Location, Duration, &msgs[0] );
+                             Mil_Usn, Location, SecureLocation, Duration, &msgs[0] );
     } else {
         // two msgs for embedded devices
         num_msgs = 1;
 
         //NK: FIX for extra response when someone searches by udn
         if( !ByType ) {
-            CreateServicePacket( MSGTYPE_REPLY, Udn, Udn, Location,
+            CreateServicePacket( MSGTYPE_REPLY, Udn, Udn, Location, SecureLocation,
                                  Duration, &msgs[0] );
         } else {
             sprintf( Mil_Usn, "%s::%s", Udn, DevType );
             CreateServicePacket( MSGTYPE_REPLY, DevType, Mil_Usn,
-                                 Location, Duration, &msgs[0] );
+                                 Location, SecureLocation, Duration, &msgs[0] );
         }
     }
 
@@ -538,6 +573,7 @@ SendReply( IN struct sockaddr_in *DestAddr,
 *	IN int RootDev: 1 means root device 0 means embedded device.
 *	IN char * Udn: Device UDN
 *	IN char * Location: Location of Device description document.
+*   IN char * securelocation :HTTPS location URL.
 *	IN int  Duration :Life time of this device.
 * Description:
 *	This function creates the reply packet based on the input parameter, 
@@ -552,6 +588,7 @@ DeviceReply( IN struct sockaddr_in *DestAddr,
              IN int RootDev,
              IN char *Udn,
              IN char *Location,
+             IN char *SecureLocation,
              IN int Duration)
 {
     char *szReq[3],
@@ -570,18 +607,18 @@ DeviceReply( IN struct sockaddr_in *DestAddr,
         strcpy( Mil_Nt, "upnp:rootdevice" );
         sprintf( Mil_Usn, "%s::upnp:rootdevice", Udn );
         CreateServicePacket( MSGTYPE_REPLY, Mil_Nt, Mil_Usn,
-                             Location, Duration, &szReq[0] );
+                             Location, SecureLocation, Duration, &szReq[0] );
     }
 
     sprintf( Mil_Nt, "%s", Udn );
     sprintf( Mil_Usn, "%s", Udn );
     CreateServicePacket( MSGTYPE_REPLY, Mil_Nt, Mil_Usn,
-                         Location, Duration, &szReq[1] );
+                         Location, SecureLocation, Duration, &szReq[1] );
 
     sprintf( Mil_Nt, "%s", DevType );
     sprintf( Mil_Usn, "%s::%s", Udn, DevType );
     CreateServicePacket( MSGTYPE_REPLY, Mil_Nt, Mil_Usn,
-                         Location, Duration, &szReq[2] );
+                         Location, SecureLocation, Duration, &szReq[2] );
 
     // check error
 
@@ -614,6 +651,7 @@ DeviceReply( IN struct sockaddr_in *DestAddr,
 *	IN char * Udn: Device UDN
 *	IN char *ServType: Service Type.
 *	IN char * Location: Location of Device description document.
+*   IN char * securelocation :HTTPS location URL.
 *	IN int  Duration :Life time of this device.
 * Description:
 *	This function creates the advertisement packet based
@@ -626,6 +664,7 @@ int
 ServiceAdvertisement( IN char *Udn,
                       IN char *ServType,
                       IN char *Location,
+                      IN char *SecureLocation,
                       IN int Duration)
 {
     char Mil_Usn[LINE_SIZE];
@@ -642,7 +681,7 @@ ServiceAdvertisement( IN char *Udn,
     //CreateServiceRequestPacket(1,szReq[0],Mil_Nt,Mil_Usn,
     //Server,Location,Duration);
     CreateServicePacket( MSGTYPE_ADVERTISEMENT, ServType, Mil_Usn,
-                         Location, Duration, &szReq[0] );
+                         Location, SecureLocation, Duration, &szReq[0] );
     if( szReq[0] == NULL ) {
         return UPNP_E_OUTOF_MEMORY;
     }
@@ -661,6 +700,7 @@ ServiceAdvertisement( IN char *Udn,
 *	IN char * Udn: Device UDN
 *	IN char *ServType: Service Type.
 *	IN char * Location: Location of Device description document.
+*   IN char * securelocation :HTTPS location URL.
 *	IN int  Duration :Life time of this device.
 * Description:
 *	This function creates the advertisement packet based 
@@ -674,6 +714,7 @@ ServiceReply( IN struct sockaddr_in *DestAddr,
               IN char *ServType,
               IN char *Udn,
               IN char *Location,
+              IN char *SecureLocation,
               IN int Duration )
 {
     char Mil_Usn[LINE_SIZE];
@@ -685,7 +726,7 @@ ServiceReply( IN struct sockaddr_in *DestAddr,
     sprintf( Mil_Usn, "%s::%s", Udn, ServType );
 
     CreateServicePacket( MSGTYPE_REPLY, ServType, Mil_Usn,
-                         Location, Duration, &szReq[0] );
+                         Location, SecureLocation, Duration, &szReq[0] );
     if( szReq[0] == NULL ) {
         return UPNP_E_OUTOF_MEMORY;
     }
@@ -703,6 +744,7 @@ ServiceReply( IN struct sockaddr_in *DestAddr,
 *	IN char * Udn: Device UDN
 *	IN char *ServType: Service Type.
 *	IN char * Location: Location of Device description document.
+*   IN char * securelocation :HTTPS location URL.
 *	IN int  Duration :Service duration in sec.
 * Description:
 *	This function creates a HTTP service shutdown request packet 
@@ -715,6 +757,7 @@ int
 ServiceShutdown( IN char *Udn,
                  IN char *ServType,
                  IN char *Location,
+                 IN char *SecureLocation,
                  IN int Duration)
 {
     char Mil_Usn[LINE_SIZE];
@@ -731,7 +774,7 @@ ServiceShutdown( IN char *Udn,
     //CreateServiceRequestPacket(0,szReq[0],Mil_Nt,Mil_Usn,
     //Server,Location,Duration);
     CreateServicePacket( MSGTYPE_SHUTDOWN, ServType, Mil_Usn,
-                         Location, Duration, &szReq[0] );
+                         Location, SecureLocation, Duration, &szReq[0] );
     if( szReq[0] == NULL ) {
         return UPNP_E_OUTOF_MEMORY;
     }
@@ -749,6 +792,7 @@ ServiceShutdown( IN char *Udn,
 *	IN int RootDev:1 means root device.
 *	IN char * Udn: Device UDN
 *	IN char * Location: Location URL
+*   IN char * securelocation :HTTPS location URL.
 *	IN int  Duration :Device duration in sec.
 *
 * Description:
@@ -764,6 +808,7 @@ DeviceShutdown( IN char *DevType,
                 IN char *Udn,
                 IN char *_Server,
                 IN char *Location,
+                IN char *SecureLocation,
                 IN int Duration)
 {
     struct sockaddr_in DestAddr;
@@ -783,18 +828,18 @@ DeviceShutdown( IN char *DevType,
     if( RootDev ) {
         sprintf( Mil_Usn, "%s::upnp:rootdevice", Udn );
         CreateServicePacket( MSGTYPE_SHUTDOWN, "upnp:rootdevice",
-                             Mil_Usn, Location, Duration, &msgs[0] );
+                             Mil_Usn, Location, SecureLocation, Duration, &msgs[0] );
     }
 
     UpnpPrintf( UPNP_INFO, SSDP, __FILE__, __LINE__,
         "In function DeviceShutdown\n" );
     // both root and sub-devices need to send these two messages
     CreateServicePacket( MSGTYPE_SHUTDOWN, Udn, Udn,
-                         Location, Duration, &msgs[1] );
+                         Location, SecureLocation, Duration, &msgs[1] );
 
     sprintf( Mil_Usn, "%s::%s", Udn, DevType );
     CreateServicePacket( MSGTYPE_SHUTDOWN, DevType, Mil_Usn,
-                         Location, Duration, &msgs[2] );
+                         Location, SecureLocation, Duration, &msgs[2] );
 
     // check error
     if( ( RootDev && msgs[0] == NULL ) ||

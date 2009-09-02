@@ -78,6 +78,7 @@ struct Handle_Info
     // Device Only
 #ifdef INCLUDE_DEVICE_APIS
     char  DescURL[LINE_SIZE];   // URL for the use of SSDP
+    char  SecureDescURL[LINE_SIZE];   // Secure URL for the use of SSDP, used mainly for advertising SECURELOCATION.UPNP.ORG
     char  DescXML[LINE_SIZE];   // XML file path for device 
                                 //description
 

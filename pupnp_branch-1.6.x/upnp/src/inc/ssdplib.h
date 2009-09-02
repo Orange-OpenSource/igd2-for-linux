@@ -372,6 +372,7 @@ int SearchByTarget(IN int Mx, IN char *St, IN void *Cookie);
 *	IN int RootDev   : flag to indicate if the device is root device
 *	IN char *Udn     :
 *	IN char *Location: Location URL.
+*   IN char * securelocation :HTTPS location URL.
 *	IN int Duration  : Service duration in sec.
 *
 * Description:
@@ -386,6 +387,7 @@ int DeviceAdvertisement(
 	IN int RootDev,
 	IN char *Udn, 
 	IN char *Location,
+    IN char *SecureLocation,
 	IN int Duration);
 
 
@@ -398,6 +400,7 @@ int DeviceAdvertisement(
 *	IN char *Udn: Device UDN
 *	IN char *_Server:
 *	IN char *Location: Location URL
+*   IN char * securelocation :HTTPS location URL.
 *	IN int Duration :Device duration in sec.
 *
 * Description:
@@ -413,6 +416,7 @@ int DeviceShutdown(
 	IN char *Udn, 
 	IN char *_Server, 
 	IN char *Location, 
+    IN char *SecureLocation,
 	IN int Duration);
 
 /************************************************************************
@@ -424,6 +428,7 @@ int DeviceShutdown(
 *	IN int RootDev: 1 means root device 0 means embedded device.
 *	IN char *Udn: Device UDN
 *	IN char *Location: Location of Device description document.
+*   IN char * securelocation :HTTPS location URL.
 *	IN int Duration :Life time of this device.
 *
 * Description:
@@ -438,7 +443,9 @@ int DeviceReply(
 	IN char *DevType, 
 	IN int RootDev, 
 	IN char *Udn, 
-	IN char *Location, IN int  Duration);
+	IN char *Location, 
+    IN char *SecureLocation,
+    IN int  Duration);
 
 /************************************************************************
 * Function : SendReply
@@ -450,6 +457,7 @@ int DeviceReply(
 *	IN char * Udn: Device UDN
 *	IN char *_Server:
 *	IN char *Location: Location of Device description document.
+*   IN char * securelocation :HTTPS location URL.
 *	IN int Duration :Life time of this device.
 *	IN int ByType:
 *
@@ -465,7 +473,8 @@ int SendReply(
 	IN char *DevType, 
 	IN int RootDev, 
 	IN char *Udn, 
-	IN char *Location, 
+	IN char *Location,
+    IN char *SecureLocation, 
 	IN int Duration, 
 	IN int ByType );
 
@@ -476,6 +485,7 @@ int SendReply(
 *	IN char * Udn: Device UDN
 *	IN char *ServType: Service Type.
 *	IN char * Location: Location of Device description document.
+*   IN char * securelocation :HTTPS location URL.
 *	IN int Duration :Life time of this device.
 *
 * Description:
@@ -489,6 +499,7 @@ int ServiceAdvertisement(
 	IN char *Udn, 
 	IN char *ServType,
 	IN char *Location,
+    IN char *SecureLocation,
 	IN int Duration);
 
 /************************************************************************
@@ -500,6 +511,7 @@ int ServiceAdvertisement(
 *	IN char *ServType: Service Type.
 *	IN char *Server: Not used
 *	IN char *Location: Location of Device description document.
+*   IN char * securelocation :HTTPS location URL.
 *	IN int Duration :Life time of this device.
 *
 * Description:
@@ -514,6 +526,7 @@ int ServiceReply(
 	IN char *ServType, 
 	IN char *Udn, 
 	IN char *Location,
+    IN char *SecureLocation,
 	IN int Duration);
 
 /************************************************************************
@@ -523,6 +536,7 @@ int ServiceReply(
 *	IN char *Udn: Device UDN
 *	IN char *ServType: Service Type.
 *	IN char *Location: Location of Device description document.
+*   IN char * securelocation :HTTPS location URL.
 *	IN int Duration :Service duration in sec.
 *
 * Description:
@@ -536,6 +550,7 @@ int ServiceShutdown(
 	IN char *Udn,
 	IN char *ServType,
 	IN char *Location,
+    IN char *SecureLocation,
 	IN int Duration);
 
 
