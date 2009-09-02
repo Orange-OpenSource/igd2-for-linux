@@ -320,7 +320,7 @@ CreateServicePacket( IN int msg_type,
         if ( SecureLocation && (strlen(SecureLocation) > 0) ) {
             ret_code = http_MakeMessage(
                 &buf, 1, 1,
-                "R" "sdc" "D" "sc" "ssc" "S" "Xc" "ssc" "sscc",
+                "R" "sdc" "D" "sc" "ssc" "ssc" "S" "Xc" "ssc" "sscc",
                 HTTP_OK,
                 "CACHE-CONTROL: max-age=", duration,
                 "EXT:",
@@ -359,7 +359,7 @@ CreateServicePacket( IN int msg_type,
         if ( SecureLocation && (strlen(SecureLocation) > 0) ) {
             ret_code = http_MakeMessage(
                 &buf, 1, 1,
-                "Q" "sssdc" "sdc" "ssc" "ssc" "ssc" "S" "Xc" "sscc",
+                "Q" "sssdc" "sdc" "ssc" "ssc" "ssc" "ssc" "S" "Xc" "sscc",
                 HTTPMETHOD_NOTIFY, "*", (size_t)1,
                 "HOST: ", SSDP_IP, ":", SSDP_PORT,
                 "CACHE-CONTROL: max-age=", duration,
