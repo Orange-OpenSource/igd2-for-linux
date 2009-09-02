@@ -218,6 +218,7 @@ static int updateDescDocUuid(const char *descDocFile)
 int main (int argc, char** argv)
 {
     char descDocUrl[7+15+1+5+1+sizeof(g_vars.descDocName)+1]; // http://ipaddr:port/docName<null>
+    char secureDescDocUrl[8+15+1+5+1+sizeof(g_vars.descDocName)+1]; // http://ipaddr:port/docName<null>
     char intIpAddress[INET6_ADDRSTRLEN];     // Server internal ip address updated IPv6 address length 16 -> 46
     sigset_t sigsToCatch;
     int ret, signum, arg = 1, foreground = 0;
@@ -412,13 +413,15 @@ int main (int argc, char** argv)
         exit(1);
     }
 
-    // Form the Description Doc URL to pass to RegisterRootDevice
+    // Form the Description Doc URL's to pass to RegisterRootDevice
     sprintf(descDocUrl, "http://%s:%d/%s", UpnpGetServerIpAddress(),
             UpnpGetServerPort(), g_vars.descDocName);
+    sprintf(secureDescDocUrl, "https://%s:%d/%s", UpnpGetServerIpAddress(),
+            g_vars.httpsListenport, g_vars.descDocName);            
 
     // Register our IGD as a valid UPnP Root device
     trace(3, "Registering the root device with descDocUrl %s for byebye sending", descDocUrl);
-    if ( (ret = UpnpRegisterRootDevice(descDocUrl, EventHandler, &deviceHandle,
+    if ( (ret = UpnpRegisterRootDeviceHTTPS(descDocUrl, secureDescDocUrl, EventHandler, &deviceHandle,
                                        &deviceHandle)) != UPNP_E_SUCCESS )
     {
         syslog(LOG_ERR, "Error registering the root device with descDocUrl: %s", descDocUrl);
@@ -443,7 +446,7 @@ int main (int argc, char** argv)
     UpnpUnRegisterRootDevice(deviceHandle); // this will send byebye's
     // Register our IGD as a valid UPnP Root device
     trace(3, "Registering the root device again with descDocUrl %s", descDocUrl);
-    if ( (ret = UpnpRegisterRootDevice(descDocUrl, EventHandler, &deviceHandle,
+    if ( (ret = UpnpRegisterRootDeviceHTTPS(descDocUrl, secureDescDocUrl, EventHandler, &deviceHandle,
                                        &deviceHandle)) != UPNP_E_SUCCESS )
     {
         syslog(LOG_ERR, "Error registering the root device with descDocUrl: %s", descDocUrl);
