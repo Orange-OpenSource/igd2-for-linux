@@ -23,7 +23,7 @@
 
 #include <upnp/upnp.h>
 
-
+#define WANIP_SERVICE_TYPE "urn:schemas-upnp-org:service:WANIPConnection:2"
 /* interface statistics */
 typedef enum
 {

@@ -49,11 +49,10 @@ static const char xml_portmapEntry[] =
         "<NewInternalPort>%s</NewInternalPort><NewInternalClient>%s</NewInternalClient><NewEnabled>%d</NewEnabled>"
         "<NewDescription>%s</NewDescription><NewLeaseTime>%ld</NewLeaseTime></p:PortmapEntry>\n";
 static const char xml_portmapListingHeader[] =
-        "<u:%sResponse xmlns:u=\"urn:schemas-upnp-org:service:WANIPConnection:2\"><NewPortListing>"
         "<p:PortMappingList xmlns:p=\"http://www.upnp.org/schemas/GWPortMappingList.xsd\""
         "xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:schemaLocation=\""
         "http://www.upnp.org/schemas/GWPortMappingList.xsd GwPortMappingList-V0.5.xsd\">\n";
-static const char xml_portmapListingFooter[] = "</p:PortMappingList></NewPortListing></u:%sResponse>";
+static const char xml_portmapListingFooter[] = "</p:PortMappingList>";
 
 
 /**
@@ -1630,7 +1629,7 @@ int GetListOfPortmappings(struct Upnp_Action_Request *ca_event)
                 inet_ntop(AF_INET, &ca_event->CtrlPtIPAddr, cp_ip, INET_ADDRSTRLEN);
     
             // Write XML header
-            result_place += snprintf(result_str, RESULT_LEN, xml_portmapListingHeader, ca_event->ActionName);
+            result_place += snprintf(result_str, RESULT_LEN, xml_portmapListingHeader);
     
             // Loop through port mappings until we run out or max_entries reaches 0
             while ( (pm = pmlist_FindRangeAfter(start, end, proto, cp_ip, pm)) != NULL && max_entries--)
@@ -1644,9 +1643,12 @@ int GetListOfPortmappings(struct Upnp_Action_Request *ca_event)
     
             if (action_succeeded)
             {
+                result_place += sprintf(&result_str[result_place], xml_portmapListingFooter);
+                ca_event->ActionResult = UpnpMakeActionResponse(ca_event->ActionName, WANIP_SERVICE_TYPE,
+                                          1, 
+                                          "NewPortListing", result_str,
+                                          NULL);                
                 ca_event->ErrCode = UPNP_E_SUCCESS;
-                result_place += sprintf(&result_str[result_place], xml_portmapListingFooter, ca_event->ActionName);
-                ca_event->ActionResult = ixmlParseBuffer(result_str);
                 trace(3, ixmlPrintDocument(ca_event->ActionResult));
             }
             else
