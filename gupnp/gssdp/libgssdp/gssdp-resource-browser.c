@@ -24,10 +24,14 @@
  * @short_description: Class handling resource discovery.
  *
  * #GUPnPResourceBrowser handles resource discovery. After creating a browser
- * and activating it, the ::resource-available and ::resource-unavailable
- * signals will be emitted whenever the availability of a resource matching the
- * specified discovery target changes. A discovery request is sent out
- * automatically when activating the browser.
+ * and activating it, the ::resource-available, ::secure-resource-available
+ * and ::resource-unavailable signals will be emitted whenever the availability 
+ * of a resource matching the specified discovery target changes. A discovery 
+ * request is sent out automatically when activating the browser.
+ * 
+ * Resource is considered to be secure if SECURELOCATION.UPNP.ORG http header field
+ * is found from received advertisement packet. This header field is introduced in 
+ * DeviceProtection service spesification.
  */
 
 #include <config.h>
@@ -74,6 +78,7 @@ enum {
 
 enum {
         RESOURCE_AVAILABLE,
+        SECURE_RESOURCE_AVAILABLE,
         RESOURCE_UNAVAILABLE,
         LAST_SIGNAL
 };
@@ -345,6 +350,33 @@ gssdp_resource_browser_class_init (GSSDPResourceBrowserClass *klass)
                               G_TYPE_POINTER);
 
         /**
+         * GSSDPResourceBrowser::secure-resource-available
+         * @resource_browser: The #GSSDPResourceBrowser that received the
+         * signal
+         * @usn: The USN of the discovered resource
+         * @locations: A #GList of strings describing the locations of the
+         * discovered resource. (http)
+         * @locations: A #GList of strings describing the secure locations of the
+         * discovered resource. (https)
+         *
+         * The ::secure-resource-available signal is emitted whenever a new resource
+         * with SECURELOCATION.UPNP.ORG header field has become available.
+         **/
+        signals[SECURE_RESOURCE_AVAILABLE] =
+                g_signal_new ("secure-resource-available",
+                              GSSDP_TYPE_RESOURCE_BROWSER,
+                              G_SIGNAL_RUN_LAST,
+                              G_STRUCT_OFFSET (GSSDPResourceBrowserClass,
+                                               secure_resource_available),
+                              NULL, NULL,
+                              gssdp_marshal_VOID__STRING_POINTER_POINTER,
+                              G_TYPE_NONE,
+                              3,
+                              G_TYPE_STRING,
+                              G_TYPE_POINTER,
+                              G_TYPE_POINTER);
+
+        /**
          * GSSDPResourceBrowser::resource-unavailable
          * @resource_browser: The #GSSDPResourceBrowser that received the
          * signal
@@ -564,6 +596,7 @@ resource_available (GSSDPResourceBrowser *resource_browser,
         gboolean was_cached;
         guint timeout;
         GList *locations;
+        GList *secure_locations;
         GMainContext *context;
 
         usn = soup_message_headers_get (headers, "USN");
@@ -677,6 +710,13 @@ resource_available (GSSDPResourceBrowser *resource_browser,
         if (header)
                 locations = g_list_append (locations, g_strdup (header));
 
+        /* Build list of secure locations */
+        secure_locations = NULL;
+
+        header = soup_message_headers_get (headers, "SECURELOCATION.UPNP.ORG");
+        if (header)
+                secure_locations = g_list_append (secure_locations, g_strdup (header));
+
         header = soup_message_headers_get (headers, "AL");
         if (header) {
                 /* Parse AL header. The format is:
@@ -702,6 +742,15 @@ resource_available (GSSDPResourceBrowser *resource_browser,
         }
 
         /* Emit signal */
+        if (secure_locations) {
+            g_signal_emit (resource_browser,
+                           signals[SECURE_RESOURCE_AVAILABLE],
+                           0,
+                           usn,
+                           locations,
+                           secure_locations);            
+        }
+                
         g_signal_emit (resource_browser,
                        signals[RESOURCE_AVAILABLE],
                        0,
@@ -714,6 +763,11 @@ resource_available (GSSDPResourceBrowser *resource_browser,
 
                 locations = g_list_delete_link (locations, locations);
         }
+        while (secure_locations) {
+                g_free (secure_locations->data);
+
+                secure_locations = g_list_delete_link (secure_locations, secure_locations);
+        }        
 }
 
 static void

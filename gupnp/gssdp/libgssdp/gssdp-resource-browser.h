@@ -65,6 +65,11 @@ typedef struct {
         void (* resource_available)   (GSSDPResourceBrowser *resource_browser,
                                        const char           *usn,
                                        const GList          *locations);
+
+        void (* secure_resource_available)   (GSSDPResourceBrowser *resource_browser,
+                                              const char           *usn,
+                                              const GList          *locations,
+                                              const GList          *secure_locations);
         
         void (* resource_unavailable) (GSSDPResourceBrowser *resource_browser,
                                        const char           *usn);
