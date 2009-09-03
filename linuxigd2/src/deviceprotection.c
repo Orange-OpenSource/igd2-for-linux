@@ -128,19 +128,6 @@ xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"\
 xsi:schemaLocation=\"urn:schemas-upnp-org:gw:DeviceProtection\
 http://www.upnp.org/schemas/gw/DeviceProtection.xsd\">\
 <Introduction><Name>WPS</Name></Introduction></SupportedProtocols>");
-    
-    // escape XML string
-    char *tmp = escapeXMLString(SupportedProtocols);
-    if (tmp)
-    {
-        strcpy(SupportedProtocols, tmp);
-        free(tmp);
-    }
-    else
-    {
-        trace(1, "Failed to initialize value for 'SupportedProtocols' state variable");
-        strcpy(SupportedProtocols, "");
-    }
 }
 
 /**
@@ -1530,16 +1517,14 @@ int UserLogout(struct Upnp_Action_Request *ca_event)
 int GetACLData(struct Upnp_Action_Request *ca_event)
 {
     char *ACL = ixmlDocumenttoString(ACLDoc);
-    char *escACL = escapeXMLString(ACL);
     IXML_Document *ActionResult = NULL;
 
-    if (escACL)
+    if (ACL)
     {
         ActionResult = UpnpMakeActionResponse(ca_event->ActionName, DP_SERVICE_TYPE,
                                         1,
-                                        "ACL", escACL);
-        free (ACL);                               
-        free (escACL);                                     
+                                        "ACL", ACL);
+        free (ACL);                                    
     }
     else
     {
@@ -2076,29 +2061,24 @@ int AddIdentityList(struct Upnp_Action_Request *ca_event)
             // get identities element from ACL and return it to CP
             char *responseIdentities = NodeWithNameToString(ACLDoc, "Identities");
             
-            // replace <Identities> from beginning with <Identities xmlns="...>
-            char responseIdentitiesWithNamespace[strlen(responseIdentities)+240];
-            strcpy(responseIdentitiesWithNamespace,"<Identities xmlns=\"urn:schemas-upnp-org:gw:DeviceProtection\" \
+            if (responseIdentities)
+            {
+                // replace <Identities> from beginning with <Identities xmlns="...>
+                char responseIdentitiesWithNamespace[strlen(responseIdentities)+240];
+                strcpy(responseIdentitiesWithNamespace,"<Identities xmlns=\"urn:schemas-upnp-org:gw:DeviceProtection\" \
 xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" \
 xsi:schemaLocation=\"urn:schemas-upnp-org:gw:DeviceProtection \
 http://www.upnp.org/schemas/gw/DeviceProtection.xsd\">");
 
-            strcat(responseIdentitiesWithNamespace, responseIdentities+12);
-            free(responseIdentities);
-            
-            if (responseIdentities)
-            {
-                // Succesfull end happens here
+                strcat(responseIdentitiesWithNamespace, responseIdentities+12);
+                free(responseIdentities);                
                 
-                //escape response xml
-                char *escResponse = escapeXMLString(responseIdentitiesWithNamespace);
-                
+                // Succesfull end happens here, libupnp takes care of escaping the string for SOAP
                 ca_event->ActionResult = UpnpMakeActionResponse(ca_event->ActionName, DP_SERVICE_TYPE,
                                             1, 
-                                            "IdentityListResult", escResponse,
+                                            "IdentityListResult", responseIdentitiesWithNamespace,
                                             NULL);                                        
                 ca_event->ErrCode = UPNP_E_SUCCESS;
-                if (escResponse) free (escResponse);
             }
             else
             {

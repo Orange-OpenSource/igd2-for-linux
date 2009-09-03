@@ -64,6 +64,10 @@ static int get_sockfd(void)
 
 
 /**
+ * THIS FUNCTION IS NOT ACTUALLY NEEDED, if you use UpnpMakeActionResponse and such
+ * functions for creating responses. libupnp then takes care of escaping xmls. 
+ * Unescaping on the other hand must be done by ourself here. 
+ * 
  * Change given XML string in escaped form. 
  * Following characters are converted:
  *  '<'  -->  "&lt;"
