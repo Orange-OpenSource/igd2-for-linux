@@ -25,7 +25,7 @@
 			     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 				 xsi:schemaLocation="urn:schemas-upnp-org:gw:DeviceProtection
 				 http://www.upnp.org/schemas/gw/DeviceProtection.xsd">
-            <serviceType>urn:schemas-upnp-org:gw:DeviceProtection:1</serviceType>
+            <serviceType>urn:schemas-upnp-org:service:DeviceProtection:1</serviceType>
             <serviceId>urn:upnp-org:serviceId:DeviceProtection1</serviceId>
             <controlURL>/upnp/control/DeviceProtection1</controlURL>
             <eventSubURL>/upnp/control/DeviceProtection1</eventSubURL>
