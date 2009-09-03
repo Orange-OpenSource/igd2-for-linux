@@ -523,7 +523,7 @@ find_device_protection_service (GUPnPDeviceProxy *proxy)
         while (service)
         {
                 service_type = gupnp_service_info_get_service_type (GUPNP_SERVICE_INFO (service->data));
-                if (g_strcmp0 ("urn:schemas-upnp-org:gw:DeviceProtection:1", service_type) == 0)
+                if (g_strcmp0 ("urn:schemas-upnp-org:service:DeviceProtection:1", service_type) == 0)
                 {
                         serv = GUPNP_SERVICE_PROXY (service->data);
                         service = g_list_remove_link (service, service);
