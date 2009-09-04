@@ -26,8 +26,6 @@
 #include "statcodes.h"
 #include "pki.h"
 
-
-#define MAX_BUF 1024
 #define DH_BITS 1024
 
 static gnutls_certificate_credentials_t x509_cred;
@@ -405,6 +403,13 @@ handle_https_request(void *args)
     gnutls_session_t session;
     struct mserv_request_t *request = ( struct mserv_request_t * )args;
     int sock = request->connfd;
+    int line = 0;
+    parse_status_t status;
+    int num_read;
+    xboolean ok_on_close = FALSE;
+    int max_record_size = 0;
+    char *buf = NULL;    
+    
     
     /* create session */
     session = initialize_tls_session();
@@ -442,21 +447,18 @@ handle_https_request(void *args)
     info.foreign_ip_port = request->foreign_ip_port;
 
 
-    // copy from http_RecvMessage
+    // following is copy from http_RecvMessage
     ret = UPNP_E_SUCCESS;
-    int line = 0;
-    parse_status_t status;
-    int num_read;
-    xboolean ok_on_close = FALSE;
-    char buf[MAX_BUF];
-
+    max_record_size = gnutls_record_get_max_size(session);
+    buf = malloc(max_record_size);
+    
     // init parser
     parser_request_init(parser);
 
     // this loop serves one SSL session
     while (TRUE) {
-        memset (buf, 0, MAX_BUF);
-        num_read = gnutls_record_recv (session, buf, MAX_BUF);
+        memset (buf, 0, max_record_size);
+        num_read = gnutls_record_recv (session, buf, max_record_size);
         if (num_read > 0) {            
             // got data        
             
@@ -545,7 +547,8 @@ ExitFunction:
         gnutls_deinit (session);
     }
     close (sock);
-    free( request );
+    free(request);
+    if (buf) free(buf);
 }
 
 /************************************************************************
