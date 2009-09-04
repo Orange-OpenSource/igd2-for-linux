@@ -122,14 +122,21 @@ static void ssl_client_send_and_receive_thread(void *data)
     char *tmp, *body = NULL;
     int retVal = 0;
     int size = 0;
-    int alloc = 1024;
-    int len = 1024;
-    char recv[len+1];
     int content_len = 0;
 
     GUPnPSSLThreadData *ssl_data = data;
     
     GUPnPSSLClient **client = ssl_data->client;
+    if ((*client)->session == NULL)
+    {
+        g_slice_free(GUPnPSSLThreadData, data);
+        return;// GUPNP_E_SESSION_FAIL;
+    }
+
+
+    int alloc = gnutls_record_get_max_size((*client)->session); // get the maximum size of record that can be received
+    int len = alloc;
+    char recv[len+1];    
     char *message = ssl_data->message;
     SoupMessage *msg = ssl_data->soupmesg;
 
@@ -137,15 +144,6 @@ static void ssl_client_send_and_receive_thread(void *data)
     //char response[alloc+1];
     *response = '\0';    
 
-
-
-    if ((*client)->session == NULL)
-    {
-        g_slice_free(GUPnPSSLThreadData, data);
-        return;// GUPNP_E_SESSION_FAIL;
-    }
- 
-   
     // Send the message
     retVal = gnutls_record_send((*client)->session, message, strlen(message));
      
