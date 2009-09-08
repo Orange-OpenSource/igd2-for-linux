@@ -1560,9 +1560,17 @@ gupnp_device_proxy_add_user (GUPnPDeviceProxy           *proxy,
 
         // create Identities XML fragment
         if (adduserdata->rolelist && adduserdata->rolelist->len > 0)
-            g_string_printf(adduserdata->identitylist, "<Identities><User><Name>%s</Name><RoleList>%s</RoleList></User></Identities>", username,rolelist );
+            g_string_printf(adduserdata->identitylist, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
+                                                       "<Identities xmlns=\"urn:schemas-upnp-org:gw:DeviceProtection\" "
+                                                       "xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" "
+                                                       "xsi:schemaLocation=\"http://www.upnp.org/schemas/gw/DeviceProtection-v1.xsd\">"
+                                                       "<User><Name>%s</Name><RoleList>%s</RoleList></User></Identities>", username,rolelist );
         else
-            g_string_printf(adduserdata->identitylist, "<Identities><User><Name>%s</Name></User></Identities>", username);
+            g_string_printf(adduserdata->identitylist, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
+                                                       "<Identities xmlns=\"urn:schemas-upnp-org:gw:DeviceProtection\" "
+                                                       "xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" "
+                                                       "xsi:schemaLocation=\"http://www.upnp.org/schemas/gw/DeviceProtection-v1.xsd\">"
+                                                       "<User><Name>%s</Name></User></Identities>", username);
 
         // escape identitylist xml
         GString *escIdList = g_string_new("");
