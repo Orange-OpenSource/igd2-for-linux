@@ -115,6 +115,7 @@ gupnp_resource_factory_get_default (void)
  * @element: The #xmlNode ponting to the right device element
  * @udn: The UDN of the device to create a proxy for
  * @location: The location of the device description file
+ * @secure_location: The possible HTTPS location of the service description file
  * @url_base: The URL base for this device, or %NULL if none
  *
  *
@@ -131,6 +132,7 @@ gupnp_resource_factory_create_device_proxy
                                  xmlNode              *element,
                                  const char           *udn,
                                  const char           *location,
+                                 const char           *secure_location,
                                  const SoupURI        *url_base)
 {
         GUPnPDeviceProxy *proxy;
@@ -140,8 +142,8 @@ gupnp_resource_factory_create_device_proxy
         g_return_val_if_fail (GUPNP_IS_RESOURCE_FACTORY (factory), NULL);
         g_return_val_if_fail (GUPNP_IS_CONTEXT (context), NULL);
         g_return_val_if_fail (IS_XML_DOC_WRAPPER (doc), NULL);
-        g_return_val_if_fail (element != NULL, NULL);
-        g_return_val_if_fail (location != NULL, NULL);
+        g_return_val_if_fail (element != NULL, NULL);       
+        g_return_val_if_fail ((location != NULL || secure_location != NULL), NULL);
         g_return_val_if_fail (url_base != NULL, NULL);
 
         upnp_type = xml_util_get_child_element_content_glib (element,
@@ -161,6 +163,7 @@ gupnp_resource_factory_create_device_proxy
                               "resource-factory", factory,
                               "context", context,
                               "location", location,
+                              "secure-location", secure_location,
                               "udn", udn,
                               "url-base", url_base,
                               "document", doc,
@@ -177,6 +180,7 @@ gupnp_resource_factory_create_device_proxy
  * @wrapper: An #XmlDocWrapper
  * @element: The #xmlNode ponting to the right service element
  * @location: The location of the service description file
+ * @secure_location: The possible HTTPS location of the service description file
  * @udn: The UDN of the device the service is contained in
  * @service_type: The service type
  * @url_base: The URL base for this service, or %NULL if none
@@ -195,6 +199,7 @@ gupnp_resource_factory_create_service_proxy
                                  const char             *udn,
                                  const char             *service_type,
                                  const char             *location,
+                                 const char             *secure_location,
                                  const SoupURI          *url_base)
 {
         GUPnPServiceProxy *proxy;
@@ -204,7 +209,7 @@ gupnp_resource_factory_create_service_proxy
         g_return_val_if_fail (GUPNP_IS_CONTEXT (context), NULL);
         g_return_val_if_fail (IS_XML_DOC_WRAPPER (wrapper), NULL);
         g_return_val_if_fail (element != NULL, NULL);
-        g_return_val_if_fail (location != NULL, NULL);
+        g_return_val_if_fail ((location != NULL || secure_location != NULL), NULL);
         g_return_val_if_fail (url_base != NULL, NULL);
 
         if (service_type) {
@@ -219,6 +224,7 @@ gupnp_resource_factory_create_service_proxy
         proxy = g_object_new (proxy_type,
                               "context", context,
                               "location", location,
+                              "secure-location", secure_location,
                               "udn", udn,
                               "service-type", service_type,
                               "url-base", url_base,
@@ -237,6 +243,7 @@ gupnp_resource_factory_create_service_proxy
  * @element: The #xmlNode ponting to the right device element
  * @udn: The UDN of the device to create a device for
  * @location: The location of the device description file
+ * @secure_location: The possible HTTPS location of the service description file
  * @url_base: The URL base for this device
  *
  * Create a #GUPnPDevice for the device with element @element, as
@@ -252,6 +259,7 @@ gupnp_resource_factory_create_device
                                  xmlNode              *element,
                                  const char           *udn,
                                  const char           *location,
+                                 const char           *secure_location,
                                  const SoupURI        *url_base)
 {
         GUPnPDevice *device;
@@ -282,6 +290,7 @@ gupnp_resource_factory_create_device
                                "context", context,
                                "root-device", root_device,
                                "location", location,
+                               "secure-location", secure_location,
                                "udn", udn,
                                "url-base", url_base,
                                "element", element,
@@ -298,6 +307,7 @@ gupnp_resource_factory_create_device
  * @element: The #xmlNode ponting to the right service element
  * @udn: The UDN of the device the service is contained in
  * @location: The location of the service description file
+ * @secure_location: The possible HTTPS location of the service description file
  * @url_base: The URL base for this service
  *
  * Create a #GUPnPService for the service with element @element, as
@@ -313,6 +323,7 @@ gupnp_resource_factory_create_service
                                  xmlNode              *element,
                                  const char           *udn,
                                  const char           *location,
+                                 const char           *secure_location,
                                  const SoupURI        *url_base)
 {
         GUPnPService *service;
@@ -323,7 +334,7 @@ gupnp_resource_factory_create_service
         g_return_val_if_fail (GUPNP_IS_CONTEXT (context), NULL);
         g_return_val_if_fail (GUPNP_IS_ROOT_DEVICE (root_device), NULL);
         g_return_val_if_fail (element != NULL, NULL);
-        g_return_val_if_fail (location != NULL, NULL);
+        g_return_val_if_fail ((location != NULL || secure_location != NULL), NULL);
         g_return_val_if_fail (url_base != NULL, NULL);
 
         upnp_type = xml_util_get_child_element_content_glib (element,
@@ -343,6 +354,7 @@ gupnp_resource_factory_create_service
                                 "context", context,
                                 "root-device", root_device,
                                 "location", location,
+                                "secure-location", secure_location,
                                 "udn", udn,
                                 "url-base", url_base,
                                 "element", element,

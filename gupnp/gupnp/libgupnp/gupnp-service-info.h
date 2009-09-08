@@ -100,6 +100,9 @@ gupnp_service_info_get_context                (GUPnPServiceInfo *info);
 const char *
 gupnp_service_info_get_location               (GUPnPServiceInfo *info);
 
+const char *
+gupnp_service_info_get_secure_location        (GUPnPServiceInfo *info);
+
 const SoupURI *
 gupnp_service_info_get_url_base               (GUPnPServiceInfo *info);
 

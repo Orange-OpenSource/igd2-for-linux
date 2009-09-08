@@ -43,6 +43,7 @@ struct _GUPnPDeviceInfoPrivate {
         GUPnPContext         *context;
 
         char *location;
+        char *secure_location;
         char *udn;
         char *device_type;
 
@@ -58,6 +59,7 @@ enum {
         PROP_RESOURCE_FACTORY,
         PROP_CONTEXT,
         PROP_LOCATION,
+        PROP_SECURE_LOCATION,
         PROP_UDN,
         PROP_DEVICE_TYPE,
         PROP_URL_BASE,
@@ -93,6 +95,9 @@ gupnp_device_info_set_property (GObject      *object,
                 break;
         case PROP_LOCATION:
                 info->priv->location = g_value_dup_string (value);
+                break;
+        case PROP_SECURE_LOCATION:
+                info->priv->secure_location = g_value_dup_string (value);
                 break;
         case PROP_UDN:
                 info->priv->udn = g_value_dup_string (value);
@@ -145,6 +150,10 @@ gupnp_device_info_get_property (GObject    *object,
                 g_value_set_string (value,
                                     info->priv->location);
                 break;
+        case PROP_SECURE_LOCATION:
+                g_value_set_string (value,
+                                    info->priv->secure_location);
+                break;
         case PROP_UDN:
                 g_value_set_string (value,
                                     gupnp_device_info_get_udn (info));
@@ -194,6 +203,7 @@ gupnp_device_info_finalize (GObject *object)
         info = GUPNP_DEVICE_INFO (object);
 
         g_free (info->priv->location);
+        g_free (info->priv->secure_location);
         g_free (info->priv->udn);
         g_free (info->priv->device_type);
 
@@ -268,6 +278,25 @@ gupnp_device_info_class_init (GUPnPDeviceInfoClass *klass)
                                       G_PARAM_STATIC_NAME |
                                       G_PARAM_STATIC_NICK |
                                       G_PARAM_STATIC_BLURB));
+                                      
+        /**
+         * GUPnPDeviceInfo:secure-location
+         *
+         * The location of the device description file.
+         **/
+        g_object_class_install_property
+                (object_class,
+                 PROP_SECURE_LOCATION,
+                 g_param_spec_string ("secure-location",
+                                      "Secure Location",
+                                      "The HTTPS location of the device description "
+                                      "file",
+                                      NULL,
+                                      G_PARAM_READWRITE |
+                                      G_PARAM_CONSTRUCT_ONLY |
+                                      G_PARAM_STATIC_NAME |
+                                      G_PARAM_STATIC_NICK |
+                                      G_PARAM_STATIC_BLURB));                                      
 
         /**
          * GUPnPDeviceInfo:udn
@@ -410,6 +439,22 @@ gupnp_device_info_get_location (GUPnPDeviceInfo *info)
         g_return_val_if_fail (GUPNP_IS_DEVICE_INFO (info), NULL);
 
         return info->priv->location;
+}
+
+/**
+ * gupnp_device_info_get_secure_location
+ * @info: A #GUPnPDeviceInfo
+ *
+ * Get the secure (https) location of the device description file.
+ *
+ * Returns: A constant string.
+ **/
+const char *
+gupnp_device_info_get_secure_location (GUPnPDeviceInfo *info)
+{
+        g_return_val_if_fail (GUPNP_IS_DEVICE_INFO (info), NULL);
+
+        return info->priv->secure_location;
 }
 
 /**

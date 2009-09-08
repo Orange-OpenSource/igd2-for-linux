@@ -75,6 +75,7 @@ typedef struct {
         char *udn;
         char *service_type;
         char *description_url;
+        char *secure_description_url;
 
         SoupMessage *message;
 } GetDescriptionURLData;
@@ -231,6 +232,7 @@ process_service_list (xmlNode           *element,
                       const char        *udn,
                       const char        *service_type,
                       const char        *description_url,
+                      const char        *secure_description_url,
                       SoupURI           *url_base)
 {
         for (element = element->children; element; element = element->next) {
@@ -268,7 +270,8 @@ process_service_list (xmlNode           *element,
                                                   element,
                                                   udn,
                                                   service_type,
-                                                  description_url,
+                                                  description_url,   
+                                                  secure_description_url,   
                                                   url_base);
 
                 control_point->priv->services =
@@ -286,11 +289,13 @@ process_service_list (xmlNode           *element,
 static void
 process_device_list (xmlNode           *element,
                      GUPnPControlPoint *control_point,
+                     GUPnPSSLClient    **client,
                      GUPnPDeviceProxy  *root_proxy,
                      XmlDocWrapper     *doc,
                      const char        *udn,
                      const char        *service_type,
                      const char        *description_url,
+                     const char        *secure_description_url,
                      SoupURI           *url_base)
 { 
         for (element = element->children; element; element = element->next) {           
@@ -310,11 +315,13 @@ process_device_list (xmlNode           *element,
                 if (children) {
                         process_device_list (children,
                                              control_point,
+                                             client,
                                              root_proxy,
                                              doc,
                                              udn,
                                              service_type,
                                              description_url,
+                                             secure_description_url,
                                              url_base);
                 }
 
@@ -348,6 +355,7 @@ process_device_list (xmlNode           *element,
                                                       udn,
                                                       service_type,
                                                       description_url,
+                                                      secure_description_url,
                                                       url_base);
                         }
                 } else {
@@ -361,6 +369,7 @@ process_device_list (xmlNode           *element,
                                          element,
                                          udn,
                                          description_url,
+                                         secure_description_url,
                                          url_base);
 
                         control_point->priv->devices =
@@ -372,6 +381,9 @@ process_device_list (xmlNode           *element,
                                        signals[DEVICE_PROXY_AVAILABLE],
                                        0,
                                        proxy);
+
+                        // set SSL client for proxy
+                        gupnp_device_proxy_set_ssl_client(proxy, *client);
                         
                         if (root_proxy == NULL)               
                             root_proxy = proxy;
@@ -390,7 +402,9 @@ description_loaded (GUPnPControlPoint *control_point,
                     XmlDocWrapper     *doc,
                     const char        *udn,
                     const char        *service_type,
-                    const char        *description_url)
+                    const char        *description_url,
+                    const char        *secure_description_url,
+                    GUPnPSSLClient    **client)
 {
         xmlNode *element;
         SoupURI *url_base;
@@ -405,15 +419,19 @@ description_loaded (GUPnPControlPoint *control_point,
                                                            NULL);
         if (!url_base)
                 url_base = soup_uri_new (description_url);
+        
+        // TODO: secure_url_base?????
 
         /* Iterate matching devices */
         process_device_list (element,
                              control_point,
+                             client,
                              NULL,
                              doc,
                              udn,
                              service_type,
                              description_url,
+                             secure_description_url,
                              url_base);
 
         /* Cleanup */
@@ -443,7 +461,9 @@ got_description_url (SoupSession           *session,
                                     doc,
                                     data->udn,
                                     data->service_type,
-                                    data->description_url);
+                                    data->description_url,
+                                    data->secure_description_url,
+                                    NULL);
 
                 get_description_url_data_free (data);
 
@@ -464,7 +484,9 @@ got_description_url (SoupSession           *session,
                                             doc,
                                             data->udn,
                                             data->service_type,
-                                            data->description_url);
+                                            data->description_url,
+                                            data->secure_description_url,
+                                            NULL);
 
                         /* Insert into document cache */
                         g_hash_table_insert
@@ -500,6 +522,7 @@ got_description_url (SoupSession           *session,
 static void
 load_description (GUPnPControlPoint *control_point,
                   const char        *description_url,
+                  const char        *secure_description_url,
                   const char        *udn,
                   const char        *service_type)
 {
@@ -513,7 +536,9 @@ load_description (GUPnPControlPoint *control_point,
                                     doc,
                                     udn,
                                     service_type,
-                                    description_url);
+                                    description_url,
+                                    secure_description_url,
+                                    NULL);
         } else {
                 /* Asynchronously download doc */
                 GUPnPContext *context;
@@ -545,6 +570,7 @@ load_description (GUPnPControlPoint *control_point,
                 data->udn             = g_strdup (udn);
                 data->service_type    = g_strdup (service_type);
                 data->description_url = g_strdup (description_url);
+                data->secure_description_url = g_strdup (secure_description_url);
 
                 control_point->priv->pending_gets =
                         g_list_prepend (control_point->priv->pending_gets,
@@ -555,6 +581,226 @@ load_description (GUPnPControlPoint *control_point,
                                             (SoupSessionCallback)
                                                    got_description_url,
                                             data);
+        }
+}
+
+
+static void
+secure_got_description_url (GUPnPSSLClient          **client,
+                            SoupMessage             *msg,
+                            gpointer                userdata)
+{
+        GetDescriptionURLData *data = userdata;        
+        XmlDocWrapper *doc;
+
+        if (msg->status_code == SOUP_STATUS_CANCELLED)
+                return;
+ 
+        /* Now, make sure again this document is not already cached. If it is,
+         * we re-use the cached one. */
+        doc = g_hash_table_lookup (data->control_point->priv->doc_cache,
+                                   data->secure_description_url);
+        if (doc) {
+                /* Doc was cached */
+                description_loaded (data->control_point,
+                                    doc,
+                                    data->udn,
+                                    data->service_type,
+                                    data->description_url,
+                                    data->secure_description_url,
+                                    client);
+
+                get_description_url_data_free (data);
+
+                return;
+        }
+
+        /* Not cached */
+        if (SOUP_STATUS_IS_SUCCESSFUL (msg->status_code)) {
+                xmlDoc *xml_doc;
+
+                /* Parse response */
+                xml_doc = xmlRecoverMemory (msg->response_body->data,
+                                            msg->response_body->length);
+                if (xml_doc) {
+                        doc = xml_doc_wrapper_new (xml_doc);
+
+                        description_loaded (data->control_point,
+                                            doc,
+                                            data->udn,
+                                            data->service_type,
+                                            data->description_url,
+                                            data->secure_description_url,
+                                            client);
+
+                        /* Insert into document cache */
+                        g_hash_table_insert
+                                          (data->control_point->priv->doc_cache,
+                                           g_strdup (data->secure_description_url),
+                                           doc);
+
+                        /* Make sure the document is removed from the cache
+                         * once finalized. */
+                        g_object_weak_ref (G_OBJECT (doc),
+                                           doc_finalized,
+                                           data->control_point);
+
+                        /* If no proxy was created, make sure doc is freed. */
+                        g_object_ref_sink (doc);
+                        g_object_unref (doc);
+                } else
+                        g_warning ("Failed to parse %s", data->secure_description_url);
+        } else
+                g_warning ("Failed to GET %s", data->secure_description_url);
+
+        get_description_url_data_free (data);
+} 
+
+
+/* Callback function set in soup_message_headers_foreach. Used for creating string form headers */ 
+static void header_callback(const char *name,
+                        const char *value,
+                        gpointer user_data)
+{
+    if (user_data)
+    {
+        strcat((char *)user_data,name);                                                            
+        strcat((char *)user_data,": ");
+        strcat((char *)user_data,value); 
+        strcat((char *)user_data,"\r\n");
+    }                                                
+    //g_warning ("HEADER: %s: %s",name,value);                                                            
+}
+
+/* Create a string from SoupMessage. String contains headers and the body */
+static int create_msg_string( SoupMessage *soupmsg, char *path, char *host, int port, char **full_message)
+{
+    char headers[500] = "\0";
+    char *http_version;
+
+    if (soup_message_get_http_version(soupmsg) == SOUP_HTTP_1_1)
+        http_version = "HTTP/1.1";
+    else 
+        http_version = "HTTP/1.0";
+    // add GET and Host headers
+    snprintf(headers,1000,"GET %s %s\r\nHost: %s:%d\r\n",path,http_version,host,port);
+    
+    soup_message_headers_foreach (soupmsg->request_headers, (SoupMessageHeadersForeachFunc)header_callback, headers);   
+    strcat(headers,"\r\n");
+    //g_warning ("FULL MESSAGE:\n%s",*full_message);    
+    
+    return 0;
+}
+
+/*
+ * Downloads and parses (or takes from cache) @secure_description_url (https-address),
+ * creating:
+ *  - A #GUPnPSSLClient for the deviceproxy
+ *  - A #GUPnPDeviceProxy for the device specified by @udn if @service_type
+ *    is %NULL.
+ *  - A #GUPnPServiceProxy for the service of type @service_type from the device
+ *    specified by @udn if @service_type is not %NULL.
+ * 
+ * Downloading is done through SSL connection.
+ */
+static void
+secure_load_description (GUPnPControlPoint *control_point,
+                  const char        *description_url,
+                  const char        *secure_description_url,
+                  const char        *udn,
+                  const char        *service_type)
+{
+        // create the SSL client
+        int ret;
+        GUPnPSSLClient *ssl_client = NULL;
+
+        // get home dir
+        const char *homedir = g_getenv ("HOME");
+        if (!homedir)
+            homedir = g_get_home_dir ();
+
+        char *fullCertStore = g_build_path(G_DIR_SEPARATOR_S, homedir, GUPNP_CERT_STORE, NULL);
+
+        ret = ssl_init_client(&ssl_client, fullCertStore ,NULL,NULL,NULL,NULL, GUPNP_CERT_CN);
+        g_free(fullCertStore);
+        if (ret != 0)
+        {
+            g_warning("Failed init SSL client");
+            return;
+        }
+
+        // create SSL session (connection to server)
+        ret = ssl_create_client_session(&ssl_client, secure_description_url, NULL, NULL);
+        if (ret != 0)
+        {
+            g_warning("Failed create SSL session to '%s'",secure_description_url);
+            return;
+        }    
+    
+    
+        XmlDocWrapper *doc;
+
+        doc = g_hash_table_lookup (control_point->priv->doc_cache,
+                                   secure_description_url);
+        if (doc) {
+        	    /* Doc was cached */
+                description_loaded (control_point,
+                                    doc,
+                                    udn,
+                                    service_type,
+                                    description_url,
+                                    secure_description_url,
+                                    &ssl_client);
+       } else {       
+                /* Asynchronously download doc */
+                GUPnPContext *context;
+                SoupSession *session;
+                GetDescriptionURLData *data;
+
+                context = gupnp_control_point_get_context (control_point);
+
+                session = gupnp_context_get_session (context);
+
+                data = g_slice_new (GetDescriptionURLData);
+
+                data->message = soup_message_new (SOUP_METHOD_GET,
+                                                  secure_description_url);
+                if (data->message == NULL) {
+                        g_warning ("Invalid description URL: %s",
+                                   secure_description_url);
+
+                        g_slice_free (GetDescriptionURLData, data);
+
+                        return;
+                }
+
+                http_request_set_user_agent (data->message);
+                http_request_set_accept_language (data->message);
+
+                data->control_point   = control_point;
+
+                data->udn             = g_strdup (udn);
+                data->service_type    = g_strdup (service_type);
+                data->description_url = g_strdup (description_url);
+                data->secure_description_url = g_strdup (secure_description_url);
+
+                control_point->priv->pending_gets =
+                        g_list_prepend (control_point->priv->pending_gets,
+                                        data);
+           
+                // Create SoupURI from description url. It is easy to get host, port and path values 
+                // to message from SoupURI
+                SoupURI *uri;
+                uri = soup_uri_new (secure_description_url);
+    
+                // create message string which is send to server (GET-message)  char *path, char *host, int port,
+                char *message;
+                create_msg_string( data->message, uri->path, uri->host, uri->port, &message);
+                soup_uri_free (uri);
+                
+                // send the message
+                ssl_client_send_and_receive(&ssl_client, message, data->message, 
+                                            (GUPnPSSLClientCallback)secure_got_description_url, data);
         }
 }
 
@@ -636,6 +882,7 @@ parse_usn (const char *usn,
         return ret;
 }
 
+/* This is not used anymore. Replaced by gupnp_control_point_secure_resource_available 
 static void
 gupnp_control_point_resource_available (GSSDPResourceBrowser *resource_browser,
                                         const char           *usn,
@@ -646,13 +893,13 @@ gupnp_control_point_resource_available (GSSDPResourceBrowser *resource_browser,
 
         control_point = GUPNP_CONTROL_POINT (resource_browser);
 
-        /* Verify we have a location */
+        // Verify we have a location
         if (!locations) {
                 g_warning ("No Location header for device with USN %s", usn);
                 return;
         }
 
-        /* Parse USN */
+        // Parse USN 
         if (!parse_usn (usn, &udn, &service_type))
                 return;
 
@@ -663,6 +910,50 @@ gupnp_control_point_resource_available (GSSDPResourceBrowser *resource_browser,
 
         g_free (udn);
         g_free (service_type);
+}*/
+
+static void
+gupnp_control_point_secure_resource_available (GSSDPResourceBrowser *resource_browser,
+                                        const char           *usn,
+                                        const GList          *locations,
+                                        const GList          *secure_locations)
+{
+        GUPnPControlPoint *control_point;
+        char *udn, *service_type, *url = NULL, *securl = NULL;
+
+        control_point = GUPNP_CONTROL_POINT (resource_browser);
+
+        /* Parse USN */
+        if (!parse_usn (usn, &udn, &service_type))
+                return;
+
+        /* Verify we have a secure location (https address) 
+         * Try to use locations if secure_locations is not found.
+         */
+        if (!secure_locations && !locations) {
+                g_warning ("No SECURELOCATION.UPNP.ORG or LOCATION header for device with USN %s", usn);
+                return;
+        }
+
+        if (secure_locations) securl = secure_locations->data;
+        if (locations) url = locations->data;
+
+        if (secure_locations) {
+                secure_load_description (control_point,
+                                         url,
+                                         securl,
+                                         udn,
+                                         service_type);
+        } else if (locations) {
+                load_description (control_point,
+                                  url,
+                                  securl,
+                                  udn,
+                                  service_type);            
+        }
+        
+        g_free (udn);
+        g_free (service_type);    
 }
 
 static void
@@ -815,8 +1106,11 @@ gupnp_control_point_class_init (GUPnPControlPointClass *klass)
 
         browser_class = GSSDP_RESOURCE_BROWSER_CLASS (klass);
 
-        browser_class->resource_available =
-                gupnp_control_point_resource_available;
+        // We are no longer interested in this event, because secure_resource_available gives the non-secure url also
+        //browser_class->resource_available =
+        //        gupnp_control_point_resource_available;
+        browser_class->secure_resource_available =
+                        gupnp_control_point_secure_resource_available;                
         browser_class->resource_unavailable =
                 gupnp_control_point_resource_unavailable;
 

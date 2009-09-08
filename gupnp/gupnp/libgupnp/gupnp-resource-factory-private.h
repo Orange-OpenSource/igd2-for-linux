@@ -41,6 +41,7 @@ gupnp_resource_factory_create_device_proxy
                                        xmlNode              *element,
                                        const char           *udn,
                                        const char           *location,
+                                       const char           *secure_location,
                                        const SoupURI        *url_base);
 
 G_GNUC_INTERNAL GUPnPServiceProxy *
@@ -52,6 +53,7 @@ gupnp_resource_factory_create_service_proxy
                                        const char           *udn,
                                        const char           *service_type,
                                        const char           *location,
+                                       const char           *secure_location,
                                        const SoupURI        *url_base);
 
 G_GNUC_INTERNAL GUPnPDevice *
@@ -61,6 +63,7 @@ gupnp_resource_factory_create_device  (GUPnPResourceFactory *factory,
                                        xmlNode              *element,
                                        const char           *udn,
                                        const char           *location,
+                                       const char           *secure_location,
                                        const SoupURI        *url_base);
 
 G_GNUC_INTERNAL GUPnPService *
@@ -70,6 +73,7 @@ gupnp_resource_factory_create_service (GUPnPResourceFactory *factory,
                                        xmlNode              *element,
                                        const char           *udn,
                                        const char           *location,
+                                       const char           *secure_location,
                                        const SoupURI        *url_base);
 
 G_END_DECLS

@@ -578,8 +578,15 @@ begin_action_msg (GUPnPServiceProxy              *proxy,
         }
 
         /* Create message */
-        control_url = gupnp_service_info_get_control_url
-                                        (GUPNP_SERVICE_INFO (proxy));
+        
+        /* Prefer secure URL. If it doesn't exist, use nonsecure instead */
+        control_url = gupnp_service_info_get_secure_control_url
+                                        (GUPNP_SERVICE_INFO (proxy)); 
+        if (control_url == NULL) {
+            control_url = gupnp_service_info_get_control_url
+                                            (GUPNP_SERVICE_INFO (proxy));
+        }
+                                                                              
 
         if (control_url != NULL) {
                 ret->msg = soup_message_new (SOUP_METHOD_POST, control_url);
@@ -761,9 +768,6 @@ finish_action_msg (GUPnPServiceProxyAction *action,
          * in order for send_action() to work. */
         g_object_ref (action->msg);
 
-        // TODO: VLi check if the device has its own session
-        // if it does, use it instead of context session
-
         /* Send the message */
         context = gupnp_service_info_get_context
                                 (GUPNP_SERVICE_INFO (action->proxy));
@@ -786,11 +790,9 @@ finish_action_msg (GUPnPServiceProxyAction *action,
             g_warning("We do have SSL");
             SoupURI *uri = soup_message_get_uri (action->msg);
             char *message;
-            create_msg_string(action, uri->path, uri->host, GUPNP_SSL_PORT, &message);
-            
-            ssl_client_send_and_receive(client, message, action->msg, (GUPnPSSLClientCallback)ssl_action_got_response, action);
+            create_msg_string(action, uri->path, uri->host, uri->port, &message);
 
-            //g_free(message);
+            ssl_client_send_and_receive(client, message, action->msg, (GUPnPSSLClientCallback)ssl_action_got_response, action);
 		}
 }
 

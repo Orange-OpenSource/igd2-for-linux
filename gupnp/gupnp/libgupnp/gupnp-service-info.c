@@ -46,6 +46,7 @@ struct _GUPnPServiceInfoPrivate {
         GUPnPContext *context;
 
         char *location;
+        char *secure_location;
         char *udn;
         char *service_type;
 
@@ -63,6 +64,7 @@ enum {
         PROP_0,
         PROP_CONTEXT,
         PROP_LOCATION,
+        PROP_SECURE_LOCATION,
         PROP_UDN,
         PROP_SERVICE_TYPE,
         PROP_URL_BASE,
@@ -110,6 +112,9 @@ gupnp_service_info_set_property (GObject      *object,
         case PROP_LOCATION:
                 info->priv->location = g_value_dup_string (value);
                 break;
+        case PROP_SECURE_LOCATION:
+                info->priv->secure_location = g_value_dup_string (value);
+                break;
         case PROP_UDN:
                 info->priv->udn = g_value_dup_string (value);
                 break;
@@ -156,6 +161,10 @@ gupnp_service_info_get_property (GObject    *object,
         case PROP_LOCATION:
                 g_value_set_string (value,
                                     info->priv->location);
+                break;
+        case PROP_SECURE_LOCATION:
+                g_value_set_string (value,
+                                    info->priv->secure_location);
                 break;
         case PROP_UDN:
                 g_value_set_string (value,
@@ -223,6 +232,7 @@ gupnp_service_info_finalize (GObject *object)
         info = GUPNP_SERVICE_INFO (object);
 
         g_free (info->priv->location);
+        g_free (info->priv->secure_location);
         g_free (info->priv->udn);
         g_free (info->priv->service_type);
 
@@ -272,6 +282,25 @@ gupnp_service_info_class_init (GUPnPServiceInfoClass *klass)
                  g_param_spec_string ("location",
                                       "Location",
                                       "The location of the device description "
+                                      "file",
+                                      NULL,
+                                      G_PARAM_READWRITE |
+                                      G_PARAM_CONSTRUCT_ONLY |
+                                      G_PARAM_STATIC_NAME |
+                                      G_PARAM_STATIC_NICK |
+                                      G_PARAM_STATIC_BLURB));
+ 
+        /**
+         * GUPnPServiceInfo:location
+         *
+         * The location of the device description file.
+         **/
+        g_object_class_install_property
+                (object_class,
+                 PROP_SECURE_LOCATION,
+                 g_param_spec_string ("secure-location",
+                                      "Secure Location",
+                                      "The secure (https) location of the device description "
                                       "file",
                                       NULL,
                                       G_PARAM_READWRITE |
@@ -405,6 +434,22 @@ gupnp_service_info_get_location (GUPnPServiceInfo *info)
         g_return_val_if_fail (GUPNP_IS_SERVICE_INFO (info), NULL);
 
         return info->priv->location;
+}
+
+/**
+ * gupnp_service_info_get_secure_location
+ * @info: A #GUPnPServiceInfo
+ *
+ * Get the secure location of the device description file.
+ *
+ * Returns: A constant string.
+ **/
+const char *
+gupnp_service_info_get_secure_location (GUPnPServiceInfo *info)
+{
+        g_return_val_if_fail (GUPNP_IS_SERVICE_INFO (info), NULL);
+
+        return info->priv->secure_location;
 }
 
 /**

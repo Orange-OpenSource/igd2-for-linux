@@ -233,7 +233,7 @@ gupnp_device_proxy_get_device (GUPnPDeviceInfo *info,
         GUPnPResourceFactory *factory;
         GUPnPContext         *context;
         XmlDocWrapper        *doc;
-        const char           *location;
+        const char           *location, *secure_location;
         const SoupURI        *url_base;
 
         proxy = GUPNP_DEVICE_PROXY (info);
@@ -242,6 +242,7 @@ gupnp_device_proxy_get_device (GUPnPDeviceInfo *info,
         context = gupnp_device_info_get_context (info);
         doc = _gupnp_device_info_get_document (info);
         location = gupnp_device_info_get_location (info);
+        secure_location = gupnp_device_info_get_secure_location (info);
         url_base = gupnp_device_info_get_url_base (info);
 
         device = gupnp_resource_factory_create_device_proxy (factory,
@@ -250,18 +251,20 @@ gupnp_device_proxy_get_device (GUPnPDeviceInfo *info,
                                                              element,
                                                              NULL,
                                                              location,
+                                                             secure_location,
                                                              url_base);
 
-
-        // Add root deviceproxy information for new proxy
-        // if older proxy here ('proxy'), doesn't already have root_proxy defined,
-        // then it is the root_proxy for 'device'
-        // (actually I'm not 100% sure if this root_proxy is even the root, or is it the
-        // last leaf proxy. But it works at least if there are most of 3 levels of devices.
-        if (proxy->priv->root_proxy)
-            gupnp_device_proxy_set_root_proxy(device,proxy->priv->root_proxy);
-        else
-            gupnp_device_proxy_set_root_proxy(device,proxy);
+        if (device) {
+            // Add root deviceproxy information for new proxy
+            // if older proxy here ('proxy'), doesn't already have root_proxy defined,
+            // then it is the root_proxy for 'device'
+            // (actually I'm not 100% sure if this root_proxy is even the root, or is it the
+            // last leaf proxy. But it works at least if there are most of 3 levels of devices.
+            if (proxy->priv->root_proxy)
+                gupnp_device_proxy_set_root_proxy(device,proxy->priv->root_proxy);
+            else
+                gupnp_device_proxy_set_root_proxy(device,proxy);
+        }
 
 
         return GUPNP_DEVICE_INFO (device);
@@ -276,7 +279,7 @@ gupnp_device_proxy_get_service (GUPnPDeviceInfo *info,
         GUPnPServiceProxy    *service;
         GUPnPContext         *context;
         XmlDocWrapper        *doc;
-        const char           *location, *udn;
+        const char           *location, *secure_location, *udn;
         const SoupURI        *url_base;
 
         proxy = GUPNP_DEVICE_PROXY (info);
@@ -286,6 +289,7 @@ gupnp_device_proxy_get_service (GUPnPDeviceInfo *info,
         doc = _gupnp_device_info_get_document (info);
         udn = gupnp_device_info_get_udn (info);
         location = gupnp_device_info_get_location (info);
+        secure_location = gupnp_device_info_get_secure_location (info);
         url_base = gupnp_device_info_get_url_base (info);
 
         service = gupnp_resource_factory_create_service_proxy (factory,
@@ -295,6 +299,7 @@ gupnp_device_proxy_get_service (GUPnPDeviceInfo *info,
                                                                udn,
                                                                NULL,
                                                                location,
+                                                               secure_location,
                                                                url_base);
 
         // set device proxy for GUPnPServiceProxy
@@ -838,11 +843,7 @@ gupnp_device_proxy_set_ssl_client (GUPnPDeviceProxy *proxy,
                               GUPnPSSLClient *client)
 {
         g_assert (proxy != NULL);
-
-        if (proxy->priv->ssl_client == NULL)
-            proxy->priv->ssl_client = g_slice_new(GUPnPSSLClient);//malloc(sizeof(GUPnPSSLClient));
-
-        memcpy(proxy->priv->ssl_client, client, sizeof(GUPnPSSLClient));
+        proxy->priv->ssl_client = g_slice_dup(GUPnPSSLClient, client);
 }
 
 /**

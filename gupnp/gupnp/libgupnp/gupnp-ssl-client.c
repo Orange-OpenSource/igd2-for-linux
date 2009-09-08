@@ -116,7 +116,7 @@ static int parse_headers(SoupMessageHeaders *soup_headers, const char *headers)
 }
 
 
-static void ssl_client_send_and_receive_thread(void *data)
+static void *ssl_client_send_and_receive_thread(void *data)
 {
     int headers_ready = 0;
     char *tmp, *body = NULL;
@@ -236,8 +236,8 @@ static void ssl_client_send_and_receive_thread(void *data)
             msg->response_body->length = strlen(body);
             
             g_free(response);
-            
-            ssl_data->callback(client, msg, ssl_data->userdata);
+
+            ssl_data->callback(ssl_data->client, msg, ssl_data->userdata);
             return;// 0;
         }
         else
@@ -429,8 +429,9 @@ ssl_finish_client( GUPnPSSLClient **client)
     ssl_close_client_session(client);
        
     gnutls_x509_crt_deinit(client_crt);
-    gnutls_x509_privkey_deinit(client_privkey);    
-    gnutls_certificate_free_credentials ((*client)->xcred);
+    gnutls_x509_privkey_deinit(client_privkey);
+    if (*client && (*client)->xcred)
+        gnutls_certificate_free_credentials ((*client)->xcred);
     gnutls_global_deinit ();
 
     g_thread_pool_free ((*client)->thread_pool,
