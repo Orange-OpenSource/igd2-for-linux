@@ -742,15 +742,15 @@ resource_available (GSSDPResourceBrowser *resource_browser,
         }
 
         /* Emit signal */
-        if (secure_locations) {
-            g_signal_emit (resource_browser,
-                           signals[SECURE_RESOURCE_AVAILABLE],
-                           0,
-                           usn,
-                           locations,
-                           secure_locations);            
-        }
-                
+        // if secure_locations is NULL, then we know that server is not supporting HTTPS
+        g_signal_emit (resource_browser,
+                       signals[SECURE_RESOURCE_AVAILABLE],
+                       0,
+                       usn,
+                       locations,
+                       secure_locations);
+         
+        // this is the old signal. Keep it because of backward compatibility         
         g_signal_emit (resource_browser,
                        signals[RESOURCE_AVAILABLE],
                        0,
