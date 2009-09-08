@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE serviceList [
   <!ELEMENT serviceList       (serviceEntry+)>
-  <!ELEMENT serviceEntry      (serviceName,serviceVersion?,actionList)>
+  <!ELEMENT serviceEntry      (serviceId,serviceName,serviceVersion?,actionList)>
   <!ELEMENT serviceName       (#PCDATA)>
   <!ELEMENT serviceVersion    (#PCDATA)>
+  <!ELEMENT serviceId         (#PCDATA)>
   <!ELEMENT actionList        (action+)>
   <!ELEMENT action            (name,accessLevel,accessLevelManage?)>
   <!ELEMENT name              (#PCDATA)>
@@ -12,6 +13,7 @@
 ]>
 <serviceList>
     <serviceEntry>
+        <serviceId>urn:upnp-org:serviceId:WANIPConn2</serviceId>
         <serviceName>WANIPConnection</serviceName>
         <serviceVersion>2</serviceVersion>
         <actionList>
@@ -105,6 +107,7 @@
         </actionList>
     </serviceEntry>
     <serviceEntry>
+        <serviceId>urn:upnp-org:serviceId:LANHostConfig1</serviceId>
         <serviceName>LANHostConfigManagement</serviceName>
         <serviceVersion>1</serviceVersion>
         <actionList>
@@ -187,6 +190,7 @@
         </actionList>
     </serviceEntry>
     <serviceEntry>
+        <serviceId>urn:upnp-org:serviceId:WANEthLinkC1</serviceId>
         <serviceName>WANEthernetLinkConfig</serviceName>
         <serviceVersion>1</serviceVersion>
         <actionList>
@@ -197,6 +201,7 @@
         </actionList>
     </serviceEntry>
     <serviceEntry>
+        <serviceId>urn:upnp-org:serviceId:DeviceProtection1</serviceId>
         <serviceName>DeviceProtection</serviceName>
         <serviceVersion>1</serviceVersion>
         <actionList>
@@ -255,6 +260,7 @@
         </actionList>
     </serviceEntry>
     <serviceEntry>
+        <serviceId>urn:upnp-org:serviceId:WANCommonIFC1</serviceId>
         <serviceName>WANCommonInterfaceConfig</serviceName>
         <serviceVersion>1</serviceVersion>
         <actionList>

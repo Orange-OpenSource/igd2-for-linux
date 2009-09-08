@@ -67,7 +67,7 @@ void ParseXMLResponse(struct Upnp_Action_Request *ca_event, const char *result);
 // access level handling and parsing stuff
 int initActionAccessLevels(const char *pathToFile);
 void deinitActionAccessLevels();
-char* getAccessLevel(const char *actionName, int manage);
+char* getAccessLevel(const char *serviceId, const char *actionName, int manage);
 
 // ACL handling stuff
 int ACL_doesIdentityHasRole(IXML_Document *doc, const char *identity, const char *targetRole);

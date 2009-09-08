@@ -122,12 +122,11 @@ void DPStateTableInit()
 {
     // DeviceProtection is ready for introduction
     SetupReady = 1;
-    strcpy(SupportedProtocols, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\
-<SupportedProtocols xmlns=\"urn:schemas-upnp-org:gw:DeviceProtection\"\
-xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"\
-xsi:schemaLocation=\"urn:schemas-upnp-org:gw:DeviceProtection\
-http://www.upnp.org/schemas/gw/DeviceProtection.xsd\">\
-<Introduction><Name>WPS</Name></Introduction></SupportedProtocols>");
+    strcpy(SupportedProtocols, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
+                               "<SupportedProtocols xmlns=\"urn:schemas-upnp-org:gw:DeviceProtection\" "
+                               "xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" "
+                               "xsi:schemaLocation=\"http://www.upnp.org/schemas/gw/DeviceProtection-v1.xsd\">"
+                               "<Introduction><Name>WPS</Name></Introduction></SupportedProtocols>");
 }
 
 /**
@@ -1778,14 +1777,16 @@ int GetRolesForAction(struct Upnp_Action_Request *ca_event)
     int result = 0;
 
     char *actionName = NULL;
+    char *serviceId = NULL;
     char *accessLevel = NULL;
     char *accessLevelManage = NULL;
     char *roleList = NULL;
     char *restricredRoleList = NULL;
     
-    if ( (actionName = GetFirstDocumentItem(ca_event->ActionRequest, "ActionName")) )
+    if ( (serviceId = GetFirstDocumentItem(ca_event->ActionRequest, "ServiceId"))
+        && (actionName = GetFirstDocumentItem(ca_event->ActionRequest, "ActionName")) ) 
     {       
-        accessLevel = getAccessLevel(actionName, 0);
+        accessLevel = getAccessLevel(serviceId, actionName, 0);
         
         if (accessLevel)
         {
@@ -1802,7 +1803,7 @@ int GetRolesForAction(struct Upnp_Action_Request *ca_event)
                 roleList = "";           
 
             // get managed accesslevel if it exists            
-            accessLevelManage = getAccessLevel(actionName, 1);
+            accessLevelManage = getAccessLevel(serviceId,actionName, 1);
             if (accessLevelManage)
             {
                 if (strcmp(accessLevelManage, "Public") == 0)
@@ -1820,7 +1821,8 @@ int GetRolesForAction(struct Upnp_Action_Request *ca_event)
         else
         {
             // invalid ActionName
-            trace(1, "GetRolesForAction: ActionName is not recognized %s",actionName);
+            trace(1, "GetRolesForAction: Combination of ServiceId '%s' and ActionName '%s' is not found from %s",
+                  serviceId,actionName,g_vars.accessLevelXml);
             result = 600;
             addErrorData(ca_event, result, "Argument Value Invalid");            
         }
@@ -1838,7 +1840,7 @@ int GetRolesForAction(struct Upnp_Action_Request *ca_event)
     else
     {
         trace(1, "GetRolesForAction: Invalid Arguments!");
-        trace(1, "  ActionName: %s",actionName);
+        trace(1, "  ServiceId: %s, ActionName: %s  ", serviceId, actionName);
         addErrorData(ca_event, 402, "Invalid Args");
     }
     
@@ -2065,10 +2067,11 @@ int AddIdentityList(struct Upnp_Action_Request *ca_event)
             {
                 // replace <Identities> from beginning with <Identities xmlns="...>
                 char responseIdentitiesWithNamespace[strlen(responseIdentities)+240];
-                strcpy(responseIdentitiesWithNamespace,"<Identities xmlns=\"urn:schemas-upnp-org:gw:DeviceProtection\" \
-xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" \
-xsi:schemaLocation=\"urn:schemas-upnp-org:gw:DeviceProtection \
-http://www.upnp.org/schemas/gw/DeviceProtection.xsd\">");
+                strcpy(responseIdentitiesWithNamespace,"<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
+                                                       "<Identities xmlns=\"urn:schemas-upnp-org:gw:DeviceProtection\" "
+                                                       "xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" "
+                                                       "xsi:schemaLocation=\"urn:schemas-upnp-org:gw:DeviceProtection "
+                                                       "http://www.upnp.org/schemas/gw/DeviceProtection.xsd\">");
 
                 strcat(responseIdentitiesWithNamespace, responseIdentities+12);
                 free(responseIdentities);                

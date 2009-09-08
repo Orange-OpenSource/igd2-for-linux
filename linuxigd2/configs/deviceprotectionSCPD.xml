@@ -51,6 +51,11 @@
       <name>GetRolesForAction</name> 
       <argumentList>
         <argument>
+          <name>ServiceId</name> 
+          <direction>in</direction> 
+          <relatedStateVariable>A_ARG_TYPE_string</relatedStateVariable> 
+        </argument>      
+        <argument>
           <name>ActionName</name> 
           <direction>in</direction> 
           <relatedStateVariable>A_ARG_TYPE_string</relatedStateVariable> 

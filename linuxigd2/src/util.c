@@ -818,7 +818,7 @@ char* GetTextValueOfNode(IXML_Node *tmpNode)
  * @param doc IXML_Document where node is searched
  * @param nodeName Name of searched element
  * @param nodeValue Value of searched element
- * @param caseInsensitive Is value comparing case insensitive
+ * @param caseInsensitive Is value comparing case insensitive: 0 = no, else yes
  * @return Node or NULL
  */
 static IXML_Node *GetNodeWithValue(IXML_Document *doc, const char *nodeName, const char *nodeValue, int caseInsensitive)
@@ -1233,33 +1233,58 @@ int initActionAccessLevels(const char *pathToFile)
  * Get accesslevel value from accesslevel xml for given action.
  * initActionAccessLevels must have been called before this.
  *
+ * @param serviceId ServiceId of service which child action actionName is
  * @param actionName Name of action
  * @param manage Is value of accessLevelManage (1) or accessLevel (0) returned.
  * @return Access level string or NULL
  */
-char* getAccessLevel(const char *actionName, int manage)
+char* getAccessLevel(const char *serviceId, const char *actionName, int manage)
 {
     char *accesslevel = NULL;
-    
-    // lets assume that there is only one action with same name in document
-    IXML_Node *tmpNode = GetNodeWithValue(accessLevelDoc, "name", actionName, 0);
-    
-    if (tmpNode == NULL) return NULL;
-    
-    // get accessLevel
-    if (manage)
-    {
-        tmpNode = GetSiblingWithTagName(tmpNode, "accessLevelManage");
-    }
-    else
-    {    
-        tmpNode = GetSiblingWithTagName(tmpNode, "accessLevel");
-    }
+    char *tmp = NULL;
+    IXML_Node *tmpNode = NULL, *actionNode = NULL;
 
+    // get node with given serviceId
+    tmpNode = GetNodeWithValue(accessLevelDoc, "serviceId", serviceId, 0);
     if (tmpNode == NULL) return NULL;
-    accesslevel = GetTextValueOfNode(tmpNode);
+    // get sibling actionList
+    tmpNode = GetSiblingWithTagName(tmpNode, "actionList");
+
+    // get first action from actionList
+    actionNode = ixmlNode_getFirstChild(tmpNode);
     
-    return accesslevel;
+    while (actionNode != NULL)
+    {
+        // get value of child name
+        tmpNode = GetChildNodeWithName(actionNode, "name");
+        tmp = GetTextValueOfNode(tmpNode);
+        if (!tmpNode || !tmp)
+            continue;
+            
+        if (strcmp(tmp, actionName) == 0)
+        {   
+            // right name node is found, get desired accesslevel-node
+            if (manage)
+            {
+                tmpNode = GetSiblingWithTagName(tmpNode, "accessLevelManage");
+            }
+            else
+            {    
+                tmpNode = GetSiblingWithTagName(tmpNode, "accessLevel");
+            }
+            
+            if (tmpNode == NULL) return NULL;
+            accesslevel = GetTextValueOfNode(tmpNode);
+            
+            free(tmp);    
+            return accesslevel;
+        }
+        
+        free(tmp);
+        actionNode = ixmlNode_getNextSibling(actionNode);   
+    }
+  
+    return NULL;
 }
 
 

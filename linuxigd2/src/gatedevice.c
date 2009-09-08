@@ -2170,11 +2170,11 @@ int AuthorizeControlPoint(struct Upnp_Action_Request *ca_event, int managed)
      * If Role is Basic or Admin, SSL is required
      */
     char *accessLevel = NULL;
-    accessLevel = getAccessLevel(ca_event->ActionName,managed);
+    accessLevel = getAccessLevel(ca_event->ServiceID, ca_event->ActionName,managed);
     
     if (accessLevel == NULL)
     {
-        trace(1,"%s is not listed in accesslevel.xml",ca_event->ActionName);
+        trace(1,"%s is not listed in %s under ServiceId %s",ca_event->ActionName,g_vars.accessLevelXml,ca_event->ServiceID);
         result = InvalidAction(ca_event);
 
         return result;
