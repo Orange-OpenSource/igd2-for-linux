@@ -253,5 +253,31 @@
                 <accessLevel>Admin</accessLevel>
             </action>         
         </actionList>
-    </serviceEntry>    
+    </serviceEntry>
+    <serviceEntry>
+        <serviceName>WANCommonInterfaceConfig</serviceName>
+        <serviceVersion>1</serviceVersion>
+        <actionList>
+            <action>
+                <name>GetCommonLinkProperties</name>
+                <accessLevel>Public</accessLevel>
+            </action>
+            <action>
+                <name>GetTotalBytesSent</name>
+                <accessLevel>Public</accessLevel>
+            </action>
+            <action>
+                <name>GetTotalBytesReceived</name>
+                <accessLevel>Public</accessLevel>
+            </action>
+            <action>
+                <name>GetTotalPacketsSent</name>
+                <accessLevel>Public</accessLevel>
+            </action>
+            <action>
+                <name>GetTotalPacketsReceived</name>
+                <accessLevel>Public</accessLevel>
+            </action>
+        </actionList>
+    </serviceEntry>
 </serviceList>
