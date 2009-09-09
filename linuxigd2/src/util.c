@@ -1403,13 +1403,15 @@ static int ACL_validateRoleNames(IXML_Document *doc, const char *roles)
  */
 static int ACL_addRolesToRoleList(IXML_Document *doc, IXML_Node *roleListNode, const char *roles)
 {
+    IXML_Node *textNode = NULL;
+    
     // check validity of rolenames
     if (ACL_validateRoleNames(doc, roles) != ACL_SUCCESS) return ACL_ROLE_ERROR;
        
     // get current value of "RoleList"
     char *currentRoles = GetTextValueOfNode(roleListNode);
     if (currentRoles == NULL) return ACL_COMMON_ERROR;
-    
+   
     char newRoleList[strlen(roles) + strlen(currentRoles)+1];
     strcpy(newRoleList, currentRoles);
     
@@ -1425,16 +1427,24 @@ static int ACL_addRolesToRoleList(IXML_Document *doc, IXML_Node *roleListNode, c
             if ( strstr(newRoleList,role) == NULL )
             {
                 // add new role at the end of rolelist
-                strcat(newRoleList, " ");
+                if (strlen(newRoleList) > 0)
+                    strcat(newRoleList, " ");
                 strcat(newRoleList, role);
             }
                 
         } while ((role = strtok(NULL, " ")));
 
     }
-    
+  
     // set text value of "RoleList" as new rolelist
-    return ixmlNode_setNodeValue(roleListNode->firstChild, newRoleList);    
+    textNode = ixmlNode_getFirstChild(roleListNode);
+    if (textNode == NULL)
+    {
+        textNode = ixmlDocument_createTextNode(doc, newRoleList);
+        return ixmlNode_appendChild(roleListNode,textNode);
+    }
+    
+    return ixmlNode_setNodeValue(textNode, newRoleList);    
 }
 
 
@@ -1448,6 +1458,8 @@ static int ACL_addRolesToRoleList(IXML_Document *doc, IXML_Node *roleListNode, c
  */
 static int ACL_removeRolesFromRoleList(IXML_Document *doc, IXML_Node *roleListNode, const char *roles)
 {
+    IXML_Node *textNode = NULL;
+    
     // check validity of rolenames
     if (ACL_validateRoleNames(doc, roles) != ACL_SUCCESS) return ACL_ROLE_ERROR;
  
@@ -1481,8 +1493,19 @@ static int ACL_removeRolesFromRoleList(IXML_Document *doc, IXML_Node *roleListNo
     if (strlen(newRoleList) > 0)
         newRoleList[strlen(newRoleList) - 1] = '\0';
 
+    // DP spec says that if RoleList goes empty, then device must add "Public" role 
+    if (strlen(newRoleList) <= 0)
+        strcpy(newRoleList, "Public");
+
     // set text value of "RoleList" as new rolelist
-    return ixmlNode_setNodeValue(roleListNode->firstChild, newRoleList);    
+    textNode = ixmlNode_getFirstChild(roleListNode);
+    if (textNode == NULL)
+    {
+        textNode = ixmlDocument_createTextNode(doc, newRoleList);
+        return ixmlNode_appendChild(roleListNode,textNode);
+    }
+    
+    return ixmlNode_setNodeValue(textNode, newRoleList);    
 }
 
 

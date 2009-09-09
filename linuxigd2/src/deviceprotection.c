@@ -584,6 +584,8 @@ static void message_received(struct Upnp_Action_Request *ca_event, int error, un
                 ret = ACL_addCP(ACLDoc, CN, NULL, identifier, "Public", 1);
                 if (ret != ACL_SUCCESS && ret != ACL_USER_ERROR)
                     trace(1,"Failed to add new CP into ACL! Ignoring...");
+                else
+                    writeDocumentToFile(ACLDoc, ACL_XML);
             }
             if (identifier) free(identifier);
             if (CN) free(CN);
@@ -1226,17 +1228,34 @@ int GetUserLoginChallenge(struct Upnp_Action_Request *ca_event)
     int result = 0;
     char *name = NULL;
     char *nameUPPER = NULL;
-    char *passwd = NULL;
-
+    int ret, len=0;
+    char *identifier = NULL;
     
     if (ca_event->SSLSession == NULL)
     {
         // SSL must be used
         trace(1, "%s: SSL connection must be used for this",ca_event->ActionName);
         result = 701;
-        addErrorData(ca_event, result, "Authentication Failure");        
+        addErrorData(ca_event, result, "Authentication Failure");
+        return ca_event->ErrCode; 
     }
-    else if ( (name = GetFirstDocumentItem(ca_event->ActionRequest, "Name") ))
+    else
+    {
+        // CP with same ID must be listed in ACL
+        ret = getIdentifierOfCP(ca_event, &identifier, &len, NULL);
+        
+        if (identifier && (ACL_getRolesOfCP(ACLDoc, identifier) == NULL))
+        {
+            trace(1, "%s: ID '%s' of control point is not listed in ACL",ca_event->ActionName,identifier);
+            // TODO: Check this error code!
+            result = 600;
+            addErrorData(ca_event, result, "Argument Value Invalid");
+            free(identifier);
+            return ca_event->ErrCode;
+        }
+    }
+    
+    if ( (name = GetFirstDocumentItem(ca_event->ActionRequest, "Name") ))
     {
         // name to uppercase
         nameUPPER = toUpperCase(name);     
@@ -1264,7 +1283,6 @@ int GetUserLoginChallenge(struct Upnp_Action_Request *ca_event)
             addErrorData(ca_event, result, "Argument Value Invalid");            
         }
     }
-
     else
     {
         trace(1, "Failure in GetUserLoginChallenge: Invalid Arguments!");
@@ -1274,7 +1292,7 @@ int GetUserLoginChallenge(struct Upnp_Action_Request *ca_event)
 
     if (name) free(name);    
     if (nameUPPER) free(nameUPPER);
-    if (passwd) free(passwd);
+    if (identifier) free(identifier);
     
     return ca_event->ErrCode;
 }
@@ -1599,7 +1617,7 @@ int AddRolesForIdentity(struct Upnp_Action_Request *ca_event)
         }
         else if (result != ACL_SUCCESS)
         {
-            trace(1, "AddRolesForIdentity: Failed to add roles '%s' for identity '%s'",rolelist,identity);
+            trace(1, "AddRolesForIdentity: Failed to add roles '%s' for identity '%s'",rolelist,unescValue);
             result = 501;
             addErrorData(ca_event, result, "Action Failed");
         }
@@ -1670,7 +1688,7 @@ int RemoveRolesForIdentity(struct Upnp_Action_Request *ca_event)
         result = ACL_removeRolesFromIdentity(ACLDoc, identityDoc, rolelist);
         if (result == ACL_USER_ERROR)
         {
-            // ok, identity wasn't username or hash
+            // identity wasn't username or hash
             trace(1, "RemoveRolesForIdentity: Unknown identity %s",identity);
             result = 600;
             addErrorData(ca_event, result, "Argument Value Invalid");
@@ -1683,7 +1701,7 @@ int RemoveRolesForIdentity(struct Upnp_Action_Request *ca_event)
         }
         else if (result != ACL_SUCCESS)
         {
-            trace(1, "RemoveRolesForIdentity: Failed to add roles '%s' for identity '%s'",rolelist,identity);
+            trace(1, "RemoveRolesForIdentity: Failed to remove roles '%s' from identity '%s'",rolelist,unescValue);
             result = 501;
             addErrorData(ca_event, result, "Action Failed");
         }
@@ -2129,8 +2147,7 @@ int RemoveIdentity(struct Upnp_Action_Request *ca_event)
     int result = 0;
     char *identity = NULL;
     IXML_Document *identityDoc = NULL;
-    
-    // TODO should it be tested that there is only one CP element in Identity?
+
     if (ca_event->SSLSession == NULL)
     {
         // SSL must be used
@@ -2152,6 +2169,7 @@ int RemoveIdentity(struct Upnp_Action_Request *ca_event)
         }
         else
         {
+            trace(3, "%s: Received Identity: \n%s",ca_event->ActionName,unescValue); 
             // validate input and remove CP/User
             result = ACL_validateAndRemoveIdentity(ACLDoc, identityDoc);
             
