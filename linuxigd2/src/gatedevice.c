@@ -45,13 +45,20 @@ static ithread_mutex_t DevMutex = PTHREAD_MUTEX_INITIALIZER;
 
 // XML string definitions
 static const char xml_portmapEntry[] =
-        "<p:PortmapEntry><NewRemoteHost>%s</NewRemoteHost><NewExternalPort>%s</NewExternalPort><NewProtocol>%s</NewProtocol>"
-        "<NewInternalPort>%s</NewInternalPort><NewInternalClient>%s</NewInternalClient><NewEnabled>%d</NewEnabled>"
-        "<NewDescription>%s</NewDescription><NewLeaseTime>%ld</NewLeaseTime></p:PortmapEntry>\n";
+        "<p:PortMappingEntry>"
+        "<p:NewRemoteHost>%s</p:NewRemoteHost>"
+        "<p:NewExternalPort>%s</p:NewExternalPort>"
+        "<p:NewProtocol>%s</p:NewProtocol>"
+        "<p:NewInternalPort>%s</p:NewInternalPort>"
+        "<p:NewInternalClient>%s</p:NewInternalClient>"
+        "<p:NewEnabled>%d</p:NewEnabled>"
+        "<p:NewDescription>%s</p:NewDescription>"
+        "<p:NewLeaseTime>%ld</p:NewLeaseTime>"
+        "</p:PortMappingEntry>\n";
 static const char xml_portmapListingHeader[] =
-        "<p:PortMappingList xmlns:p=\"http://www.upnp.org/schemas/GWPortMappingList.xsd\""
-        "xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:schemaLocation=\""
-        "http://www.upnp.org/schemas/GWPortMappingList.xsd GwPortMappingList-V0.5.xsd\">\n";
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
+        "<p:PortMappingList xmlns:p=\"urn:schemas-upnp-org:gw:WANIPConnection\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" "
+        "xsi:schemaLocation=\"urn:schemas-upnp-org:gw:WANIPConnection http://www.upnp.org/schemas/gw/WANIPConnection-v2.xsd\">\n";
 static const char xml_portmapListingFooter[] = "</p:PortMappingList>";
 
 
@@ -260,10 +267,12 @@ int HandleActionRequest(struct Upnp_Action_Request *ca_event)
     // check if CP is authorized to use this action.
     // checking managed flag is left to action itself
     // This only matters if SSL is used
-    if ( ca_event->SSLSession != NULL && (result = AuthorizeControlPoint(ca_event, 0)) != 0 )
+    // Actions themselves check if action is invocated over SSL if they require it. 
+    // TODO: Is it really this way?
+    if ( (ca_event->SSLSession != NULL) && ((result = AuthorizeControlPoint(ca_event, 0, 1)) != CONTROL_POINT_AUTHORIZED) )
     {
         ithread_mutex_unlock(&DevMutex);
-        return result;        
+        return ca_event->ErrCode;        
     }
 
     if (strcmp(ca_event->DevUDN, gateUDN) == 0)
@@ -890,7 +899,7 @@ int AddPortMapping(struct Upnp_Action_Request *ca_event)
     {
         // If ext_port or int_port is <1024 control point needs to be authorized
         if ((atoi(ext_port) < 1024 || atoi(int_port) < 1024 || !ControlPointIP_equals_InternalClientIP(int_ip, &ca_event->CtrlPtIPAddr))
-             && AuthorizeControlPoint(ca_event, 1) != CONTROL_POINT_AUTHORIZED)
+             && AuthorizeControlPoint(ca_event, 1, 0) != CONTROL_POINT_AUTHORIZED)
         {
             trace(1, "Port numbers must be greater than 1023 and NewInternalClient must be same as IP of Control point \
 unless control port is authorized. external_port:%s, internal_port:%s internal_client:%s",
@@ -932,20 +941,35 @@ unless control port is authorized. external_port:%s, internal_port:%s internal_c
             addErrorData(ca_event, result, "Invalid Args");       
         }
         
+        // parameters are OK
         if (result == 0)
         {
-            // If port map with the same External Port, Protocol, and Internal Client exists
+            // If port map with the same External Port, Protocol, Internal Client and remoteHost exists
             // then, as per spec, we overwrite it (for simplicity, we delete and re-add at end of list)
             // Note: This may cause problems with GetGernericPortMappingEntry if a CP expects the overwritten
-            // to be in the same place.
+            // to be in the same place.            
             if ((ret = pmlist_Find(remote_host, ext_port, proto, int_ip)) != NULL)
             {
-                trace(3, "Found port map to already exist.  Replacing");
+                trace(3, "Found port map to already exist for this client.  Replacing");
                 pmlist_Delete(ret);
+            }            
+            
+            // If the ExternalPort and PortMappingProtocol pair is already mapped to another 
+            // internal client, an error is returned.
+            else if ((ret = pmlist_FindBy_extPort_proto(ext_port, proto)) != NULL && 
+                    strcmp(ret->m_InternalClient, int_ip) != 0)
+            {
+                trace(1, "Portmapping with same external port '%s' and protocol '%s' are mapped to another client already.\n",ext_port,proto);
+                result = 718;
+                addErrorData(ca_event, result, "ConflictInMappingEntry");                
             }
 
-            result = AddNewPortMapping(ca_event,bool_enabled,atoi(int_duration),remote_host,ext_port,int_port,proto,int_ip,desc,0);
 
+            // if still no errors happened, add new portmapping
+            if (result == 0)
+                result = AddNewPortMapping(ca_event,bool_enabled,atoi(int_duration),remote_host,ext_port,int_port,proto,int_ip,desc,0);
+
+            // create response message if success, AddNewPortMapping adds error to response if it fails
             if (result == 1)
             {
                 ca_event->ErrCode = UPNP_E_SUCCESS;
@@ -1019,7 +1043,7 @@ int AddAnyPortMapping(struct Upnp_Action_Request *ca_event)
 
         // If ext_port or int_port is <1024 control point needs to be authorized
         if ((atoi(new_external_port) < 1024 || atoi(new_internal_port) < 1024 || !ControlPointIP_equals_InternalClientIP(new_internal_client, &ca_event->CtrlPtIPAddr))
-             && AuthorizeControlPoint(ca_event, 1) != CONTROL_POINT_AUTHORIZED)
+             && AuthorizeControlPoint(ca_event, 1, 0) != CONTROL_POINT_AUTHORIZED)
         {
             trace(1, "Port numbers must be greater than 1023 and NewInternalClient must be same as IP of Control point \
 unless control port is authorized. external_port:%s, internal_port:%s internal_client:%s",
@@ -1164,8 +1188,8 @@ int GetGenericPortMappingEntry(struct Upnp_Action_Request *ca_event)
     int action_succeeded = 0;
     int authorized = 0;
 
-    //check if authorized
-    if (AuthorizeControlPoint(ca_event, 1) == CONTROL_POINT_AUTHORIZED)
+    //check if CP is authorized for managed accesslevel
+    if (AuthorizeControlPoint(ca_event, 1, 0) == CONTROL_POINT_AUTHORIZED)
     {
         authorized = 1;
     }
@@ -1173,7 +1197,14 @@ int GetGenericPortMappingEntry(struct Upnp_Action_Request *ca_event)
     if ((mapindex = GetFirstDocumentItem(ca_event->ActionRequest, "NewPortMappingIndex")))
     {
         temp = pmlist_FindByIndex(atoi(mapindex));
-        if (temp && (authorized || ControlPointIP_equals_InternalClientIP(temp->m_InternalClient, &ca_event->CtrlPtIPAddr)))
+        // if portmapping is found, we must check if CP is authorized OR if internalclient value of portmapping matches IP of CP
+        // Also if CP is not authorized NewInternalPort and NewExternalPort values of the port mapping entry must be greater than or equal to 1024,
+        // else empty values are returned 
+        if (temp && (authorized || 
+                        (ControlPointIP_equals_InternalClientIP(temp->m_InternalClient, &ca_event->CtrlPtIPAddr) && 
+                         atoi(temp->m_ExternalPort) > 1023 && atoi(temp->m_InternalPort) > 1023)
+                     )
+            )
         {
             snprintf(result_param, RESULT_LEN, "<NewRemoteHost>%s</NewRemoteHost><NewExternalPort>%s</NewExternalPort><NewProtocol>%s</NewProtocol><NewInternalPort>%s</NewInternalPort><NewInternalClient>%s</NewInternalClient><NewEnabled>%d</NewEnabled><NewPortMappingDescription>%s</NewPortMappingDescription><NewLeaseDuration>%li</NewLeaseDuration>",
                      temp->m_RemoteHost,
@@ -1193,9 +1224,9 @@ int GetGenericPortMappingEntry(struct Upnp_Action_Request *ca_event)
             strcpy(ca_event->ErrStr, "SpecifiedArrayIndexInvalid");
             ca_event->ActionResult = NULL;
         }
-        else // not authorized and IP's doesn't match
+        else // not authorized and IP's doesn't match or too small portnumbers
         {
-            trace(1, "GetGenericPortMappingEntry: Not authorized user and Control point IP and portmapping internal client doesn't mach");
+            trace(1, "GetGenericPortMappingEntry: Not authorized user and Control point IP and portmapping internal client doesn't mach or portnumbers of portmapping are under 1024");
             snprintf(result_param, RESULT_LEN, "<NewRemoteHost></NewRemoteHost><NewExternalPort></NewExternalPort><NewProtocol></NewProtocol><NewInternalPort></NewInternalPort><NewInternalClient></NewInternalClient><NewEnabled></NewEnabled><NewPortMappingDescription></NewPortMappingDescription><NewLeaseDuration></NewLeaseDuration>");
             action_succeeded = 1;     
         }
@@ -1243,7 +1274,7 @@ int GetSpecificPortMappingEntry(struct Upnp_Action_Request *ca_event)
     int authorized = 0;
 
     //check if authorized
-    if (AuthorizeControlPoint(ca_event, 1) == CONTROL_POINT_AUTHORIZED)
+    if (AuthorizeControlPoint(ca_event, 1, 0) == CONTROL_POINT_AUTHORIZED)
     {
         authorized = 1;
     }
@@ -1384,7 +1415,7 @@ int DeletePortMapping(struct Upnp_Action_Request *ca_event)
             if ((strcmp(remote_host, "") == 0) || (inet_addr(remote_host) != -1))
             {
                 temp = pmlist_FindSpecific(remote_host, ext_port, proto);
-                if (temp && (AuthorizeControlPoint(ca_event, 1) == CONTROL_POINT_AUTHORIZED || ControlPointIP_equals_InternalClientIP(temp->m_InternalClient, &ca_event->CtrlPtIPAddr)))
+                if (temp && (AuthorizeControlPoint(ca_event, 1, 0) == CONTROL_POINT_AUTHORIZED || ControlPointIP_equals_InternalClientIP(temp->m_InternalClient, &ca_event->CtrlPtIPAddr)))
                 {
                     result = pmlist_Delete(temp);
                 }
@@ -1478,7 +1509,7 @@ int DeletePortMappingRange(struct Upnp_Action_Request *ca_event)
     ca_event->ErrCode = UPNP_E_SUCCESS;
 
     //check if authorized
-    if (AuthorizeControlPoint(ca_event, 1) == CONTROL_POINT_AUTHORIZED)
+    if (AuthorizeControlPoint(ca_event, 1, 0) == CONTROL_POINT_AUTHORIZED)
         authorized = 1;
 
     if ((start_port = GetFirstDocumentItem(ca_event->ActionRequest, "NewStartPort")) &&
@@ -1625,7 +1656,7 @@ int GetListOfPortmappings(struct Upnp_Action_Request *ca_event)
                 max_entries = INT_MAX;
     
             // If manage is not true or CP is not authorized, list only CP's port mappings
-            if ( !resolveBoolean(manage) || !AuthorizeControlPoint(ca_event, 1) == CONTROL_POINT_AUTHORIZED )
+            if ( !resolveBoolean(manage) || !AuthorizeControlPoint(ca_event, 1, 0) == CONTROL_POINT_AUTHORIZED )
                 inet_ntop(AF_INET, &ca_event->CtrlPtIPAddr, cp_ip, INET_ADDRSTRLEN);
     
             // Write XML header
@@ -2098,7 +2129,7 @@ void DeleteAllPortMappings(void)
  * @param new_internal_client The local IP address of the client.
  * @param new_port_mapping_description Textual description of portmapping.
  * @param is_update With this value it is controlled if PortMappingNumberOfEntries is evented. 0 is no eventing.
- * @return Upnp error code.
+ * @return 1 if addition succeeded, 0 if failed.
  */
 int AddNewPortMapping(struct Upnp_Action_Request *ca_event, char* new_enabled, int leaseDuration,
                       char* new_remote_host, char* new_external_port, char* new_internal_port,
@@ -2148,6 +2179,8 @@ int AddNewPortMapping(struct Upnp_Action_Request *ca_event, char* new_enabled, i
         trace(2, "%s: Failed to add new portmapping. DevUDN: %s ServiceID: %s RemoteHost: %s Protocol: %s ExternalPort: %s InternalClient: %s.%s",
                     ca_event->ActionName,ca_event->DevUDN,ca_event->ServiceID,new_remote_host, new_protocol, new_external_port,
                     new_internal_client, new_internal_port);
+        // add error to ca_event
+        addErrorData(ca_event, 501, "Action Failed");
     }
 
     return result;
@@ -2155,29 +2188,31 @@ int AddNewPortMapping(struct Upnp_Action_Request *ca_event, char* new_enabled, i
 
 /**
  * Checks if control point is authorized
- * If not, inserts error data in Upnp_Action_Request-struct.
+ * If not, inserts error data in Upnp_Action_Request-struct if addError is != 0.
  * 
  * @param ca_event Upnp_Action_Request struct.
  * @param managed Is accessLevelManage or accessLevel used from accesslevel.xml
+ * @param addError Is error data added to ca_event if control point is not authorized.
  * @return UPnP error code or 0 if CP is authorized
  */
-int AuthorizeControlPoint(struct Upnp_Action_Request *ca_event, int managed)
+int AuthorizeControlPoint(struct Upnp_Action_Request *ca_event, int managed, int addError)
 {
     int result;
     /*
      * Get rolename for action from accesslevel.xml
-     * If role is "Public", everybody can use action.
-     * If Role is Basic or Admin, SSL is required
      */
     char *accessLevel = NULL;
     accessLevel = getAccessLevel(ca_event->ServiceID, ca_event->ActionName,managed);
     
     if (accessLevel == NULL)
     {
-        trace(1,"%s is not listed in %s under ServiceId %s",ca_event->ActionName,g_vars.accessLevelXml,ca_event->ServiceID);
-        result = InvalidAction(ca_event);
+        if (addError)
+        {
+            trace(1,"%s is not listed in %s under ServiceId %s",ca_event->ActionName,g_vars.accessLevelXml,ca_event->ServiceID);
+            result = InvalidAction(ca_event);
+        }
 
-        return result;
+        return CONTROL_POINT_NOT_AUTHORIZED;
     }
 
     // If SSL is used, it is nice thing to check that CP really has privileges. Even if action is Public.
@@ -2187,46 +2222,35 @@ int AuthorizeControlPoint(struct Upnp_Action_Request *ca_event, int managed)
         // check that CP has right privileges (add's also new sessions to SIR)
         if ( (result = checkCPPrivileges(ca_event, accessLevel)) == 1 )
         {
-            // CP doesn't have privileges for this
-            trace(1, "%s: Not enough privileges to do this, '%s' is required",ca_event->ActionName, accessLevel);
-            result = 606;
-            addErrorData(ca_event, result, "Action not authorized");
+            if (addError)
+            {
+                // CP doesn't have privileges for this
+                trace(1, "%s: Not enough privileges to do this, '%s' is required",ca_event->ActionName, accessLevel);
+                result = 606;
+                addErrorData(ca_event, result, "Action not authorized");
+            }
 
-            return result;        
+            return CONTROL_POINT_NOT_AUTHORIZED;        
         }
         else if (result != 0)
         {
-            trace(1,"Failed to get Control Point privileges");
-            result = 501;
-            addErrorData(ca_event, result, "Action Failed");
-
-            return result;            
-        }        
+            if (addError)
+            {
+                trace(1,"Failed to get Control Point privileges");
+                result = 501;
+                addErrorData(ca_event, result, "Action Failed");
+            }
+            return CONTROL_POINT_NOT_AUTHORIZED;            
+        }
+        else 
+        {
+            // Control point should be authorized
+            return CONTROL_POINT_AUTHORIZED;            
+        }   
     }
     else
     {
         return CONTROL_POINT_NOT_AUTHORIZED;
     }
-
-    // if accesslevel is something else than public then, require SSL. (not quite sure if this is right)
-    // I think this is not needed
-    /*
-    if ( strcmp(accessLevel, "Public") != 0 )
-    {
-        // is SSL used for connection
-        if (ca_event->SSLSession == NULL)
-        {
-            // SSL must be used
-            trace(1, "%s: SSL connection must be used for this",ca_event->ActionName);
-            result = 701;
-            addErrorData(ca_event, result, "Authentication Failure");
-
-            return result;                
-        }
-    }       
-    */
-    
-    // Control point should be authorized
-    return CONTROL_POINT_AUTHORIZED;
 }
 

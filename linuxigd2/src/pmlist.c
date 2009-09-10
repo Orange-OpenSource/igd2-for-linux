@@ -95,7 +95,7 @@ struct portMap* pmlist_Find(char * remoteHost, char *externalPort, char *proto, 
         return NULL;
     do
     {
-        if ( ((strcmp(temp->m_RemoteHost, remoteHost) == 0) || (strcmp(remoteHost, "") == 0) || (strcmp(temp->m_RemoteHost, "") == 0)) &&
+        if ( (strcmp(temp->m_RemoteHost, remoteHost) == 0) &&
                 (strcmp(temp->m_ExternalPort, externalPort) == 0) &&
                 (strcmp(temp->m_PortMappingProtocol, proto) == 0) &&
                 (strcmp(temp->m_InternalClient, internalClient) == 0) )
@@ -217,7 +217,7 @@ struct portMap* pmlist_FindSpecific(char * remoteHost, char *externalPort, char 
 
     do
     {
-        if ( ((strcmp(temp->m_RemoteHost, remoteHost) == 0) || (strcmp(remoteHost, "") == 0)) &&
+        if ( (strcmp(temp->m_RemoteHost, remoteHost) == 0) &&
                 (strcmp(temp->m_ExternalPort, externalPort) == 0) &&
                 (strcmp(temp->m_PortMappingProtocol, protocol) == 0))
             return temp;
@@ -252,7 +252,7 @@ struct portMap* pmlist_FindSpecificAfterIndex(char * remoteHost, char *externalP
 
     do
     {
-        if ( ((strcmp(temp->m_RemoteHost, remoteHost) == 0) || (strcmp(remoteHost, "") == 0)) &&
+        if ( (strcmp(temp->m_RemoteHost, remoteHost) == 0) &&
                 (strcmp(temp->m_ExternalPort, externalPort) == 0) &&
                 (strcmp(temp->m_PortMappingProtocol, protocol) == 0))
             return temp;
@@ -283,7 +283,7 @@ int pmlist_FindNextFreePort(char *protocol)
     for (i = 1024; i < 9999; i++) 
     {   
 	sprintf(portBuf, "%d", i);
-	temp = pmlist_FindSpecific("", portBuf, protocol);
+	temp = pmlist_FindBy_extPort_proto(portBuf, protocol);
         if (temp == NULL) {
 	   freePort = i;
 	   break;

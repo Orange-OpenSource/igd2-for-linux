@@ -89,7 +89,7 @@ int DeletePortMappingRange(struct Upnp_Action_Request *ca_event);
 int AddAnyPortMapping(struct Upnp_Action_Request *ca_event);
 int GetListOfPortmappings(struct Upnp_Action_Request *ca_event);
 int ForceTermination(struct Upnp_Action_Request *ca_event);
-int AuthorizeControlPoint(struct Upnp_Action_Request *ca_event, int managed);
+int AuthorizeControlPoint(struct Upnp_Action_Request *ca_event, int managed, int addError);
 
 // WANEthernetLinkConfig Actions
 int GetEthernetLinkStatus (struct Upnp_Action_Request *ca_event);

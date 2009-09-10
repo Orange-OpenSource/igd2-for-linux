@@ -27,15 +27,15 @@
             </action>
             <action>
                 <name>RequestConnection</name>
-                <accessLevel>Basic</accessLevel>
+                <accessLevel>Admin</accessLevel>
             </action>
             <action>
                 <name>RequestTermination</name>
-                <accessLevel>Basic</accessLevel>
+                <accessLevel>Admin</accessLevel>
             </action>
             <action>
                 <name>ForceTermination</name>
-                <accessLevel>Basic</accessLevel>
+                <accessLevel>Admin</accessLevel>
             </action>
             <action>
                 <name>SetAutoDisconnectTime</name>
@@ -58,6 +58,10 @@
                 <accessLevel>Public</accessLevel>
             </action>
             <action>
+                <name>GetIdleDisconnectTime</name>
+                <accessLevel>Public</accessLevel>
+            </action>            
+            <action>
                 <name>GetWarnDisconnectDelay</name>
                 <accessLevel>Public</accessLevel>
             </action>
@@ -68,7 +72,7 @@
             <action>
                 <name>GetGenericPortMappingEntry</name>
                 <accessLevel>Public</accessLevel>
-                <accessLevelManage>Basic</accessLevelManage>
+                <accessLevelManage>Admin</accessLevelManage>
             </action>
             <action>
                 <name>GetSpecificPortMappingEntry</name>
@@ -77,22 +81,22 @@
             </action>
             <action>
                 <name>AddPortMapping</name>
-                <accessLevel>Basic</accessLevel>
+                <accessLevel>Public</accessLevel>
                 <accessLevelManage>Admin</accessLevelManage>
             </action> 
             <action>
                 <name>AddAnyPortMapping</name>
-                <accessLevel>Basic</accessLevel>
+                <accessLevel>Public</accessLevel>
                 <accessLevelManage>Admin</accessLevelManage>
             </action>
             <action>
                 <name>DeletePortMapping</name>
-                <accessLevel>Basic</accessLevel>
+                <accessLevel>Public</accessLevel>
                 <accessLevelManage>Admin</accessLevelManage>
             </action>
             <action>
                 <name>DeletePortMappingRange</name>
-                <accessLevel>Basic</accessLevel>
+                <accessLevel>Public</accessLevel>
                 <accessLevelManage>Admin</accessLevelManage>
             </action>
             <action>
