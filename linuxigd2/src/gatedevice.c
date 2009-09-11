@@ -53,7 +53,7 @@ static const char xml_portmapEntry[] =
         "<p:NewInternalClient>%s</p:NewInternalClient>"
         "<p:NewEnabled>%d</p:NewEnabled>"
         "<p:NewDescription>%s</p:NewDescription>"
-        "<p:NewLeaseTime>%ld</p:NewLeaseTime>"
+        "<p:NewLeaseTime>%li</p:NewLeaseTime>"
         "</p:PortMappingEntry>\n";
 static const char xml_portmapListingHeader[] =
         "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
@@ -881,7 +881,7 @@ int AddPortMapping(struct Upnp_Action_Request *ca_event)
     char *proto=NULL;
     char *int_port=NULL;
     char *int_ip=NULL;
-    char *int_duration=NULL;
+    char *long_duration=NULL;
     char *bool_enabled=NULL;
     char *desc=NULL;
     struct portMap *ret;
@@ -893,9 +893,13 @@ int AddPortMapping(struct Upnp_Action_Request *ca_event)
             && (proto = GetFirstDocumentItem(ca_event->ActionRequest, "NewProtocol") )
             && (int_port = GetFirstDocumentItem(ca_event->ActionRequest, "NewInternalPort") )
             && (int_ip = GetFirstDocumentItem(ca_event->ActionRequest, "NewInternalClient") )
-            && (int_duration = GetFirstDocumentItem(ca_event->ActionRequest, "NewLeaseDuration") )
+            && (long_duration = GetFirstDocumentItem(ca_event->ActionRequest, "NewLeaseDuration") )
             && (bool_enabled = GetFirstDocumentItem(ca_event->ActionRequest, "NewEnabled") )
-            && (desc = GetFirstDocumentItem(ca_event->ActionRequest, "NewPortMappingDescription") ))
+            && (desc = GetFirstDocumentItem(ca_event->ActionRequest, "NewPortMappingDescription") )
+            && ((strcmp(proto, "TCP") == 0) || (strcmp(proto, "UDP") == 0))
+            && (atoi(ext_port) >= 0)
+            && (atoi(int_port) >= 1 && atoi(int_port) <= 65535)
+            && (atol(long_duration) >= 0 && atol(long_duration) <= 604800) )
     {
         // If ext_port or int_port is <1024 control point needs to be authorized
         if ((atoi(ext_port) < 1024 || atoi(int_port) < 1024 || !ControlPointIP_equals_InternalClientIP(int_ip, &ca_event->CtrlPtIPAddr))
@@ -927,19 +931,7 @@ unless control port is authorized. external_port:%s, internal_port:%s internal_c
             result = 732;
             addErrorData(ca_event, result, "WildCardNotPermittedInIntPort");
         }        
-        // check that leaseduration is between 0 and 604800
-        else if ((atoi(int_duration) < 0) || (atoi(int_duration) > 604800))
-        {
-            trace(1, "Duration must be between 0 and 604800");
-            result = 402;
-            addErrorData(ca_event, result, "Invalid Args");
-        }
-        else if ((strcmp(proto, "TCP") != 0) && (strcmp(proto, "UDP") != 0))
-        {
-            trace(1, "Protocol must be either TCP or UDP: Invalid NewProtocol=%s\n",proto);
-            result = 402;
-            addErrorData(ca_event, result, "Invalid Args");       
-        }
+
         
         // parameters are OK
         if (result == 0)
@@ -967,7 +959,7 @@ unless control port is authorized. external_port:%s, internal_port:%s internal_c
 
             // if still no errors happened, add new portmapping
             if (result == 0)
-                result = AddNewPortMapping(ca_event,bool_enabled,atoi(int_duration),remote_host,ext_port,int_port,proto,int_ip,desc,0);
+                result = AddNewPortMapping(ca_event,bool_enabled,atol(long_duration),remote_host,ext_port,int_port,proto,int_ip,desc,0);
 
             // create response message if success, AddNewPortMapping adds error to response if it fails
             if (result == 1)
@@ -983,7 +975,7 @@ unless control port is authorized. external_port:%s, internal_port:%s internal_c
     {
         trace(1, "Failure in GateDeviceAddPortMapping: Invalid Arguments!");
         trace(1, "  ExtPort: %s RemHost: %s Proto: %s IntPort: %s IntIP: %s Dur: %s Ena: %s Desc: %s",
-              ext_port, remote_host, proto, int_port, int_ip, int_duration, bool_enabled, desc);
+              ext_port, remote_host, proto, int_port, int_ip, long_duration, bool_enabled, desc);
         addErrorData(ca_event, 402, "Invalid Args");
     }
 
@@ -994,7 +986,8 @@ unless control port is authorized. external_port:%s, internal_port:%s internal_c
     if (bool_enabled) free(bool_enabled);
     if (desc) free(desc);
     if (remote_host) free(remote_host);
-
+    if (long_duration) free(long_duration);
+    
     return(ca_event->ErrCode);
 }
 
@@ -1020,7 +1013,6 @@ int AddAnyPortMapping(struct Upnp_Action_Request *ca_event)
     char *new_port_mapping_description=NULL;
     char *new_lease_duration=NULL;
 
-    long leaseDuration = 0;
     int next_free_port = 0;
 
     struct portMap *ret;
@@ -1037,10 +1029,12 @@ int AddAnyPortMapping(struct Upnp_Action_Request *ca_event)
             && (new_internal_client = GetFirstDocumentItem(ca_event->ActionRequest, "NewInternalClient") )
             && (new_enabled = GetFirstDocumentItem(ca_event->ActionRequest, "NewEnabled") )
             && (new_port_mapping_description = GetFirstDocumentItem(ca_event->ActionRequest, "NewPortMappingDescription") )
-            && (new_lease_duration = GetFirstDocumentItem(ca_event->ActionRequest, "NewLeaseDuration") ) )
+            && (new_lease_duration = GetFirstDocumentItem(ca_event->ActionRequest, "NewLeaseDuration") )
+            && ((strcmp(new_protocol, "TCP") == 0) || (strcmp(new_protocol, "UDP") == 0))
+            && (atoi(new_external_port) >= 0)
+            && (atoi(new_internal_port) >= 1 && atoi(new_internal_port) <= 65535)
+            && (atol(new_lease_duration) >= 0 && atol(new_lease_duration) <= 604800) )
     {
-        leaseDuration = atol(new_lease_duration);
-
         // If ext_port or int_port is <1024 control point needs to be authorized
         if ((atoi(new_external_port) < 1024 || atoi(new_internal_port) < 1024 || !ControlPointIP_equals_InternalClientIP(new_internal_client, &ca_event->CtrlPtIPAddr))
              && AuthorizeControlPoint(ca_event, 1, 0) != CONTROL_POINT_AUTHORIZED)
@@ -1073,19 +1067,7 @@ unless control port is authorized. external_port:%s, internal_port:%s internal_c
             result = 732;
             addErrorData(ca_event, result, "WildCardNotPermittedInIntPort");
         }        
-        // check that leaseduration is between 0 and 604800
-        else if (leaseDuration < 0 || leaseDuration > 604800)
-        {
-            trace(1, "Duration must be between 0 and 604800");
-            result = 402;
-            addErrorData(ca_event, result, "Invalid Args");
-        }
-        else if ((strcmp(new_protocol, "TCP") != 0) && (strcmp(new_protocol, "UDP") != 0))
-        {
-            trace(1, "Protocol must be either TCP or UDP: Invalid NewProtocol=%s\n",new_protocol);
-            result = 402;
-            addErrorData(ca_event, result, "Invalid Args");       
-        }
+
         
         // Parameters OK... proceed with adding port map
         if (result == 0)
@@ -1100,7 +1082,7 @@ unless control port is authorized. external_port:%s, internal_port:%s internal_c
                     //       Or at least find out if it is even possible.
                     pmlist_Delete(ret);
                     
-                    result = AddNewPortMapping(ca_event, new_enabled, leaseDuration, new_remote_host,
+                    result = AddNewPortMapping(ca_event, new_enabled, atol(new_lease_duration), new_remote_host,
                                                 new_external_port, new_internal_port, new_protocol,
                                                 new_internal_client, new_port_mapping_description, 1);    
                 }
@@ -1115,7 +1097,7 @@ unless control port is authorized. external_port:%s, internal_port:%s internal_c
                     {
                         trace(3, "Found free port:%d", next_free_port);
                         sprintf(freePort, "%d", next_free_port);
-                        result = AddNewPortMapping(ca_event, new_enabled, leaseDuration, new_remote_host,
+                        result = AddNewPortMapping(ca_event, new_enabled, atol(new_lease_duration), new_remote_host,
                                                     freePort, new_internal_port, new_protocol,
                                                     new_internal_client, new_port_mapping_description, 0);
                     }
@@ -1127,7 +1109,7 @@ unless control port is authorized. external_port:%s, internal_port:%s internal_c
                 else 
                 {
                     // Otherwise just add the port map
-                    result = AddNewPortMapping(ca_event, new_enabled, leaseDuration, new_remote_host,
+                    result = AddNewPortMapping(ca_event, new_enabled, atol(new_lease_duration), new_remote_host,
                                                 new_external_port, new_internal_port, new_protocol,
                                                 new_internal_client, new_port_mapping_description, 0);
                 }
@@ -1186,13 +1168,6 @@ int GetGenericPortMappingEntry(struct Upnp_Action_Request *ca_event)
     char result_param[RESULT_LEN];
     char resultStr[RESULT_LEN];
     int action_succeeded = 0;
-    int authorized = 0;
-
-    //check if CP is authorized for managed accesslevel
-    if (AuthorizeControlPoint(ca_event, 1, 0) == CONTROL_POINT_AUTHORIZED)
-    {
-        authorized = 1;
-    }
 
     if ((mapindex = GetFirstDocumentItem(ca_event->ActionRequest, "NewPortMappingIndex")))
     {
@@ -1200,7 +1175,7 @@ int GetGenericPortMappingEntry(struct Upnp_Action_Request *ca_event)
         // if portmapping is found, we must check if CP is authorized OR if internalclient value of portmapping matches IP of CP
         // Also if CP is not authorized NewInternalPort and NewExternalPort values of the port mapping entry must be greater than or equal to 1024,
         // else empty values are returned 
-        if (temp && (authorized || 
+        if (temp && (AuthorizeControlPoint(ca_event, 1, 0) == CONTROL_POINT_AUTHORIZED || 
                         (ControlPointIP_equals_InternalClientIP(temp->m_InternalClient, &ca_event->CtrlPtIPAddr) && 
                          atoi(temp->m_ExternalPort) > 1023 && atoi(temp->m_InternalPort) > 1023)
                      )
@@ -1271,71 +1246,52 @@ int GetSpecificPortMappingEntry(struct Upnp_Action_Request *ca_event)
     char resultStr[RESULT_LEN];
     int action_succeeded = 0;
     struct portMap *temp;
-    int authorized = 0;
-
-    //check if authorized
-    if (AuthorizeControlPoint(ca_event, 1, 0) == CONTROL_POINT_AUTHORIZED)
-    {
-        authorized = 1;
-    }
     
     if ((remote_host = GetFirstDocumentItem(ca_event->ActionRequest, "NewRemoteHost")) &&
             (ext_port = GetFirstDocumentItem(ca_event->ActionRequest, "NewExternalPort")) &&
-            (proto = GetFirstDocumentItem(ca_event->ActionRequest,"NewProtocol")))
+            (proto = GetFirstDocumentItem(ca_event->ActionRequest,"NewProtocol")) &&
+            ((strcmp(proto, "TCP") == 0) || (strcmp(proto, "UDP") == 0)) && 
+            (atoi(ext_port) >= 0))
     {
-        if ((strcmp(proto, "TCP") == 0) || (strcmp(proto, "UDP") == 0))
+        temp = pmlist_FindSpecific (remote_host, ext_port, proto);
+        // if portmapping is found, we must check if CP is authorized OR if internalclient value of portmapping matches IP of CP
+        // Also if CP is not authorized NewInternalPort and NewExternalPort values of the port mapping entry must be greater than or equal to 1024,
+        // else error is returned 
+        if (temp && (AuthorizeControlPoint(ca_event, 1, 0) == CONTROL_POINT_AUTHORIZED || 
+                        (ControlPointIP_equals_InternalClientIP(temp->m_InternalClient, &ca_event->CtrlPtIPAddr) && 
+                         atoi(temp->m_ExternalPort) > 1023 && atoi(temp->m_InternalPort) > 1023)
+                     )
+            )
         {
-            // Check if remote host is empty string or valid IP address
-            if ((strcmp(remote_host, "") == 0) || (inet_addr(remote_host) != -1))
-            {
-                temp = pmlist_FindSpecific (remote_host, ext_port, proto);
-                if (temp && (authorized || ControlPointIP_equals_InternalClientIP(temp->m_InternalClient, &ca_event->CtrlPtIPAddr)))
-                {
-                    snprintf(result_param, RESULT_LEN, "<NewInternalPort>%s</NewInternalPort><NewInternalClient>%s</NewInternalClient><NewEnabled>%d</NewEnabled><NewPortMappingDescription>%s</NewPortMappingDescription><NewLeaseDuration>%li</NewLeaseDuration>",
-                             temp->m_InternalPort,
-                             temp->m_InternalClient,
-                             temp->m_PortMappingEnabled,
-                             temp->m_PortMappingDescription,
-                             (temp->expirationTime-time(NULL)));
-                    action_succeeded = 1;
-                }
-                else if (!temp)
-                {
-                    trace(2, "GateDeviceGetSpecificPortMappingEntry: PortMapping Doesn't Exist...");
-                    ca_event->ErrCode = 714;
-                    strcpy(ca_event->ErrStr, "NoSuchEntryInArray");
-                    ca_event->ActionResult = NULL;
-                }
-                else
-                {
-                    trace(1, "Failure in GetSpecificPortMappingEntry: ActionNotPermitted\n");
-                    ca_event->ErrCode = 730;
-                    strcpy(ca_event->ErrStr, "ActionNotPermitted");
-                    ca_event->ActionResult = NULL;                    
-                }
-                
-                if (action_succeeded)
-                {
-                    ca_event->ErrCode = UPNP_E_SUCCESS;
-                    snprintf(resultStr, RESULT_LEN, "<u:%sResponse xmlns:u=\"%s\">\n%s\n</u:%sResponse>", ca_event->ActionName,
-                             "urn:schemas-upnp-org:service:WANIPConnection:2",result_param, ca_event->ActionName);
-                    ca_event->ActionResult = ixmlParseBuffer(resultStr);
-                }
-            }
-            else
-            {
-                trace(1, "Failure in GetSpecificPortMappingEntry: Invalid NewRemoteHost=%s\n",remote_host);
-                ca_event->ErrCode = 402;
-                strcpy(ca_event->ErrStr, "Invalid Args");
-                ca_event->ActionResult = NULL;
-            }
+            snprintf(result_param, RESULT_LEN, "<NewInternalPort>%s</NewInternalPort><NewInternalClient>%s</NewInternalClient><NewEnabled>%d</NewEnabled><NewPortMappingDescription>%s</NewPortMappingDescription><NewLeaseDuration>%li</NewLeaseDuration>",
+                     temp->m_InternalPort,
+                     temp->m_InternalClient,
+                     temp->m_PortMappingEnabled,
+                     temp->m_PortMappingDescription,
+                     (temp->expirationTime-time(NULL)));
+            action_succeeded = 1;
+        }
+        else if (!temp)
+        {
+            trace(2, "GateDeviceGetSpecificPortMappingEntry: PortMapping Doesn't Exist...");
+            ca_event->ErrCode = 714;
+            strcpy(ca_event->ErrStr, "NoSuchEntryInArray");
+            ca_event->ActionResult = NULL;
         }
         else
         {
-            trace(1, "Failure in GetSpecificPortMappingEntry: Invalid NewProtocol=%s\n",proto);
-            ca_event->ErrCode = 402;
-            strcpy(ca_event->ErrStr, "Invalid Args");
-            ca_event->ActionResult = NULL;
+            trace(1, "Failure in GetSpecificPortMappingEntry: ActionNotPermitted\n");
+            ca_event->ErrCode = 730;
+            strcpy(ca_event->ErrStr, "ActionNotPermitted");
+            ca_event->ActionResult = NULL;                    
+        }
+        
+        if (action_succeeded)
+        {
+            ca_event->ErrCode = UPNP_E_SUCCESS;
+            snprintf(resultStr, RESULT_LEN, "<u:%sResponse xmlns:u=\"%s\">\n%s\n</u:%sResponse>", ca_event->ActionName,
+                     "urn:schemas-upnp-org:service:WANIPConnection:2",result_param, ca_event->ActionName);
+            ca_event->ActionResult = ixmlParseBuffer(resultStr);
         }
     }
     else
@@ -1403,56 +1359,59 @@ int DeletePortMapping(struct Upnp_Action_Request *ca_event)
     int action_succeeded = 0;
     struct portMap *temp;
     char tmp[11];
+    int authorized = 0;
 
     if ((remote_host = GetFirstDocumentItem(ca_event->ActionRequest, "NewRemoteHost")) &&
             (ext_port = GetFirstDocumentItem(ca_event->ActionRequest, "NewExternalPort")) &&
-            (proto = GetFirstDocumentItem(ca_event->ActionRequest, "NewProtocol")))
+            (proto = GetFirstDocumentItem(ca_event->ActionRequest, "NewProtocol")) &&
+            ((strcmp(proto, "TCP") == 0) || (strcmp(proto, "UDP") == 0)) && 
+            (atoi(ext_port) >= 0))
     {
-
-        if ((strcmp(proto, "TCP") == 0) || (strcmp(proto, "UDP") == 0))
+        //check if authorized
+        if (AuthorizeControlPoint(ca_event, 1, 0) == CONTROL_POINT_AUTHORIZED)
         {
-            // Check if remote host is empty string or valid IP address
-            if ((strcmp(remote_host, "") == 0) || (inet_addr(remote_host) != -1))
-            {
-                temp = pmlist_FindSpecific(remote_host, ext_port, proto);
-                if (temp && (AuthorizeControlPoint(ca_event, 1, 0) == CONTROL_POINT_AUTHORIZED || ControlPointIP_equals_InternalClientIP(temp->m_InternalClient, &ca_event->CtrlPtIPAddr)))
-                {
-                    result = pmlist_Delete(temp);
-                }
-                else if (!temp)
-                {
-                    trace(1, "Failure in DeletePortMapping: Remote Host:%s Proto:%s Port:%s\n",remote_host, proto, ext_port);
-                    addErrorData(ca_event, 714, "NoSuchEntryInArray");
-                }
-                else
-                {
-                    trace(1, "Failure in DeletePortMapping: Remote Host:%s Proto:%s Port:%s\n",remote_host, proto, ext_port);
-                    addErrorData(ca_event, 730, "ActionNotPermitted");
-                }
-               
-                if (result==1)
-                {
-                    trace(2, "DeletePortMap: Remote Host: %s Proto:%s Port:%s\n", remote_host, proto, ext_port);
-                    PortMappingNumberOfEntries = pmlist_Size();
-                    sprintf(num,"%d",PortMappingNumberOfEntries);
-                    UpnpAddToPropertySet(&propSet,"PortMappingNumberOfEntries", num);
-                    snprintf(tmp,11,"%ld",++SystemUpdateID);
-                    UpnpAddToPropertySet(&propSet,"SystemUpdateID", tmp);
-                    UpnpNotifyExt(deviceHandle, ca_event->DevUDN,ca_event->ServiceID,propSet);
-                    ixmlDocument_free(propSet);
-                    action_succeeded = 1;
-                }
-            }
-            else
-            {
-                trace(1, "Failure in GateDeviceDeletePortMapping: Invalid NewRemoteHost=%s\n",remote_host);
-                addErrorData(ca_event, 402, "Invalid Args");
-            }
+            authorized = 1;
+        }
+        
+        // check that external port value is greater than or equal to 1024 if CP is not authorized
+        if (!authorized && atoi(ext_port) < 1024)
+        {
+            trace(1, "Failure in DeletePortMapping: Remote Host:%s Proto:%s Port:%s. Port value is under 1024 and CP is not authorized\n",remote_host, proto, ext_port);
+            addErrorData(ca_event, 730, "ActionNotPermitted");                
+        }
+        // if portmapping is found, we must check if CP is authorized OR if internalclient value of portmapping matches IP of CP
+        // Also if CP is not authorized NewInternalPort and NewExternalPort values of the port mapping entry must be greater than or equal to 1024,
+        // else error is returned 
+        else if ((temp = pmlist_FindSpecific(remote_host, ext_port, proto)) != NULL && 
+                     (authorized || 
+                        (ControlPointIP_equals_InternalClientIP(temp->m_InternalClient, &ca_event->CtrlPtIPAddr) && 
+                         atoi(temp->m_ExternalPort) > 1023 && atoi(temp->m_InternalPort) > 1023))
+            )
+        {
+            result = pmlist_Delete(temp);
+        }
+        else if (!temp)
+        {
+            trace(1, "Failure in DeletePortMapping: Remote Host:%s Proto:%s Port:%s\n",remote_host, proto, ext_port);
+            addErrorData(ca_event, 714, "NoSuchEntryInArray");
         }
         else
         {
-            trace(1, "Failure in GateDeviceDeletePortMapping: Invalid NewProtocol=%s\n",proto);
-            addErrorData(ca_event, 402, "Invalid Args");
+            trace(1, "Failure in DeletePortMapping: Remote Host:%s Proto:%s Port:%s\n",remote_host, proto, ext_port);
+            addErrorData(ca_event, 730, "ActionNotPermitted");
+        }
+       
+        if (result==1)
+        {
+            trace(2, "DeletePortMap: Remote Host: %s Proto:%s Port:%s\n", remote_host, proto, ext_port);
+            PortMappingNumberOfEntries = pmlist_Size();
+            sprintf(num,"%d",PortMappingNumberOfEntries);
+            UpnpAddToPropertySet(&propSet,"PortMappingNumberOfEntries", num);
+            snprintf(tmp,11,"%ld",++SystemUpdateID);
+            UpnpAddToPropertySet(&propSet,"SystemUpdateID", tmp);
+            UpnpNotifyExt(deviceHandle, ca_event->DevUDN,ca_event->ServiceID,propSet);
+            ixmlDocument_free(propSet);
+            action_succeeded = 1;
         }
     }
     else
@@ -1508,24 +1467,30 @@ int DeletePortMappingRange(struct Upnp_Action_Request *ca_event)
 
     ca_event->ErrCode = UPNP_E_SUCCESS;
 
-    //check if authorized
-    if (AuthorizeControlPoint(ca_event, 1, 0) == CONTROL_POINT_AUTHORIZED)
-        authorized = 1;
-
     if ((start_port = GetFirstDocumentItem(ca_event->ActionRequest, "NewStartPort")) &&
             (end_port = GetFirstDocumentItem(ca_event->ActionRequest, "NewEndPort")) &&
             (proto = GetFirstDocumentItem(ca_event->ActionRequest, "NewProtocol")) &&
-            (bool_manage = GetFirstDocumentItem(ca_event->ActionRequest, "NewManage")))
+            (bool_manage = GetFirstDocumentItem(ca_event->ActionRequest, "NewManage")) && 
+            ((strcmp(proto, "TCP") == 0) || (strcmp(proto, "UDP") == 0)) && 
+            (atoi(start_port) >= 0) && 
+            (atoi(end_port) >= 0) )
     {
-        if ((end = atoi(end_port)) < (start = atoi(start_port)))
+        //check if authorized
+        if (AuthorizeControlPoint(ca_event, 1, 0) == CONTROL_POINT_AUTHORIZED)
+        {
+            authorized = 1;
+        }
+        
+        // check that port values are greater than or equal to 1024 if CP is not authorized
+        if (!authorized && (atoi(start_port) < 1024 || atoi(end_port) < 1024))
+        {
+            trace(1, "Failure in DeletePortMappingRange: StartPort:%s EndPort:%s Proto:%s Manage:%s. Port values under 1024 and CP is not authorized\n",start_port,end_port,proto,bool_manage);
+            addErrorData(ca_event, 730, "ActionNotPermitted");                
+        }
+        else if ((end = atoi(end_port)) < (start = atoi(start_port)))
         {
             trace(1, "Failure in DeletePortMappingRange: StartPort:%s EndPort:%s Proto:%s Manage:%s InconsistentParameters!\n", start_port,end_port,proto,bool_manage);
             addErrorData(ca_event, 733, "InconsistentParameters");
-        }
-        else if ((strcmp(proto, "TCP") != 0) && (strcmp(proto, "UDP") != 0))
-        {
-            trace(1, "Failure in DeletePortMappingRange: Invalid NewProtocol=%s\n",proto);
-            addErrorData(ca_event, 402, "Invalid Args");       
         }
         
         // parameters OK, lets continue
@@ -1636,19 +1601,35 @@ int GetListOfPortmappings(struct Upnp_Action_Request *ca_event)
     int max_entries;
     int action_succeeded = 0;
     int result_place = 0;
+    int authorized = 0;
     struct portMap *pm = NULL;
 
     if ( (start_port = GetFirstDocumentItem(ca_event->ActionRequest, "NewStartPort") )
             && (end_port = GetFirstDocumentItem(ca_event->ActionRequest, "NewEndPort") )
             && (manage = GetFirstDocumentItem(ca_event->ActionRequest, "NewManage") )
             && (number_of_ports = GetFirstDocumentItem(ca_event->ActionRequest, "NewNumberOfPorts") )
-            && (proto = GetFirstDocumentItem(ca_event->ActionRequest, "NewProtocol") ))
+            && (proto = GetFirstDocumentItem(ca_event->ActionRequest, "NewProtocol") )
+            && ((strcmp(proto, "TCP") == 0) || (strcmp(proto, "UDP") == 0) )
+            && (atoi(start_port) >= 0)
+            && (atoi(end_port) >= 0) )
     {
-        if ((end = atoi(end_port)) < (start = atoi(start_port)))
+        //check if authorized
+        if (AuthorizeControlPoint(ca_event, 1, 0) == CONTROL_POINT_AUTHORIZED)
+        {
+            authorized = 1;
+        }
+        
+        // check that port values are greater than or equal to 1024 if CP is not authorized
+        if (!authorized && (atoi(start_port) < 1024 || atoi(end_port) < 1024))
+        {
+            trace(1, "Failure in GetListOfPortmappings: StartPort:%s EndPort:%s Proto:%s Manage:%s. Port values under 1024 and CP is not authorized\n",start_port,end_port,proto,manage);
+            addErrorData(ca_event, 730, "ActionNotPermitted");                
+        }        
+        else if ((end = atoi(end_port)) < (start = atoi(start_port)))
         {
             trace(1, "Failure in GetListOfPortmappings: StartPort:%s EndPort:%s Proto:%s Manage:%s InconsistentParameters!\n", start_port,end_port,proto,manage);
             addErrorData(ca_event, 733, "InconsistentParameters");
-        }
+        }     
         else
         {    
             max_entries = atoi(number_of_ports);
@@ -1656,7 +1637,7 @@ int GetListOfPortmappings(struct Upnp_Action_Request *ca_event)
                 max_entries = INT_MAX;
     
             // If manage is not true or CP is not authorized, list only CP's port mappings
-            if ( !resolveBoolean(manage) || !AuthorizeControlPoint(ca_event, 1, 0) == CONTROL_POINT_AUTHORIZED )
+            if ( !resolveBoolean(manage) || !authorized )
                 inet_ntop(AF_INET, &ca_event->CtrlPtIPAddr, cp_ip, INET_ADDRSTRLEN);
     
             // Write XML header
@@ -1668,13 +1649,14 @@ int GetListOfPortmappings(struct Upnp_Action_Request *ca_event)
                 result_place += sprintf(&result_str[result_place], xml_portmapEntry,
                                        pm->m_RemoteHost, pm->m_ExternalPort, pm->m_PortMappingProtocol,
                                        pm->m_InternalPort, pm->m_InternalClient, pm->m_PortMappingEnabled,
-                                       pm->m_PortMappingDescription, pm->m_PortMappingLeaseDuration);
+                                       pm->m_PortMappingDescription, (pm->expirationTime-time(NULL)));
                 action_succeeded = 1;
             }
     
             if (action_succeeded)
             {
                 result_place += sprintf(&result_str[result_place], xml_portmapListingFooter);
+                // this will automatically escape value of NewPortListing
                 ca_event->ActionResult = UpnpMakeActionResponse(ca_event->ActionName, WANIP_SERVICE_TYPE,
                                           1, 
                                           "NewPortListing", result_str,
@@ -2131,7 +2113,7 @@ void DeleteAllPortMappings(void)
  * @param is_update With this value it is controlled if PortMappingNumberOfEntries is evented. 0 is no eventing.
  * @return 1 if addition succeeded, 0 if failed.
  */
-int AddNewPortMapping(struct Upnp_Action_Request *ca_event, char* new_enabled, int leaseDuration,
+int AddNewPortMapping(struct Upnp_Action_Request *ca_event, char* new_enabled, long int leaseDuration,
                       char* new_remote_host, char* new_external_port, char* new_internal_port,
                       char* new_protocol, char* new_internal_client, char* new_port_mapping_description,
                       int is_update)
