@@ -70,7 +70,7 @@ typedef struct {
  * Active attribute tells if session is currently logged in as identity. If value is 0, it can be later 
  * used in session resumption.
  * 
- * If session contains "role"-element, this is the current role for this sesseion, not value from ACL.
+ * If session contains "rolelist"-element, this is the current role for this session, not value from ACL.
  * 
  * 
  * Session may also contain data associated for user login process. Device must know what username/
@@ -85,7 +85,7 @@ typedef struct {
  * <SIR>
  *  <session id="AHHuendfn372jsuGDS==" active="1">
  *      <identity>username</identity>
- *      <role>Basic</role>
+ *      <rolelist>Basic</rolelist>
  *      <logindata loginattempts="2">
  *          <name>Admin</name>
  *          <challenge>83h83288J7YGHGS778jsJJHGDn=</challenge>
@@ -257,27 +257,56 @@ void DP_finishDocuments()
  * Third check if username (or hash) has desired role associated to (from ACL).
  * 
  * @param ca_event Upnp event struct.
- * @param targetRole Rolename that control point or user should have registerd in ACL
+ * @param targetRoles List of rolenames from which at least one control point or user must have assigned in ACL
  * @return 0 if rolename is found and everything is ok, 1 if CP doesn't have privileges. Something else if error
  */
-int checkCPPrivileges(struct Upnp_Action_Request *ca_event, const char *targetRole)
+int checkCPPrivileges(struct Upnp_Action_Request *ca_event, const char *targetRoles)
 {
     int ret, len=0;
     char *identifier = NULL;
+    char *commonName = NULL;
+    char *name = NULL;
+    char *rolelist = NULL;
 
     // get identity of CP 
-    ret = getIdentifierOfCP(ca_event, &identifier, &len, NULL);
+    ret = getIdentifierOfCP(ca_event, &identifier, &len, &commonName);
     if (ret != 0 )
     {
         if (identifier) free(identifier);
         return ret;
     } 
 
-    // Let's add new entry to SIR with role value "Public". Identity is not inserted.
-    // If return value is -1, session was there already. If 0 CP was new and it was 
-    // succesfully added to SIR.
-    // Every action is checked through checkCPPrivileges, so that why every session is found from SIR
-    ret = SIR_addSession(SIRDoc, identifier, 0, NULL, "Public", NULL, NULL, NULL);
+    // get "Name" of CP from ACL. It is possible that CP is not listed in ACL, 
+    // in that case everything is OK. If CP is found from ACL, then "Name" from ACL must match 
+    // "CommonName" value from the certificate of CP.
+    ret = ACL_getCP(ACLDoc, identifier, &name, NULL, &rolelist);
+    if (ret == 0 && commonName && name && (caseInsesitive_strcmp(commonName, name) != 0))
+    {
+        trace(1,"CommonName found from certificate of Control Point does not match Name of the same Control Point listed in ACL! Terminating connection...");
+        // close SSL session on way out...
+        UpnpTerminateSSLSession(ca_event->SSLSession, ca_event->Socket);
+        // remove session from SIR
+        SIR_removeSession(SIRDoc, (char *)identifier);
+        
+        if (identifier) free(identifier);
+        free(commonName);
+        free(name);
+        
+        return -1;   
+    }
+    if (commonName) free(commonName);
+    if (name) free(name);
+
+    
+    if (rolelist)
+        // Let's add new entry to SIR. RoleList value is either value fetched from ACL for this CP or Public.
+        // Identity value is not inserted to SIR now.
+        // If return value is -1, session was there already. If 0 CP was new and it was 
+        // succesfully added to SIR.
+        // Every action is checked through checkCPPrivileges, so that is why every session is found from SIR
+        ret = SIR_addSession(SIRDoc, identifier, 0, NULL, rolelist, NULL, NULL, NULL);
+    else
+        ret = SIR_addSession(SIRDoc, identifier, 0, NULL, "Public", NULL, NULL, NULL);
     if (ret == 0)
     {
         trace(3, "New session was added to SIR. Id: '%s'",identifier);
@@ -291,38 +320,55 @@ int checkCPPrivileges(struct Upnp_Action_Request *ca_event, const char *targetRo
     {
         trace(2,"SIR handling failed somehow when adding new session!");
         if (identifier) free(identifier);
+        if (rolelist) free(rolelist);
         return -1;
     }
+    if (rolelist) free(rolelist);
+  
+  
+    /* Actual privileges checking takes place here */
     
-    // fetch current identity of CP from SIR. Identity may be username or identity created from certificate
+    // SIR contains union of roles defined for contorl point in ACL and roles defined for username
+    // which CP has logged in.
+    // All we need to do is check that targetRole is found from "rolelist" of this session in SIR.
+    
+    // fetch contents of session for this session from SIR. All we actually need is the value of rolelist
     int active;
     char *roles = NULL;
     char *identity = SIR_getIdentityOfSession(SIRDoc, identifier, &active, &roles);
     if (identifier) free(identifier);
+    if (identity) free(identity);
+    //TODO: is the active attribute currently totally useless??
     
-    if (identity == NULL)
+    // check if targetRole is found from roles of this session
+    if (roles)
     {
-        // So session doesn't have any identity yet. This means that CP is privileged only to Public actions            
-        // check if targetrole is public
-        if (strcmp(targetRole, "Public") == 0)
+        // loop through all roles from targetRoles. If any of those match, then exit OK
+        char *tmp = NULL;
+        char *role = NULL;
+        char list[strlen(targetRoles)];
+        strcpy(list,targetRoles);
+
+        // get the last role from the end of list and shorten rolelist
+        while ((tmp = strrchr(list, ' ')))
+        {
+            role = tmp+1;
+            *tmp = '\0';
+            if ( tokenizeAndSearch(roles, " ", role, 1) )
+            {
+                // CP does have privileges
+                return 0;
+            }
+        }
+        // and remember to check the first item from the beginning of the list
+        if (strlen(list) > 0 && tokenizeAndSearch(roles, " ", list, 1))
+        {
+            // CP does have privileges
             return 0;
-        else 
-            return 1;
-    }
-// TODO Does this really go like this? Test this later. What if user is not logged in
-//      but CP in ACL has Admin rights or something?
-    if (active && roles == NULL) // this means that user is logged in as some username
-    {
-        //  check if target role is one of current roles of identity
-        if ( ACL_doesIdentityHasRole(ACLDoc, identity, targetRole) )
-            return 0;
-    }
-    else  // this means that user isn't logged in
-    {
-        if ( tokenizeAndSearch(roles, " ", targetRole) )
-            return 0;
+        }
     }
     
+    // so CP doesn't have privileges
     return 1;
 }
 
@@ -466,31 +512,16 @@ static int getRolesOfSession(struct Upnp_Action_Request *ca_event, char **roles)
         return ret;
     } 
     
-    // 2. fetch current identity of CP from SIR. Identity may be username or hash of certificate (== b64_identity)
+    // 2. fetch current roles of CP from SIR.
     int active;
-    char *role = NULL;
-    char *identity = SIR_getIdentityOfSession(SIRDoc, identifier, &active, &role);
-    if (identity == NULL)
-    {
-        // if identity is not defined in SIR, role should be
-        if (role == NULL)
-            return -1;
-        
-        *roles = (char *)malloc(strlen(role));
-        strcpy(*roles, role);
-        return 0;
-    }
+    char *identity = SIR_getIdentityOfSession(SIRDoc, identifier, &active, roles);
     
-    // 3. get roles from ACL associated with identity fetched from SIR    
-    *roles = ACL_getRolesOfUser(ACLDoc, identity);
-    if (*roles == NULL)
-        // is identity hash
-        *roles = ACL_getRolesOfCP(ACLDoc, identity);
+    if (identity) free(identity);
+    if (identifier) free(identifier);
+
     if (*roles == NULL)
         return -1;
-    
-    if (identifier) free(identifier);    
-    
+
     return 0;
 }
 
@@ -653,15 +684,9 @@ static int getValuesFromPasswdFile(const char *nameUPPER, unsigned char **b64_sa
     
         name = strtok(line, ",");
         if (name != NULL)
-        {        
-            name = toUpperCase(name);
-            if (name == NULL)
-            {
-                fclose(stream);
-                return -1;             
-            }
+        {
             // if names match
-            if ( strcmp(name,nameUPPER) == 0 )
+            if ( caseInsesitive_strcmp(name,nameUPPER) == 0 )
             {
                 fclose(stream);
                 
@@ -686,7 +711,6 @@ static int getValuesFromPasswdFile(const char *nameUPPER, unsigned char **b64_sa
                     memcpy(*b64_stored, temp, *stored_len);
                 }
                 
-                free(name);
                 return 0;
             }
         }
@@ -762,15 +786,8 @@ static int updateValuesToPasswdFile(const char *nameUPPER, const unsigned char *
         
         if (name != NULL)
         {
-            name = toUpperCase(name);
-            if (name == NULL)
-            {
-                fclose(in);
-                fclose(out);
-                return -1;             
-            }
             // if names match        
-            if ( strcmp(name,nameUPPER) == 0 )
+            if ( caseInsesitive_strcmp(name,nameUPPER) == 0 )
             {
                 // if we want to remove user from passwd file, lets not add him to temp file
                 if (!delete_values)
@@ -781,8 +798,6 @@ static int updateValuesToPasswdFile(const char *nameUPPER, const unsigned char *
             {
                 fprintf(out, "%s\n", temp);
             }
-            
-            free(name);
         }
     }
     
@@ -1418,7 +1433,11 @@ int UserLogin(struct Upnp_Action_Request *ca_event)
                     // Login is now succeeded
                     loginattempts = 0;
                     active = 1;
-                    result = SIR_updateSession(SIRDoc, (char *)id, &active, loginName, NULL, &loginattempts, NULL, NULL);
+                    // fetch roles of logged in loginname and set those as parameter for SIR_updateSession
+                    char *roles = ACL_getRolesOfUser(ACLDoc, loginName); 
+                    result = SIR_updateSession(SIRDoc, (char *)id, &active, loginName, roles, &loginattempts, NULL, NULL);
+                    if (roles) free(roles);
+                    
                     // remove logindata from SIR
                     SIR_removeLoginDataOfSession(SIRDoc, (char *)id);
                     // create response SOAP message
@@ -1496,6 +1515,9 @@ int UserLogout(struct Upnp_Action_Request *ca_event)
     else
     {
         // Totally remove this session from SIR. No session resumption is supported.
+        // When this same session next time calls an action, checkCPPrivileges function 
+        // will add this session again to SIR with default roles (either with roles defined 
+        // in ACL for that CP or "Public" if CP is not found from ACL). 
         SIR_removeSession(SIRDoc, id);
 
         // create response SOAP message
@@ -1798,8 +1820,6 @@ int GetRolesForAction(struct Upnp_Action_Request *ca_event)
     char *serviceId = NULL;
     char *accessLevel = NULL;
     char *accessLevelManage = NULL;
-    char *roleList = NULL;
-    char *restricredRoleList = NULL;
     
     if ( (serviceId = GetFirstDocumentItem(ca_event->ActionRequest, "ServiceId"))
         && (actionName = GetFirstDocumentItem(ca_event->ActionRequest, "ActionName")) ) 
@@ -1808,33 +1828,23 @@ int GetRolesForAction(struct Upnp_Action_Request *ca_event)
         
         if (accessLevel)
         {
-            // role Admin contains privileges of Admin Basic Public
-            // role Basic contains privileges of Basic Public
-            // role Public contains privileges Public
-            if (strcmp(accessLevel, "Public") == 0)
-                roleList = "Public";
-            else if (strcmp(accessLevel, "Basic") == 0)
-                roleList = "Public Basic";
-            else if (strcmp(accessLevel, "Admin") == 0)
-                roleList = "Public Basic Admin";
-            else
-                roleList = "";           
-
             // get managed accesslevel if it exists            
             accessLevelManage = getAccessLevel(serviceId,actionName, 1);
             if (accessLevelManage)
             {
-                if (strcmp(accessLevelManage, "Public") == 0)
-                    restricredRoleList = "Public";
-                else if (strcmp(accessLevelManage, "Basic") == 0)
-                    restricredRoleList = "Public Basic";
-                else if (strcmp(accessLevelManage, "Admin") == 0)
-                    restricredRoleList = "Public Basic Admin";
-                else
-                    restricredRoleList = "";
+                ca_event->ActionResult = UpnpMakeActionResponse(ca_event->ActionName, DP_SERVICE_TYPE,
+                                            2,
+                                            "RoleList", accessLevel,
+                                            "RestrictedRoleList", accessLevelManage); 
             }
-            else 
-                restricredRoleList = "";
+            else
+            {
+                ca_event->ActionResult = UpnpMakeActionResponse(ca_event->ActionName, DP_SERVICE_TYPE,
+                                            2,
+                                            "RoleList", accessLevel,
+                                            "RestrictedRoleList", ""); 
+            }
+            ca_event->ErrCode = UPNP_E_SUCCESS;
         }
         else
         {
@@ -1843,16 +1853,6 @@ int GetRolesForAction(struct Upnp_Action_Request *ca_event)
                   serviceId,actionName,g_vars.accessLevelXml);
             result = 600;
             addErrorData(ca_event, result, "Argument Value Invalid");            
-        }
-
-        // all is well
-        if (result == 0)
-        {
-            ca_event->ActionResult = UpnpMakeActionResponse(ca_event->ActionName, DP_SERVICE_TYPE,
-                                        2,
-                                        "RoleList", roleList,
-                                        "RestrictedRoleList", restricredRoleList);                                        
-            ca_event->ErrCode = UPNP_E_SUCCESS;   
         }
     }    
     else
@@ -1864,6 +1864,7 @@ int GetRolesForAction(struct Upnp_Action_Request *ca_event)
     
     if (actionName) free(actionName);
     if (accessLevel) free(accessLevel);
+    if (accessLevelManage) free(accessLevelManage);
 
     return ca_event->ErrCode;
 }
@@ -1915,7 +1916,8 @@ int SetUserLoginPassword(struct Upnp_Action_Request *ca_event)
                 addErrorData(ca_event, result, "Action Failed");            
             }            
             // check from SIR that username received as parameter is current identity of this session
-            // or has "Admin" privileges 
+            // or has "Admin" privileges
+            // TODO: This might be better to do by getting managed roles from acceslevels. But spec might change so let this be now... 
             else if ( (checkCPPrivileges(ca_event, "Admin") == 0) || (strcmp(identity, nameUPPER) == 0))
             {
                 result = updateValuesToPasswdFile(nameUPPER, (unsigned char *)salt, (unsigned char *)stored, 0); // if this returns 0, all is well

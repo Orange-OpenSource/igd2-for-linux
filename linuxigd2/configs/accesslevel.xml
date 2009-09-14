@@ -23,7 +23,7 @@
             </action>
             <action>
                 <name>GetConnectionTypeInfo</name>
-                <accessLevel>Public</accessLevel>
+                <accessLevel>Public Basic Admin</accessLevel>
             </action>
             <action>
                 <name>RequestConnection</name>
@@ -51,15 +51,15 @@
             </action>
             <action>
                 <name>GetStatusInfo</name>
-                <accessLevel>Public</accessLevel>
+                <accessLevel>Public Basic Admin</accessLevel>
             </action>
             <action>
                 <name>GetAutoDisconnectTime</name>
-                <accessLevel>Public</accessLevel>
+                <accessLevel>Public Basic Admin</accessLevel>
             </action>
             <action>
                 <name>GetIdleDisconnectTime</name>
-                <accessLevel>Public</accessLevel>
+                <accessLevel>Public Basic Admin</accessLevel>
             </action>            
             <action>
                 <name>GetWarnDisconnectDelay</name>
@@ -67,26 +67,26 @@
             </action>
             <action>
                 <name>GetNATRSIPStatus</name>
-                <accessLevel>Public</accessLevel>
+                <accessLevel>Public Basic Admin</accessLevel>
             </action>
             <action>
                 <name>GetGenericPortMappingEntry</name>
-                <accessLevel>Public</accessLevel>
+                <accessLevel>Public Basic Admin</accessLevel>
                 <accessLevelManage>Admin</accessLevelManage>
             </action>
             <action>
                 <name>GetSpecificPortMappingEntry</name>
-                <accessLevel>Public</accessLevel>
-                <accessLevelManage>Basic</accessLevelManage>
+                <accessLevel>Public Basic Admin</accessLevel>
+                <accessLevelManage>Basic Admin</accessLevelManage>
             </action>
             <action>
                 <name>AddPortMapping</name>
-                <accessLevel>Public</accessLevel>
+                <accessLevel>Public Basic Admin</accessLevel>
                 <accessLevelManage>Admin</accessLevelManage>
             </action> 
             <action>
                 <name>AddAnyPortMapping</name>
-                <accessLevel>Public</accessLevel>
+                <accessLevel>Public Basic Admin</accessLevel>
                 <accessLevelManage>Admin</accessLevelManage>
             </action>
             <action>
@@ -96,17 +96,17 @@
             </action>
             <action>
                 <name>DeletePortMappingRange</name>
-                <accessLevel>Public</accessLevel>
+                <accessLevel>Public Basic Admin</accessLevel>
                 <accessLevelManage>Admin</accessLevelManage>
             </action>
             <action>
                 <name>GetExternalIPAddress</name>
-                <accessLevel>Public</accessLevel>
+                <accessLevel>Public Basic Admin</accessLevel>
             </action> 
             <action>
                 <name>GetListOfPortMappings</name>
-                <accessLevel>Public</accessLevel>
-                <accessLevelManage>Basic</accessLevelManage>
+                <accessLevel>Public Basic Admin</accessLevel>
+                <accessLevelManage>Basic Admin</accessLevelManage>
             </action>             
         </actionList>
     </serviceEntry>
@@ -121,7 +121,7 @@
             </action>
             <action>
                 <name>GetDHCPServerConfigurable</name>
-                <accessLevel>Public</accessLevel>
+                <accessLevel>Public Basic Admin</accessLevel>
             </action>
             <action>
                 <name>SetDHCPRelay</name>
@@ -129,7 +129,7 @@
             </action>
             <action>
                 <name>GetDHCPRelay</name>
-                <accessLevel>Public</accessLevel>
+                <accessLevel>Public Basic Admin</accessLevel>
             </action>
             <action>
                 <name>SetSubnetMask</name>
@@ -137,7 +137,7 @@
             </action>
             <action>
                 <name>GetSubnetMask</name>
-                <accessLevel>Public</accessLevel>
+                <accessLevel>Public Basic Admin</accessLevel>
             </action>
             <action>
                 <name>SetIPRouter</name>
@@ -149,7 +149,7 @@
             </action>
             <action>
                 <name>GetIPRoutersList</name>
-                <accessLevel>Public</accessLevel>
+                <accessLevel>Public Basic Admin</accessLevel>
             </action>
             <action>
                 <name>SetDomainName</name>
@@ -157,15 +157,15 @@
             </action>
             <action>
                 <name>GetDomainName</name>
-                <accessLevel>Public</accessLevel>
+                <accessLevel>Public Basic Admin</accessLevel>
             </action>
             <action>
                 <name>SetAddressRange</name>
-                <accessLevel>Admin?</accessLevel>
+                <accessLevel>Admin</accessLevel>
             </action>
             <action>
                 <name>GetAddressRange</name>
-                <accessLevel>Public</accessLevel>
+                <accessLevel>Public Basic Admin</accessLevel>
             </action>
             <action>
                 <name>SetReservedAddress</name>
@@ -189,7 +189,7 @@
             </action>
             <action>
                 <name>GetDNSServers</name>
-                <accessLevel>Public</accessLevel>
+                <accessLevel>Public Basic Admin</accessLevel>
             </action>
         </actionList>
     </serviceEntry>
@@ -200,7 +200,7 @@
         <actionList>
             <action>
                 <name>GetEthernetLinkStatus</name>
-                <accessLevel>Public</accessLevel>
+                <accessLevel>Public Basic Admin</accessLevel>
             </action>
         </actionList>
     </serviceEntry>
@@ -211,35 +211,35 @@
         <actionList>
             <action>
                 <name>SendSetupMessage</name>
-                <accessLevel>Public</accessLevel>
+                <accessLevel>Public Basic Admin</accessLevel>
             </action>
             <action>
                 <name>GetSupportedProtocols</name>
-                <accessLevel>Public</accessLevel>
+                <accessLevel>Public Basic Admin</accessLevel>
             </action>
             <action>
                 <name>GetAssignedRoles</name>
-                <accessLevel>Public</accessLevel>
+                <accessLevel>Public Basic Admin</accessLevel>
             </action>
             <action>
                 <name>GetRolesForAction</name>
-                <accessLevel>Public</accessLevel>
+                <accessLevel>Public Basic Admin</accessLevel>
             </action>            
             <action>
                 <name>GetUserLoginChallenge</name>
-                <accessLevel>Public</accessLevel>
+                <accessLevel>Public Basic Admin</accessLevel>
             </action>
             <action>
                 <name>UserLogin</name>
-                <accessLevel>Public</accessLevel>
+                <accessLevel>Public Basic Admin</accessLevel>
             </action>
             <action>
                 <name>UserLogout</name>
-                <accessLevel>Public</accessLevel>
+                <accessLevel>Public Basic Admin</accessLevel>
             </action>
             <action>
                 <name>GetACLData</name>
-                <accessLevel>Public</accessLevel>
+                <accessLevel>Public Basic Admin</accessLevel>
             </action>
             <action>
                 <name>AddRolesForIdentity</name>
@@ -251,7 +251,8 @@
             </action>
             <action>
                 <name>SetUserLoginPassword</name>
-                <accessLevel>Basic</accessLevel>
+                <accessLevel>Basic Admin</accessLevel>
+                <accessLevelManage>Admin</accessLevelManage>
             </action>
             <action>
                 <name>AddIdentityList</name>
@@ -270,23 +271,23 @@
         <actionList>
             <action>
                 <name>GetCommonLinkProperties</name>
-                <accessLevel>Public</accessLevel>
+                <accessLevel>Public Basic Admin</accessLevel>
             </action>
             <action>
                 <name>GetTotalBytesSent</name>
-                <accessLevel>Public</accessLevel>
+                <accessLevel>Public Basic Admin</accessLevel>
             </action>
             <action>
                 <name>GetTotalBytesReceived</name>
-                <accessLevel>Public</accessLevel>
+                <accessLevel>Public Basic Admin</accessLevel>
             </action>
             <action>
                 <name>GetTotalPacketsSent</name>
-                <accessLevel>Public</accessLevel>
+                <accessLevel>Public Basic Admin</accessLevel>
             </action>
             <action>
                 <name>GetTotalPacketsReceived</name>
-                <accessLevel>Public</accessLevel>
+                <accessLevel>Public Basic Admin</accessLevel>
             </action>
         </actionList>
     </serviceEntry>

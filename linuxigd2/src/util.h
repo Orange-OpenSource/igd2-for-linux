@@ -36,6 +36,7 @@ typedef enum {
 char* escapeXMLString(const char *xml);
 char* unescapeXMLString(const char *escXML);
 char *toUpperCase(const char * str);
+int caseInsesitive_strcmp(const char *str1, const char *str2);
 int GetIpAddressStr(char *address, char *ifname);
 int GetMACAddressStr(unsigned char *address, int addressSize, char *ifname);
 int GetConnectionStatus(char *conStatus, char *ifname);
@@ -50,7 +51,7 @@ int killDHCPClient(char *iface);
 int startDHCPClient(char *iface);
 int readIntFromFile(char *file);
 
-int tokenizeAndSearch(const char *constList, const char *separator, const char *searchItem);
+int tokenizeAndSearch(const char *constList, const char *separator, const char *searchItem, int caseInsensitive);
 
 char* GetFirstDocumentItem( IN IXML_Document * doc, const char *item );
 char* GetDocumentItem(IXML_Document * doc, const char *item, int index);
@@ -70,9 +71,9 @@ void deinitActionAccessLevels();
 char* getAccessLevel(const char *serviceId, const char *actionName, int manage);
 
 // ACL handling stuff
-int ACL_doesIdentityHasRole(IXML_Document *doc, const char *identity, const char *targetRole);
 char *ACL_getRolesOfUser(IXML_Document *doc, const char *username);
 char *ACL_getRolesOfCP(IXML_Document *doc, const char *hash);
+int ACL_getCP(IXML_Document *doc, const char *id, char **name, char **alias, char **rolelist);
 char *ACL_createRoleListXML(const char *csv_roles);
 int ACL_addCP(IXML_Document *doc, const char *name, const char *alias, const char *hash, const char *roles, int introduced);
 int ACL_updateCPAlias(IXML_Document *doc, const char *hash, const char *alias, int forceChange);

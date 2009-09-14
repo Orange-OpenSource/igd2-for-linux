@@ -291,6 +291,30 @@ char *toUpperCase(const char * str)
     return UPPER;
 }
 
+/**
+ * Do case insensitive string comparison for strings. 
+ * Works like normal strcmp(), but turns both string to uppercase before comparing
+ *
+ * @param str1 First string to compare.
+ * @param str2 Second string to compare.
+ * @return An integer greater than, equal to or less than 0, if the string pointed to by s1 is greater than, equal to or less than the string pointed to by s2 respectively. 
+ *         ~0 if fails to turn strings to uppercase
+ */
+int caseInsesitive_strcmp(const char *str1, const char *str2)
+{
+    int ret = ~0;
+    char *STR1 = toUpperCase(str1);
+    char *STR2 = toUpperCase(str2);
+    
+    if (STR1 && STR2)
+    {
+        ret = strcmp(STR1, STR2);
+    }
+    if (STR1) free(STR1);
+    if (STR2) free(STR2);
+    
+    return ret;
+}
 
 /**
  * Get MAC address of given network interface.
@@ -667,9 +691,10 @@ int releaseIP(char *iface)
  * @param list String containing values separated with separator
  * @param separator Separator used in list
  * @param searchItem Token value which is searched from list
+ * @param caseInsesitive Is searching case-sensitive or not. 0 means that comparison is case-sensitive.
  * @return 1 if item is found, 0 if not found or any of the parameters is NULL
  */
-int tokenizeAndSearch(const char *constList, const char *separator, const char *searchItem)
+int tokenizeAndSearch(const char *constList, const char *separator, const char *searchItem, int caseInsensitive)
 {
     if (!constList || !separator || !searchItem)
         return 0;
@@ -682,10 +707,14 @@ int tokenizeAndSearch(const char *constList, const char *separator, const char *
     {
         do 
         {
-            if ( strcmp(searchItem,token) == 0 )
+            if (!caseInsensitive && strcmp(searchItem,token) == 0)
             {
                 return 1;
             }
+            else if (caseInsensitive && caseInsesitive_strcmp(searchItem,token) == 0)
+            {
+                return 1;
+            }            
                 
         } while ((token = strtok(NULL, separator)));
 
@@ -1508,52 +1537,6 @@ static int ACL_removeRolesFromRoleList(IXML_Document *doc, IXML_Node *roleListNo
     return ixmlNode_setNodeValue(textNode, newRoleList);    
 }
 
-
-/**
- * Check if identity has given role defined in ACL.
- * Identity may be either username or CP uuid
- *
- * @param doc ACL IXML_Document
- * @param identity Username or certificate id
- * @param targetRole Role which is searched form identity
- * @return 1 if identity has this role, 0 if not. 
- */
-int ACL_doesIdentityHasRole(IXML_Document *doc, const char *identity, const char *targetRole)
-{
-    // is identity username
-    char *roles = ACL_getRolesOfUser(doc, identity);
-    if (roles == NULL)
-        // is identity uuid
-        roles = ACL_getRolesOfCP(doc, identity);
-    if (roles == NULL)
-        return 0;
-    
-    // role Admin contains privileges of Admin Basic Public
-    // role Basic contains privileges of Basic Public
-    // role Public contains privileges Public
-    if (strcmp(targetRole, "Public") == 0)
-        // everybody has Public
-        return 1;
-    else if (strcmp(targetRole, "Basic") == 0)
-    {
-        if (tokenizeAndSearch(roles, " ", "Basic") || tokenizeAndSearch(roles, " ", "Admin"))
-            return 1;
-        else
-            return 0;
-    }
-    else if (strcmp(targetRole, "Admin") == 0)
-    {
-        return tokenizeAndSearch(roles, " ", "Admin");
-    }
-    else
-        // unknown role
-        return 0;
-        
-        
-    return 0;
-}
-
-
 /**
  * Get RoleList of given username in ACL.
  *
@@ -1575,7 +1558,7 @@ char *ACL_getRolesOfUser(IXML_Document *doc, const char *username)
 }
 
 /**
- * Get RoleList control point with "ID" id
+ * Get RoleList of control point with "ID" id
  *
  * @param doc ACL IXML_Document
  * @param id Value of ID element
@@ -1594,6 +1577,40 @@ char *ACL_getRolesOfCP(IXML_Document *doc, const char *id)
     return GetTextValueOfNode(tmpNode);
 }
 
+/**
+ * Get Name, Alias and RoleList of control point with "ID" id
+ *
+ * @param doc ACL IXML_Document
+ * @param id Value of ID element
+ * @param name Value of Name element. Use free() for this.
+ * @param alias Value of Alias element. Use free() for this.
+ * @param rolelist Value of RoleList element. Use free() for this.
+ * @return -1 if no CP with ID id is found, 0 else.
+ */
+int ACL_getCP(IXML_Document *doc, const char *id, char **name, char **alias, char **rolelist)
+{
+    // get element with name "ID" and value id
+    IXML_Node *tmpNode = GetNodeWithValue(doc, "ID", id, 1);
+    if (tmpNode == NULL) return -1;    
+
+    if (name)
+    {
+        tmpNode = GetSiblingWithTagName(tmpNode, "Name");
+        *name = GetTextValueOfNode(tmpNode);
+    }
+    if (alias)
+    {
+        tmpNode = GetSiblingWithTagName(tmpNode, "Alias");
+        *alias = GetTextValueOfNode(tmpNode);
+    }
+    if (rolelist)
+    {
+        tmpNode = GetSiblingWithTagName(tmpNode, "RoleList");
+        *rolelist = GetTextValueOfNode(tmpNode);
+    }
+    
+    return 0;
+}
 
 /**
  * Add new Control point into ACL xml.
@@ -2270,6 +2287,11 @@ IXML_Document *SIR_init()
  * Add new Session/Identity -pair into SIR. If session with same id already exist in SIR,
  * error is returned.
  * Identity is current username or id identifier created from client's certificate.
+ * Rolelist contains union of roles asigned for CP in ACL and roles of username which CP may
+ * have logged in. 
+ * NOTE:rolelist also automatically adds "lower roles" to rolelist. For example if role parameter
+ *      contains role "Admin" then also roles "Basic" and "Public" are added to rolelist. Value of 
+ *      rolelist would in this case be rolelist>Public Basic Admin</rolelist>
  * 
  * Logindata contains information received/send in GetUserLoginChallenge. "name" is username/
  * role that CP wishes to login, "challenge" is value of challenge that device send for CP
@@ -2280,7 +2302,7 @@ IXML_Document *SIR_init()
  * <SIR>
  *  <session id="AHHuendfn372jsuGDS==" active="1">
  *      <identity>username</identity>
- *      <role>Public</role>
+ *      <rolelist>Public</rolelist>
  *      <logindata>
  *          <name>Admin</name>
  *          <challenge>83h83288J7YGHGS778jsJJHGDn=</challenge>
@@ -2292,7 +2314,7 @@ IXML_Document *SIR_init()
  * @param id Session identifier. uuid created form certificate. Value of id-attribute
  * @param active Is session active. Value of active-attribute
  * @param identity Value of identity element
- * @param role Value of role element
+ * @param role Value of rolelist element
  * @param attempts Value of "loginattempts" attribute
  * @param loginName Username or role that CP wishes to login. If this parameter is given, also loginChallenge must be given.
  * @param loginChallenge Login challenge which was send to CP as challenge for this login attempt. If this parameter is given, also loginName must be given.
@@ -2327,7 +2349,7 @@ int SIR_addSession(IXML_Document *doc, const char *id, int active, const char *i
 
     // add role element
     if (role)      
-        AddChildNode(doc, &sessionElement->n, "role", role);
+        AddChildNode(doc, &sessionElement->n, "rolelist", role);
     
     // create logindata element
     if (loginName && loginChallenge)
@@ -2372,12 +2394,13 @@ int SIR_addSession(IXML_Document *doc, const char *id, int active, const char *i
 /**
  * Update values of Session with given identifier id to SIR.
  * Any of the values, except id, may be NULL. If value is NULL, existing old value is left 
- * untouched.
+ * untouched. 
+ * Value of "rolelist" will be an union of old and new roles.
  *
  * <SIR>
  *  <session id="AHHuendfn372jsuGDS==" active="1">
  *      <identity>username</identity>
- *      <role>Public</role>
+ *      <rolelist>Public Basic</rolelist>
  *      <logindata loginattempts="5">
  *          <name>Admin</name>
  *          <challenge>83h83288J7YGHGS778jsJJHGDn=</challenge>
@@ -2389,13 +2412,13 @@ int SIR_addSession(IXML_Document *doc, const char *id, int active, const char *i
  * @param id Session id. Value of id-attribute
  * @param active Pointer to new value of "active"
  * @param identity New value of "identity"
- * @param role New value of "role". If NULL, node will be removed
+ * @param roles New value added to "rolelist". "Value of rolelist" is union of old roles and new roles 
  * @param attempts Value of "loginattempts" attribute
  * @param loginName New value of "name"
  * @param loginChallenge New value of "challenge"
  * @return 0 on success, negative integer else
  */
-int SIR_updateSession(IXML_Document *doc, const char *id, int *active, const char *identity, const char *role, int *attempts, const char *loginName, const char *loginChallenge)
+int SIR_updateSession(IXML_Document *doc, const char *id, int *active, const char *identity, const char *roles, int *attempts, const char *loginName, const char *loginChallenge)
 {
     IXML_Node *tmpNode = NULL;
     int ret = 0;
@@ -2405,6 +2428,7 @@ int SIR_updateSession(IXML_Document *doc, const char *id, int *active, const cha
     int oldAttempts = 0;
     char *oldLoginName = NULL;
     char *oldLoginChallenge = NULL;
+    char *newRoleList = NULL;
     
     int newActive = 0;
     int newAttempts = 0;
@@ -2434,10 +2458,36 @@ int SIR_updateSession(IXML_Document *doc, const char *id, int *active, const cha
     else
         newIdentity = oldIdentity;
 
-    if (role != NULL)
-        newRole = (char *)role;
+    if (roles != NULL)
+    {   
+        // create union of old and new roles    
+        newRoleList = (char *)malloc(strlen(roles) + strlen(oldRole)+1);
+        strcpy(newRoleList, oldRole);
+        
+        char rolelist[strlen(roles)];    
+        // go through all roles in list
+        strcpy(rolelist,roles);   
+        char *role = strtok(rolelist, " ");
+        if (role)
+        {
+            do 
+            {
+                // do "raw" check that this role isn't already in current roles
+                if ( strstr(newRoleList,role) == NULL )
+                {
+                    // add new role at the end of rolelist
+                    if (strlen(newRoleList) > 0)
+                        strcat(newRoleList, " ");
+                    strcat(newRoleList, role);
+                }
+                    
+            } while ((role = strtok(NULL, " ")));
+    
+        }       
+        newRole = newRoleList;     
+    }
     else
-        newRole = NULL;  // removes role
+        newRole = oldRole;
 
     if (attempts != NULL)
         newAttempts = *attempts;
@@ -2490,14 +2540,14 @@ int SIR_removeSession(IXML_Document *doc, const char *id)
  * <SIR>
  *  <session id="e7fd60a2-2053-447d-be2f-45f2d611cd1a" active="1">
  *      <identity>username</identity>
- *      <role>Basic</role>
+ *      <rolelist>Basic</rolelist>
  *  </session>
  * </SIR>
  *
  * @param doc SIR IXML_Document
  * @param id Session id. Value of id-attribute
  * @param active Pointer to integer where value of "active" attribute is inserted 0 or 1
- * @param role Pointer to string where possible value of "role" is inserted
+ * @param role Pointer to string where value of "rolelist" is inserted
  * @return Identity or NULL
  */
 char *SIR_getIdentityOfSession(IXML_Document *doc, const char *id, int *active, char **role)
@@ -2518,8 +2568,8 @@ char *SIR_getIdentityOfSession(IXML_Document *doc, const char *id, int *active, 
         if ( strcmp(act, "1") == 0 )
             *active = 1;
         
-        // get value of childnode "role"
-        tmpNode = GetChildNodeWithName(sessionNode, "role");
+        // get value of childnode "rolelist"
+        tmpNode = GetChildNodeWithName(sessionNode, "rolelist");
         if ( tmpNode != NULL )
             *role = GetTextValueOfNode(tmpNode);
         else
