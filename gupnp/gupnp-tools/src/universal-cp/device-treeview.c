@@ -40,6 +40,9 @@ static GtkWidget *subscribe_menuitem;
 static GtkWidget *action_menuitem;
 static GtkWidget *wps_setup_menuitem;
 static GtkWidget *device_separator;
+static GtkWidget *user_login_menuitem;
+static GtkWidget *user_administration_menuitem;
+static GtkWidget *user_admin_separator;
 static GtkWidget *expand_collapse_separator;
 
 static gboolean   expanded;
@@ -158,6 +161,14 @@ setup_device_popup (GtkWidget *popup)
                           "visible",
                           TRUE,
                           NULL);
+            g_object_set (user_login_menuitem,
+                          "visible",
+                          TRUE,
+                          NULL);
+            g_object_set (user_administration_menuitem,
+                          "visible",
+                          TRUE,
+                          NULL);
             g_object_set (subscribe_menuitem,
                           "visible",
                           FALSE,
@@ -179,6 +190,14 @@ setup_device_popup (GtkWidget *popup)
                           "visible",
                           FALSE,
                           NULL);
+            g_object_set (user_login_menuitem,
+                          "visible",
+                          FALSE,
+                          NULL);
+            g_object_set (user_administration_menuitem,
+                          "visible",
+                          FALSE,
+                          NULL);
 		} else if (icon_type == ICON_ACTION) {
             g_object_set (action_menuitem,
                           "visible",
@@ -192,8 +211,24 @@ setup_device_popup (GtkWidget *popup)
                           "visible",
                           FALSE,
                           NULL);
+            g_object_set (user_login_menuitem,
+                          "visible",
+                          FALSE,
+                          NULL);
+            g_object_set (user_administration_menuitem,
+                          "visible",
+                          FALSE,
+                          NULL);
         } else {
             g_object_set (wps_setup_menuitem,
+                          "visible",
+                          FALSE,
+                          NULL);
+            g_object_set (user_login_menuitem,
+                          "visible",
+                          FALSE,
+                          NULL);
+            g_object_set (user_administration_menuitem,
                           "visible",
                           FALSE,
                           NULL);
@@ -208,12 +243,29 @@ setup_device_popup (GtkWidget *popup)
         }
 
         // Separators visibility checking
-        if ((icon_type == ICON_DEVICE) || (icon_type == ICON_SERVICE) || (icon_type == ICON_ACTION)) {
+        if ((icon_type == ICON_DEVICE)) {
             g_object_set (expand_collapse_separator,
                           "visible",
                           TRUE,
                           NULL);
             g_object_set (device_separator,
+                          "visible",
+                          FALSE,
+                          NULL);
+            g_object_set (user_admin_separator,
+                          "visible",
+                          TRUE,
+                          NULL);       
+        } else if ((icon_type == ICON_SERVICE) || (icon_type == ICON_ACTION)) {
+            g_object_set (expand_collapse_separator,
+                          "visible",
+                          TRUE,
+                          NULL);
+            g_object_set (device_separator,
+                          "visible",
+                          FALSE,
+                          NULL);
+            g_object_set (user_admin_separator,
                           "visible",
                           FALSE,
                           NULL);
@@ -223,6 +275,10 @@ setup_device_popup (GtkWidget *popup)
                           FALSE,
                           NULL);
             g_object_set (device_separator,
+                          "visible",
+                          FALSE,
+                          NULL);
+            g_object_set (user_admin_separator,
                           "visible",
                           FALSE,
                           NULL);
@@ -762,6 +818,16 @@ setup_device_treeview (GladeXML *glade_xml)
         g_assert (wps_setup_menuitem != NULL);
         device_separator = glade_xml_get_widget (glade_xml, "device-popup-separator");
         g_assert (device_separator != NULL);
+        
+        user_login_menuitem = glade_xml_get_widget (glade_xml,
+                                                   "user_login_setup1");
+        g_assert (user_login_menuitem != NULL);
+        user_administration_menuitem = glade_xml_get_widget (glade_xml,
+                                                   "user_administration1");
+        g_assert (user_administration_menuitem != NULL);
+        user_admin_separator = glade_xml_get_widget (glade_xml,
+                                                   "user-admin-separator");
+        g_assert (user_admin_separator != NULL);
 
         expand_collapse_separator = glade_xml_get_widget (glade_xml, "expand-collapse-separator");
         g_assert (expand_collapse_separator != NULL);

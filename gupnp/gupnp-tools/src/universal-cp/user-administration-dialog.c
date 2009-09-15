@@ -22,9 +22,6 @@ static GtkWidget *user_list_tree_view;
 static GtkWidget *add_user_dialog;
 static GtkWidget *add_user_dialog_username_entry;
 static GtkWidget *add_user_dialog_password_entry;
-static GtkWidget *add_user_dialog_public_checkbutton;
-static GtkWidget *add_user_dialog_basic_checkbutton;
-static GtkWidget *add_user_dialog_admin_checkbutton;
 
 
 static void init_add_user_dialog_fields (void);
@@ -615,24 +612,12 @@ add_user_dialog_ok_pressed (GladeXML *glade_xml)
 	    GUPnPDeviceProxyAddUser *deviceProxyAddUser;
         GUPnPDeviceProxyChangePassword *deviceProxyChangePassword;
 		gpointer user_data = NULL;
-		GString *role_list = g_string_new("");
 
         // change cursor
         gdk_window_set_cursor (GTK_WIDGET(user_admininistration_dialog)->window, gdk_cursor_new(GDK_WATCH));
 
 	    const gchar *new_username = gtk_entry_get_text (GTK_ENTRY(add_user_dialog_username_entry));
 	    const gchar *new_password = gtk_entry_get_text (GTK_ENTRY(add_user_dialog_password_entry));
-
-        // create role_list by appending rolenames
-	    if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON(add_user_dialog_admin_checkbutton)))
-			g_string_append(role_list, "Admin ");
-	    if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON(add_user_dialog_basic_checkbutton)))
-	    	g_string_append(role_list, "Basic ");
-	    if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON(add_user_dialog_public_checkbutton)))
-	    	g_string_append(role_list, "Public ");
-
-        // remove extra space from the end of rolelist
-        g_string_set_size(role_list, role_list->len-1); 
    
         GUPnPDeviceInfo *info = get_selected_device_info ();
         GUPnPDeviceProxy *deviceProxy = GUPNP_DEVICE_PROXY (info);
@@ -641,7 +626,6 @@ add_user_dialog_ok_pressed (GladeXML *glade_xml)
 	    deviceProxyAddUser = gupnp_device_proxy_add_user (deviceProxy,
 	    		                                          new_username,
 	    		                                          new_password,
-	    		                                          role_list->str,
 	    		                                          continue_add_user_dialog_cb,
 	                                                      user_data);
         
@@ -650,10 +634,7 @@ add_user_dialog_ok_pressed (GladeXML *glade_xml)
                                                                         new_username,
                                                                         new_password,
                                                                         add_user_dialog_password_cb,
-                                                                        user_data);
-                                                          
-        g_string_free(role_list, TRUE);
-       
+                                                                        user_data);       
 }
 
 static void
@@ -661,9 +642,6 @@ init_add_user_dialog_fields (void)
 {
         gtk_entry_set_text (GTK_ENTRY(add_user_dialog_username_entry), "");
         gtk_entry_set_text (GTK_ENTRY(add_user_dialog_password_entry), "");
-        gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON(add_user_dialog_public_checkbutton), FALSE);
-        gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON(add_user_dialog_basic_checkbutton), FALSE);
-        gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON(add_user_dialog_admin_checkbutton), FALSE);
 }
 
 void
@@ -678,14 +656,6 @@ init_add_user_dialog (GladeXML *glade_xml)
 	    add_user_dialog_password_entry = glade_xml_get_widget (glade_xml, "add-user-dialog-password");
         g_assert (add_user_dialog_username_entry != NULL);
 	    g_assert (add_user_dialog_password_entry != NULL);
-
-	    /* Check buttons */
-	    add_user_dialog_public_checkbutton = glade_xml_get_widget (glade_xml, "add-user-dialog-public");
-	    add_user_dialog_basic_checkbutton = glade_xml_get_widget (glade_xml, "add-user-dialog-basic");
-	    add_user_dialog_admin_checkbutton = glade_xml_get_widget (glade_xml, "add-user-dialog-admin");
-        g_assert (add_user_dialog_public_checkbutton != NULL);
-	    g_assert (add_user_dialog_basic_checkbutton != NULL);
-	    g_assert (add_user_dialog_admin_checkbutton != NULL);
 }
 
 void
