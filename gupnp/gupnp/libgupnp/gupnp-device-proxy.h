@@ -295,8 +295,7 @@ gupnp_device_proxy_end_change_password (GUPnPDeviceProxyChangePassword *password
 GUPnPDeviceProxyAddUser *
 gupnp_device_proxy_add_user (GUPnPDeviceProxy           *proxy,
                              const gchar                *username,
-                             const gchar                *password,
-                             const gchar                *rolelist,      
+                             const gchar                *password,  
                              GUPnPDeviceProxyAddUserCallback callback,
                              gpointer                    user_data);
                              
