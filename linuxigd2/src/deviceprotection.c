@@ -1263,8 +1263,8 @@ int GetUserLoginChallenge(struct Upnp_Action_Request *ca_event)
         {
             trace(1, "%s: ID '%s' of control point is not listed in ACL",ca_event->ActionName,identifier);
             // TODO: Check this error code!
-            result = 600;
-            addErrorData(ca_event, result, "Argument Value Invalid");
+            result = 701;
+            addErrorData(ca_event, result, "Authentication Failure");
             free(identifier);
             return ca_event->ErrCode;
         }
@@ -2020,7 +2020,6 @@ int SetUserLoginPassword(struct Upnp_Action_Request *ca_event)
 int AddIdentityList(struct Upnp_Action_Request *ca_event)
 {
     int result = 0;
-    int admin_handling = 0;
     char *identitylist = NULL;
     IXML_Document *identitiesDoc = NULL;
     
@@ -2046,22 +2045,8 @@ int AddIdentityList(struct Upnp_Action_Request *ca_event)
         }
         else
         {
-            // because how IdentityList is handled is based on role of CP sending this action
-            // we need to check if CP has Admin rights. If Admin rights exist, RoleList and Alias
-            // elements are used, else they are ignored              
-            if ( checkCPPrivileges(ca_event, "Admin") == 0 )
-            {
-                trace(3, "%s: User is Admin",ca_event->ActionName); 
-                admin_handling = 1;
-            }
-            else
-            {
-                trace(3, "%s: User is not Admin",ca_event->ActionName); 
-                admin_handling = 0;
-            }
-        
             // validate contents of list and add new identities to ACL
-            result = ACL_validateListAndUpdateACL(ACLDoc, identitiesDoc, admin_handling);
+            result = ACL_validateListAndUpdateACL(ACLDoc, identitiesDoc);
             if (result == 600)
             {
                 addErrorData(ca_event, result, "Argument Value Invalid");
