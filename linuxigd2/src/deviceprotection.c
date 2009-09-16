@@ -221,8 +221,6 @@ void DP_loadDocuments()
         exit(1);
     }
     
-    //fprintf(stderr,"\n\n\n%s\n",ixmlPrintDocument(ACLDoc));
-    
     // session-identity relationships are stored in this. Also user login data which is needed at UserLogin()
     SIRDoc = SIR_init();
     if (SIRDoc == NULL)
@@ -1097,14 +1095,7 @@ int SendSetupMessage(struct Upnp_Action_Request *ca_event)
     char *CP_id = NULL;
     int sm_status = 0;
 
-    if (ca_event->SSLSession == NULL)
-    {
-        // SSL must be used
-        trace(1, "%s: SSL connection must be used for this",ca_event->ActionName);
-        result = 701;
-        addErrorData(ca_event, result, "Authentication Failure");        
-    }
-    else if ((protocoltype = GetFirstDocumentItem(ca_event->ActionRequest, "ProtocolType")) &&
+    if ((protocoltype = GetFirstDocumentItem(ca_event->ActionRequest, "ProtocolType")) &&
             (inmessage = GetFirstDocumentItem(ca_event->ActionRequest, "InMessage")))
     {    
         inet_ntop(AF_INET, &ca_event->CtrlPtIPAddr, IP_addr, INET6_ADDRSTRLEN);
@@ -1246,28 +1237,16 @@ int GetUserLoginChallenge(struct Upnp_Action_Request *ca_event)
     int ret, len=0;
     char *identifier = NULL;
     
-    if (ca_event->SSLSession == NULL)
+    // CP with same ID must be listed in ACL
+    ret = getIdentifierOfCP(ca_event, &identifier, &len, NULL);        
+    if (identifier && (ACL_getRolesOfCP(ACLDoc, identifier) == NULL))
     {
-        // SSL must be used
-        trace(1, "%s: SSL connection must be used for this",ca_event->ActionName);
+        trace(1, "%s: ID '%s' of control point is not listed in ACL",ca_event->ActionName,identifier);
+        // TODO: Check this error code!
         result = 701;
         addErrorData(ca_event, result, "Authentication Failure");
-        return ca_event->ErrCode; 
-    }
-    else
-    {
-        // CP with same ID must be listed in ACL
-        ret = getIdentifierOfCP(ca_event, &identifier, &len, NULL);
-        
-        if (identifier && (ACL_getRolesOfCP(ACLDoc, identifier) == NULL))
-        {
-            trace(1, "%s: ID '%s' of control point is not listed in ACL",ca_event->ActionName,identifier);
-            // TODO: Check this error code!
-            result = 701;
-            addErrorData(ca_event, result, "Authentication Failure");
-            free(identifier);
-            return ca_event->ErrCode;
-        }
+        free(identifier);
+        return ca_event->ErrCode;
     }
     
     if ( (name = GetFirstDocumentItem(ca_event->ActionRequest, "Name") ))
@@ -1331,14 +1310,7 @@ int UserLogin(struct Upnp_Action_Request *ca_event)
     char *id =NULL;
     int id_len = 0;
     
-    if (ca_event->SSLSession == NULL)
-    {
-        // SSL must be used
-        trace(1, "%s: SSL connection must be used for this",ca_event->ActionName);
-        result = 701;
-        addErrorData(ca_event, result, "Authentication Failure");        
-    }
-    else if ( (challenge = GetFirstDocumentItem(ca_event->ActionRequest, "Challenge") )
+    if ( (challenge = GetFirstDocumentItem(ca_event->ActionRequest, "Challenge") )
             && (authenticator = GetFirstDocumentItem(ca_event->ActionRequest, "Authenticator") ))
     {
         result = getIdentifierOfCP(ca_event, &id, &id_len, NULL);
@@ -1491,51 +1463,44 @@ int UserLogout(struct Upnp_Action_Request *ca_event)
 {
     char *id =NULL;
     int id_len = 0;
-    int result;
-    char *roles = NULL;  
+    int result = 0;
 
-    // what if user is not even logged in?
-    if (ca_event->SSLSession == NULL)
+    if (ca_event->SSLSession)
     {
-        // SSL must be used
-        trace(1, "%s: SSL connection must be used for this",ca_event->ActionName);
-        result = 701;
-        addErrorData(ca_event, result, "Authentication Failure");   
-        return ca_event->ErrCode;     
-    }
-    else
         result = getIdentifierOfCP(ca_event, &id, &id_len, NULL);
     
-    if (result != 0)
-    {
-        trace(1, "%s: Failed to get identifier from certificate",ca_event->ActionName);
-        result = 501;
-        addErrorData(ca_event, result, "Action Failed");            
-    }
-    else
-    {
-        // Totally remove this session from SIR. No session resumption is supported.
-        // When this same session next time calls an action, checkCPPrivileges function 
-        // will add this session again to SIR with default roles (either with roles defined 
-        // in ACL for that CP or "Public" if CP is not found from ACL). 
-        SIR_removeSession(SIRDoc, id);
+        if (result != 0)
+        {
+            trace(1, "%s: Failed to get identifier from certificate",ca_event->ActionName);
+            result = 501;
+            addErrorData(ca_event, result, "Action Failed");            
+        }
+        else
+        {
+            // Totally remove this session from SIR. No session resumption is supported.
+            // When this same session next time calls an action, checkCPPrivileges function 
+            // will add this session again to SIR with default roles (either with roles defined 
+            // in ACL for that CP or "Public" if CP is not found from ACL). 
+            result = SIR_removeSession(SIRDoc, id);
 
+            if (result != 0)
+            {
+                trace(1, "%s: Failed to remove Session with ID '%s' from SIR",ca_event->ActionName,id);
+                result = 501;
+                addErrorData(ca_event, result, "Action Failed"); 
+            }
+        }
+    }
+
+    // success (or nothing was logged in or SSL connection was not used so nothing can be logged in)
+    if (result == 0)
+    {
         // create response SOAP message
         IXML_Document *ActionResult = NULL;
         ActionResult = UpnpMakeActionResponse(ca_event->ActionName, DP_SERVICE_TYPE,
                                         0, NULL);
-                                        
-        if (ActionResult && result == 0)
-        {
-            ca_event->ActionResult = ActionResult;
-            ca_event->ErrCode = UPNP_E_SUCCESS;        
-        }
-        else
-        {
-            trace(1, "Error parsing Response to %s (add default roles (%s) for this session in SIR)",ca_event->ActionName,roles);
-            result = 501;
-            addErrorData(ca_event, result, "Action Failed"); 
-        }
+        ca_event->ActionResult = ActionResult;
+        ca_event->ErrCode = UPNP_E_SUCCESS;        
     }
     
     if (id) free(id);
@@ -1601,14 +1566,7 @@ int AddRolesForIdentity(struct Upnp_Action_Request *ca_event)
     char *rolelist = NULL;
     IXML_Document *identityDoc = NULL;
     
-    if (ca_event->SSLSession == NULL)
-    {
-        // SSL must be used
-        trace(1, "%s: SSL connection must be used for this",ca_event->ActionName);
-        result = 701;
-        addErrorData(ca_event, result, "Authentication Failure");        
-    }
-    else if ( (identity = GetFirstDocumentItem(ca_event->ActionRequest, "Identity") )
+    if ( (identity = GetFirstDocumentItem(ca_event->ActionRequest, "Identity") )
             && (rolelist = GetFirstDocumentItem(ca_event->ActionRequest, "RoleList") ))
     {
         // unescape identity
@@ -1685,14 +1643,7 @@ int RemoveRolesForIdentity(struct Upnp_Action_Request *ca_event)
     char *rolelist = NULL;
     IXML_Document *identityDoc = NULL;
     
-    if (ca_event->SSLSession == NULL)
-    {
-        // SSL must be used
-        trace(1, "%s: SSL connection must be used for this",ca_event->ActionName);
-        result = 701;
-        addErrorData(ca_event, result, "Authentication Failure");        
-    }
-    else if ( (identity = GetFirstDocumentItem(ca_event->ActionRequest, "Identity") )
+    if ( (identity = GetFirstDocumentItem(ca_event->ActionRequest, "Identity") )
             && (rolelist = GetFirstDocumentItem(ca_event->ActionRequest, "RoleList") ))
     {   
         // unescape identity
@@ -1763,20 +1714,20 @@ int RemoveRolesForIdentity(struct Upnp_Action_Request *ca_event)
  * @return Upnp error code.
  */
 int GetAssignedRoles(struct Upnp_Action_Request *ca_event)
-{    
+{   
+    IXML_Document *ActionResult = NULL; 
     char *roles = NULL;
-    int result;
+    int result = 0;
 
-     if (ca_event->SSLSession == NULL)
-    {
-        // SSL must be used
-        trace(1, "%s: SSL connection must be used for this",ca_event->ActionName);
-        result = 701;
-        addErrorData(ca_event, result, "Authentication Failure");    
-        return ca_event->ErrCode;   
-    }
+    // get the roles
     result = getRolesOfSession(ca_event, &roles);
-    IXML_Document *ActionResult = NULL;
+    // if no roles is still NULL, this could mean two things: either action was not initiated over SSL
+    // or certificate of Control Point is unknown for us. In both cases "Public" role must be returned
+    if (roles == NULL)
+    {
+        roles = "Public";
+        result = 0;
+    }
     
     if (result == 0 && roles)
     {
@@ -1824,12 +1775,12 @@ int GetRolesForAction(struct Upnp_Action_Request *ca_event)
     if ( (serviceId = GetFirstDocumentItem(ca_event->ActionRequest, "ServiceId"))
         && (actionName = GetFirstDocumentItem(ca_event->ActionRequest, "ActionName")) ) 
     {       
-        accessLevel = getAccessLevel(serviceId, actionName, 0);
+        accessLevel = getAccessLevel(serviceId, actionName, 0, NULL);
         
         if (accessLevel)
         {
             // get managed accesslevel if it exists            
-            accessLevelManage = getAccessLevel(serviceId,actionName, 1);
+            accessLevelManage = getAccessLevel(serviceId,actionName, 1, NULL);
             if (accessLevelManage)
             {
                 ca_event->ActionResult = UpnpMakeActionResponse(ca_event->ActionName, DP_SERVICE_TYPE,
@@ -1885,14 +1836,7 @@ int SetUserLoginPassword(struct Upnp_Action_Request *ca_event)
     char *nameUPPER = NULL;
     char *identity = NULL;
     
-    if (ca_event->SSLSession == NULL)
-    {
-        // SSL must be used
-        trace(1, "%s: SSL connection must be used for this",ca_event->ActionName);
-        result = 701;
-        addErrorData(ca_event, result, "Authentication Failure");        
-    }
-    else if ( (name = GetFirstDocumentItem(ca_event->ActionRequest, "Name") )
+    if ( (name = GetFirstDocumentItem(ca_event->ActionRequest, "Name") )
             && (stored = GetFirstDocumentItem(ca_event->ActionRequest, "Stored") )
             && (salt = GetFirstDocumentItem(ca_event->ActionRequest, "Salt") ))
     {      
@@ -2023,14 +1967,7 @@ int AddIdentityList(struct Upnp_Action_Request *ca_event)
     char *identitylist = NULL;
     IXML_Document *identitiesDoc = NULL;
     
-    if (ca_event->SSLSession == NULL)
-    {
-        // SSL must be used
-        trace(1, "%s: SSL connection must be used for this",ca_event->ActionName);
-        result = 701;
-        addErrorData(ca_event, result, "Authentication Failure");        
-    }
-    else if ( (identitylist = GetFirstDocumentItem(ca_event->ActionRequest, "IdentityList") ))
+    if ( (identitylist = GetFirstDocumentItem(ca_event->ActionRequest, "IdentityList") ))
     {   
         // unescape identitylist
         char *unescValue = unescapeXMLString(identitylist);
@@ -2135,14 +2072,7 @@ int RemoveIdentity(struct Upnp_Action_Request *ca_event)
     char *identity = NULL;
     IXML_Document *identityDoc = NULL;
 
-    if (ca_event->SSLSession == NULL)
-    {
-        // SSL must be used
-        trace(1, "%s: SSL connection must be used for this",ca_event->ActionName);
-        result = 701;
-        addErrorData(ca_event, result, "Authentication Failure");        
-    }
-    else if ( (identity = GetFirstDocumentItem(ca_event->ActionRequest, "Identity") ))
+    if ( (identity = GetFirstDocumentItem(ca_event->ActionRequest, "Identity") ))
     {   
         // unescape identity
         char *unescValue = unescapeXMLString(identity);

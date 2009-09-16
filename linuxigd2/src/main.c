@@ -430,7 +430,7 @@ int main (int argc, char** argv)
         exit(1);
     }
 
-    // This should be moved into libupnp if this is going to be part of UDA1.1?
+
     /*
      * From WANIPConnection spec:
      * UPnP IGD MUST broadcast an ssdp:byebye before sending the initial ssdp:alive onto 

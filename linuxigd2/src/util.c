@@ -1265,9 +1265,10 @@ int initActionAccessLevels(const char *pathToFile)
  * @param serviceId ServiceId of service which child action actionName is
  * @param actionName Name of action
  * @param manage Is value of accessLevelManage (1) or accessLevel (0) returned.
+ * @param requireSSL Return value of requireSSL element from this action.
  * @return Access level string or NULL
  */
-char* getAccessLevel(const char *serviceId, const char *actionName, int manage)
+char* getAccessLevel(const char *serviceId, const char *actionName, int manage, int *requireSSL)
 {
     char *accesslevel = NULL;
     char *tmp = NULL;
@@ -1291,8 +1292,20 @@ char* getAccessLevel(const char *serviceId, const char *actionName, int manage)
             continue;
             
         if (strcmp(tmp, actionName) == 0)
-        {   
-            // right name node is found, get desired accesslevel-node
+        {
+            free(tmp);
+            
+            // right name node is found, get requireSSL-node
+            if (requireSSL)
+            {
+                tmpNode = GetSiblingWithTagName(tmpNode, "requireSSL");
+                if (tmpNode == NULL) return NULL;
+                tmp = GetTextValueOfNode(tmpNode);
+                *requireSSL = atoi(tmp);
+                free(tmp);
+            }
+            
+            // and now get desired accesslevel-node
             if (manage)
             {
                 tmpNode = GetSiblingWithTagName(tmpNode, "accessLevelManage");
@@ -1304,8 +1317,7 @@ char* getAccessLevel(const char *serviceId, const char *actionName, int manage)
             
             if (tmpNode == NULL) return NULL;
             accesslevel = GetTextValueOfNode(tmpNode);
-            
-            free(tmp);    
+               
             return accesslevel;
         }
         

@@ -266,10 +266,7 @@ int HandleActionRequest(struct Upnp_Action_Request *ca_event)
 
     // check if CP is authorized to use this action.
     // checking managed flag is left to action itself
-    // This only matters if SSL is used
-    // Actions themselves check if action is invocated over SSL if they require it. 
-    // TODO: Is it really this way?
-    if ( (ca_event->SSLSession != NULL) && ((result = AuthorizeControlPoint(ca_event, 0, 1)) != CONTROL_POINT_AUTHORIZED) )
+    if ( AuthorizeControlPoint(ca_event, 0, 1) != CONTROL_POINT_AUTHORIZED )
     {
         ithread_mutex_unlock(&DevMutex);
         return ca_event->ErrCode;        
@@ -895,14 +892,20 @@ int AddPortMapping(struct Upnp_Action_Request *ca_event)
             && (int_ip = GetFirstDocumentItem(ca_event->ActionRequest, "NewInternalClient") )
             && (long_duration = GetFirstDocumentItem(ca_event->ActionRequest, "NewLeaseDuration") )
             && (bool_enabled = GetFirstDocumentItem(ca_event->ActionRequest, "NewEnabled") )
-            && (desc = GetFirstDocumentItem(ca_event->ActionRequest, "NewPortMappingDescription") )
-            && ((strcmp(proto, "TCP") == 0) || (strcmp(proto, "UDP") == 0))
-            && (atoi(ext_port) >= 0)
-            && (atoi(int_port) >= 1 && atoi(int_port) <= 65535)
-            && (atol(long_duration) >= 0 && atol(long_duration) <= 604800) )
+            && (desc = GetFirstDocumentItem(ca_event->ActionRequest, "NewPortMappingDescription") ) )
     {
+        if (((strcmp(proto, "TCP") != 0) && (strcmp(proto, "UDP") != 0))
+            || (atoi(ext_port) < 0)
+            || (atoi(int_port) < 1 || atoi(int_port) > 65535)
+            || (atol(long_duration) < 0 || atol(long_duration) > 604800))
+        {
+            trace(1, "%s: Argument value out of range:  ExtPort: %s RemHost: %s Proto: %s IntPort: %s IntIP: %s Dur: %s Ena: %s Desc: %s",
+                    ca_event->ActionName, ext_port, remote_host, proto, int_port, int_ip, long_duration, bool_enabled, desc);
+            result = 601;
+            addErrorData(ca_event, result, "Argument Value Out of Range");
+        }
         // If ext_port or int_port is <1024 control point needs to be authorized
-        if ((atoi(ext_port) < 1024 || atoi(int_port) < 1024 || !ControlPointIP_equals_InternalClientIP(int_ip, &ca_event->CtrlPtIPAddr))
+        else if ((atoi(ext_port) < 1024 || atoi(int_port) < 1024 || !ControlPointIP_equals_InternalClientIP(int_ip, &ca_event->CtrlPtIPAddr))
              && AuthorizeControlPoint(ca_event, 1, 0) != CONTROL_POINT_AUTHORIZED)
         {
             trace(1, "Port numbers must be greater than 1023 and NewInternalClient must be same as IP of Control point \
@@ -974,8 +977,6 @@ unless control port is authorized. external_port:%s, internal_port:%s internal_c
     else
     {
         trace(1, "Failure in GateDeviceAddPortMapping: Invalid Arguments!");
-        trace(1, "  ExtPort: %s RemHost: %s Proto: %s IntPort: %s IntIP: %s Dur: %s Ena: %s Desc: %s",
-              ext_port, remote_host, proto, int_port, int_ip, long_duration, bool_enabled, desc);
         addErrorData(ca_event, 402, "Invalid Args");
     }
 
@@ -1029,14 +1030,19 @@ int AddAnyPortMapping(struct Upnp_Action_Request *ca_event)
             && (new_internal_client = GetFirstDocumentItem(ca_event->ActionRequest, "NewInternalClient") )
             && (new_enabled = GetFirstDocumentItem(ca_event->ActionRequest, "NewEnabled") )
             && (new_port_mapping_description = GetFirstDocumentItem(ca_event->ActionRequest, "NewPortMappingDescription") )
-            && (new_lease_duration = GetFirstDocumentItem(ca_event->ActionRequest, "NewLeaseDuration") )
-            && ((strcmp(new_protocol, "TCP") == 0) || (strcmp(new_protocol, "UDP") == 0))
-            && (atoi(new_external_port) >= 0)
-            && (atoi(new_internal_port) >= 1 && atoi(new_internal_port) <= 65535)
-            && (atol(new_lease_duration) >= 0 && atol(new_lease_duration) <= 604800) )
+            && (new_lease_duration = GetFirstDocumentItem(ca_event->ActionRequest, "NewLeaseDuration") ) )
     {
+        if (((strcmp(new_protocol, "TCP") != 0) && (strcmp(new_protocol, "UDP") != 0))
+            || (atoi(new_external_port) < 0)
+            || (atoi(new_internal_port) < 1 && atoi(new_internal_port) > 65535)
+            || (atol(new_lease_duration) < 0 && atol(new_lease_duration) > 604800) )
+        {
+            trace(1, "%s: Argument value out of range");
+            result = 601;
+            addErrorData(ca_event, result, "Argument Value Out of Range");
+        }
         // If ext_port or int_port is <1024 control point needs to be authorized
-        if ((atoi(new_external_port) < 1024 || atoi(new_internal_port) < 1024 || !ControlPointIP_equals_InternalClientIP(new_internal_client, &ca_event->CtrlPtIPAddr))
+        else if ((atoi(new_external_port) < 1024 || atoi(new_internal_port) < 1024 || !ControlPointIP_equals_InternalClientIP(new_internal_client, &ca_event->CtrlPtIPAddr))
              && AuthorizeControlPoint(ca_event, 1, 0) != CONTROL_POINT_AUTHORIZED)
         {
             trace(1, "Port numbers must be greater than 1023 and NewInternalClient must be same as IP of Control point \
@@ -1249,15 +1255,18 @@ int GetSpecificPortMappingEntry(struct Upnp_Action_Request *ca_event)
     
     if ((remote_host = GetFirstDocumentItem(ca_event->ActionRequest, "NewRemoteHost")) &&
             (ext_port = GetFirstDocumentItem(ca_event->ActionRequest, "NewExternalPort")) &&
-            (proto = GetFirstDocumentItem(ca_event->ActionRequest,"NewProtocol")) &&
-            ((strcmp(proto, "TCP") == 0) || (strcmp(proto, "UDP") == 0)) && 
-            (atoi(ext_port) >= 0))
+            (proto = GetFirstDocumentItem(ca_event->ActionRequest,"NewProtocol")) )
     {
-        temp = pmlist_FindSpecific (remote_host, ext_port, proto);
+        if (((strcmp(proto, "TCP") != 0) && (strcmp(proto, "UDP") != 0)) || 
+            (atoi(ext_port) < 0) )
+        {
+            trace(1, "%s: Argument value out of range");
+            addErrorData(ca_event, 601, "Argument Value Out of Range");
+        }
         // if portmapping is found, we must check if CP is authorized OR if internalclient value of portmapping matches IP of CP
         // Also if CP is not authorized NewInternalPort and NewExternalPort values of the port mapping entry must be greater than or equal to 1024,
         // else error is returned 
-        if (temp && (AuthorizeControlPoint(ca_event, 1, 0) == CONTROL_POINT_AUTHORIZED || 
+        else if ((temp = pmlist_FindSpecific (remote_host, ext_port, proto)) && (AuthorizeControlPoint(ca_event, 1, 0) == CONTROL_POINT_AUTHORIZED || 
                         (ControlPointIP_equals_InternalClientIP(temp->m_InternalClient, &ca_event->CtrlPtIPAddr) && 
                          atoi(temp->m_ExternalPort) > 1023 && atoi(temp->m_InternalPort) > 1023)
                      )
@@ -1274,16 +1283,12 @@ int GetSpecificPortMappingEntry(struct Upnp_Action_Request *ca_event)
         else if (!temp)
         {
             trace(2, "GateDeviceGetSpecificPortMappingEntry: PortMapping Doesn't Exist...");
-            ca_event->ErrCode = 714;
-            strcpy(ca_event->ErrStr, "NoSuchEntryInArray");
-            ca_event->ActionResult = NULL;
+            addErrorData(ca_event, 714, "NoSuchEntryInArray");
         }
         else
         {
             trace(1, "Failure in GetSpecificPortMappingEntry: ActionNotPermitted\n");
-            ca_event->ErrCode = 730;
-            strcpy(ca_event->ErrStr, "ActionNotPermitted");
-            ca_event->ActionResult = NULL;                    
+            addErrorData(ca_event, 730, "ActionNotPermitted");
         }
         
         if (action_succeeded)
@@ -1297,9 +1302,7 @@ int GetSpecificPortMappingEntry(struct Upnp_Action_Request *ca_event)
     else
     {
         trace(1, "Failure in GetSpecificPortMappingEntry: Invalid Args %s", remote_host);
-        ca_event->ErrCode = 402;
-        strcpy(ca_event->ErrStr, "Invalid Args");
-        ca_event->ActionResult = NULL;
+        addErrorData(ca_event, 402, "Invalid Args");
     }
 
     return (ca_event->ErrCode);
@@ -1363,10 +1366,15 @@ int DeletePortMapping(struct Upnp_Action_Request *ca_event)
 
     if ((remote_host = GetFirstDocumentItem(ca_event->ActionRequest, "NewRemoteHost")) &&
             (ext_port = GetFirstDocumentItem(ca_event->ActionRequest, "NewExternalPort")) &&
-            (proto = GetFirstDocumentItem(ca_event->ActionRequest, "NewProtocol")) &&
-            ((strcmp(proto, "TCP") == 0) || (strcmp(proto, "UDP") == 0)) && 
-            (atoi(ext_port) >= 0))
+            (proto = GetFirstDocumentItem(ca_event->ActionRequest, "NewProtocol")) )
     {
+        if (((strcmp(proto, "TCP") != 0) && (strcmp(proto, "UDP") != 0)) || 
+            (atoi(ext_port) < 0) )
+        {
+            trace(1, "%s: Argument value out of range");
+            result = 601;
+            addErrorData(ca_event, result, "Argument Value Out of Range");
+        }
         //check if authorized
         if (AuthorizeControlPoint(ca_event, 1, 0) == CONTROL_POINT_AUTHORIZED)
         {
@@ -1470,19 +1478,24 @@ int DeletePortMappingRange(struct Upnp_Action_Request *ca_event)
     if ((start_port = GetFirstDocumentItem(ca_event->ActionRequest, "NewStartPort")) &&
             (end_port = GetFirstDocumentItem(ca_event->ActionRequest, "NewEndPort")) &&
             (proto = GetFirstDocumentItem(ca_event->ActionRequest, "NewProtocol")) &&
-            (bool_manage = GetFirstDocumentItem(ca_event->ActionRequest, "NewManage")) && 
-            ((strcmp(proto, "TCP") == 0) || (strcmp(proto, "UDP") == 0)) && 
-            (atoi(start_port) >= 0) && 
-            (atoi(end_port) >= 0) )
+            (bool_manage = GetFirstDocumentItem(ca_event->ActionRequest, "NewManage")) )
     {
         //check if authorized
         if (AuthorizeControlPoint(ca_event, 1, 0) == CONTROL_POINT_AUTHORIZED)
         {
             authorized = 1;
         }
-        
+
+        if (((strcmp(proto, "TCP") != 0) && (strcmp(proto, "UDP") != 0)) || 
+            (atoi(start_port) < 0) ||
+            (atoi(end_port) < 0) )
+        {
+            trace(1, "%s: Argument value out of range");
+            result = 601;
+            addErrorData(ca_event, result, "Argument Value Out of Range");
+        }        
         // check that port values are greater than or equal to 1024 if CP is not authorized
-        if (!authorized && (atoi(start_port) < 1024 || atoi(end_port) < 1024))
+        else if (!authorized && (atoi(start_port) < 1024 || atoi(end_port) < 1024))
         {
             trace(1, "Failure in DeletePortMappingRange: StartPort:%s EndPort:%s Proto:%s Manage:%s. Port values under 1024 and CP is not authorized\n",start_port,end_port,proto,bool_manage);
             addErrorData(ca_event, 730, "ActionNotPermitted");                
@@ -1608,19 +1621,22 @@ int GetListOfPortmappings(struct Upnp_Action_Request *ca_event)
             && (end_port = GetFirstDocumentItem(ca_event->ActionRequest, "NewEndPort") )
             && (manage = GetFirstDocumentItem(ca_event->ActionRequest, "NewManage") )
             && (number_of_ports = GetFirstDocumentItem(ca_event->ActionRequest, "NewNumberOfPorts") )
-            && (proto = GetFirstDocumentItem(ca_event->ActionRequest, "NewProtocol") )
-            && ((strcmp(proto, "TCP") == 0) || (strcmp(proto, "UDP") == 0) )
-            && (atoi(start_port) >= 0)
-            && (atoi(end_port) >= 0) )
+            && (proto = GetFirstDocumentItem(ca_event->ActionRequest, "NewProtocol") ) )
     {
         //check if authorized
         if (AuthorizeControlPoint(ca_event, 1, 0) == CONTROL_POINT_AUTHORIZED)
         {
             authorized = 1;
         }
-        
+        if (((strcmp(proto, "TCP") != 0) && (strcmp(proto, "UDP") != 0)) || 
+            (atoi(start_port) < 0) ||
+            (atoi(end_port) < 0) )
+        {
+            trace(1, "%s: Argument value out of range");
+            addErrorData(ca_event, 601, "Argument Value Out of Range");
+        }        
         // check that port values are greater than or equal to 1024 if CP is not authorized
-        if (!authorized && (atoi(start_port) < 1024 || atoi(end_port) < 1024))
+        else if (!authorized && (atoi(start_port) < 1024 || atoi(end_port) < 1024))
         {
             trace(1, "Failure in GetListOfPortmappings: StartPort:%s EndPort:%s Proto:%s Manage:%s. Port values under 1024 and CP is not authorized\n",start_port,end_port,proto,manage);
             addErrorData(ca_event, 730, "ActionNotPermitted");                
@@ -2180,11 +2196,12 @@ int AddNewPortMapping(struct Upnp_Action_Request *ca_event, char* new_enabled, l
 int AuthorizeControlPoint(struct Upnp_Action_Request *ca_event, int managed, int addError)
 {
     int result;
+    int requireSSL = 0;
     /*
      * Get rolename for action from accesslevel.xml
      */
     char *accessLevel = NULL;
-    accessLevel = getAccessLevel(ca_event->ServiceID, ca_event->ActionName,managed);
+    accessLevel = getAccessLevel(ca_event->ServiceID, ca_event->ActionName, managed, &requireSSL);
     
     if (accessLevel == NULL)
     {
@@ -2194,6 +2211,16 @@ int AuthorizeControlPoint(struct Upnp_Action_Request *ca_event, int managed, int
             result = InvalidAction(ca_event);
         }
 
+        return CONTROL_POINT_NOT_AUTHORIZED;
+    }
+    
+    // SSL is required but control point is not using it => ERROR
+    if (requireSSL && ca_event->SSLSession == NULL)
+    {
+        trace(1, "%s: SSL connection must be used for this",ca_event->ActionName);
+        result = 701;
+        addErrorData(ca_event, result, "Authentication Failure");
+        
         return CONTROL_POINT_NOT_AUTHORIZED;
     }
 
