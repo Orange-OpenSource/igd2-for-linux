@@ -2257,6 +2257,11 @@ int AuthorizeControlPoint(struct Upnp_Action_Request *ca_event, int managed, int
             return CONTROL_POINT_AUTHORIZED;            
         }   
     }
+    else if (ca_event->SSLSession == NULL && !requireSSL)
+    {
+        // Control point should be authorized
+        return CONTROL_POINT_AUTHORIZED;  
+    }
     else
     {
         return CONTROL_POINT_NOT_AUTHORIZED;
