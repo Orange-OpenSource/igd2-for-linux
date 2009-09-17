@@ -193,11 +193,11 @@ int HandleSubscriptionRequest(struct Upnp_Subscription_Request *sr_event)
     else if (strcmp(sr_event->UDN, wanConnectionUDN) == 0)
     {
         // WAN IP Connection Device Notifications
-        if (strcmp(sr_event->ServiceId, "urn:upnp-org:serviceId:WANIPConn2") == 0)
+        if (strcmp(sr_event->ServiceId, "urn:upnp-org:serviceId:WANIPConn1") == 0)
         {                   
             GetIpAddressStr(ExternalIPAddress, g_vars.extInterfaceName);
             GetConnectionStatus(ConnectionStatus, g_vars.extInterfaceName);
-            trace(3, "Received request to subscribe to WANIPConn2");
+            trace(3, "Received request to subscribe to WANIPConn1");
             UpnpAddToPropertySet(&propSet, "PossibleConnectionTypes","IP_Routed");
             UpnpAddToPropertySet(&propSet, "ExternalIPAddress", ExternalIPAddress);
             UpnpAddToPropertySet(&propSet, "ConnectionStatus", ConnectionStatus);
@@ -251,7 +251,7 @@ int HandleGetVarRequest(struct Upnp_State_Var_Request *gv_request)
 }
 
 /**
- * Handles action requests for WANCommonIFC1, WANIPConn2, LANHostConfig1 and
+ * Handles action requests for WANCommonIFC1, WANIPConn1, LANHostConfig1 and
  * WANEthLinkC1 services.
  *  
  * @param sr_event Upnp Action Request struct
@@ -332,7 +332,7 @@ int HandleActionRequest(struct Upnp_Action_Request *ca_event)
     }
     else if (strcmp(ca_event->DevUDN, wanConnectionUDN) == 0)
     {
-        if (strcmp(ca_event->ServiceID, "urn:upnp-org:serviceId:WANIPConn2") == 0)
+        if (strcmp(ca_event->ServiceID, "urn:upnp-org:serviceId:WANIPConn1") == 0)
         {
             if (strcmp(ca_event->ActionName,"GetConnectionTypeInfo") == 0)
                 result = GetConnectionTypeInfo(ca_event);
@@ -1901,7 +1901,7 @@ int ExternalIPAddressEventing(IXML_Document *propSet)
     if (strcmp(prevStatus,ExternalIPAddress) != 0)
     {
         UpnpAddToPropertySet(&propSet, "ExternalIPAddress", ExternalIPAddress);
-        UpnpNotifyExt(deviceHandle, wanConnectionUDN, "urn:upnp-org:serviceId:WANIPConn2", propSet);
+        UpnpNotifyExt(deviceHandle, wanConnectionUDN, "urn:upnp-org:serviceId:WANIPConn1", propSet);
         trace(2, "ExternalIPAddress changed: From %s to %s",prevStatus,ExternalIPAddress);
         propSet = NULL;
         return 1;
@@ -1927,7 +1927,7 @@ int ConnectionStatusEventing(IXML_Document *propSet)
     if (strcmp(prevStatus,ConnectionStatus) != 0)
     {
         UpnpAddToPropertySet(&propSet, "ConnectionStatus", ConnectionStatus);
-        UpnpNotifyExt(deviceHandle, wanConnectionUDN, "urn:upnp-org:serviceId:WANIPConn2", propSet);
+        UpnpNotifyExt(deviceHandle, wanConnectionUDN, "urn:upnp-org:serviceId:WANIPConn1", propSet);
         trace(2, "ConnectionStatus changed: From %s to %s",prevStatus,ConnectionStatus);
         propSet = NULL;
         return 1;
@@ -2098,10 +2098,10 @@ void DeleteAllPortMappings(void)
     UpnpAddToPropertySet(&propSet, "PortMappingNumberOfEntries", tmp);
     snprintf(tmp,11,"%ld",++SystemUpdateID);
     UpnpAddToPropertySet(&propSet,"SystemUpdateID", tmp);
-    UpnpNotifyExt(deviceHandle, wanConnectionUDN, "urn:upnp-org:serviceId:WANIPConn2", propSet);
+    UpnpNotifyExt(deviceHandle, wanConnectionUDN, "urn:upnp-org:serviceId:WANIPConn1", propSet);
     ixmlDocument_free(propSet);
     trace(2, "DeleteAllPortMappings: UpnpNotifyExt(deviceHandle,%s,%s,propSet)\n  PortMappingNumberOfEntries: %s",
-          wanConnectionUDN, "urn:upnp-org:serviceId:WANIPConn2", "0");
+          wanConnectionUDN, "urn:upnp-org:serviceId:WANIPConn1", "0");
 
     ithread_mutex_unlock(&DevMutex);
 }

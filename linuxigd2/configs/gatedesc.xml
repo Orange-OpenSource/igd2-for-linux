@@ -82,13 +82,13 @@
 					   xsi:schemaLocation="urn:schemas-upnp-org:gw:DeviceProtection
 					   http://www.upnp.org/schemas/gw/DeviceProtection.xsd">
                 <serviceType>urn:schemas-upnp-org:service:WANIPConnection:2</serviceType>
-                <serviceId>urn:upnp-org:serviceId:WANIPConn2</serviceId>
-                <controlURL>/upnp/control/WANIPConn2</controlURL>
-                <eventSubURL>/upnp/control/WANIPConn2</eventSubURL>
+                <serviceId>urn:upnp-org:serviceId:WANIPConn1</serviceId>
+                <controlURL>/upnp/control/WANIPConn1</controlURL>
+                <eventSubURL>/upnp/control/WANIPConn1</eventSubURL>
                 <SCPDURL>/gateconnSCPD.xml</SCPDURL>
                 <dp:secureSCPDURL>https://127.0.0.1:443/gateconnSCPD.xml</dp:secureSCPDURL> 
-                <dp:secureControlURL>https://127.0.0.1:443/upnp/control/WANIPConn2</dp:secureControlURL> 
-                <dp:secureEventSubURL>https://127.0.0.1:443/upnp/control/WANIPConn2</dp:secureEventSubURL>                  
+                <dp:secureControlURL>https://127.0.0.1:443/upnp/control/WANIPConn1</dp:secureControlURL> 
+                <dp:secureEventSubURL>https://127.0.0.1:443/upnp/control/WANIPConn1</dp:secureEventSubURL>                  
               </service>
 	          <service xmlns:dp="urn:schemas-upnp-org:gw:DeviceProtection"
 				       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"

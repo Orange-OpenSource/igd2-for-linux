@@ -14,7 +14,7 @@
 ]>
 <serviceList>
     <serviceEntry>
-        <serviceId>urn:upnp-org:serviceId:WANIPConn2</serviceId>
+        <serviceId>urn:upnp-org:serviceId:WANIPConn1</serviceId>
         <serviceName>WANIPConnection</serviceName>
         <serviceVersion>2</serviceVersion>
         <actionList>
