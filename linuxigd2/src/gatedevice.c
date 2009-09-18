@@ -266,7 +266,7 @@ int HandleActionRequest(struct Upnp_Action_Request *ca_event)
 
     // check if CP is authorized to use this action.
     // checking managed flag is left to action itself
-    if ( AuthorizeControlPoint(ca_event, 0, 1) != CONTROL_POINT_AUTHORIZED )
+    if ( AuthorizeControlPoint(ca_event, 0, 1) == CONTROL_POINT_NOT_AUTHORIZED )
     {
         ithread_mutex_unlock(&DevMutex);
         return ca_event->ErrCode;        
@@ -2259,8 +2259,9 @@ int AuthorizeControlPoint(struct Upnp_Action_Request *ca_event, int managed, int
     }
     else if (ca_event->SSLSession == NULL && !requireSSL)
     {
-        // Control point should be authorized
-        return CONTROL_POINT_AUTHORIZED;  
+        // SSL is not used, but because it is not required to be used we say that Control Point is almost
+        // authorized. This means that CP can do basic stuff, or what ever actions allow them to do.
+        return CONTROL_POINT_HALF_AUTHORIZED;  
     }
     else
     {

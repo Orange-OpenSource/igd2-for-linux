@@ -119,7 +119,11 @@ int ConnectionStatusEventing(IXML_Document *propSet);
 
 
 // Definition for authorizing control point
-#define CONTROL_POINT_AUTHORIZED    0
-#define CONTROL_POINT_NOT_AUTHORIZED    -1
+typedef enum
+{
+    CONTROL_POINT_AUTHORIZED,
+    CONTROL_POINT_HALF_AUTHORIZED,
+    CONTROL_POINT_NOT_AUTHORIZED
+} authorization_levels;
 
 #endif //_GATEDEVICE_H
