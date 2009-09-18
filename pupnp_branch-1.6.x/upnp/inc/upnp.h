@@ -762,7 +762,10 @@ struct Upnp_Discovery
 	char ServiceVer[LINE_SIZE];    
 
 	/** The URL to the UPnP description document for the device. */
-	char Location[LINE_SIZE];      
+	char Location[LINE_SIZE];
+    
+    /** The HTTPS URL to the UPnP description document for the device. */
+    char SecureLocation[LINE_SIZE];
 
 	/** The operating system the device is running. */
 	char Os[LINE_SIZE];            
@@ -1431,7 +1434,7 @@ EXPORT_SPEC int UpnpRegisterClient(
  */
 EXPORT_SPEC int UpnpCreateClientSSLSession( 
 
-    /*! [in] The action URL of the service. Target IP is parsed from this. */
+    /*! [in] HTTPS URL of the service. URL needs to have IP and port number. Target IP is parsed from this. */
     IN const char *ActionURL_const,
     /*! [inout] Pointer to space where SSL session data may be saved. */
     INOUT void *SSLSessionData,

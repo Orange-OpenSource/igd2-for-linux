@@ -58,7 +58,7 @@
 #include <string.h>
 
 
-/* entity positions */
+/* entity positions. For the following genarations, these are in alphabetical order! */
 
 
 #define NUM_HTTP_METHODS 9
@@ -75,7 +75,7 @@ static str_int_entry Http_Method_Table[NUM_HTTP_METHODS] = {
 
 };
 
-#define NUM_HTTP_HEADER_NAMES 33
+#define NUM_HTTP_HEADER_NAMES 34
 str_int_entry Http_Header_Names[NUM_HTTP_HEADER_NAMES] = {
     {"ACCEPT", HDR_ACCEPT},
     {"ACCEPT-CHARSET", HDR_ACCEPT_CHARSET},
@@ -100,6 +100,7 @@ str_int_entry Http_Header_Names[NUM_HTTP_HEADER_NAMES] = {
     {"NT", HDR_NT},
     {"NTS", HDR_NTS},
     {"RANGE", HDR_RANGE},
+    {"SECURELOCATION.UPNP.ORG", HDR_SECURE_LOCATION},
     {"SEQ", HDR_SEQ},
     {"SERVER", HDR_SERVER},
     {"SID", HDR_SID},

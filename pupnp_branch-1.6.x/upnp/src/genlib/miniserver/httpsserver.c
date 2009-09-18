@@ -42,7 +42,6 @@ static SOCKET get_listener_socket(int port);
 static gnutls_session_t initialize_tls_session (void);
 static int generate_dh_params (void);
 static void RunHttpsServer( SOCKET listen_sd );
-static int parseHttpMessage(char *buf, int buflen, http_parser_t *parser, http_method_t request_method, int *timeout_secs, int *http_error_code);
 static int tcp_connect (void);
 static void tcp_close (int sd);
 static int shutdownClientCertCallback(gnutls_session_t session, const gnutls_datum_t* req_ca_dn, int nreqs, gnutls_pk_algorithm_t* pk_algos, int pk_algos_length, gnutls_retr_st* st);
@@ -277,86 +276,6 @@ generate_dh_params (void)
     gnutls_dh_params_generate2 (dh_params, DH_BITS);
 
     return 0;
-}
-
-/************************************************************************
- * Function: parseHttpMessage
- *
- * Parameters :
- *  char *buf - String containing HTTP packet
- *  int buflen - Length of buf
- *  http_parser_t *parser - Parser
- *  http_method_t request_method - HTTP method
- *  int *timeout_secs - Timeout
- *  int *http_error_code - HTTP error code
- *
- * Description:
- *  Parse http message from string into parser.
- *
- * Return: int
- *  PARSE_SUCCESS - On Success
- *  Error code - On Error
- ************************************************************************/
-static int 
-parseHttpMessage(
-    IN char *buf,
-    IN int buflen,
-    OUT http_parser_t *parser,
-    IN http_method_t request_method,
-    IN OUT int *timeout_secs,
-    OUT int *http_error_code)
-{
-    int ret = UPNP_E_SUCCESS;
-    int line = 0;
-    parse_status_t status;
-    xboolean ok_on_close = FALSE;
-
-
-    if (request_method == HTTPMETHOD_UNKNOWN) {
-        parser_request_init(parser);
-    } else {
-        parser_response_init(parser, request_method);
-    }    
-    
-    status = parser_append(parser, buf, buflen);
-    if (status == PARSE_SUCCESS) {
-        UpnpPrintf( UPNP_INFO, HTTP, __FILE__, __LINE__,
-            "<<< (RECVD) <<<\n%s\n-----------------\n",
-            parser->msg.msg.buf );
-        print_http_headers( &parser->msg );
-        if (parser->content_length > (unsigned int)g_maxContentLength) {
-            *http_error_code = HTTP_REQ_ENTITY_TOO_LARGE;
-            line = __LINE__;
-            ret = UPNP_E_OUTOF_BOUNDS;
-            goto ExitFunction;
-        }
-        line = __LINE__;
-        ret = 0;
-        goto ExitFunction;
-    } else if (status == PARSE_FAILURE) {
-        *http_error_code = parser->http_error_code;
-        line = __LINE__;
-        ret = UPNP_E_BAD_HTTPMSG;
-        goto ExitFunction;
-    } else if (status == PARSE_INCOMPLETE_ENTITY) {
-        /* read until close */
-        ok_on_close = TRUE;
-    } else if (status == PARSE_CONTINUE_1) {
-        /* Web post request. */
-        line = __LINE__;
-        ret = PARSE_SUCCESS;
-        goto ExitFunction;
-    }
-    
-ExitFunction:
-    if (ret != UPNP_E_SUCCESS) {
-        UpnpPrintf(UPNP_ALL, HTTP, __FILE__, line,
-            "(http_RecvMessage): Error %d, http_error_code = %d.\n",
-            ret,
-            *http_error_code);
-    }
-
-    return ret;
 }
 
 /************************************************************************

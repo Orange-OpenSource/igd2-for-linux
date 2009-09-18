@@ -3682,6 +3682,10 @@ UpnpDownloadUrlItem( const char *url,
 
 /**************************************************************************
  * Function: UpnpDownloadXmlDoc 
+ * 
+ * TODO: This should be modified so that it is possible to use SSL for 
+ *       fetching file (DeviceProtection chapter 2.3.1). Or new function for
+ *       that should be done.
  *
  * Parameters:  
  *  

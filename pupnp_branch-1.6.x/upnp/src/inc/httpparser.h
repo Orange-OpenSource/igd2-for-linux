@@ -143,6 +143,8 @@ typedef enum // http_method_t
 #define HDR_RANGE               35
 #define HDR_TE                  36
 //End_Murari
+// SECURELOCATION.UPNP.ORG header by DeviceProtection service
+#define HDR_SECURE_LOCATION     37
 
 // status of parsing
 typedef enum // parse_status_t

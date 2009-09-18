@@ -169,6 +169,11 @@ ssdp_handle_ctrlpt_msg( IN http_message_t * hmsg,
     if( httpmsg_find_hdr( hmsg, HDR_LOCATION, &hdr_value ) != NULL ) {
         linecopylen( param.Location, hdr_value.buf, hdr_value.length );
     }
+    // SECURELOCATION.UPNP.ORG 
+    param.SecureLocation[0] = '\0';
+    if( httpmsg_find_hdr( hmsg, HDR_SECURE_LOCATION, &hdr_value ) != NULL ) {    
+        linecopylen( param.SecureLocation, hdr_value.buf, hdr_value.length );
+    }
     // SERVER / USER-AGENT
     param.Os[0] = '\0';
     if( httpmsg_find_hdr( hmsg, HDR_SERVER, &hdr_value ) != NULL ||
