@@ -2218,8 +2218,8 @@ int AuthorizeControlPoint(struct Upnp_Action_Request *ca_event, int managed, int
     if (requireSSL && ca_event->SSLSession == NULL)
     {
         trace(1, "%s: SSL connection must be used for this",ca_event->ActionName);
-        result = 701;
-        addErrorData(ca_event, result, "Authentication Failure");
+        result = 606;
+        addErrorData(ca_event, result, "Action not authorized");
         
         return CONTROL_POINT_NOT_AUTHORIZED;
     }

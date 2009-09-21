@@ -310,7 +310,7 @@
             <action>
                 <name>AddIdentityList</name>
                 <requireSSL>1</requireSSL>
-                <accessLevel>Admin</accessLevel>
+                <accessLevel>Basic Admin</accessLevel>
             </action>
             <action>
                 <name>RemoveIdentity</name>

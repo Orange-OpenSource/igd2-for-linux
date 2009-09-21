@@ -342,7 +342,7 @@
                 <argument>
                     <name>NewNumberOfPorts</name>
                     <direction>in</direction>
-                    <relatedStateVariable>ExternalPort</relatedStateVariable>
+                    <relatedStateVariable>PortMappingNumberOfEntries</relatedStateVariable>
                 </argument>
 
                 <argument>

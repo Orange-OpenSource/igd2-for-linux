@@ -125,7 +125,8 @@ void DPStateTableInit()
     strcpy(SupportedProtocols, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
                                "<SupportedProtocols xmlns=\"urn:schemas-upnp-org:gw:DeviceProtection\" "
                                "xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" "
-                               "xsi:schemaLocation=\"http://www.upnp.org/schemas/gw/DeviceProtection-v1.xsd\">"
+                               "xsi:schemaLocation=\"urn:schemas-upnp-org:gw:DeviceProtection "
+                               "http://www.upnp.org/schemas/gw/DeviceProtection-v1.xsd\">"
                                "<Introduction><Name>WPS</Name></Introduction></SupportedProtocols>");
 }
 
@@ -1243,8 +1244,8 @@ int GetUserLoginChallenge(struct Upnp_Action_Request *ca_event)
     {
         trace(1, "%s: ID '%s' of control point is not listed in ACL",ca_event->ActionName,identifier);
         // TODO: Check this error code!
-        result = 701;
-        addErrorData(ca_event, result, "Authentication Failure");
+        result = 606;
+        addErrorData(ca_event, result, "Action not authorized");
         free(identifier);
         return ca_event->ErrCode;
     }
@@ -2013,7 +2014,7 @@ int AddIdentityList(struct Upnp_Action_Request *ca_event)
                                                        "<Identities xmlns=\"urn:schemas-upnp-org:gw:DeviceProtection\" "
                                                        "xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" "
                                                        "xsi:schemaLocation=\"urn:schemas-upnp-org:gw:DeviceProtection "
-                                                       "http://www.upnp.org/schemas/gw/DeviceProtection.xsd\">");
+                                                       "http://www.upnp.org/schemas/gw/DeviceProtection-v1.xsd\">");
 
                 strcat(responseIdentitiesWithNamespace, responseIdentities+12);
                 free(responseIdentities);                
