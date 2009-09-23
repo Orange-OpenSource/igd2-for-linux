@@ -1252,21 +1252,33 @@ int GetSpecificPortMappingEntry(struct Upnp_Action_Request *ca_event)
     char resultStr[RESULT_LEN];
     int action_succeeded = 0;
     struct portMap *temp;
+    int authorized = 0;
     
     if ((remote_host = GetFirstDocumentItem(ca_event->ActionRequest, "NewRemoteHost")) &&
             (ext_port = GetFirstDocumentItem(ca_event->ActionRequest, "NewExternalPort")) &&
             (proto = GetFirstDocumentItem(ca_event->ActionRequest,"NewProtocol")) )
     {
+        //check if authorized
+        if (AuthorizeControlPoint(ca_event, 1, 0) == CONTROL_POINT_AUTHORIZED)
+        {
+            authorized = 1;
+        }
+        
         if (((strcmp(proto, "TCP") != 0) && (strcmp(proto, "UDP") != 0)) || 
             (atoi(ext_port) < 0) )
         {
             trace(1, "%s: Argument value out of range");
             addErrorData(ca_event, 601, "Argument Value Out of Range");
         }
+        else if (!authorized && (atoi(ext_port) < 1024))
+        {
+            trace(1, "Failure in GetSpecificPortMappingEntry: ActionNotPermitted\n");
+            addErrorData(ca_event, 730, "ActionNotPermitted");            
+        }
         // if portmapping is found, we must check if CP is authorized OR if internalclient value of portmapping matches IP of CP
         // Also if CP is not authorized NewInternalPort and NewExternalPort values of the port mapping entry must be greater than or equal to 1024,
         // else error is returned 
-        else if ((temp = pmlist_FindSpecific (remote_host, ext_port, proto)) && (AuthorizeControlPoint(ca_event, 1, 0) == CONTROL_POINT_AUTHORIZED || 
+        else if ((temp = pmlist_FindSpecific (remote_host, ext_port, proto)) && (authorized || 
                         (ControlPointIP_equals_InternalClientIP(temp->m_InternalClient, &ca_event->CtrlPtIPAddr) && 
                          atoi(temp->m_ExternalPort) > 1023 && atoi(temp->m_InternalPort) > 1023)
                      )
@@ -1382,7 +1394,7 @@ int DeletePortMapping(struct Upnp_Action_Request *ca_event)
         }
         
         // check that external port value is greater than or equal to 1024 if CP is not authorized
-        if (!authorized && atoi(ext_port) < 1024)
+        if (result == 0 && !authorized && atoi(ext_port) < 1024)
         {
             trace(1, "Failure in DeletePortMapping: Remote Host:%s Proto:%s Port:%s. Port value is under 1024 and CP is not authorized\n",remote_host, proto, ext_port);
             addErrorData(ca_event, 730, "ActionNotPermitted");                

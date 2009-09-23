@@ -20,7 +20,7 @@
         <actionList>
             <action>
                 <name>SetConnectionType</name>
-                <requireSSL>0</requireSSL>
+                <requireSSL>1</requireSSL>
                 <accessLevel>Admin</accessLevel>
             </action>
             <action>
@@ -30,32 +30,32 @@
             </action>
             <action>
                 <name>RequestConnection</name>
-                <requireSSL>0</requireSSL>
+                <requireSSL>1</requireSSL>
                 <accessLevel>Admin</accessLevel>
             </action>
             <action>
                 <name>RequestTermination</name>
-                <requireSSL>0</requireSSL>
+                <requireSSL>1</requireSSL>
                 <accessLevel>Admin</accessLevel>
             </action>
             <action>
                 <name>ForceTermination</name>
-                <requireSSL>0</requireSSL>
+                <requireSSL>1</requireSSL>
                 <accessLevel>Admin</accessLevel>
             </action>
             <action>
                 <name>SetAutoDisconnectTime</name>
-                <requireSSL>0</requireSSL>
+                <requireSSL>1</requireSSL>
                 <accessLevel>Admin</accessLevel>
             </action>
             <action>
                 <name>SetIdleDisconnectTime</name>
-                <requireSSL>0</requireSSL>
+                <requireSSL>1</requireSSL>
                 <accessLevel>Admin</accessLevel>
             </action>
             <action>
                 <name>SetWarnDisconnectDelay</name>
-                <requireSSL>0</requireSSL>
+                <requireSSL>1</requireSSL>
                 <accessLevel>Admin</accessLevel>
             </action>
             <action>
@@ -139,7 +139,7 @@
         <actionList>
             <action>
                 <name>SetDHCPServerConfigurable</name>
-                <requireSSL>0</requireSSL>
+                <requireSSL>1</requireSSL>
                 <accessLevel>Admin</accessLevel>
             </action>
             <action>
@@ -149,7 +149,7 @@
             </action>
             <action>
                 <name>SetDHCPRelay</name>
-                <requireSSL>0</requireSSL>
+                <requireSSL>1</requireSSL>
                 <accessLevel>Admin</accessLevel>
             </action>
             <action>
@@ -159,7 +159,7 @@
             </action>
             <action>
                 <name>SetSubnetMask</name>
-                <requireSSL>0</requireSSL>
+                <requireSSL>1</requireSSL>
                 <accessLevel>Admin</accessLevel>
             </action>
             <action>
@@ -169,12 +169,12 @@
             </action>
             <action>
                 <name>SetIPRouter</name>
-                <requireSSL>0</requireSSL>
+                <requireSSL>1</requireSSL>
                 <accessLevel>Admin</accessLevel>
             </action>
             <action>
                 <name>DeleteIPRouter</name>
-                <requireSSL>0</requireSSL>
+                <requireSSL>1</requireSSL>
                 <accessLevel>Admin</accessLevel>
             </action>
             <action>
@@ -184,7 +184,7 @@
             </action>
             <action>
                 <name>SetDomainName</name>
-                <requireSSL>0</requireSSL>
+                <requireSSL>1</requireSSL>
                 <accessLevel>Admin</accessLevel>
             </action>
             <action>
@@ -194,7 +194,7 @@
             </action>
             <action>
                 <name>SetAddressRange</name>
-                <requireSSL>0</requireSSL>
+                <requireSSL>1</requireSSL>
                 <accessLevel>Admin</accessLevel>
             </action>
             <action>
@@ -204,27 +204,27 @@
             </action>
             <action>
                 <name>SetReservedAddress</name>
-                <requireSSL>0</requireSSL>
+                <requireSSL>1</requireSSL>
                 <accessLevel>Admin</accessLevel>
             </action>
             <action>
                 <name>DeleteReservedAddress</name>
-                <requireSSL>0</requireSSL>
+                <requireSSL>1</requireSSL>
                 <accessLevel>Admin</accessLevel>
             </action>
             <action>
                 <name>GetReservedAddresses</name>
-                <requireSSL>0</requireSSL>
+                <requireSSL>1</requireSSL>
                 <accessLevel>Admin</accessLevel>
             </action>
             <action>
                 <name>SetDNSServer</name>
-                <requireSSL>0</requireSSL>
+                <requireSSL>1</requireSSL>
                 <accessLevel>Admin</accessLevel>
             </action>
             <action>
                 <name>DeleteDNSServer</name>
-                <requireSSL>0</requireSSL>
+                <requireSSL>1</requireSSL>
                 <accessLevel>Admin</accessLevel>
             </action>
             <action>

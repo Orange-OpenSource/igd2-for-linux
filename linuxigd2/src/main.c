@@ -47,16 +47,12 @@
 globals g_vars;
 
 /**
- * Modify description document so that all secureSCPDURL, secureControlURL and
- * secureEventSubURL elements have correct IP and port values.
- * IP and port values might change and by changing them automatically those adderesses 
- * need not be modified by hand.
+ * Modify description document so that UDN of InternetGatewayDevice is uuid 
+ * created from its X.509 certificate.
  * 
  * Modified file is written to disk.
  *
  * @param descDocFile Full path to file which is modifed
- * @param IP New value of IP in addresses
- * @param port New value of port in addresses
  * @return 0 on success, something else on error
  */
 static int updateHttpsDescDoc(const char *descDocFile, const char *IP, int port)
@@ -218,10 +214,10 @@ static int updateDescDocUuid(const char *descDocFile)
 int main (int argc, char** argv)
 {
     char descDocUrl[7+15+1+5+1+sizeof(g_vars.descDocName)+1]; // http://ipaddr:port/docName<null>
-    char secureDescDocUrl[8+15+1+5+1+sizeof(g_vars.descDocName)+1]; // http://ipaddr:port/docName<null>
+    char secureDescDocUrl[8+15+1+5+1+sizeof(g_vars.descDocName)+1]; // https://ipaddr:port/docName<null>
     char intIpAddress[INET6_ADDRSTRLEN];     // Server internal ip address updated IPv6 address length 16 -> 46
     sigset_t sigsToCatch;
-    int ret, signum, arg = 1, foreground = 0;
+    int ret, signum, arg = 1, foreground = 0, non_secure = 0;
     
     if (!setlocale(LC_CTYPE, "")) {
       fprintf(stderr, "Can't set the specified locale! "
@@ -230,10 +226,11 @@ int main (int argc, char** argv)
     }
 
 
-    if (argc < 3 || argc > 4)
+    if (argc < 3 || argc > 5)
     {
-        printf("Usage: upnpd [-f] <external ifname> <internal ifname>\n");
+        printf("Usage: upnpd [-f] [-s] <external ifname> <internal ifname>\n");
         printf("  -f\tdon't daemonize\n");
+        printf("  -s\tdon't start HTTPS server\n");
         printf("Example: upnpd ppp0 eth0\n");
         exit(0);
     }
@@ -248,6 +245,13 @@ int main (int argc, char** argv)
     if (strcmp(argv[arg], "-f") == 0)
     {
         foreground = 1;
+        arg++;
+    }
+    
+    // check for '-s' option
+    if (strcmp(argv[arg], "-s") == 0)
+    {
+        non_secure = 1;
         arg++;
     }
 
@@ -360,39 +364,40 @@ int main (int argc, char** argv)
     }
     trace(2, "UPnP SDK Successfully Initialized.");
 
-
-    // Modify description document on the fly so that secure URL's have right IP and port
-    char descDocFile[sizeof(g_vars.xmlPath)+1+sizeof(g_vars.descDocName)+1];
-    sprintf(descDocFile, "%s/%s", g_vars.xmlPath, g_vars.descDocName);
-    if ( (ret = updateHttpsDescDoc(descDocFile, intIpAddress, g_vars.httpsListenport) ) != 0)
+    if (!non_secure)  // if HTTPS server is started and secure service served
     {
-        syslog (LOG_ERR, "Error Updating https URL's to Description document %s. IP %s port %d",descDocFile,intIpAddress,g_vars.httpsListenport);
-        UpnpFinish();
-        exit(1);
-    }
-    trace(2, "Description Document Updated Successfully.");
+        // Modify description document on the fly so that secure URL's have right IP and port
+        char descDocFile[sizeof(g_vars.xmlPath)+1+sizeof(g_vars.descDocName)+1];
+        sprintf(descDocFile, "%s/%s", g_vars.xmlPath, g_vars.descDocName);
+        if ( (ret = updateHttpsDescDoc(descDocFile, intIpAddress, g_vars.httpsListenport) ) != 0)
+        {
+            syslog (LOG_ERR, "Error Updating https URL's to Description document %s. IP %s port %d",descDocFile,intIpAddress,g_vars.httpsListenport);
+            UpnpFinish();
+            exit(1);
+        }
+        trace(2, "Description Document Updated Successfully.");
+        
+        
+        // start https server
+        if ( (ret = UpnpStartHttpsServer(g_vars.httpsListenport, g_vars.certPath, NULL, NULL, NULL, NULL, "LinuxIGD 2.0") ) != UPNP_E_SUCCESS)
+        {
+            syslog (LOG_ERR, "Error Starting UPnP HTTPS server on IP %s port %d",intIpAddress,g_vars.httpsListenport);
+            syslog (LOG_ERR, "  UpnpStartHttpsServer returned %d", ret);
+            UpnpFinish();
+            exit(1);
+        }
+        trace(2, "UPnP HTTPS Server Started Successfully.");
     
     
-    // start https server
-    if ( (ret = UpnpStartHttpsServer(g_vars.httpsListenport, g_vars.certPath, NULL, NULL, NULL, NULL, "LinuxIGD 2.0") ) != UPNP_E_SUCCESS)
-    {
-        syslog (LOG_ERR, "Error Starting UPnP HTTPS server on IP %s port %d",intIpAddress,g_vars.httpsListenport);
-        syslog (LOG_ERR, "  UpnpStartHttpsServer returned %d", ret);
-        UpnpFinish();
-        exit(1);
+        // Modify description document on the fly again so that uuid is correct and created from certificate
+        if ( (ret = updateDescDocUuid(descDocFile) ) != 0)
+        {
+            syslog (LOG_ERR, "Error Updating UDN to Description document");
+            UpnpFinish();
+            exit(1);
+        }
+        trace(2, "UDN Updated Successfully to Description Document.");
     }
-    trace(2, "UPnP HTTPS Server Started Successfully.");
-
-
-    // Modify description document on the fly again so that uuid is correct and created from certificate
-    if ( (ret = updateDescDocUuid(descDocFile) ) != 0)
-    {
-        syslog (LOG_ERR, "Error Updating Uuid to Description document");
-        UpnpFinish();
-        exit(1);
-    }
-    trace(2, "Description Document Updated Successfully.");
-
     
     // Set the Device Web Server Base Directory
     trace(3, "Setting the Web Server Root Directory to %s",g_vars.xmlPath);
@@ -416,45 +421,73 @@ int main (int argc, char** argv)
     // Form the Description Doc URL's to pass to RegisterRootDevice
     sprintf(descDocUrl, "http://%s:%d/%s", UpnpGetServerIpAddress(),
             UpnpGetServerPort(), g_vars.descDocName);
-    sprintf(secureDescDocUrl, "https://%s:%d/%s", UpnpGetServerIpAddress(),
-            g_vars.httpsListenport, g_vars.descDocName);            
-
-    // Register our IGD as a valid UPnP Root device
-    trace(3, "Registering the root device with descDocUrl %s for byebye sending", descDocUrl);
-    if ( (ret = UpnpRegisterRootDeviceHTTPS(descDocUrl, secureDescDocUrl, EventHandler, &deviceHandle,
-                                       &deviceHandle)) != UPNP_E_SUCCESS )
+    if (!non_secure)
     {
-        syslog(LOG_ERR, "Error registering the root device with descDocUrl: %s", descDocUrl);
-        syslog(LOG_ERR, "  UpnpRegisterRootDevice returned %d", ret);
-        UpnpFinish();
-        exit(1);
+        sprintf(secureDescDocUrl, "https://%s:%d/%s", UpnpGetServerIpAddress(),
+                g_vars.httpsListenport, g_vars.descDocName);            
+    
+        // Register our IGD as a valid UPnP Root device
+        trace(3, "Registering the root device with descDocUrl %s and secureDescDocUrl %s for byebye sending", descDocUrl, secureDescDocUrl);
+        if ( (ret = UpnpRegisterRootDeviceHTTPS(descDocUrl, secureDescDocUrl, EventHandler, &deviceHandle,
+                                           &deviceHandle)) != UPNP_E_SUCCESS )
+        {
+            syslog(LOG_ERR, "Error registering the root device with descDocUrl: %s", descDocUrl);
+            syslog(LOG_ERR, "  UpnpRegisterRootDevice returned %d", ret);
+            UpnpFinish();
+            exit(1);
+        }
+
+        /*
+         * From WANIPConnection spec:
+         * UPnP IGD MUST broadcast an ssdp:byebye before sending the initial ssdp:alive onto 
+         * the local network upon startup. Sending an ssdp:byebye as part of the normal start 
+         * up process for a UPnP device ensures that UPnP control points with information about 
+         * the previous device instance will safely discard state information about the previous 
+         * device instance before communicating with the new device instance.
+         * 
+         * NOTE: LOCATION header field value might be false because portnumber might have changed since 
+         * last shutdown. But LOCATION is not needed in byebye's... 
+         */
+        trace(3, "Send initial sspd:byebye messages");
+        UpnpUnRegisterRootDevice(deviceHandle); // this will send byebye's
+        // Register our IGD as a valid UPnP Root device
+        trace(3, "Registering the root device again with descDocUrl %s and secureDescDocUrl %s", descDocUrl, secureDescDocUrl);
+        if ( (ret = UpnpRegisterRootDeviceHTTPS(descDocUrl, secureDescDocUrl, EventHandler, &deviceHandle,
+                                           &deviceHandle)) != UPNP_E_SUCCESS )
+        {
+            syslog(LOG_ERR, "Error registering the root device with descDocUrl: %s", descDocUrl);
+            syslog(LOG_ERR, "  UpnpRegisterRootDevice returned %d", ret);
+            UpnpFinish();
+            exit(1);
+        }
+        //end of byebye
     }
-
-
-    /*
-     * From WANIPConnection spec:
-     * UPnP IGD MUST broadcast an ssdp:byebye before sending the initial ssdp:alive onto 
-     * the local network upon startup. Sending an ssdp:byebye as part of the normal start 
-     * up process for a UPnP device ensures that UPnP control points with information about 
-     * the previous device instance will safely discard state information about the previous 
-     * device instance before communicating with the new device instance.
-     * 
-     * NOTE: LOCATION header field value might be false because portnumber might have changed since 
-     * last shutdown. But LOCATION is not needed in byebye's... 
-     */
-    trace(3, "Send initial sspd:byebye messages");
-    UpnpUnRegisterRootDevice(deviceHandle); // this will send byebye's
-    // Register our IGD as a valid UPnP Root device
-    trace(3, "Registering the root device again with descDocUrl %s", descDocUrl);
-    if ( (ret = UpnpRegisterRootDeviceHTTPS(descDocUrl, secureDescDocUrl, EventHandler, &deviceHandle,
-                                       &deviceHandle)) != UPNP_E_SUCCESS )
+    else // non-secure option. HTTPS server is not started and we don't want to advertise any HTTPS address
     {
-        syslog(LOG_ERR, "Error registering the root device with descDocUrl: %s", descDocUrl);
-        syslog(LOG_ERR, "  UpnpRegisterRootDevice returned %d", ret);
-        UpnpFinish();
-        exit(1);
+        // Register our IGD as a valid UPnP Root device
+        trace(3, "Registering the root device with descDocUrl %s for byebye sending", descDocUrl);
+        if ( (ret = UpnpRegisterRootDevice(descDocUrl, EventHandler, &deviceHandle,
+                                           &deviceHandle)) != UPNP_E_SUCCESS )
+        {
+            syslog(LOG_ERR, "Error registering the root device with descDocUrl: %s", descDocUrl);
+            syslog(LOG_ERR, "  UpnpRegisterRootDevice returned %d", ret);
+            UpnpFinish();
+            exit(1);
+        }
+        
+        trace(3, "Send initial sspd:byebye messages");
+        UpnpUnRegisterRootDevice(deviceHandle); // this will send byebye's
+        // Register our IGD as a valid UPnP Root device
+        trace(3, "Registering the root device again with descDocUrl %s", descDocUrl);
+        if ( (ret = UpnpRegisterRootDevice(descDocUrl, EventHandler, &deviceHandle,
+                                           &deviceHandle)) != UPNP_E_SUCCESS )
+        {
+            syslog(LOG_ERR, "Error registering the root device with descDocUrl: %s", descDocUrl);
+            syslog(LOG_ERR, "  UpnpRegisterRootDevice returned %d", ret);
+            UpnpFinish();
+            exit(1);
+        }
     }
-    //end of byebye
 
     trace(2, "IGD root device successfully registered.");
 
