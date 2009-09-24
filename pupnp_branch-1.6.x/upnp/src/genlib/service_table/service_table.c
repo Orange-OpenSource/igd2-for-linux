@@ -355,8 +355,19 @@ FindServiceEventURLPath( service_table * table,
                         ( &parsed_url.pathquery,
                           &parsed_url_in.pathquery ) )
                         return finger;
-
                 }
+             /* eventURLPath wasn't eventURL, maybe it is secureEventURL */
+            if( finger->secureEventURL )
+                if( ( parse_uri
+                      ( finger->secureEventURL, strlen( finger->secureEventURL ),
+                        &parsed_url ) ) ) {
+
+                    if( !token_cmp
+                        ( &parsed_url.pathquery,
+                          &parsed_url_in.pathquery ) )
+                        return finger;
+                }
+                
             finger = finger->next;
         }
     }
@@ -404,6 +415,17 @@ FindServiceControlURLPath( service_table * table,
                           &parsed_url_in.pathquery ) )
                         return finger;
                 }
+            /* controlURLPath wasn't controlURL, maybe it is secureControlURL */
+            if ( finger->secureControlURL )
+                if( ( parse_uri
+                      ( finger->secureControlURL, strlen( finger->secureControlURL ),
+                        &parsed_url ) ) ) {
+                    if( !token_cmp
+                        ( &parsed_url.pathquery,
+                          &parsed_url_in.pathquery ) )
+                        return finger;
+                }
+                
             finger = finger->next;
         }
     }
