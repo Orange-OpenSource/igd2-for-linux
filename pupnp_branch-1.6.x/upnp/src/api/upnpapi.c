@@ -831,7 +831,7 @@ UpnpRegisterRootDeviceHTTPS( IN const char *DescUrl,
     // GENA SET UP
     //*******************************
     if( getServiceTable( ( IXML_Node * ) HInfo->DescDocument,
-            &HInfo->ServiceTable, HInfo->DescURL ) ) {
+            &HInfo->ServiceTable, HInfo->DescURL, HInfo->SecureDescURL ) ) {
         UpnpPrintf( UPNP_INFO, API, __FILE__, __LINE__,
             "UpnpRegisterRootDevice: GENA Service Table \n" );
         UpnpPrintf( UPNP_INFO, API, __FILE__, __LINE__,
@@ -1322,7 +1322,7 @@ UpnpRegisterRootDevice2( IN Upnp_DescType descriptionType,
     // GENA SET UP
     //*******************************
     if( getServiceTable( ( IXML_Node * ) HInfo->DescDocument,
-            &HInfo->ServiceTable, HInfo->DescURL ) ) {
+            &HInfo->ServiceTable, HInfo->DescURL, HInfo->SecureDescURL ) ) {
         UpnpPrintf( UPNP_ALL, API, __FILE__, __LINE__,
             "UpnpRegisterRootDevice2: GENA Service Table\n" );
         UpnpPrintf( UPNP_INFO, API, __FILE__, __LINE__,

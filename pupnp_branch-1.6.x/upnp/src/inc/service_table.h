@@ -91,6 +91,7 @@ typedef struct SERVICE_INFO {
 
 typedef struct SERVICE_TABLE {
 	DOMString URLBase;
+    DOMString SecureURLBase;
 	service_info *serviceList;
 	service_info *endServiceList;
 } service_table;
@@ -330,7 +331,9 @@ int addServiceTable(
 	service_table *in,
 	/*! [in] Default base URL on which the URL will be returned to the
 	 * service list. */
-	const char *DefaultURLBase);
+	const char *DefaultURLBase,
+    /*! [in] Default secure base HTTPS URL on which the URL will be returned. */
+    const char *DefaultSecureURLBase);
 
 
 /*!
@@ -344,7 +347,9 @@ int getServiceTable(
 	/*! [in] Output parameter which will contain the service list and URL. */
 	service_table *out,
 	/*! [in] Default base URL on which the URL will be returned. */
-	const char *DefaultURLBase);
+	const char *DefaultURLBase,
+    /*! [in] Default secure base HTTPS URL on which the URL will be returned. */
+    const char *DefaultSecureURLBase);
 
 
 /*	Misc helper functions	*/

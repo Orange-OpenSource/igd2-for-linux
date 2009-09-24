@@ -454,6 +454,18 @@ void printService(
             UpnpPrintf( level, module, __FILE__, __LINE__,
                 "eventURL: %s\n", service->eventURL );
         }
+    if( service->secureSCPDURL ) {
+            UpnpPrintf( level, module, __FILE__, __LINE__,
+                "secureSCPDURL: %s\n", service->secureSCPDURL );
+        }
+    if( service->secureControlURL ) {
+            UpnpPrintf( level, module, __FILE__, __LINE__,
+                "secureControlURL: %s\n", service->secureControlURL );
+        }
+    if( service->secureEventURL ) {
+            UpnpPrintf( level, module, __FILE__, __LINE__,
+                "secureEventURL: %s\n", service->secureEventURL );
+        }
 	if( service->UDN ) {
             UpnpPrintf( level, module, __FILE__, __LINE__,
                 "UDN: %s\n\n", service->UDN );
@@ -511,6 +523,18 @@ void printServiceList(
             UpnpPrintf( level, module, __FILE__, __LINE__,
                 "eventURL: %s\n", service->eventURL );
         }
+        if( service->secureSCPDURL ) {
+                UpnpPrintf( level, module, __FILE__, __LINE__,
+                    "secureSCPDURL: %s\n", service->secureSCPDURL );
+        }
+        if( service->secureControlURL ) {
+                UpnpPrintf( level, module, __FILE__, __LINE__,
+                    "secureControlURL: %s\n", service->secureControlURL );
+        }
+        if( service->secureEventURL ) {
+                UpnpPrintf( level, module, __FILE__, __LINE__,
+                    "secureEventURL: %s\n", service->secureEventURL );
+        }
         if( service->UDN ) {
             UpnpPrintf( level, module, __FILE__, __LINE__,
                 "UDN: %s\n\n", service->UDN );
@@ -552,6 +576,8 @@ void printServiceTable(
     UpnpPrintf( level, module, __FILE__, __LINE__,
         "URL_BASE: %s\n", table->URLBase );
     UpnpPrintf( level, module, __FILE__, __LINE__,
+        "Secure_URL_BASE: %s\n", table->SecureURLBase );
+    UpnpPrintf( level, module, __FILE__, __LINE__,
         "Services: \n" );
     printServiceList( table->serviceList, level, module );}
 #endif
@@ -586,6 +612,15 @@ void freeService( service_info * in )
 
         if( in->eventURL )
             free( in->eventURL );
+
+        if( in->secureSCPDURL )
+            free( in->secureSCPDURL );
+
+        if( in->secureControlURL )
+            free( in->secureControlURL );
+
+        if( in->secureEventURL )
+            free( in->secureEventURL );
 
         if( in->UDN )
             ixmlFreeDOMString( in->UDN );
@@ -627,6 +662,12 @@ freeServiceList( service_info * head )
             free( head->controlURL );
         if( head->eventURL )
             free( head->eventURL );
+        if( head->secureSCPDURL )
+            free( head->secureSCPDURL );
+        if( head->secureControlURL )
+            free( head->secureControlURL );
+        if( head->secureEventURL )
+            free( head->secureEventURL );
         if( head->UDN )
             ixmlFreeDOMString( head->UDN );
         if( head->subscriptionList )
@@ -751,7 +792,8 @@ getSubElement( const char *element_name,
 *		IXML_Node *node ;	XML node information
 *		service_info **end ; service added is returned to the output
 *							parameter
-*		char * URLBase ;	provides Base URL to resolve relative URL 
+*		char * URLBase ;	provides Base URL to resolve relative URL
+*       char * SecureURLBase ;    provides Base URL to resolve relative HTTPS URL  
 *
 *	Description :	Returns pointer to service info after getting the 
 *		sub-elements of the service info. 
@@ -763,7 +805,8 @@ getSubElement( const char *element_name,
 service_info *
 getServiceList( IXML_Node * node,
                 service_info ** end,
-                char *URLBase )
+                char *URLBase,
+                char *SecureURLBase )
 {
     IXML_Node *serviceList = NULL;
     IXML_Node *current_service = NULL;
@@ -900,27 +943,66 @@ getServiceList( IXML_Node * node,
                 ixmlFreeDOMString( tempDOMString );
                 tempDOMString = NULL;
 
-                if( ( !getSubElement( "dp:secureSCPDURL", current_service,
-                                      &secureSCPDURL ) ) ||
+                /* Secure URLs 
+                 * TODO:
+                 * If tempDOMString begins with "https://" then there should be whole URL
+                 * but if after "https:/" comes some other character than "/", then URL is relative
+                 * and we can omit "https:" from the beginning of the string
+                 * */
+                if( ( !
+                      ( getSubElement
+                        ( "dp:secureSCPDURL", current_service, &secureSCPDURL ) ) )
+                    || ( !( tempDOMString = getElementValue( secureSCPDURL ) ) )
+                    ||
                     ( !
                       ( current->secureSCPDURL =
-                        getElementValue( secureSCPDURL ) ) ) )
+                        resolve_rel_url( SecureURLBase, tempDOMString ) ) ) ) {
+                    UpnpPrintf( UPNP_INFO, GENA, __FILE__, __LINE__,
+                        "BAD OR MISSING SECURE SCPD URL" );
+                    UpnpPrintf( UPNP_INFO, GENA, __FILE__, __LINE__,
+                        "SECURE SCPD URL SET TO NULL IN SERVICE INFO" );
                     current->secureSCPDURL = NULL;
+                }
 
-                if( ( !getSubElement( "dp:secureControlURL", current_service,
-                                      &secureControlURL ) ) ||
+                ixmlFreeDOMString( tempDOMString );
+                tempDOMString = NULL;
+
+                if( ( !
+                      ( getSubElement
+                        ( "dp:secureControlURL", current_service, &secureControlURL ) ) )
+                    ||
+                    ( !( tempDOMString = getElementValue( secureControlURL ) ) )
+                    ||
                     ( !
                       ( current->secureControlURL =
-                        getElementValue( secureControlURL ) ) ) )
+                        resolve_rel_url( SecureURLBase, tempDOMString ) ) ) ) {
+                    UpnpPrintf( UPNP_INFO, GENA, __FILE__, __LINE__,
+                        "BAD OR MISSING SECURE CONTROL URL" );
+                    UpnpPrintf( UPNP_INFO, GENA, __FILE__, __LINE__,
+                        "SECURE CONTROL URL SET TO NULL IN SERVICE INFO" );
                     current->secureControlURL = NULL;
+                }
 
-                if( ( !getSubElement( "dp:secureEventSubURL", current_service,
-                                      &secureEventURL ) ) ||
+                ixmlFreeDOMString( tempDOMString );
+                tempDOMString = NULL;
+
+                if( ( !
+                      ( getSubElement
+                        ( "dp:secureEventSubURL", current_service, &secureEventURL ) ) )
+                    || ( !( tempDOMString = getElementValue( secureEventURL ) ) )
+                    ||
                     ( !
                       ( current->secureEventURL =
-                        getElementValue( secureEventURL ) ) ) )
+                        resolve_rel_url( SecureURLBase, tempDOMString ) ) ) ) {
+                    UpnpPrintf( UPNP_INFO, GENA, __FILE__, __LINE__,
+                        "BAD OR MISSING SECURE EVENT URL" );
+                    UpnpPrintf( UPNP_INFO, GENA, __FILE__, __LINE__,
+                        "SECURE EVENT URL SET TO NULL IN SERVICE INFO" );
                     current->secureEventURL = NULL;
-                    
+                }
+
+                ixmlFreeDOMString( tempDOMString );
+                tempDOMString = NULL;
 
                 if( fail ) {
                     freeServiceList( current );
@@ -952,6 +1034,7 @@ getServiceList( IXML_Node * node,
 * Parameters :
 *	IXML_Node *node ;	XML node information
 *	char * URLBase ;	provides Base URL to resolve relative URL 
+*   char * SecureURLBase ; provides Base URL to resolve relative HTTPS URL 
 *	service_info **out_end ; service added is returned to the output
 *				parameter
 *
@@ -965,6 +1048,7 @@ getServiceList( IXML_Node * node,
 service_info *
 getAllServiceList( IXML_Node * node,
                    char *URLBase,
+                   char *SecureURLBase,
                    service_info ** out_end )
 {
     service_info *head = NULL;
@@ -987,10 +1071,10 @@ getAllServiceList( IXML_Node * node,
             currentDevice = ixmlNodeList_item( deviceList, i );
             if( head ) {
                 end->next =
-                    getServiceList( currentDevice, &next_end, URLBase );
+                    getServiceList( currentDevice, &next_end, URLBase, SecureURLBase );
                 end = next_end;
             } else
-                head = getServiceList( currentDevice, &end, URLBase );
+                head = getServiceList( currentDevice, &end, URLBase, SecureURLBase );
 
         }
 
@@ -1086,6 +1170,8 @@ removeServiceTable( IXML_Node * node,
 *							services
 *		const char *DefaultURLBase ; Default base URL on which the URL 
 *							will be returned to the service list.
+*       const char *DefaultSecureURLBase ; Default base HTTPS URL on which the URL
+*                           will be returned.
 *
 *	Description :	Add Service to the table.
 *
@@ -1096,7 +1182,8 @@ removeServiceTable( IXML_Node * node,
 int
 addServiceTable( IXML_Node * node,
                  service_table * in,
-                 const char *DefaultURLBase )
+                 const char *DefaultURLBase,
+                 const char *DefaultSecureURLBase )
 {
     IXML_Node *root = NULL;
     IXML_Node *URLBase = NULL;
@@ -1119,8 +1206,14 @@ addServiceTable( IXML_Node * node,
             }
         }
 
+        if( DefaultSecureURLBase ) {
+            in->SecureURLBase = ixmlCloneDOMString( DefaultSecureURLBase );
+        } else {
+            in->SecureURLBase = ixmlCloneDOMString( "" );
+        }
+
         if( ( in->endServiceList->next =
-              getAllServiceList( root, in->URLBase, &tempEnd ) ) ) {
+              getAllServiceList( root, in->URLBase, in->SecureURLBase, &tempEnd ) ) ) {
             in->endServiceList = tempEnd;
             return 1;
         }
@@ -1139,6 +1232,8 @@ addServiceTable( IXML_Node * node,
  *				service list and URL
  *	const char *DefaultURLBase ; Default base URL on which the URL
  *				will be returned.
+ *  const char *DefaultSecureURLBase ; Default base HTTPS URL on which the URL
+ *              will be returned.
  *
  * Description : Retrieve service from the table
  *
@@ -1149,7 +1244,8 @@ addServiceTable( IXML_Node * node,
 int
 getServiceTable( IXML_Node * node,
                  service_table * out,
-                 const char *DefaultURLBase )
+                 const char *DefaultURLBase,
+                 const char *DefaultSecureURLBase )
 {
     IXML_Node *root = NULL;
     IXML_Node *URLBase = NULL;
@@ -1165,8 +1261,14 @@ getServiceTable( IXML_Node * node,
             }
         }
 
+        if( DefaultSecureURLBase ) {
+            out->SecureURLBase = ixmlCloneDOMString( DefaultSecureURLBase );
+        } else {
+            out->SecureURLBase = ixmlCloneDOMString( "" );
+        }
+
         if( ( out->serviceList = getAllServiceList(
-            root, out->URLBase, &out->endServiceList ) ) ) {
+            root, out->URLBase, out->SecureURLBase, &out->endServiceList ) ) ) {
             return 1;
         }
 
