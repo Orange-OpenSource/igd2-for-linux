@@ -1528,31 +1528,26 @@ int DeletePortMappingRange(struct Upnp_Action_Request *ca_event)
             {
                 snprintf(del_port,str_len,"%d",ext_port);
                 index = 0;
-                // remove all instances with externalPort
-                do
+                // remove all instances with externalPort, actually there can ony be one, byt let's be sure
+                while ( (temp = pmlist_FindBy_extPort_proto_afterIndex(del_port, proto, index)) != NULL )
                 {
-                    temp = pmlist_FindSpecificAfterIndex("", del_port, proto, index);
-                    if (temp)
+                    foundPortmapCount++;
+                    // portmapping can be deleted if control point IP is same as internal client of portmapping,
+                    // or if user is authorized and managed flag is up
+					if ((authorized && managed) || ControlPointIP_equals_InternalClientIP(temp->m_InternalClient, &ca_event->CtrlPtIPAddr))
                     {
-                        foundPortmapCount++;
-                        // portmapping can be deleted if control point IP is same as internal client of portmapping,
-                        // or if user is authorized and managed flag is up
-                        if ((authorized && managed) || ControlPointIP_equals_InternalClientIP(temp->m_InternalClient, &ca_event->CtrlPtIPAddr))
+                        // delete portmapping
+                        result = pmlist_Delete(temp);
+                        
+                        if (result==1)
                         {
-                            // delete portmapping
-                            result = pmlist_DeleteIndex(index);
-                            
-                            if (result==1)
-                            {
-                                trace(2, "DeletePortMappingRange: StartPort:%s EndPort:%s Proto:%s Manage:%s\n", start_port, end_port, proto, bool_manage);
-                                action_succeeded = 1;
-                            }                    
-                        }
-                        else
-                            index++;
+                            trace(2, "DeletePortMappingRange: DeletedPort:%s StartPort:%s EndPort:%s  Proto:%s Manage:%s\n", del_port, start_port, end_port, proto, bool_manage);
+                            action_succeeded = 1;
+                        }                    
                     }
+                    else // if portmap is deleted, index of following port mappings decreases, that is why we increase our index only when nothing is removed
+                        index++;
                 }
-                while (temp != NULL);
             }
             
             // if action has succeeded and something has been deleted, send event and update SystemUpdateId 

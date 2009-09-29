@@ -233,13 +233,12 @@ struct portMap* pmlist_FindSpecific(char * remoteHost, char *externalPort, char 
  * Search if portmapping matching given parameters exist in IGD's portmapping list. 
  * Starts searching from the given index of list. 
  *
- * @param remoteHost WAN IP address (destination) of connections initiated by a client in the local network. If empty string, then it is assumed as wildcarded address and matches all addresses.
  * @param externalPort TCP or UDP port number of the Client as seen by the remote host.
  * @param protocol Portmapping protocol, either TCP or UDP.
  * @param index Index of portmapping list where searching is started from.
  * @return Pointer to found portmapping. If portmapping is not found, return NULL.
  */
-struct portMap* pmlist_FindSpecificAfterIndex(char * remoteHost, char *externalPort, char *protocol, int index)
+struct portMap* pmlist_FindBy_extPort_proto_afterIndex(char *externalPort, char *protocol, int index)
 {
     struct portMap* temp;
 
@@ -252,8 +251,7 @@ struct portMap* pmlist_FindSpecificAfterIndex(char * remoteHost, char *externalP
 
     do
     {
-        if ( (strcmp(temp->m_RemoteHost, remoteHost) == 0) &&
-                (strcmp(temp->m_ExternalPort, externalPort) == 0) &&
+        if ( (strcmp(temp->m_ExternalPort, externalPort) == 0) &&
                 (strcmp(temp->m_PortMappingProtocol, protocol) == 0))
             return temp;
         else

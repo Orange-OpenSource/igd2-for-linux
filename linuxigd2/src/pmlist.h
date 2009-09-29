@@ -62,7 +62,7 @@ struct portMap* pmlist_FindBy_extPort_proto(char *externalPort, char *proto);
 struct portMap* pmlist_FindByIndex(int index);
 struct portMap* pmlist_FindRangeAfter(int, int, char *, char *, struct portMap*);
 struct portMap* pmlist_FindSpecific(char * remoteHost, char *externalPort, char *protocol);
-struct portMap* pmlist_FindSpecificAfterIndex(char * remoteHost, char *externalPort, char *protocol, int index);
+struct portMap* pmlist_FindBy_extPort_proto_afterIndex(char *externalPort, char *protocol, int index);
 int pmlist_FindNextFreePort(char *protocol);
 int pmlist_IsEmtpy(void);
 int pmlist_Size(void);
