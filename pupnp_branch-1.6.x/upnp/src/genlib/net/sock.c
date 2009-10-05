@@ -258,24 +258,27 @@ sock_read_write( IN SOCKINFO * info,
         bytes_sent = 0;
         while( byte_left > 0 ) {
             // write data
-            if (info->tls_session == NULL) {
+            if (info->tls_session == NULL) {             
                 num_written =
                     send( sockfd, buffer + bytes_sent, byte_left,
-                          MSG_DONTROUTE|MSG_NOSIGNAL);                        
+                          MSG_DONTROUTE|MSG_NOSIGNAL);
+            
+                if( num_written == -1 ) {
+#ifdef SO_NOSIGPIPE
+                    setsockopt(sockfd, SOL_SOCKET, SO_NOSIGPIPE, &old, olen);
+#endif
+                    return num_written;
+                }
             } else  {
-                num_written = gnutls_record_send(info->tls_session, buffer, strlen(buffer));
-                if (num_written < 1) {
+                num_written = gnutls_record_send(info->tls_session, buffer + bytes_sent, byte_left);
+                
+                if( num_written < 0 ) {
+                    /* not sure if session should be closed here? There is something happened at the client 
+                       if negative value is received */
                     return num_written;
                 }
             }
-                
-            if( num_written == -1 ) {
-#ifdef SO_NOSIGPIPE
-	        setsockopt(sockfd, SOL_SOCKET, SO_NOSIGPIPE, &old, olen);
-#endif
-                return num_written;
-            }
-
+            
             byte_left = byte_left - num_written;
             bytes_sent += num_written;
         }
