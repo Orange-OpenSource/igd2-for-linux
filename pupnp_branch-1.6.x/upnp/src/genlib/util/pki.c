@@ -199,10 +199,12 @@ static char* read_binary_file(const char *filename, size_t * length)
                 break;
             buf[size] = '\0';
             *length = size;
+            fclose(stream);
             return buf;
         }
     }
-
+    
+  fclose(stream);
   if (buf) free (buf);
   return NULL;     
 }
@@ -275,6 +277,7 @@ static int export_certificate_to_file(const gnutls_x509_crt_t *crt, const gnutls
     if (ret < 0) {
         UpnpPrintf( UPNP_CRITICAL, X509, __FILE__, __LINE__,
             "gnutls_x509_privkey_export failed. %s \n", gnutls_strerror(ret) );
+        fclose(fp);
         return ret;  
     }
     fprintf(fp, "%s", buffer);

@@ -467,7 +467,7 @@ ExitFunction:
     }
     close (sock);
     free(request);
-    if (buf) free(buf);
+    free(buf);
 }
 
 /************************************************************************

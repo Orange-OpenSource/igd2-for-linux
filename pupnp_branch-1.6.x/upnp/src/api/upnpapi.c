@@ -1399,6 +1399,7 @@ UpnpRegisterClient( IN Upnp_FunPtr Fun,
     SslInfo = ( struct SSL_Info * )malloc( sizeof( struct SSL_Info ) );
     if( SslInfo == NULL ) {
         HandleUnlock();
+        free(HInfo);
         return UPNP_E_OUTOF_MEMORY;
     }
 
@@ -1732,7 +1733,7 @@ UpnpCreateClientSSLSession( IN const char *ActionURL_const,
     {
         UpnpPrintf( UPNP_ALL, API, __FILE__, __LINE__,
             "UpnpCreateClientSSLSession: Previous session was NOT resumed \n");
-        if (SSLSessionData) free(SSLSessionData);
+        free(SSLSessionData);
         // get the session data size 
         gnutls_session_get_data(session, NULL, DataSize);
         SSLSessionData = malloc(*DataSize);
