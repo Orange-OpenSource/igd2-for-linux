@@ -91,7 +91,7 @@ static int updateHttpsDescDoc(const char *descDocFile, const char *IP, int port)
             }            
         }
     }
-    if ( nodeList ) ixmlNodeList_free( nodeList );
+    ixmlNodeList_free( nodeList );
     
     // modify all secureControlURL's
     nodeList = ixmlDocument_getElementsByTagName( descDoc, "dp:secureControlURL" );
@@ -116,7 +116,7 @@ static int updateHttpsDescDoc(const char *descDocFile, const char *IP, int port)
             }            
         }
     }
-    if ( nodeList ) ixmlNodeList_free( nodeList );
+    ixmlNodeList_free( nodeList );
         
     // modify all secureEventSubURL's
     nodeList = ixmlDocument_getElementsByTagName( descDoc, "dp:secureEventSubURL" );
@@ -141,7 +141,7 @@ static int updateHttpsDescDoc(const char *descDocFile, const char *IP, int port)
             }            
         }
     }
-    if ( nodeList ) ixmlNodeList_free( nodeList );
+    ixmlNodeList_free( nodeList );
 
     ret = writeDocumentToFile(descDoc, descDocFile);
     ixmlDocument_free(descDoc);
@@ -197,7 +197,7 @@ static int updateDescDocUuid(const char *descDocFile)
         ret = ixmlNode_setNodeValue(ixmlNode_getFirstChild(tmpNode), newValue);
     }
     
-    if (uuid) free (uuid);
+    free (uuid);
     
     if (ret != 0)
     {
@@ -377,7 +377,7 @@ int main (int argc, char** argv)
         }
         trace(2, "Description Document Updated Successfully.");
         
-        
+        trace(2, "Starting HTTPS server, it may take few seconds...");
         // start https server
         if ( (ret = UpnpStartHttpsServer(g_vars.httpsListenport, g_vars.certPath, NULL, NULL, NULL, NULL, "LinuxIGD 2.0") ) != UPNP_E_SUCCESS)
         {

@@ -558,13 +558,6 @@ int pmlist_AddPortMapping (int enabled, char *protocol, char *remoteHost, char *
         snprintf(dest, DEST_LEN, "%s:%s", internalClient, internalPort);
 
 #if HAVE_LIBIPTC
-        char *buffer = malloc(strlen(internalClient) + strlen(internalPort) + 2);
-        if (buffer == NULL)
-        {
-            fprintf(stderr, "failed to malloc memory\n");
-            return 0;
-        }
-
         if (g_vars.createForwardRules)
         {
             trace(3, "iptc_add_rule %s %s %s %s %s %s %s %s",
@@ -575,6 +568,7 @@ int pmlist_AddPortMapping (int enabled, char *protocol, char *remoteHost, char *
         trace(3, "iptc_add_rule %s %s %s %s %s %s %s %s %s",
               "nat", g_vars.preroutingChainName, protocol, g_vars.extInterfaceName, remoteHost, externalPort, "DNAT", dest, "APPEND");
         iptc_add_rule("nat", g_vars.preroutingChainName, protocol, g_vars.extInterfaceName, NULL, remoteHost, NULL, NULL, externalPort, "DNAT", dest, TRUE);
+        
 #else
         int status;
         char *args[18];
@@ -685,7 +679,6 @@ int pmlist_AddPortMapping (int enabled, char *protocol, char *remoteHost, char *
         {
             wait(&status);
         }
-
 #endif
     }
     return 1;

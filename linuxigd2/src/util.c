@@ -310,8 +310,8 @@ int caseInsesitive_strcmp(const char *str1, const char *str2)
     {
         ret = strcmp(STR1, STR2);
     }
-    if (STR1) free(STR1);
-    if (STR2) free(STR2);
+    free(STR1);
+    free(STR2);
     
     return ret;
 }
@@ -765,8 +765,7 @@ char* GetDocumentItem(IXML_Document * doc, const char *item, int index)
         }
     }
 
-    if ( nodeList )
-        ixmlNodeList_free( nodeList );
+    ixmlNodeList_free( nodeList );
     return ret;
 }
 
@@ -883,19 +882,19 @@ static IXML_Node *GetNodeWithValue(IXML_Document *doc, const char *nodeName, con
                     tmp = toUpperCase(tmp);
                     if ( tmp && (strcmp( tmp,  valueUP) == 0))
                     {
-                        if (valueUP) free(valueUP);
+                        free(valueUP);
                         ixmlNodeList_free( nodeList );
                         free(tmp);
                         return tmpNode;
                     }
-                    if (tmp) free(tmp);                     
+                    free(tmp);                     
                 }
                 // case sensitive
                 else
                 {
                     if ( tmp && (strcmp( tmp,  nodeValue) == 0))
                     {
-                        if (valueUP) free(valueUP);
+                        free(valueUP);
                         ixmlNodeList_free( nodeList );
                         return tmpNode;
                     } 
@@ -903,8 +902,8 @@ static IXML_Node *GetNodeWithValue(IXML_Document *doc, const char *nodeName, con
             }            
         }
     }
-    if (valueUP) free(valueUP);
-    if ( nodeList ) ixmlNodeList_free( nodeList );
+    free(valueUP);
+    ixmlNodeList_free( nodeList );
     
     return NULL;
 }
@@ -934,12 +933,12 @@ IXML_Node *GetNode(IXML_Document *doc, const char *nodeName)
         {
             if ( ( tmpNode = ixmlNodeList_item( nodeList, i ) ) )
             {
-                if ( nodeList ) ixmlNodeList_free( nodeList );
+                ixmlNodeList_free( nodeList );
                 return tmpNode;
             }            
         }
     }
-    if ( nodeList ) ixmlNodeList_free( nodeList );
+    ixmlNodeList_free( nodeList );
     
     return NULL;
 }
@@ -1010,7 +1009,7 @@ static char* GetAttributeValueOfNode(IXML_Node *tmpNode, const char *attrName)
     
     if (tmpNode == NULL) return NULL;
     
-    if ( attrs ) ixmlNamedNodeMap_free( attrs );
+    ixmlNamedNodeMap_free( attrs );
     
     return tmpNode->nodeValue;    
 }
@@ -1050,9 +1049,7 @@ static IXML_Node *GetNodeWithNameAndAttribute(IXML_Document *doc, const char *no
         }
     }
 
-    if ( nodeList )
-        ixmlNodeList_free( nodeList );  
-        
+    ixmlNodeList_free( nodeList );    
     return NULL;
 }
 
@@ -1167,14 +1164,14 @@ static IXML_Node *GetChildNodeWithName(IXML_Node *parent, const char *childNodeN
                 if ((tmp = (char *)ixmlNode_getNodeName(tmpNode)) != NULL && (strcmp(tmp, childNodeName) == 0))
                 {
                     // nodename matches, quit and return
-                    if ( nodeList ) ixmlNodeList_free( nodeList );
+                    ixmlNodeList_free( nodeList );
                     return tmpNode;
                 }
             }
         }
     }
 
-    if ( nodeList ) ixmlNodeList_free( nodeList );
+    ixmlNodeList_free( nodeList );
     return NULL;
 }
 
@@ -1223,14 +1220,14 @@ static IXML_Node *GetChildNodeWithAttribute(IXML_Node *parent, const char *child
                 if ((tmp = GetAttributeValueOfNode(tmpNode, attrName)) && (strcmp(tmp, attrValue) == 0))
                 {
                     // we have perfect match
-                    if ( nodeList ) ixmlNodeList_free( nodeList ); 
+                    ixmlNodeList_free( nodeList ); 
                     return tmpNode;
                 }
             }
         }
     }
 
-    if ( nodeList ) ixmlNodeList_free( nodeList );
+    ixmlNodeList_free( nodeList );
     return NULL;
 }
 
@@ -1429,7 +1426,7 @@ static int ACL_validateRoleNames(IXML_Document *doc, const char *roles)
         } 
     }
     
-    if ( nodeList ) ixmlNodeList_free( nodeList );    
+    ixmlNodeList_free( nodeList );    
     
     return  ACL_SUCCESS; 
 }
@@ -1677,7 +1674,7 @@ int ACL_addCP(IXML_Document *doc, const char *name, const char *alias, const cha
     }
     
     //fprintf(stderr,"\n\n\n%s\n",ixmlPrintDocument(doc));
-    if ( nodeList ) ixmlNodeList_free( nodeList ); 
+    ixmlNodeList_free( nodeList ); 
     return ret;
 }
 
@@ -1772,7 +1769,7 @@ int ACL_addUser(IXML_Document *doc, const char *name, const char *roles)
     }
     
     //fprintf(stderr,"\n\n\n%s\n",ixmlPrintDocument(doc));
-    if ( nodeList ) ixmlNodeList_free( nodeList ); 
+    ixmlNodeList_free( nodeList ); 
     return ret;
 }
 
@@ -2370,7 +2367,7 @@ int SIR_addSession(IXML_Document *doc, const char *id, int active, const char *i
     }
     
     //fprintf(stderr,"\n\n\n%s\n",ixmlPrintDocument(doc));
-    if ( nodeList ) ixmlNodeList_free( nodeList ); 
+    ixmlNodeList_free( nodeList ); 
     return ret;
 }
 

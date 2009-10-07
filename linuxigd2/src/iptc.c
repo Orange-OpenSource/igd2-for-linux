@@ -68,7 +68,7 @@ void iptc_add_rule(const char *table,
                    const int append)
 {
     iptc_handle_t handle;
-    struct ipt_entry *chain_entry;
+    struct ipt_entry *chain_entry = NULL;
     struct ipt_entry_match *entry_match = NULL;
     struct ipt_entry_target *entry_target = NULL;
     ipt_chainlabel labelit;
@@ -171,7 +171,7 @@ void iptc_add_rule(const char *table,
     else
         trace(3, "added new rule to block successfully");
 
-    if (entry_match) free(entry_match);
+    free(entry_match);
     free(entry_target);
     free(chain_entry);
 }

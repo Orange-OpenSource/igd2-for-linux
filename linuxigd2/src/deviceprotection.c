@@ -110,7 +110,7 @@ static void trace_ixml(int debuglevel, const char *msg, IXML_Document *doc)
         
     char *tmp = ixmlPrintDocument(doc);
     trace(3, "%s\n%s\n",msg, tmp);
-    if (tmp) free(tmp);    
+    free(tmp);    
 }
 
 /**
@@ -271,7 +271,7 @@ int checkCPPrivileges(struct Upnp_Action_Request *ca_event, const char *targetRo
     ret = getIdentifierOfCP(ca_event, &identifier, &len, &commonName);
     if (ret != 0 )
     {
-        if (identifier) free(identifier);
+        free(identifier);
         return ret;
     } 
 
@@ -287,15 +287,14 @@ int checkCPPrivileges(struct Upnp_Action_Request *ca_event, const char *targetRo
         // remove session from SIR
         SIR_removeSession(SIRDoc, (char *)identifier);
         
-        if (identifier) free(identifier);
+        free(identifier);
         free(commonName);
         free(name);
         
         return -1;   
     }
-    if (commonName) free(commonName);
-    if (name) free(name);
-
+    free(commonName);
+    free(name);
     
     if (rolelist)
         // Let's add new entry to SIR. RoleList value is either value fetched from ACL for this CP or Public.
@@ -318,11 +317,11 @@ int checkCPPrivileges(struct Upnp_Action_Request *ca_event, const char *targetRo
     else
     {
         trace(2,"SIR handling failed somehow when adding new session!");
-        if (identifier) free(identifier);
-        if (rolelist) free(rolelist);
+        free(identifier);
+        free(rolelist);
         return -1;
     }
-    if (rolelist) free(rolelist);
+    free(rolelist);
   
   
     /* Actual privileges checking takes place here */
@@ -335,8 +334,8 @@ int checkCPPrivileges(struct Upnp_Action_Request *ca_event, const char *targetRo
     int active;
     char *roles = NULL;
     char *identity = SIR_getIdentityOfSession(SIRDoc, identifier, &active, &roles);
-    if (identifier) free(identifier);
-    if (identity) free(identity);
+    free(identifier);
+    free(identity);
     //TODO: is the active attribute currently totally useless??
     
     // check if targetRole is found from roles of this session
@@ -370,8 +369,6 @@ int checkCPPrivileges(struct Upnp_Action_Request *ca_event, const char *targetRo
     // so CP doesn't have privileges
     return 1;
 }
-
-
 
 
 /**
@@ -416,7 +413,7 @@ void createUuidFromData(char **uuid_str, unsigned char *hash, int hashLen)
         strcat(*uuid_str,tmp);
     }
     
-    if (uuid) free(uuid);
+    free(uuid);
 }
 
 
@@ -484,7 +481,7 @@ static int getIdentityOfSession(struct Upnp_Action_Request *ca_event, char **ide
     char *role = NULL;
     *identity = SIR_getIdentityOfSession(SIRDoc, identifier, &active, &role);
     
-    if (identifier) free(identifier);
+    free(identifier);
     
     if (*identity == NULL)
         return -1;
@@ -515,8 +512,8 @@ static int getRolesOfSession(struct Upnp_Action_Request *ca_event, char **roles)
     int active;
     char *identity = SIR_getIdentityOfSession(SIRDoc, identifier, &active, roles);
     
-    if (identity) free(identity);
-    if (identifier) free(identifier);
+    free(identity);
+    free(identifier);
 
     if (*roles == NULL)
         return -1;
@@ -617,8 +614,8 @@ static void message_received(struct Upnp_Action_Request *ca_event, int error, un
                 else
                     writeDocumentToFile(ACLDoc, ACL_XML);
             }
-            if (identifier) free(identifier);
-            if (CN) free(CN);
+            free(identifier);
+            free(CN);
             
             trace_ixml(3, "Contents of ACL:",ACLDoc);
             break;
@@ -937,7 +934,7 @@ static int createUserLoginChallengeResponse(struct Upnp_Action_Request *ca_event
         memcpy(storednonce, bin_stored, DP_STORED_BYTES);
         memcpy(storednonce+DP_STORED_BYTES, nonce, DP_NONCE_BYTES);
         
-        if (nonce) free(nonce);
+        free(nonce);
             
         // Create CHALLENGE = SHA-256(STORED || nonce)
         unsigned char challenge[DP_STORED_BYTES+DP_NONCE_BYTES];
@@ -989,14 +986,14 @@ static int createUserLoginChallengeResponse(struct Upnp_Action_Request *ca_event
             else
                 trace(1, "Failure on inserting UserLoginChallenge values to SIR. Ignoring...");
             
-            if (identifier) free(identifier);
-            if (b64_challenge) free(b64_challenge);
+            free(identifier);
+            free(b64_challenge);
         }
-        if (bin_stored) free(bin_stored);
+        free(bin_stored);
     }
     
-    if (b64_salt) free(b64_salt);
-    if (b64_stored) free(b64_stored);
+    free(b64_salt);
+    free(b64_stored);
     return result;
 }
 
@@ -1027,7 +1024,7 @@ static int createAuthenticator(const char *b64_stored, const char *b64_challenge
     unsigned char *bin_challenge = (unsigned char *)malloc(b64msglen);
     if (bin_challenge == NULL) 
     {
-        if (bin_stored) free(bin_stored);
+        free(bin_stored);
         return -1;
     }
     int bin_challenge_len;    
@@ -1039,23 +1036,23 @@ static int createAuthenticator(const char *b64_stored, const char *b64_challenge
     unsigned char *bin_concat = (unsigned char *)malloc(bin_concat_len);    
     if (bin_concat == NULL) 
     {
-        if (bin_stored) free(bin_stored);
-        if (bin_challenge) free(bin_challenge);
+        free(bin_stored);
+        free(bin_challenge);
         return -1;
     }
     memcpy(bin_concat, bin_stored, bin_stored_len);
     memcpy(bin_concat + bin_stored_len, bin_challenge, bin_challenge_len);
 
     // release useless stuff
-    if (bin_stored) free(bin_stored);
-    if (bin_challenge) free(bin_challenge);
+    free(bin_stored);
+    free(bin_challenge);
  
     // crete hash from concatenation
     unsigned char hash[2*bin_concat_len];
     int hashlen = wpsu_sha256(bin_concat, bin_concat_len, hash);
     if (hashlen < 0)
     {
-        if (bin_concat) free(bin_concat);
+        free(bin_concat);
         *b64_authenticator = NULL;
         return hashlen;
     }
@@ -1066,7 +1063,7 @@ static int createAuthenticator(const char *b64_stored, const char *b64_challenge
     *b64_authenticator = (char *)malloc(maxb64len);
     wpsu_bin_to_base64(DP_AUTH_BYTES, hash, auth_len, (unsigned char *)*b64_authenticator, maxb64len);
     
-    if (bin_concat) free(bin_concat);
+    free(bin_concat);
     return 0;   
 }
 
@@ -1147,7 +1144,7 @@ int SendSetupMessage(struct Upnp_Action_Request *ca_event)
 
             // update state machine
             message_received(ca_event, 0, pBinMsg, outlen, &sm_status);
-            if (pBinMsg) free(pBinMsg);
+            free(pBinMsg);
         }
         else // must be busy doing someone else's introduction process 
         {
@@ -1177,7 +1174,7 @@ int SendSetupMessage(struct Upnp_Action_Request *ca_event)
         snprintf(resultStr, RESULT_LEN, "<u:%sResponse xmlns:u=\"%s\">\n<OutMessage>%s</OutMessage>\n</u:%sResponse>",
                  ca_event->ActionName, DP_SERVICE_TYPE, pB64Msg, ca_event->ActionName);
         ca_event->ActionResult = ixmlParseBuffer(resultStr);
-        if (pB64Msg) free(pB64Msg);     
+        free(pB64Msg);     
     }
 
     
@@ -1187,9 +1184,9 @@ int SendSetupMessage(struct Upnp_Action_Request *ca_event)
         stopWPS();
     }
     
-    if (CP_id) free(CP_id);
-    if (inmessage) free(inmessage);
-    if (protocoltype) free(protocoltype);
+    free(CP_id);
+    free(inmessage);
+    free(protocoltype);
     return ca_event->ErrCode;
 }
 
@@ -1285,9 +1282,9 @@ int GetUserLoginChallenge(struct Upnp_Action_Request *ca_event)
         addErrorData(ca_event, 402, "Invalid Args");
     }
 
-    if (name) free(name);    
-    if (nameUPPER) free(nameUPPER);
-    if (identifier) free(identifier);
+    free(name);    
+    free(nameUPPER);
+    free(identifier);
     
     return ca_event->ErrCode;
 }
@@ -1338,11 +1335,11 @@ int UserLogin(struct Upnp_Action_Request *ca_event)
             // remove session from SIR
             SIR_removeSession(SIRDoc, (char *)id);
             
-            if (challenge) free(challenge);
-            if (authenticator) free(authenticator);
-            if (loginName) free(loginName);
-            if (loginChallenge) free(loginChallenge);
-            if (id) free(id);
+            free(challenge);
+            free(authenticator);
+            free(loginName);
+            free(loginChallenge);
+            free(id);
             
             trace_ixml(3, "Contents of SIR:",SIRDoc);
             return ca_event->ErrCode;            
@@ -1409,7 +1406,7 @@ int UserLogin(struct Upnp_Action_Request *ca_event)
                     // fetch roles of logged in loginname and set those as parameter for SIR_updateSession
                     char *roles = ACL_getRolesOfUser(ACLDoc, loginName); 
                     result = SIR_updateSession(SIRDoc, (char *)id, &active, loginName, roles, &loginattempts, NULL, NULL);
-                    if (roles) free(roles);
+                    free(roles);
                     
                     // remove logindata from SIR
                     SIR_removeLoginDataOfSession(SIRDoc, (char *)id);
@@ -1431,10 +1428,10 @@ int UserLogin(struct Upnp_Action_Request *ca_event)
                     } 
                 }
                 
-                if (b64_authenticator) free(b64_authenticator);
+                free(b64_authenticator);
             }
-            if (b64_salt) free(b64_salt);
-            if (b64_stored) free(b64_stored);
+            free(b64_salt);
+            free(b64_stored);
         }
     }
 
@@ -1444,11 +1441,11 @@ int UserLogin(struct Upnp_Action_Request *ca_event)
         addErrorData(ca_event, 402, "Invalid Args");
     }
     
-    if (challenge) free(challenge);
-    if (authenticator) free(authenticator);
-    if (loginName) free(loginName);
-    if (loginChallenge) free(loginChallenge);
-    if (id) free(id);
+    free(challenge);
+    free(authenticator);
+    free(loginName);
+    free(loginChallenge);
+    free(id);
     
     trace_ixml(3, "Contents of SIR:",SIRDoc);
     return ca_event->ErrCode;
@@ -1504,7 +1501,7 @@ int UserLogout(struct Upnp_Action_Request *ca_event)
         ca_event->ErrCode = UPNP_E_SUCCESS;        
     }
     
-    if (id) free(id);
+    free(id);
     
     trace_ixml(3, "Contents of SIR:",SIRDoc);
     return ca_event->ErrCode;
@@ -1602,7 +1599,7 @@ int AddRolesForIdentity(struct Upnp_Action_Request *ca_event)
             result = 501;
             addErrorData(ca_event, result, "Action Failed");
         }
-        if (unescValue) free(unescValue);
+        free(unescValue);
         
         // all is well
         if (result == 0)
@@ -1622,9 +1619,9 @@ int AddRolesForIdentity(struct Upnp_Action_Request *ca_event)
         addErrorData(ca_event, 402, "Invalid Args");
     }
     
-    if (identityDoc) ixmlDocument_free(identityDoc);
-    if (identity) free(identity);
-    if (rolelist) free(rolelist);
+    ixmlDocument_free(identityDoc);
+    free(identity);
+    free(rolelist);
     
     trace_ixml(3, "Contents of ACL:",ACLDoc);
     
@@ -1679,7 +1676,7 @@ int RemoveRolesForIdentity(struct Upnp_Action_Request *ca_event)
             result = 501;
             addErrorData(ca_event, result, "Action Failed");
         }
-        if (unescValue) free(unescValue);
+        free(unescValue);
         
         // all is well
         if (result == 0)
@@ -1699,9 +1696,9 @@ int RemoveRolesForIdentity(struct Upnp_Action_Request *ca_event)
         addErrorData(ca_event, 402, "Invalid Args");
     }
   
-    if (identityDoc) ixmlDocument_free(identityDoc);
-    if (identity) free(identity);
-    if (rolelist) free(rolelist);
+    ixmlDocument_free(identityDoc);
+    free(identity);
+    free(rolelist);
     
     trace_ixml(3, "Contents of ACL:",ACLDoc);
     
@@ -1814,9 +1811,9 @@ int GetRolesForAction(struct Upnp_Action_Request *ca_event)
         addErrorData(ca_event, 402, "Invalid Args");
     }
     
-    if (actionName) free(actionName);
-    if (accessLevel) free(accessLevel);
-    if (accessLevelManage) free(accessLevelManage);
+    free(actionName);
+    free(accessLevel);
+    free(accessLevelManage);
 
     return ca_event->ErrCode;
 }
@@ -1944,11 +1941,11 @@ int SetUserLoginPassword(struct Upnp_Action_Request *ca_event)
         addErrorData(ca_event, 402, "Invalid Args");
     }
 
-    if (name) free(name);
-    if (stored) free(stored);
-    if (salt) free(salt);
-    if (nameUPPER) free(nameUPPER);
-    if (identity) free(identity);
+    free(name);
+    free(stored);
+    free(salt);
+    free(nameUPPER);
+    free(identity);
 
     trace_ixml(3, "Contents of ACL:",ACLDoc);
 
@@ -1995,7 +1992,7 @@ int AddIdentityList(struct Upnp_Action_Request *ca_event)
                 addErrorData(ca_event, result, "Action Failed");
             }  
         }
-        if (unescValue) free(unescValue);
+        free(unescValue);
         
         // all is well
         if (result == 0)
@@ -2054,8 +2051,8 @@ int AddIdentityList(struct Upnp_Action_Request *ca_event)
         addErrorData(ca_event, 402, "Invalid Args");
     }
 
-    if (identitiesDoc) ixmlDocument_free(identitiesDoc);
-    if (identitylist) free(identitylist);
+    ixmlDocument_free(identitiesDoc);
+    free(identitylist);
 
     trace_ixml(3, "Contents of ACL:",ACLDoc);    
     return ca_event->ErrCode;
@@ -2101,7 +2098,7 @@ int RemoveIdentity(struct Upnp_Action_Request *ca_event)
                 addErrorData(ca_event, result, "Action Failed");
             }
         }
-        if (unescValue) free(unescValue);
+        free(unescValue);
         
         // all is well
         if (result == 0)
@@ -2133,8 +2130,8 @@ int RemoveIdentity(struct Upnp_Action_Request *ca_event)
         addErrorData(ca_event, 402, "Invalid Args");
     }
     
-    if (identityDoc) ixmlDocument_free(identityDoc);
-    if (identity) free(identity);
+    ixmlDocument_free(identityDoc);
+    free(identity);
     
     trace_ixml(3, "Contents of ACL:",ACLDoc);
     

@@ -980,14 +980,14 @@ unless control port is authorized. external_port:%s, internal_port:%s internal_c
         addErrorData(ca_event, 402, "Invalid Args");
     }
 
-    if (ext_port) free(ext_port);
-    if (int_port) free(int_port);
-    if (proto) free(proto);
-    if (int_ip) free(int_ip);
-    if (bool_enabled) free(bool_enabled);
-    if (desc) free(desc);
-    if (remote_host) free(remote_host);
-    if (long_duration) free(long_duration);
+    free(ext_port);
+    free(int_port);
+    free(proto);
+    free(int_ip);
+    free(bool_enabled);
+    free(desc);
+    free(remote_host);
+    free(long_duration);
     
     return(ca_event->ErrCode);
 }
@@ -1148,13 +1148,13 @@ unless control port is authorized. external_port:%s, internal_port:%s internal_c
         ca_event->ActionResult = ixmlParseBuffer(resultStr);
     }
 
-    if (new_remote_host) free(new_remote_host);
-    if (new_external_port) free(new_external_port);
-    if (new_protocol) free(new_protocol);
-    if (new_internal_client) free(new_internal_client);
-    if (new_enabled) free(new_enabled);
-    if (new_port_mapping_description) free(new_port_mapping_description);
-    if (new_lease_duration) free(new_lease_duration);
+    free(new_remote_host);
+    free(new_external_port);
+    free(new_protocol);
+    free(new_internal_client);
+    free(new_enabled);
+    free(new_port_mapping_description);
+    free(new_lease_duration);
 
     return(ca_event->ErrCode);
 }
@@ -1230,7 +1230,7 @@ int GetGenericPortMappingEntry(struct Upnp_Action_Request *ca_event)
         strcpy(ca_event->ErrStr, "Invalid Args");
         ca_event->ActionResult = NULL;
     }
-    if (mapindex) free (mapindex);
+    free (mapindex);
     return (ca_event->ErrCode);
 }
 
@@ -1448,9 +1448,9 @@ int DeletePortMapping(struct Upnp_Action_Request *ca_event)
         ca_event->ActionResult = ixmlParseBuffer(resultStr);
     }
 
-    if (remote_host) free(remote_host);
-    if (ext_port) free(ext_port);
-    if (proto) free(proto);
+    free(remote_host);
+    free(ext_port);
+    free(proto);
 
     return(ca_event->ErrCode);
 }
@@ -1590,11 +1590,11 @@ int DeletePortMappingRange(struct Upnp_Action_Request *ca_event)
         ca_event->ActionResult = ixmlParseBuffer(resultStr);
     }
 
-    if (propSet) ixmlDocument_free(propSet);
-    if (start_port) free(start_port);
-    if (end_port) free(end_port);
-    if (proto) free(proto);
-    if (bool_manage) free(bool_manage);
+    ixmlDocument_free(propSet);
+    free(start_port);
+    free(end_port);
+    free(proto);
+    free(bool_manage);
 
     return(ca_event->ErrCode);
 }
@@ -1701,11 +1701,11 @@ int GetListOfPortmappings(struct Upnp_Action_Request *ca_event)
         addErrorData(ca_event, 402, "Invalid Args");
     }
 
-    if (start_port) free(start_port);
-    if (end_port) free(end_port);
-    if (proto) free(proto);
-    if (manage) free(manage);
-    if (number_of_ports) free(number_of_ports);
+    free(start_port);
+    free(end_port);
+    free(proto);
+    free(manage);
+    free(number_of_ports);
 
     return ca_event->ErrCode;
 }
@@ -1858,7 +1858,7 @@ void UpdateEvents(void *input)
 
     ithread_mutex_unlock(&DevMutex);
 
-    if (propSet) ixmlDocument_free(propSet);
+    ixmlDocument_free(propSet);
 
     // create update event again
     createEventUpdateTimer();
