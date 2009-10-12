@@ -52,6 +52,8 @@ static int initialize_gcrypt()
 {
     if (!gcry_control (GCRYCTL_INITIALIZATION_FINISHED_P))
     {
+        fputs ("libgcrypt has not been initialized. pupnp tries to initialize it.\n", stderr);        
+        
         /* Version check should be the very first call because it
           makes sure that important subsystems are intialized. */
         if (!gcry_check_version (GCRYPT_VERSION))

@@ -329,7 +329,6 @@ handle_https_request(void *args)
     int max_record_size = 0;
     char *buf = NULL;    
     
-    
     /* create session */
     session = initialize_tls_session();
     if (session < 0)
@@ -379,12 +378,7 @@ handle_https_request(void *args)
         memset (buf, 0, max_record_size);
         num_read = gnutls_record_recv (session, buf, max_record_size);
         if (num_read > 0) {            
-            // got data        
-            
-            // if buf is ShutDown, then program is exiting
-            if ( strstr( buf, "ShutDown") != NULL )
-                break;
-                
+            // got data                
             status = parser_append(parser, buf, num_read);
 
             if (status == PARSE_SUCCESS) {                
@@ -398,7 +392,6 @@ handle_https_request(void *args)
                     ret = UPNP_E_OUTOF_BOUNDS;
                     goto ExitFunction;
                 }
-                
                 
                 // whole message is parsed. Dispatch message
                 http_error_code = dispatch_request( &info, parser );
@@ -545,16 +538,16 @@ RunHttpsServer( SOCKET listen_sd )
     while (RUNNING) {
         sd = accept(listen_sd, ( struct sockaddr * )&addr, &len);
         
-        // check here if peer address is accepted!?
-        // if not close socket
-        
-        UpnpPrintf( UPNP_INFO, MSERV, __FILE__, __LINE__,
-            "Https Connection: %s:%d\n",inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));
-                    
-        schedule_https_request_job(sd, &addr);
-    } 
-
-    close (listen_sd);
+        /* is there really a connection */
+        if (sd > 0)
+        {
+            UpnpPrintf( UPNP_INFO, MSERV, __FILE__, __LINE__,
+                "Https Connection: %s:%d\n",inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));
+                        
+            schedule_https_request_job(sd, &addr);
+        }
+    }
+    tcp_close (listen_sd);
 }
 
 /************************************************************************
@@ -680,86 +673,15 @@ int
 StopHttpsServer(void)
 {  
     RUNNING = 0; /* this stops RunHttpsServer() */
-    char *msg = "ShutDown";
-    int ret, sd;
-    gnutls_session_t session;
-    const char *err;  
-
-    gnutls_init (&session, GNUTLS_CLIENT);
-
-    // set certificate callbackfunction
-    gnutls_certificate_client_set_retrieve_function(x509_cred, (gnutls_certificate_client_retrieve_function *)shutdownClientCertCallback);    
-
-    /* Use default priorities. Don't care errors anymore. */
-    ret = gnutls_priority_set_direct (session, "PERFORMANCE", &err);
-
-    /* put the x509 credentials to the current session */
-    gnutls_credentials_set (session, GNUTLS_CRD_CERTIFICATE, x509_cred);
-
-    /* connect to the peer */
-    sd = tcp_connect ();
-    if (sd < 0)
-    {
-        goto end;   
-    }
-
-    gnutls_transport_set_ptr (session, (gnutls_transport_ptr_t) sd);
-
-    /* Perform the TLS handshake */
-    ret = gnutls_handshake (session);
-
-    if (ret < 0)
-    {
-        UpnpPrintf( UPNP_INFO, MSERV, __FILE__, __LINE__,
-            "Https shutdown client handshake failed: %s\n", gnutls_strerror(ret));
-        goto end;
-    }
-
-    gnutls_record_send (session, msg, strlen (msg));
-
-    gnutls_bye (session, GNUTLS_SHUT_RDWR);
-
-end:    
-    tcp_close (sd);
-
+    
+    /* this will get execution out of accept() in RunHttpsServer */
+    tcp_close(tcp_connect());
+    
     gnutls_x509_crt_deinit(server_crt);
-    gnutls_x509_privkey_deinit(server_privkey);    
+    gnutls_x509_privkey_deinit(server_privkey);
     gnutls_certificate_free_credentials (x509_cred);
     gnutls_priority_deinit (priority_cache);
     gnutls_global_deinit ();
-
-    return 0;
-}
-
-
-/************************************************************************
-*   Function :  shutdownClientCertCallback
-*
-*   Description :   Callback function which is called by gnutls when 
-*         server asks client certificate at the tls handshake.
-*         Function sets certificate and private key used by client for 
-*         response. 
-*         Uses servers certificate and private key. 
-*
-*   Return : int
-*
-*   Note : Don't call this. Gnutls will.
-************************************************************************/
-static int shutdownClientCertCallback(gnutls_session_t session, const gnutls_datum_t* req_ca_dn, int nreqs, gnutls_pk_algorithm_t* pk_algos, int pk_algos_length, gnutls_retr_st* st)
-{
-    gnutls_certificate_type type;
-       
-    type = gnutls_certificate_type_get(session);
-    if (type == GNUTLS_CRT_X509) {         
-        st->type = type;
-        st->ncerts = 1;        
-        st->cert.x509 = &server_crt;  
-        st->key.x509 = server_privkey; 
-        st->deinit_all = 0;
-    } 
-    else {
-        return -1;
-    }
     
     return 0;
 }

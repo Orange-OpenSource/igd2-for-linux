@@ -588,17 +588,24 @@ UpnpFinish()
     StopMiniServer();
     
     if ( HttpsServerInit )
+    {
         StopHttpsServer();
+        /* This sleep is here because without this when ThreadPoolShutdown(&gHttpsServerThreadPool)
+         * is called program execution would hang forever. By sleeping one second here we give time
+         * for httpsserver to exit from handle_https_request and schedule_https_request_job. Not 
+         * really sure what there is happening... */
+        sleep(1);
+    }
 
 #if EXCLUDE_WEB_SERVER == 0
     web_server_destroy();
 #endif
 
-    ThreadPoolShutdown(&gHttpsServerThreadPool);
     ThreadPoolShutdown(&gMiniServerThreadPool);
     ThreadPoolShutdown(&gRecvThreadPool);
     ThreadPoolShutdown(&gSendThreadPool);
-
+    ThreadPoolShutdown(&gHttpsServerThreadPool);
+    
     PrintThreadPoolStats(&gSendThreadPool, __FILE__, __LINE__, "Send Thread Pool");
     PrintThreadPoolStats(&gRecvThreadPool, __FILE__, __LINE__, "Recv Thread Pool");
     PrintThreadPoolStats(&gMiniServerThreadPool, __FILE__, __LINE__, "MiniServer Thread Pool");
