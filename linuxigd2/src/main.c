@@ -40,8 +40,18 @@
 #include "deviceprotection.h" 
 #include <locale.h>
 #include <wpsutil/cryptoutil.h>
+#include <gcrypt.h>
+#include <errno.h> 
+#include <pthread.h>
 
 
+/* Make libgrypt (gnutls) thread save. This assumes that we are using pthred for threading.
+ * Check http://www.gnu.org/software/gnutls/manual/gnutls.html#Multi_002dthreaded-applications and
+ * http://www.gnupg.org/documentation/manuals/gcrypt/Initializing-the-library.html#Initializing-the-library
+ * Also both libraries, pupnp and wpsutil, are able to do this initialization, but it probably is the best 
+ * if the main application does the initialization, not the libraries.
+ */
+GCRY_THREAD_OPTION_PTHREAD_IMPL;
 
 // Global variables
 globals g_vars;
@@ -353,6 +363,32 @@ int main (int argc, char** argv)
 
     openlog("upnpd", LOG_CONS | LOG_NDELAY | LOG_PID | (foreground ? LOG_PERROR : 0), LOG_LOCAL6);
 
+    // initialize libgcrypt library which is used by both pupnp (gnutls) and wpsutil
+    if (!gcry_control (GCRYCTL_INITIALIZATION_FINISHED_P))
+    {
+        trace(3, "Initializing libgcrypt library ... ");      
+        
+        /* Version check should be the very first call because it
+          makes sure that important subsystems are intialized. */
+        if (!gcry_check_version (GCRYPT_VERSION))
+        {
+            return -1;
+        }
+
+        /* Make libgrypt (gnutls) thread save. This assumes that we are using pthred for threading.
+           Check http://www.gnu.org/software/gnutls/manual/gnutls.html#Multi_002dthreaded-applications */
+        gcry_control (GCRYCTL_SET_THREAD_CBS, &gcry_threads_pthread);
+    
+        /* to disallow usage of the blocking /dev/random  */
+        gcry_control (GCRYCTL_ENABLE_QUICK_RANDOM, 0);
+     
+        /* Disable secure memory.  */
+        gcry_control (GCRYCTL_DISABLE_SECMEM, 0);
+
+        /* Tell Libgcrypt that initialization has completed. */
+        gcry_control (GCRYCTL_INITIALIZATION_FINISHED, 0);     
+    }
+
     // Initialize UPnP SDK on the internal Interface
     trace(3, "Initializing UPnP SDK ... ");
     if ( (ret = UpnpInit(intIpAddress,g_vars.listenport) ) != UPNP_E_SUCCESS)
@@ -377,7 +413,7 @@ int main (int argc, char** argv)
         }
         trace(2, "Description Document Updated Successfully.");
         
-        trace(2, "Starting HTTPS server, it may take few seconds...");
+        trace(2, "Starting HTTPS server, this may take few seconds...");
         // start https server
         if ( (ret = UpnpStartHttpsServer(g_vars.httpsListenport, g_vars.certPath, NULL, NULL, NULL, NULL, "LinuxIGD 2.0") ) != UPNP_E_SUCCESS)
         {
