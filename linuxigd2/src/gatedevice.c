@@ -1615,11 +1615,11 @@ int GetListOfPortmappings(struct Upnp_Action_Request *ca_event)
     char *proto = NULL;
     char *number_of_ports = NULL;
     char cp_ip[INET_ADDRSTRLEN] = "";
-    char result_str[RESULT_LEN_LONG];
+    char result_str[RESULT_LEN_LONG]; // TODO: dynamically allocated result_str
 
     int start, end;
-    int max_entries;
-    int action_succeeded = 0;
+    int max_entries, chars_wrote;
+    int action_succeeded = 0, action_fail_exit = 0;
     int result_place = 0;
     int authorized = 0;
     struct portMap *pm = NULL;
@@ -1664,28 +1664,57 @@ int GetListOfPortmappings(struct Upnp_Action_Request *ca_event)
                 inet_ntop(AF_INET, &ca_event->CtrlPtIPAddr, cp_ip, INET_ADDRSTRLEN);
     
             // Write XML header
-            result_place += snprintf(result_str, RESULT_LEN, xml_portmapListingHeader);
+            result_place += snprintf(result_str, RESULT_LEN_LONG, xml_portmapListingHeader);
+            if (result_place > RESULT_LEN_LONG)
+            {
+                // if buffer runs out of space, return error
+                action_fail_exit = 1;
+            }
     
             // Loop through port mappings until we run out or max_entries reaches 0
-            while ( (pm = pmlist_FindRangeAfter(start, end, proto, cp_ip, pm)) != NULL && max_entries--)
+            while (!action_fail_exit && (pm = pmlist_FindRangeAfter(start, end, proto, cp_ip, pm)) != NULL && max_entries--)
             {
-                result_place += sprintf(&result_str[result_place], xml_portmapEntry,
+                chars_wrote = snprintf(&result_str[result_place], RESULT_LEN_LONG-result_place, xml_portmapEntry,
                                        pm->m_RemoteHost, pm->m_ExternalPort, pm->m_PortMappingProtocol,
                                        pm->m_InternalPort, pm->m_InternalClient, pm->m_PortMappingEnabled,
                                        pm->m_PortMappingDescription, (pm->expirationTime-time(NULL)));
+                                       
+                // if buffer runs out of space, return error
+                if (chars_wrote > RESULT_LEN_LONG-result_place)
+                {
+                    action_succeeded = 0;
+                    action_fail_exit = 1;
+                    break;
+                }
+                
+                result_place += chars_wrote;
                 action_succeeded = 1;
             }
     
             if (action_succeeded)
             {
-                result_place += sprintf(&result_str[result_place], xml_portmapListingFooter);
-                // this will automatically escape value of NewPortListing
-                ca_event->ActionResult = UpnpMakeActionResponse(ca_event->ActionName, WANIP_SERVICE_TYPE,
-                                          1, 
-                                          "NewPortListing", result_str,
-                                          NULL);                
-                ca_event->ErrCode = UPNP_E_SUCCESS;
-                trace(3, "[This is un-escaped value of response]\n%s",result_str);
+                chars_wrote = snprintf(&result_str[result_place], RESULT_LEN_LONG-result_place, xml_portmapListingFooter);
+                if (chars_wrote > RESULT_LEN_LONG-result_place)
+                {
+                    // if buffer runs out of space, return error
+                    trace(2, "GetListOfPortmappings: Failure while creating result string");
+                    addErrorData(ca_event, 501, "Action Failed");
+                }
+                else
+                {
+                    // this will automatically escape value of NewPortListing
+                    ca_event->ActionResult = UpnpMakeActionResponse(ca_event->ActionName, WANIP_SERVICE_TYPE,
+                                              1, 
+                                              "NewPortListing", result_str,
+                                              NULL);                
+                    ca_event->ErrCode = UPNP_E_SUCCESS;
+                    trace(3, "[This is un-escaped value of response]\n%s",result_str);
+                }
+            }
+            else if (action_fail_exit)
+            {
+                trace(2, "GetListOfPortmappings: Failure while creating result string");
+                addErrorData(ca_event, 501, "Action Failed");
             }
             else
             {
