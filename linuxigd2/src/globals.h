@@ -30,6 +30,7 @@
 #define BITRATE_LEN 32
 #define OPTION_LEN 64
 #define RESULT_LEN 4096
+#define RESULT_LEN_LONG 65536
 #define NUM_LEN 32
 
 #define SUB_MATCH 2

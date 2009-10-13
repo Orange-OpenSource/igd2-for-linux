@@ -1615,7 +1615,7 @@ int GetListOfPortmappings(struct Upnp_Action_Request *ca_event)
     char *proto = NULL;
     char *number_of_ports = NULL;
     char cp_ip[INET_ADDRSTRLEN] = "";
-    char result_str[RESULT_LEN];
+    char result_str[RESULT_LEN_LONG];
 
     int start, end;
     int max_entries;
@@ -1685,7 +1685,7 @@ int GetListOfPortmappings(struct Upnp_Action_Request *ca_event)
                                           "NewPortListing", result_str,
                                           NULL);                
                 ca_event->ErrCode = UPNP_E_SUCCESS;
-                trace(3, ixmlPrintDocument(ca_event->ActionResult));
+                trace(3, "[This is un-escaped value of response]\n%s",result_str);
             }
             else
             {
