@@ -370,20 +370,24 @@ int pmlist_Size(void)
  */
 int pmlist_FreeList(void)
 {
+    int action_succeeded = 1, ret;
     struct portMap *temp, *next;
 
     temp = pmlist_Head;
     while (temp)
     {
         CancelMappingExpiration(temp->expirationEventId);
-        pmlist_DeletePortMapping(temp->m_PortMappingEnabled, temp->m_RemoteHost, temp->m_PortMappingProtocol,
+        ret = pmlist_DeletePortMapping(temp->m_PortMappingEnabled, temp->m_RemoteHost, temp->m_PortMappingProtocol,
                                  temp->m_ExternalPort, temp->m_InternalClient, temp->m_InternalPort);
+        if (ret == 0)
+            action_succeeded = 0;
+            
         next = temp->next;
         free(temp);
         temp = next;
     }
     pmlist_Head = pmlist_Tail = NULL;
-    return 1;
+    return action_succeeded;
 }
 
 /**
@@ -397,30 +401,33 @@ int pmlist_PushBack(struct portMap* item)
 {
     int action_succeeded = 0;
 
-    if (pmlist_Tail) // We have a list, place on the end
-    {
-        pmlist_Tail->next = item;
-        item->prev = pmlist_Tail;
-        item->next = NULL;
-        pmlist_Tail = item;
-        action_succeeded = 1;
-    }
-    else // We obviously have no list, because we have no tail :D
-    {
-        pmlist_Head = pmlist_Tail = pmlist_Current = item;
-        item->prev = NULL;
-        item->next = NULL;
-        action_succeeded = 1;
-        trace(3, "appended %d %s %s %s %s %s %ld", item->m_PortMappingEnabled,
-              item->m_PortMappingProtocol, item->m_RemoteHost, item->m_ExternalPort, item->m_InternalClient,
-              item->m_InternalPort, item->m_PortMappingLeaseDuration);
-    }
+    action_succeeded = pmlist_AddPortMapping(item->m_PortMappingEnabled, item->m_PortMappingProtocol, item->m_RemoteHost,
+                      item->m_ExternalPort, item->m_InternalClient, item->m_InternalPort);
+
     if (action_succeeded == 1)
-    {
-        pmlist_AddPortMapping(item->m_PortMappingEnabled, item->m_PortMappingProtocol, item->m_RemoteHost,
-                              item->m_ExternalPort, item->m_InternalClient, item->m_InternalPort);
-        return 1;
+    {    
+        if (pmlist_Tail) // We have a list, place on the end
+        {
+            pmlist_Tail->next = item;
+            item->prev = pmlist_Tail;
+            item->next = NULL;
+            pmlist_Tail = item;
+            action_succeeded = 1;
+        }
+        else // We obviously have no list, because we have no tail :D
+        {
+            pmlist_Head = pmlist_Tail = pmlist_Current = item;
+            item->prev = NULL;
+            item->next = NULL;
+            action_succeeded = 1;
+            trace(3, "appended %d %s %s %s %s %s %ld", item->m_PortMappingEnabled,
+                  item->m_PortMappingProtocol, item->m_RemoteHost, item->m_ExternalPort, item->m_InternalClient,
+                  item->m_InternalPort, item->m_PortMappingLeaseDuration);
+        }
     }
+    
+    if (action_succeeded == 1)
+        return 1;
     else
         return 0;
 }
@@ -440,7 +447,7 @@ int pmlist_Delete(struct portMap* item)
     if (temp) // We found the item to delete
     {
         CancelMappingExpiration(temp->expirationEventId);
-        pmlist_DeletePortMapping(item->m_PortMappingEnabled, item->m_RemoteHost, item->m_PortMappingProtocol,
+        action_succeeded = pmlist_DeletePortMapping(item->m_PortMappingEnabled, item->m_RemoteHost, item->m_PortMappingProtocol,
                                  item->m_ExternalPort, item->m_InternalClient, item->m_InternalPort);
         if (temp == pmlist_Head) // We are the head of the list
         {
@@ -448,14 +455,12 @@ int pmlist_Delete(struct portMap* item)
             {
                 pmlist_Head = pmlist_Tail = pmlist_Current = NULL;
                 free (temp);
-                action_succeeded = 1;
             }
             else // we have a next, so change head to point to it
             {
                 pmlist_Head = temp->next;
                 pmlist_Head->prev = NULL;
                 free (temp);
-                action_succeeded = 1;
             }
         }
         else if (temp == pmlist_Tail) // We are the Tail, but not the Head so we have prev
@@ -463,7 +468,6 @@ int pmlist_Delete(struct portMap* item)
             pmlist_Tail = pmlist_Tail->prev;
             free (pmlist_Tail->next);
             pmlist_Tail->next = NULL;
-            action_succeeded = 1;
         }
         else // We exist and we are between two nodes
         {
@@ -471,7 +475,6 @@ int pmlist_Delete(struct portMap* item)
             temp->next->prev = temp->prev;
             pmlist_Current = temp->next; // We put current to the right after a extraction
             free (temp);
-            action_succeeded = 1;
         }
     }
     else  // We're deleting something that's not there, so return 0
@@ -495,7 +498,7 @@ int pmlist_DeleteIndex(int index)
     if (temp) // We found the item to delete
     {
         CancelMappingExpiration(temp->expirationEventId);
-        pmlist_DeletePortMapping(temp->m_PortMappingEnabled, temp->m_RemoteHost, temp->m_PortMappingProtocol,
+        action_succeeded = pmlist_DeletePortMapping(temp->m_PortMappingEnabled, temp->m_RemoteHost, temp->m_PortMappingProtocol,
                                  temp->m_ExternalPort, temp->m_InternalClient, temp->m_InternalPort);
         if (temp == pmlist_Head) // We are the head of the list
         {
@@ -503,14 +506,12 @@ int pmlist_DeleteIndex(int index)
             {
                 pmlist_Head = pmlist_Tail = pmlist_Current = NULL;
                 free (temp);
-                action_succeeded = 1;
             }
             else // we have a next, so change head to point to it
             {
                 pmlist_Head = temp->next;
                 pmlist_Head->prev = NULL;
                 free (temp);
-                action_succeeded = 1;
             }
         }
         else if (temp == pmlist_Tail) // We are the Tail, but not the Head so we have prev
@@ -518,7 +519,6 @@ int pmlist_DeleteIndex(int index)
             pmlist_Tail = pmlist_Tail->prev;
             free (pmlist_Tail->next);
             pmlist_Tail->next = NULL;
-            action_succeeded = 1;
         }
         else // We exist and we are between two nodes
         {
@@ -526,7 +526,6 @@ int pmlist_DeleteIndex(int index)
             temp->next->prev = temp->prev;
             pmlist_Current = temp->next; // We put current to the right after a extraction
             free (temp);
-            action_succeeded = 1;
         }
     }
     else  // We're deleting something that's not there, so return 0
@@ -551,6 +550,7 @@ int pmlist_AddPortMapping (int enabled, char *protocol, char *remoteHost, char *
 {
     if (enabled)
     {
+        int status;
         //check if remoteHost is empty string then remoteHost = NULL
         if (strcmp(remoteHost, "") == 0) remoteHost = NULL;
 
@@ -563,14 +563,17 @@ int pmlist_AddPortMapping (int enabled, char *protocol, char *remoteHost, char *
             trace(3, "iptc_add_rule %s %s %s %s %s %s %s %s",
                   "filter", g_vars.forwardChainName, protocol, remoteHost, internalClient, internalPort, "ACCEPT",
                   g_vars.forwardRulesAppend ? "APPEND" : "INSERT");
-            iptc_add_rule("filter", g_vars.forwardChainName, protocol, NULL, NULL, remoteHost, internalClient, NULL, internalPort, "ACCEPT", NULL, g_vars.forwardRulesAppend ? TRUE : FALSE);
+            status = iptc_add_rule("filter", g_vars.forwardChainName, protocol, NULL, NULL, remoteHost, internalClient, NULL, internalPort, "ACCEPT", NULL, g_vars.forwardRulesAppend ? TRUE : FALSE);
         }
+        if (status == 0)
+            return 0;
+            
         trace(3, "iptc_add_rule %s %s %s %s %s %s %s %s %s",
               "nat", g_vars.preroutingChainName, protocol, g_vars.extInterfaceName, remoteHost, externalPort, "DNAT", dest, "APPEND");
-        iptc_add_rule("nat", g_vars.preroutingChainName, protocol, g_vars.extInterfaceName, NULL, remoteHost, NULL, NULL, externalPort, "DNAT", dest, TRUE);
-        
+        status = iptc_add_rule("nat", g_vars.preroutingChainName, protocol, g_vars.extInterfaceName, NULL, remoteHost, NULL, NULL, externalPort, "DNAT", dest, TRUE);
+        if (status == 0)
+            return 0;
 #else
-        int status;
         char *args[18];
 
         if (g_vars.createForwardRules)
@@ -621,6 +624,8 @@ int pmlist_AddPortMapping (int enabled, char *protocol, char *remoteHost, char *
             else
             {
                 wait(&status);
+                if (status != 0)
+                    return 0;
             }
         }
 
@@ -678,6 +683,8 @@ int pmlist_AddPortMapping (int enabled, char *protocol, char *remoteHost, char *
         else
         {
             wait(&status);
+            if (status != 0)
+                return 0;
         }
 #endif
     }
@@ -694,12 +701,13 @@ int pmlist_AddPortMapping (int enabled, char *protocol, char *remoteHost, char *
  * @param externalPort TCP or UDP port number of the Client as seen by the remote host.
  * @param internalClient The local IP address of the client.
  * @param internalPort The local TCP or UDP port number of the client.
- * @return 1 allways.
+ * @return 1 if deletion succeeded, 0 if failed.
  */
 int pmlist_DeletePortMapping(int enabled, char *remoteHost, char *protocol, char *externalPort, char *internalClient, char *internalPort)
 {
     if (enabled)
     {
+        int status;
         //check if remoteHost is empty string then remoteHost = NULL
         if (strcmp(remoteHost, "") == 0) remoteHost = NULL;
 
@@ -709,15 +717,19 @@ int pmlist_DeletePortMapping(int enabled, char *remoteHost, char *protocol, char
 #if HAVE_LIBIPTC
         trace(3, "iptc_delete_rule %s %s %s %s %s %s %s %s",
               "nat", g_vars.preroutingChainName, protocol, g_vars.extInterfaceName, remoteHost, externalPort, "DNAT", dest);
-        iptc_delete_rule("nat", g_vars.preroutingChainName, protocol, g_vars.extInterfaceName, NULL, remoteHost, NULL, NULL, externalPort, "DNAT", dest);
+        status = iptc_delete_rule("nat", g_vars.preroutingChainName, protocol, g_vars.extInterfaceName, NULL, remoteHost, NULL, NULL, externalPort, "DNAT", dest);
+        if (status == 0)
+            return 0;
+            
         if (g_vars.createForwardRules)
         {
             trace(3, "iptc_delete_rule %s %s %s %s %s %s %s",
                   "filter", g_vars.forwardChainName, protocol, remoteHost, internalClient, internalPort, "ACCEPT");
-            iptc_delete_rule("filter", g_vars.forwardChainName, protocol, NULL, NULL, remoteHost, internalClient, NULL, internalPort, "ACCEPT", NULL);
+            status = iptc_delete_rule("filter", g_vars.forwardChainName, protocol, NULL, NULL, remoteHost, internalClient, NULL, internalPort, "ACCEPT", NULL);
+            if (status == 0)
+                return 0;
         }
 #else
-        int status;
         char *args[18];
 
         if (remoteHost) {
@@ -773,6 +785,8 @@ int pmlist_DeletePortMapping(int enabled, char *remoteHost, char *protocol, char
         else
         {
             wait(&status);
+            if (status != 0)
+                return 0;
         }
 
         if (g_vars.createForwardRules)
@@ -824,6 +838,8 @@ int pmlist_DeletePortMapping(int enabled, char *remoteHost, char *protocol, char
             else
             {
                 wait(&status);
+                if (status != 0)
+                    return 0;
             }
         }
 #endif

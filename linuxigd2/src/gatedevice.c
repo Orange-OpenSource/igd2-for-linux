@@ -1453,6 +1453,12 @@ int DeletePortMapping(struct Upnp_Action_Request *ca_event)
             ixmlDocument_free(propSet);
             action_succeeded = 1;
         }
+        else
+        {
+            trace(2, "%s: Failed to remove portmapping.", ca_event->ActionName);
+            // add error to ca_event
+            addErrorData(ca_event, 501, "Action Failed");
+        }
     }
     else
     {
@@ -1563,7 +1569,7 @@ int DeletePortMappingRange(struct Upnp_Action_Request *ca_event)
                         {
                             trace(2, "DeletePortMappingRange: DeletedPort:%s StartPort:%s EndPort:%s  Proto:%s Manage:%s\n", del_port, start_port, end_port, proto, bool_manage);
                             action_succeeded = 1;
-                        }                    
+                        }
                     }
                     else // if portmap is deleted, index of following port mappings decreases, that is why we increase our index only when nothing is removed
                         index++;

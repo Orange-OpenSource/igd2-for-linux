@@ -96,7 +96,7 @@ struct ipt_entry_match *get_tcp_match(const char *sports, const char *dports, un
 struct ipt_entry_match *get_udp_match(const char *sports, const char *dports, unsigned int *nfcache);
 struct ipt_entry_target *get_dnat_target(const char *input, unsigned int *nfcache);
 
-void iptc_add_rule(const char *table,
+int iptc_add_rule(const char *table,
                    const char *chain,
                    const char *protocol,
                    const char *iiface,
@@ -109,7 +109,7 @@ void iptc_add_rule(const char *table,
                    const char *dnat_to,
                    const int append);
 
-void iptc_delete_rule(const char *table,
+int iptc_delete_rule(const char *table,
                       const char *chain,
                       const char *protocol,
                       const char *iniface,
