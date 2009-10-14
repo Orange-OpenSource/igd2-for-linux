@@ -1216,15 +1216,12 @@ int GetGenericPortMappingEntry(struct Upnp_Action_Request *ca_event)
         else if (!temp) // nothing in that index
         {
             trace(1, "GetGenericPortMappingEntry: SpecifiedArrayIndexInvalid");
-            ca_event->ErrCode = 713;
-            strcpy(ca_event->ErrStr, "SpecifiedArrayIndexInvalid");
-            ca_event->ActionResult = NULL;
+            addErrorData(ca_event, 713, "SpecifiedArrayIndexInvalid");
         }
         else // not authorized and IP's doesn't match or too small portnumbers
         {
             trace(1, "GetGenericPortMappingEntry: Not authorized user and Control point IP and portmapping internal client doesn't mach or portnumbers of portmapping are under 1024");
-            snprintf(result_param, RESULT_LEN, "<NewRemoteHost></NewRemoteHost><NewExternalPort></NewExternalPort><NewProtocol></NewProtocol><NewInternalPort></NewInternalPort><NewInternalClient></NewInternalClient><NewEnabled></NewEnabled><NewPortMappingDescription></NewPortMappingDescription><NewLeaseDuration></NewLeaseDuration>");
-            action_succeeded = 1;     
+            addErrorData(ca_event, 606, "Action not authorized");
         }
         
         if (action_succeeded)
@@ -1233,17 +1230,14 @@ int GetGenericPortMappingEntry(struct Upnp_Action_Request *ca_event)
             snprintf(resultStr, RESULT_LEN, "<u:%sResponse xmlns:u=\"%s\">\n%s\n</u:%sResponse>", ca_event->ActionName,
                      "urn:schemas-upnp-org:service:WANIPConnection:2",result_param, ca_event->ActionName);
             ca_event->ActionResult = ixmlParseBuffer(resultStr);
-            trace(3, ixmlPrintDocument(ca_event->ActionResult));
-           
+            trace(3, ixmlPrintDocument(ca_event->ActionResult));   
         }
 
     }
     else
     {
-        trace(1, "Failure in GateDeviceGetGenericPortMappingEntry: Invalid Args");
-        ca_event->ErrCode = 402;
-        strcpy(ca_event->ErrStr, "Invalid Args");
-        ca_event->ActionResult = NULL;
+        trace(1, "Failure in GetGenericPortMappingEntry: Invalid Args");
+        addErrorData(ca_event, 402, "Invalid Args");
     }
     free (mapindex);
     return (ca_event->ErrCode);
