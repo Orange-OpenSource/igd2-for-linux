@@ -1292,8 +1292,8 @@ int GetSpecificPortMappingEntry(struct Upnp_Action_Request *ca_event)
         }
         else if (!authorized && (atoi(ext_port) < 1024))
         {
-            trace(1, "Failure in GetSpecificPortMappingEntry: ActionNotPermitted\n");
-            addErrorData(ca_event, 730, "ActionNotPermitted");            
+            trace(1, "Failure in GetSpecificPortMappingEntry: Action not authorized\n");
+            addErrorData(ca_event, 606, "Action not authorized");
         }
         // if portmapping is found, we must check if CP is authorized OR if internalclient value of portmapping matches IP of CP
         // Also if CP is not authorized NewInternalPort and NewExternalPort values of the port mapping entry must be greater than or equal to 1024,
@@ -1319,8 +1319,8 @@ int GetSpecificPortMappingEntry(struct Upnp_Action_Request *ca_event)
         }
         else
         {
-            trace(1, "Failure in GetSpecificPortMappingEntry: ActionNotPermitted\n");
-            addErrorData(ca_event, 730, "ActionNotPermitted");
+            trace(1, "Failure in GetSpecificPortMappingEntry: Action not authorized\n");
+            addErrorData(ca_event, 606, "Action not authorized");
         }
         
         if (action_succeeded)
@@ -1423,7 +1423,7 @@ int DeletePortMapping(struct Upnp_Action_Request *ca_event)
         if (result == 0 && !authorized && atoi(ext_port) < 1024)
         {
             trace(1, "Failure in DeletePortMapping: Remote Host:%s Proto:%s Port:%s. Port value is under 1024 and CP is not authorized\n",remote_host, proto, ext_port);
-            addErrorData(ca_event, 730, "ActionNotPermitted");                
+            addErrorData(ca_event, 606, "Action not authorized");                
         }
         // if portmapping is found, we must check if CP is authorized OR if internalclient value of portmapping matches IP of CP
         // Also if CP is not authorized NewInternalPort and NewExternalPort values of the port mapping entry must be greater than or equal to 1024,
@@ -1444,7 +1444,7 @@ int DeletePortMapping(struct Upnp_Action_Request *ca_event)
         else
         {
             trace(1, "Failure in DeletePortMapping: Remote Host:%s Proto:%s Port:%s\n",remote_host, proto, ext_port);
-            addErrorData(ca_event, 730, "ActionNotPermitted");
+            addErrorData(ca_event, 606, "Action not authorized");
         }
        
         if (result==1)
@@ -1536,7 +1536,7 @@ int DeletePortMappingRange(struct Upnp_Action_Request *ca_event)
         else if (!authorized && (atoi(start_port) < 1024 || atoi(end_port) < 1024))
         {
             trace(1, "Failure in DeletePortMappingRange: StartPort:%s EndPort:%s Proto:%s Manage:%s. Port values under 1024 and CP is not authorized\n",start_port,end_port,proto,bool_manage);
-            addErrorData(ca_event, 730, "ActionNotPermitted");                
+            addErrorData(ca_event, 606, "Action not authorized");                
         }
         else if ((end = atoi(end_port)) < (start = atoi(start_port)))
         {
@@ -1592,8 +1592,8 @@ int DeletePortMappingRange(struct Upnp_Action_Request *ca_event)
             // portmappings which are in area of deletion exists, but none has been deleted -> Action is not permitted
             if (foundPortmapCount > 0 && !action_succeeded)
             {
-                trace(1, "Failure in DeletePortMappingRange: StartPort:%s EndPort:%s Proto:%s Manage:%s ActionNotPermitted!\n", start_port,end_port,proto,bool_manage);
-                addErrorData(ca_event, 730, "ActionNotPermitted");
+                trace(1, "Failure in DeletePortMappingRange: StartPort:%s EndPort:%s Proto:%s Manage:%s Action not authorized!\n", start_port,end_port,proto,bool_manage);
+                addErrorData(ca_event, 606, "Action not authorized");
             }
             else if (!action_succeeded)
             {
@@ -1672,7 +1672,7 @@ int GetListOfPortmappings(struct Upnp_Action_Request *ca_event)
         else if (!authorized && (atoi(start_port) < 1024 || atoi(end_port) < 1024))
         {
             trace(1, "Failure in GetListOfPortmappings: StartPort:%s EndPort:%s Proto:%s Manage:%s. Port values under 1024 and CP is not authorized\n",start_port,end_port,proto,manage);
-            addErrorData(ca_event, 730, "ActionNotPermitted");                
+            addErrorData(ca_event, 606, "Action not authorized");                
         }        
         else if ((end = atoi(end_port)) < (start = atoi(start_port)))
         {
