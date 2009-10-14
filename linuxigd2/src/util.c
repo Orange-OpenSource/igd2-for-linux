@@ -18,6 +18,7 @@
  * 
  */
  
+#include <regex.h>
 #include <stdlib.h>
 #include <sys/wait.h>
 #include <unistd.h>
@@ -401,6 +402,38 @@ int GetConnectionStatus(char *conStatus, char *ifname)
         strcpy(conStatus,"Disconnected");
 
     return status;
+}
+
+/**
+ * Check if address is either valid IP address or network host address.
+ * 
+ * @param address String to check
+ * @return 1 if it is IP or host address, 0 else.
+ */
+int IsIpOrDomain(char *address)
+{
+    int result;
+    
+    // is it IP
+    regex_t re_IP;
+    regcomp(&re_IP,"^([1-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])(\\.([0-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])){3}$",REG_EXTENDED|REG_NOSUB);
+    result = regexec(&re_IP, address, (size_t) 0, NULL, 0);
+    regfree(&re_IP);
+    if (result == 0) {
+        return 1;
+    }
+
+    // is ot domain name
+    regex_t re_host;
+    regcomp(&re_host,"^([a-zA-Z0-9]([a-zA-Z0-9\\-]{0,61}[a-zA-Z0-9])?\\.)+[a-zA-Z]{2,6}$",REG_EXTENDED|REG_NOSUB);
+    result = regexec(&re_host, address, (size_t) 0, NULL, 0);
+    regfree(&re_host);
+    if (result == 0) {
+        return 1;
+    }
+
+
+    return 0;
 }
 
 /**

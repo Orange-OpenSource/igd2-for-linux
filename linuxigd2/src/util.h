@@ -40,6 +40,7 @@ int caseInsesitive_strcmp(const char *str1, const char *str2);
 int GetIpAddressStr(char *address, char *ifname);
 int GetMACAddressStr(unsigned char *address, int addressSize, char *ifname);
 int GetConnectionStatus(char *conStatus, char *ifname);
+int IsIpOrDomain(char *address);
 int ControlPointIP_equals_InternalClientIP(char *ICAddress, struct in_addr *);
 int checkForWildCard(const char *str);
 void addErrorData(struct Upnp_Action_Request *ca_event, int errorCode, char* message);
