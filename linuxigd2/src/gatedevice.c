@@ -1583,16 +1583,16 @@ int DeletePortMappingRange(struct Upnp_Action_Request *ca_event)
                 UpnpNotifyExt(deviceHandle, ca_event->DevUDN,ca_event->ServiceID,propSet);                
             }
 
-            // portmappings which are in area of deletion exists, but none has been deleted -> Action is not permitted
+            // portmappings which are in area of deletion exists, but none has been deleted -> Action is not authorized
             if (foundPortmapCount > 0 && !action_succeeded)
             {
                 trace(1, "Failure in DeletePortMappingRange: StartPort:%s EndPort:%s Proto:%s Manage:%s Action not authorized!\n", start_port,end_port,proto,bool_manage);
                 addErrorData(ca_event, 606, "Action not authorized");
             }
-            else if (!action_succeeded)
+            else if (!action_succeeded) // there just is not any portmaps to match given parameters
             {
                 trace(1, "Failure in DeletePortMappingRange: StartPort:%s EndPort:%s Proto:%s Manage:%s NoSuchEntryInArray!\n", start_port,end_port,proto,bool_manage);
-                addErrorData(ca_event, 714, "NoSuchEntryInArray"); 
+                addErrorData(ca_event, 734, "PortMappingNotFound"); 
             }
         }
     }
@@ -1739,7 +1739,7 @@ int GetListOfPortmappings(struct Upnp_Action_Request *ca_event)
             else
             {
                 trace(2, "GetListOfPortmappings: Portmapping does not exist");
-                addErrorData(ca_event, 714, "NoSuchEntryInArray");
+                addErrorData(ca_event, 734, "PortMappingNotFound");
             }
         }
     }
