@@ -151,11 +151,17 @@ int InitDP()
     
     if (descDoc)
     {
-        char *UUID = GetFirstDocumentItem(descDoc, "UDN");
-        if (strlen(UUID) > 5)
+        char *UDN = GetFirstDocumentItem(descDoc, "UDN");
+        if (!UDN || strlen(UDN) < 6)
         {
-            UUID = UUID + 5; // remove text uuid: from beginning of string
+            trace(1,"Failed to get valid UUID value from Description document!");
+            free(UDN);
+            return -1;
         }
+        char UUID[strlen(UDN)];
+        strcpy(UUID,UDN + 5); // remove text uuid: from beginning of string
+        free(UDN);
+        
         if (strlen(UUID) > WPSU_MAX_UUID_LEN) // if uuid is too long, crop only allowed length from beginning
         {
             UUID[WPSU_MAX_UUID_LEN] = '\0';
@@ -182,7 +188,7 @@ int InitDP()
                                             NULL,
                                             0,
                                             WPSU_CONF_METHOD_LABEL, 
-                                            WPSU_RFBAND_2_4GHZ);                                                                 
+                                            WPSU_RFBAND_2_4GHZ);
     }
     else return UPNP_E_FILE_NOT_FOUND;
     

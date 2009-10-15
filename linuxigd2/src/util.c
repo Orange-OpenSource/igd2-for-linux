@@ -2474,8 +2474,8 @@ int SIR_updateSession(IXML_Document *doc, const char *id, int *active, const cha
 
     if (roles != NULL)
     {   
-        // create union of old and new roles    
-        newRoleList = (char *)malloc(strlen(roles) + strlen(oldRole)+1);
+        // create union of old and new roles
+        newRoleList = (char *)malloc(strlen(roles) + strlen(oldRole)+2);
         strcpy(newRoleList, oldRole);
         
         char rolelist[strlen(roles)];    
@@ -2491,7 +2491,9 @@ int SIR_updateSession(IXML_Document *doc, const char *id, int *active, const cha
                 {
                     // add new role at the end of rolelist
                     if (strlen(newRoleList) > 0)
+                    {
                         strcat(newRoleList, " ");
+                    }
                     strcat(newRoleList, role);
                 }
                     
@@ -2521,7 +2523,11 @@ int SIR_updateSession(IXML_Document *doc, const char *id, int *active, const cha
     // first remove old session, then add new
     SIR_removeSession(doc, id);
     
-    return SIR_addSession(doc, id , newActive, newIdentity, newRole, &newAttempts, newLoginName, newLoginChallenge);
+    ret = SIR_addSession(doc, id , newActive, newIdentity, newRole, &newAttempts, newLoginName, newLoginChallenge);
+    
+    free(newRoleList);
+    
+    return ret;
 }
 
 
