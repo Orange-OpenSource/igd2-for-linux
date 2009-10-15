@@ -676,6 +676,10 @@ StopHttpsServer(void)
     
     /* this will get execution out of accept() in RunHttpsServer */
     tcp_close(tcp_connect());
+   
+    /* this will give time for server to try to create tls session with our "client" and exit,
+     * before we free all the certificates and stuff from the server */
+    sleep(1);
     
     gnutls_x509_crt_deinit(server_crt);
     gnutls_x509_privkey_deinit(server_privkey);
