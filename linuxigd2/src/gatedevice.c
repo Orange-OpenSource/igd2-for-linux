@@ -922,18 +922,12 @@ unless control port is authorized. external_port:%s, internal_port:%s internal_c
             addErrorData(ca_event, result, "PortMappingNotAllowed");
         }
 
-        // Check RemoteHost and ExternalPort parameters
+        // Check RemoteHost and InternalPort parameters
         else if (checkForWildCard(int_client)) 
         {
             trace(1, "Wild cards not permitted in internal_client:%s", int_client);
             result = 715;
             addErrorData(ca_event, result, "WildCardNotPermittedInSrcIp");
-        } 
-        else if (checkForWildCard(ext_port)) // Not sure if this is really needed
-        {
-            trace(1, "Wild cards not permitted in external_port:%s", ext_port);
-            result = 716;
-            addErrorData(ca_event, result, "WildCardNotPermittedInExtPort");
         }
         else if (checkForWildCard(int_port)) 
         {
@@ -1073,14 +1067,6 @@ unless control port is authorized. external_port:%s, internal_port:%s internal_c
             trace(1, "Wild cards not permitted in internal_client:%s", int_client);
             result = 715;
             addErrorData(ca_event, result, "WildCardNotPermittedInSrcIp");
-        } 
-        // not sure if this is needed
-        // If wildcard ext_port (0) is supported, return value of NewReservedPort MUST be 0
-        else if (checkForWildCard(ext_port)) 
-        {
-            trace(1, "Wild cards not permitted in external_port:%s", ext_port);
-            result = 716;
-            addErrorData(ca_event, result, "WildCardNotPermittedInExtPort");
         }
         else if (checkForWildCard(int_port)) 
         {
@@ -1109,7 +1095,7 @@ unless control port is authorized. external_port:%s, internal_port:%s internal_c
                 }
                 // Else if port mapping using same external port and protocol,
                 // get new external port and create new port mapping
-                else if ((ret = pmlist_FindBy_extPort_proto(ext_port, proto)) != NULL)
+                else if (!checkForWildCard(ext_port) && (ret = pmlist_FindBy_extPort_proto(ext_port, proto)) != NULL)
                 {
                     // Find searches free external port...
                     trace(3, "Port map with same ExternalPort and protocol exists. Finding next free ExternalPort...");
@@ -1155,7 +1141,11 @@ unless control port is authorized. external_port:%s, internal_port:%s internal_c
     if (result == 1)
     {
         ca_event->ErrCode = UPNP_E_SUCCESS;
+        // Port mapping has been done for external port that control point wanted
         if (next_free_port == 0) next_free_port = atoi(ext_port);
+        
+        // If wildcard ext_port (0) is supported, return value of NewReservedPort MUST be 0
+        if (checkForWildCard(ext_port)) next_free_port = 0;
 
         snprintf(resultStr, RESULT_LEN, "<u:%sResponse xmlns:u=\"%s\">\n%s%d%s\n</u:%sResponse>",
                     ca_event->ActionName, "urn:schemas-upnp-org:service:WANIPConnection:2", "<NewReservedPort>",

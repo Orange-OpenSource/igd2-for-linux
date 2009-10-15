@@ -538,6 +538,10 @@ int pmlist_DeleteIndex(int index)
  * Add new portmapping rule in iptables.
  * Use either libiptc or iptables commandline command for adding.
  * 
+ * If value of remoteHost is empty string, then it is interpreted as wildcard value and it is not
+ * added for port map.
+ * If value of externalPort is wildcard (0) it is not added for port map.
+ * 
  * @param enabled Is rule enabled. Rule is added only if it is enabled (1).
  * @param protocol Portmapping protocol, either TCP or UDP.
  * @param remoteHost WAN IP address (destination) of connections initiated by a client in the local network.
@@ -551,8 +555,14 @@ int pmlist_AddPortMapping (int enabled, char *protocol, char *remoteHost, char *
     if (enabled)
     {
         int status;
-        //check if remoteHost is empty string then remoteHost = NULL
-        if (strcmp(remoteHost, "") == 0) remoteHost = NULL;
+        
+        //check if remoteHost is wild card then tmp_remoteHost = NULL
+        char *tmp_remoteHost = NULL;
+        if (!checkForWildCard(remoteHost)) tmp_remoteHost = remoteHost;
+
+        //check if externalPort is wild card then tmp_externalPort = NULL
+        char *tmp_externalPort = NULL;
+        if (!checkForWildCard(externalPort)) tmp_externalPort = externalPort;
 
         char dest[DEST_LEN];
         snprintf(dest, DEST_LEN, "%s:%s", internalClient, internalPort);
@@ -561,16 +571,16 @@ int pmlist_AddPortMapping (int enabled, char *protocol, char *remoteHost, char *
         if (g_vars.createForwardRules)
         {
             trace(3, "iptc_add_rule %s %s %s %s %s %s %s %s",
-                  "filter", g_vars.forwardChainName, protocol, remoteHost, internalClient, internalPort, "ACCEPT",
+                  "filter", g_vars.forwardChainName, protocol, tmp_remoteHost, internalClient, internalPort, "ACCEPT",
                   g_vars.forwardRulesAppend ? "APPEND" : "INSERT");
-            status = iptc_add_rule("filter", g_vars.forwardChainName, protocol, NULL, NULL, remoteHost, internalClient, NULL, internalPort, "ACCEPT", NULL, g_vars.forwardRulesAppend ? TRUE : FALSE);
+            status = iptc_add_rule("filter", g_vars.forwardChainName, protocol, NULL, NULL, tmp_remoteHost, internalClient, NULL, internalPort, "ACCEPT", NULL, g_vars.forwardRulesAppend ? TRUE : FALSE);
         }
         if (status == 0)
             return 0;
             
         trace(3, "iptc_add_rule %s %s %s %s %s %s %s %s %s",
-              "nat", g_vars.preroutingChainName, protocol, g_vars.extInterfaceName, remoteHost, externalPort, "DNAT", dest, "APPEND");
-        status = iptc_add_rule("nat", g_vars.preroutingChainName, protocol, g_vars.extInterfaceName, NULL, remoteHost, NULL, NULL, externalPort, "DNAT", dest, TRUE);
+              "nat", g_vars.preroutingChainName, protocol, g_vars.extInterfaceName, tmp_remoteHost, tmp_externalPort, "DNAT", dest, "APPEND");
+        status = iptc_add_rule("nat", g_vars.preroutingChainName, protocol, g_vars.extInterfaceName, NULL, tmp_remoteHost, NULL, NULL, tmp_externalPort, "DNAT", dest, TRUE);
         if (status == 0)
             return 0;
 #else
@@ -578,12 +588,12 @@ int pmlist_AddPortMapping (int enabled, char *protocol, char *remoteHost, char *
 
         if (g_vars.createForwardRules)
         {
-            if (remoteHost) {
+            if (tmp_remoteHost) {
                 args[0] = g_vars.iptables;
                 args[1] = g_vars.forwardRulesAppend ? "-A" : "-I";
                 args[2] = g_vars.forwardChainName;
                 args[3] = "-s";
-                args[4] = remoteHost;
+                args[4] = tmp_remoteHost;
                 args[5] = "-p";
                 args[6] = protocol;
                 args[7] = "-d";
@@ -595,7 +605,7 @@ int pmlist_AddPortMapping (int enabled, char *protocol, char *remoteHost, char *
                 args[13] =  NULL;
 
                 trace(3, "%s %s %s -s %s -p %s -d %s --dport %s -j ACCEPT",
-                      g_vars.iptables,g_vars.forwardRulesAppend ? "-A" : "-I",g_vars.forwardChainName, remoteHost, protocol, internalClient, internalPort);
+                      g_vars.iptables,g_vars.forwardRulesAppend ? "-A" : "-I",g_vars.forwardChainName, tmp_remoteHost, protocol, internalClient, internalPort);
 
             }
             else {
@@ -630,7 +640,7 @@ int pmlist_AddPortMapping (int enabled, char *protocol, char *remoteHost, char *
         }
 
         // Pre routing
-        if (remoteHost) {
+        if (tmp_remoteHost && tmp_externalPort) {
             args[0] = g_vars.iptables;
             args[1] = "-t";
             args[2] = "nat";
@@ -639,11 +649,11 @@ int pmlist_AddPortMapping (int enabled, char *protocol, char *remoteHost, char *
             args[5] = "-i";
             args[6] = g_vars.extInterfaceName;
             args[7] = "-s";
-            args[8] = remoteHost;
+            args[8] = tmp_remoteHost;
             args[9] = "-p";
             args[10] = protocol;
             args[11] = "--dport";
-            args[12] = externalPort;
+            args[12] = tmp_externalPort;
             args[13] = "-j";
             args[14] = "DNAT";
             args[15] = "--to";
@@ -651,7 +661,28 @@ int pmlist_AddPortMapping (int enabled, char *protocol, char *remoteHost, char *
             args[17] = NULL;
 
             trace(3, "%s -t nat -A %s -i %s -s %s -p %s --dport %s -j DNAT --to %s",
-                  g_vars.iptables, g_vars.preroutingChainName, g_vars.extInterfaceName, remoteHost, protocol, externalPort, dest);
+                  g_vars.iptables, g_vars.preroutingChainName, g_vars.extInterfaceName, tmp_remoteHost, protocol, tmp_externalPort, dest);
+        }
+        else if (tmp_externalPort) {
+            args[0] = g_vars.iptables;
+            args[1] = "-t";
+            args[2] = "nat";
+            args[3] = "-A";
+            args[4] = g_vars.preroutingChainName;
+            args[5] = "-i";
+            args[6] = g_vars.extInterfaceName;
+            args[7] = "-p";
+            args[8] = protocol;
+            args[9] = "--dport";
+            args[10] = tmp_externalPort;
+            args[11] = "-j";
+            args[12] = "DNAT";
+            args[13] = "--to";
+            args[14] = dest;
+            args[15] = NULL;
+
+            trace(3, "%s -t nat -A %s -i %s -p %s --dport %s -j DNAT --to %s",
+                  g_vars.iptables, g_vars.preroutingChainName, g_vars.extInterfaceName, protocol, tmp_externalPort, dest);
         }
         else {
             args[0] = g_vars.iptables;
@@ -663,16 +694,14 @@ int pmlist_AddPortMapping (int enabled, char *protocol, char *remoteHost, char *
             args[6] = g_vars.extInterfaceName;
             args[7] = "-p";
             args[8] = protocol;
-            args[9] = "--dport";
-            args[10] = externalPort;
-            args[11] = "-j";
-            args[12] = "DNAT";
-            args[13] = "--to";
-            args[14] = dest;
-            args[15] = NULL;
+            args[9] = "-j";
+            args[10] = "DNAT";
+            args[11] = "--to";
+            args[12] = dest;
+            args[13] = NULL;
 
-            trace(3, "%s -t nat -A %s -i %s -p %s --dport %s -j DNAT --to %s",
-                  g_vars.iptables, g_vars.preroutingChainName, g_vars.extInterfaceName, protocol, externalPort, dest);
+            trace(3, "%s -t nat -A %s -i %s -p %s -j DNAT --to %s",
+                  g_vars.iptables, g_vars.preroutingChainName, g_vars.extInterfaceName, protocol, dest);
         }
 
         if (!fork())
