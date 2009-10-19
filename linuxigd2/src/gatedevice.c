@@ -40,6 +40,8 @@ static TimerThread gExpirationTimerThread;
 static ThreadPool gExpirationThreadPool;
 static ThreadPoolJob gEventUpdateJob;
 
+static int gAutoDisconnectJobId = -1;
+
 // MUTEX for locking shared state variables whenver they are changed
 static ithread_mutex_t DevMutex = PTHREAD_MUTEX_INITIALIZER;
 
@@ -137,12 +139,16 @@ int StateTableInit(char *descDocUrl)
 
     // Initialize our linked list of port mappings.
     pmlist_Head = pmlist_Current = NULL;
+    
+    AutoDisconnectTime = 0;
+    IdleDisconnectTime = 0;
+    WarnDisconnectDelay = 0;
     PortMappingNumberOfEntries = 0;
     SystemUpdateID = 0;
     setEthernetLinkStatus(EthernetLinkStatus, g_vars.extInterfaceName);
     GetIpAddressStr(ExternalIPAddress, g_vars.extInterfaceName);
     GetConnectionStatus(ConnectionStatus, g_vars.extInterfaceName);
-    
+
     // only supported type at the moment
     strcpy(ConnectionType,"IP_Routed");
 
@@ -203,7 +209,7 @@ int HandleSubscriptionRequest(struct Upnp_Subscription_Request *sr_event)
             UpnpAddToPropertySet(&propSet, "ConnectionStatus", ConnectionStatus);
             
             char tmp[11];
-            snprintf(tmp,11,"%ld",SystemUpdateID);            
+            snprintf(tmp,11,"%ld",SystemUpdateID);
             UpnpAddToPropertySet(&propSet, "SystemUpdateID",tmp);
             snprintf(tmp,11,"%d",PortMappingNumberOfEntries);
             UpnpAddToPropertySet(&propSet, "PortMappingNumberOfEntries",tmp);           
@@ -362,9 +368,7 @@ int HandleActionRequest(struct Upnp_Action_Request *ca_event)
                 result = GetListOfPortmappings(ca_event);
             else if (strcmp(ca_event->ActionName,"ForceTermination") == 0)
                 result = ForceTermination(ca_event);
-                
-            // Intentionally Non-Implemented Functions -- To be added later
-            /*else if (strcmp(ca_event->ActionName,"RequestTermination") == 0)
+            else if (strcmp(ca_event->ActionName,"RequestTermination") == 0)
                 result = RequestTermination(ca_event);
             else if (strcmp(ca_event->ActionName,"SetAutoDisconnectTime") == 0)
                 result = SetAutoDisconnectTime(ca_event);
@@ -377,7 +381,7 @@ int HandleActionRequest(struct Upnp_Action_Request *ca_event)
             else if (strcmp(ca_event->ActionName,"GetIdleDisconnectTime") == 0)
                 result = GetIdleDisconnectTime(ca_event);
             else if (strcmp(ca_event->ActionName,"GetWarnDisconnectDelay") == 0)
-                result = GetWarnDisconnectDelay(ca_event);*/
+                result = GetWarnDisconnectDelay(ca_event);
             else result = InvalidAction(ca_event);
         }
         else if (strcmp(ca_event->ServiceID,"urn:upnp-org:serviceId:LANHostConfig1") == 0)
@@ -695,6 +699,251 @@ int SetConnectionType(struct Upnp_Action_Request *ca_event)
     return ca_event->ErrCode;
 }
 
+ /**
+ * WANIPConnection:2 Action: SetAutoDisconnectTime
+ * 
+ * This action sets value of the AutoDisconnectTime state variable.
+ * 
+ * @param ca_event Upnp event struct.
+ * @return Upnp error code.
+ */
+int SetAutoDisconnectTime(struct Upnp_Action_Request *ca_event)
+{
+    char *delay_str = NULL;
+    long int delay;
+    int result = 0;
+
+    if ((delay_str = GetFirstDocumentItem(ca_event->ActionRequest, "NewAutoDisconnectTime")))
+    {
+        delay = atol(delay_str);
+        if (delay < 0)
+        {
+            trace(1, "%s: Argument value out of range",ca_event->ActionName);
+            result = 601;
+            addErrorData(ca_event, 601, "Argument Value Out of Range");            
+        }
+        else
+        {
+            AutoDisconnectTime = delay;
+            trace(2, "%s: WAN connection AutoDisconnectTime set to %ld seconds.",ca_event->ActionName, AutoDisconnectTime);
+        }
+        
+        if (result == 0)
+        {
+            if (createAutoDisconnectTimer() == 0)
+            {
+                // create response SOAP message
+                IXML_Document *ActionResult = NULL;
+                ActionResult = UpnpMakeActionResponse(ca_event->ActionName, WANIP_SERVICE_TYPE,
+                                                        0, NULL);
+                ca_event->ActionResult = ActionResult;
+                ca_event->ErrCode = UPNP_E_SUCCESS;
+            }
+            else
+            {
+                trace(1, "%s: Failed to create AutoDisconnect timer",ca_event->ActionName);
+                addErrorData(ca_event, 501, "Action Failed");
+            }
+        }
+    }
+    else
+    {
+        trace(1, "%s: Invalid Args",ca_event->ActionName);
+        addErrorData(ca_event, 402, "Invalid Args");
+    }
+    free (delay_str);
+    return (ca_event->ErrCode);
+}
+
+ /**
+ * WANIPConnection:2 Action: SetIdleDisconnectTime
+ * 
+ * This action sets value of the IdleDisconnectTime state variable.
+ * 
+ * @param ca_event Upnp event struct.
+ * @return Upnp error code.
+ */
+int SetIdleDisconnectTime(struct Upnp_Action_Request *ca_event)
+{
+    char *delay_str = NULL;
+    long int delay;
+    int result = 0;
+
+    trace(1, "NOTE: IdleDisconnectTime does not currently has any functionality!");
+    if ((delay_str = GetFirstDocumentItem(ca_event->ActionRequest, "NewIdleDisconnectTime")))
+    {
+        delay = atol(delay_str);
+        if (delay < 0)
+        {
+            trace(1, "%s: Argument value out of range",ca_event->ActionName);
+            result = 601;
+            addErrorData(ca_event, 601, "Argument Value Out of Range");            
+        }
+        else
+        {
+            IdleDisconnectTime = delay;
+            trace(2, "%s: WAN connection IdleDisconnectTime set to %ld seconds.",ca_event->ActionName, IdleDisconnectTime);
+        }
+        
+        if (result == 0)
+        {
+            // create response SOAP message
+            IXML_Document *ActionResult = NULL;
+            ActionResult = UpnpMakeActionResponse(ca_event->ActionName, WANIP_SERVICE_TYPE,
+                                            0, NULL);
+            ca_event->ActionResult = ActionResult;
+            ca_event->ErrCode = UPNP_E_SUCCESS;
+        }
+
+    }
+    else
+    {
+        trace(1, "%s: Invalid Args",ca_event->ActionName);
+        addErrorData(ca_event, 402, "Invalid Args");
+    }
+    free (delay_str);
+    return (ca_event->ErrCode);
+}
+
+ /**
+ * WANIPConnection:2 Action: SetWarnDisconnectDelay
+ * 
+ * This action sets value of the WarnDisconnectDelay state variable.
+ * 
+ * @param ca_event Upnp event struct.
+ * @return Upnp error code.
+ */
+int SetWarnDisconnectDelay(struct Upnp_Action_Request *ca_event)
+{
+    char *delay_str = NULL;
+    long int delay;
+    int result = 0;
+
+    if ((delay_str = GetFirstDocumentItem(ca_event->ActionRequest, "NewWarnDisconnectDelay")))
+    {
+        delay = atol(delay_str);
+        if (delay < 0)
+        {
+            trace(1, "%s: Argument value out of range",ca_event->ActionName);
+            result = 601;
+            addErrorData(ca_event, 601, "Argument Value Out of Range");            
+        }
+        else
+        {
+            WarnDisconnectDelay = delay;
+            trace(2, "%s: WAN connection WarnDisconnectDelay set to %ld seconds.",ca_event->ActionName, WarnDisconnectDelay);
+        }
+        
+        if (result == 0)
+        {
+            // create response SOAP message
+            IXML_Document *ActionResult = NULL;
+            ActionResult = UpnpMakeActionResponse(ca_event->ActionName, WANIP_SERVICE_TYPE,
+                                            0, NULL);
+            ca_event->ActionResult = ActionResult;
+            ca_event->ErrCode = UPNP_E_SUCCESS;
+        }
+
+    }
+    else
+    {
+        trace(1, "%s: Invalid Args",ca_event->ActionName);
+        addErrorData(ca_event, 402, "Invalid Args");
+    }
+    free (delay_str);
+    return (ca_event->ErrCode);
+}
+
+ /**
+ * WANIPConnection:2 Action: GetAutoDisconnectTime
+ * 
+ * @param ca_event Upnp event struct.
+ * @return Upnp error code.
+ */
+int GetAutoDisconnectTime(struct Upnp_Action_Request *ca_event)
+{   
+    IXML_Document *ActionResult = NULL;
+    char tmp[11];
+    snprintf(tmp,11,"%ld",AutoDisconnectTime);
+
+    ActionResult = UpnpMakeActionResponse(ca_event->ActionName, WANIP_SERVICE_TYPE,
+                                          1,
+                                          "NewAutoDisconnectTime", tmp);
+                                    
+    if (ActionResult)
+    {
+        ca_event->ActionResult = ActionResult;
+        ca_event->ErrCode = UPNP_E_SUCCESS;        
+    }
+    else
+    {
+        trace(1, "Error parsing Response to %s",ca_event->ActionName);
+        addErrorData(ca_event, 501, "Action Failed");
+    }
+
+    return ca_event->ErrCode;
+}
+
+ /**
+ * WANIPConnection:2 Action: GetIdleDisconnectTime
+ * 
+ * @param ca_event Upnp event struct.
+ * @return Upnp error code.
+ */
+int GetIdleDisconnectTime(struct Upnp_Action_Request *ca_event)
+{   
+    IXML_Document *ActionResult = NULL;
+    char tmp[11];
+    snprintf(tmp,11,"%ld",IdleDisconnectTime);
+
+    ActionResult = UpnpMakeActionResponse(ca_event->ActionName, WANIP_SERVICE_TYPE,
+                                          1,
+                                          "NewIdleDisconnectTime", tmp);
+                                    
+    if (ActionResult)
+    {
+        ca_event->ActionResult = ActionResult;
+        ca_event->ErrCode = UPNP_E_SUCCESS;        
+    }
+    else
+    {
+        trace(1, "Error parsing Response to %s",ca_event->ActionName);
+        addErrorData(ca_event, 501, "Action Failed");
+    }
+
+    return ca_event->ErrCode;
+}
+
+ /**
+ * WANIPConnection:2 Action: GetWarnDisconnectDelay
+ * 
+ * @param ca_event Upnp event struct.
+ * @return Upnp error code.
+ */
+int GetWarnDisconnectDelay(struct Upnp_Action_Request *ca_event)
+{   
+    IXML_Document *ActionResult = NULL;
+    char tmp[11];
+    snprintf(tmp,11,"%ld",WarnDisconnectDelay);
+
+    ActionResult = UpnpMakeActionResponse(ca_event->ActionName, WANIP_SERVICE_TYPE,
+                                          1,
+                                          "NewWarnDisconnectDelay", tmp);
+                                    
+    if (ActionResult)
+    {
+        ca_event->ActionResult = ActionResult;
+        ca_event->ErrCode = UPNP_E_SUCCESS;        
+    }
+    else
+    {
+        trace(1, "Error parsing Response to %s",ca_event->ActionName);
+        addErrorData(ca_event, 501, "Action Failed");
+    }
+
+    return ca_event->ErrCode;
+}
+
 /**
  * WANIPConnection:2 Action: RequestConnection
  * 
@@ -708,78 +957,81 @@ int RequestConnection(struct Upnp_Action_Request *ca_event)
 { 
     IXML_Document *propSet = NULL;
     int result = 0;
-    char resultStr[RESULT_LEN];
-    IXML_Document *ixml_result = NULL;
 
     // create result document for succesfull cases. addErrorData overwrites this if no success
-    snprintf(resultStr, RESULT_LEN, "<u:RequestConnectionResponse xmlns:u=\"urn:schemas-upnp-org:service:WANIPConnection:2\">\n"
-             "</u:RequestConnectionResponse>");
-
-    // Create a IXML_Document from resultStr and return with ca_event
-    if ((ixml_result = ixmlParseBuffer(resultStr)) != NULL)
-    {
-        ca_event->ActionResult = ixml_result;
-    } 
-    
+    IXML_Document *ActionResult = NULL;
+    ActionResult = UpnpMakeActionResponse(ca_event->ActionName, WANIP_SERVICE_TYPE,
+                                            0, NULL);
+    ca_event->ActionResult = ActionResult;
     ca_event->ErrCode = UPNP_E_SUCCESS;
     
     trace(2, "RequestConnection received ... Checking status...");
     
-    //Immediatley Set lastconnectionerror to none. We don't now think about errors.
+    //Immediatley Set lastconnectionerror to none. We don't now care about errors.
     strcpy(LastConnectionError, "ERROR_NONE");
-    GetConnectionStatus(ConnectionStatus, g_vars.extInterfaceName);
     
-    // connection already up. Nothing to do.
+    // connection already up. Nothing to do. Return success
     if (strcmp(ConnectionStatus,"Connected") == 0)
     {
-        trace(2, "RequestConnection: Connection is already connected");
-       
+        trace(2, "%s: Connection is already connected",ca_event->ActionName);
         return ca_event->ErrCode;
     }
     else if (strcmp(ConnectionType,"IP_Routed") != 0)
     {
-        trace(1, "RequestConnection: ConnectionType must be IP_Routed. Type: %s", ConnectionType);
+        trace(1, "%s: ConnectionType must be IP_Routed. Type: %s",ca_event->ActionName, ConnectionType);
         result = 710;
         addErrorData(ca_event, result, "InvalidConnectionType");
     }
     else if (strcmp(ConnectionStatus,"Disconnecting") == 0)
     {
-        trace(1, "RequestConnection: Connection of %s is disconnecting", g_vars.extInterfaceName);
+        trace(1, "%s: Connection of %s is disconnecting",ca_event->ActionName, g_vars.extInterfaceName);
         result = 707;
         addErrorData(ca_event, result, "DisconnectInProgress");
     }
     else if (strcmp(ConnectionStatus,"Connecting") == 0)
     {
-        trace(1, "RequestConnection: Connection of %s is connecting", g_vars.extInterfaceName);
+        trace(1, "%s: Connection of %s is connecting",ca_event->ActionName, g_vars.extInterfaceName);
         result = 705;
         addErrorData(ca_event, result, "ConnectionSetupInProgress");
     }
-
+    else if (strcmp(ConnectionStatus,"PendingDisconnect") == 0)
+    {
+        trace(1, "%s: Connection of %s is pending disconnect. Setting state back to Connected.",ca_event->ActionName, g_vars.extInterfaceName);
+        strcpy(ConnectionStatus, "Connected");
+        UpnpAddToPropertySet(&propSet, "ConnectionStatus", ConnectionStatus);
+        UpnpNotifyExt(deviceHandle, ca_event->DevUDN, ca_event->ServiceID, propSet);
+        ixmlDocument_free(propSet);
+        propSet = NULL;
+        
+        return ca_event->ErrCode;
+    }
+    
     if (result == 0)
     {
         strcpy(ConnectionStatus, "Connecting");
         UpnpAddToPropertySet(&propSet, "ConnectionStatus", ConnectionStatus);
         UpnpNotifyExt(deviceHandle, ca_event->DevUDN, ca_event->ServiceID, propSet);
-        
+        ixmlDocument_free(propSet);
+        propSet = NULL;        
         trace(2, "RequestConnection received ... Connecting..");
         
         if (startDHCPClient(g_vars.extInterfaceName))
             ca_event->ErrCode = UPNP_E_SUCCESS;
         else
         {
-            trace(1, "RequestConnection: Connection set up failed", g_vars.extInterfaceName);
+            trace(1, "%s: Connection set up failed",ca_event->ActionName, g_vars.extInterfaceName);
             result = 704;
             addErrorData(ca_event, result, "ConnectionSetupFailed");
         }     
 
         GetConnectionStatus(ConnectionStatus, g_vars.extInterfaceName);
         // Build DOM Document with state variable connectionstatus and event it
-        propSet = NULL;
         UpnpAddToPropertySet(&propSet, "ConnectionStatus", ConnectionStatus);
         // Send off notifications of state change
         UpnpNotifyExt(deviceHandle, ca_event->DevUDN, ca_event->ServiceID, propSet);
     }
     
+    ixmlDocument_free(propSet);
     return ca_event->ErrCode;
 }
 
@@ -794,42 +1046,11 @@ int RequestConnection(struct Upnp_Action_Request *ca_event)
  */
 int ForceTermination(struct Upnp_Action_Request *ca_event)
 {
-    IXML_Document *propSet = NULL;
     int result = 0;
 
-    char resultStr[RESULT_LEN];
-    IXML_Document *ixml_result = NULL;
-    
-    // create result document for succesfull cases. addErrorData overwrites this if no success
-    snprintf(resultStr, RESULT_LEN, "<u:ForceTerminationResponse xmlns:u=\"urn:schemas-upnp-org:service:WANIPConnection:2\">\n"
-             "</u:ForceTerminationResponse>");
-
-    // Create a IXML_Document from resultStr and return with ca_event
-    if ((ixml_result = ixmlParseBuffer(resultStr)) != NULL)
+    if (strcmp(ConnectionStatus,"Disconnecting") == 0)
     {
-        ca_event->ActionResult = ixml_result;
-    }
-
-
-    ca_event->ErrCode = UPNP_E_SUCCESS;
-
-    GetConnectionStatus(ConnectionStatus, g_vars.extInterfaceName);
-    
-    if (strcmp(ConnectionType,"IP_Routed") != 0)
-    {
-        trace(1, "ForceTermination: ConnectionType must be IP_Routed. Type: %s", ConnectionType);
-        result = 710;
-        addErrorData(ca_event, result, "InvalidConnectionType");
-    }    
-    else if (strcmp(ConnectionStatus,"Disconnected") == 0)
-    {
-        trace(1, "ForceTermination: Connection of %s already terminated", g_vars.extInterfaceName);
-        result = 711;
-        addErrorData(ca_event, result, "ConnectionAlreadyTerminated");
-    }
-    else if (strcmp(ConnectionStatus,"Disconnecting") == 0)
-    {
-        trace(1, "ForceTermination: Connection of %s already disconnecting", g_vars.extInterfaceName);
+        trace(1, "%s: Connection of %s already disconnecting", ca_event->ActionName, g_vars.extInterfaceName);
         result = 707;
         addErrorData(ca_event, result, "DisconnectInProgress");
     }
@@ -837,27 +1058,41 @@ int ForceTermination(struct Upnp_Action_Request *ca_event)
     // if ok to continue termination
     if (result == 0)
     {
-        trace(2, "ForceTermination received ... Disconnecting.");
+        return ConnectionTermination(ca_event, 0);
+    }
+    
+    return ca_event->ErrCode;
+}
 
-        strcpy(ConnectionStatus, "Disconnecting");
-        UpnpAddToPropertySet(&propSet, "ConnectionStatus", ConnectionStatus);
-        UpnpNotifyExt(deviceHandle, ca_event->DevUDN, ca_event->ServiceID, propSet);
-        
-        // terminate    
-        if (releaseIP(g_vars.extInterfaceName))
-        {       
-            trace(3, "Disconnected...");   
-            ca_event->ErrCode = UPNP_E_SUCCESS;   
-        }
-        else
-            ca_event->ErrCode = UPNP_SOAP_E_ACTION_FAILED;
-        
-            
-        GetConnectionStatus(ConnectionStatus, g_vars.extInterfaceName);
-        // Event ConnectionStatus
-        propSet = NULL;
-        UpnpAddToPropertySet(&propSet, "ConnectionStatus", ConnectionStatus);
-        UpnpNotifyExt(deviceHandle, ca_event->DevUDN, ca_event->ServiceID, propSet);     
+ /**
+ * WANIPConnection:2 Action: RequestTermination
+ * 
+ * Terminate WAN connection after WarnDisconnectDelay.
+ * 
+ * @param ca_event Upnp event struct.
+ * @return Upnp error code.
+ */
+int RequestTermination(struct Upnp_Action_Request *ca_event)
+{
+    int result = 0;
+    long int delay = WarnDisconnectDelay;
+
+    if (strcmp(ConnectionStatus,"Disconnecting") == 0 || strcmp(ConnectionStatus,"PendingDisconnect") == 0) 
+    {
+        trace(1, "%s: Connection of %s already disconnecting", ca_event->ActionName, g_vars.extInterfaceName);
+        result = 707;
+        addErrorData(ca_event, result, "DisconnectInProgress");
+    }
+    else if (strcmp(ConnectionStatus,"Connecting") == 0) 
+    {
+        trace(3, "%s: Connection of %s Connecting. WarnDisconnectDelay is now ignored", ca_event->ActionName, g_vars.extInterfaceName);
+        delay = 0;
+    }
+
+    // if ok to continue termination
+    if (result == 0)
+    {
+        return ConnectionTermination(ca_event, delay);
     }
     
     return ca_event->ErrCode;
@@ -883,7 +1118,6 @@ int AddPortMapping(struct Upnp_Action_Request *ca_event)
     char *desc=NULL;
     struct portMap *ret;
     int result = 0;
-    char resultStr[RESULT_LEN];
 
     if ( (remote_host = GetFirstDocumentItem(ca_event->ActionRequest, "NewRemoteHost") )
             && (ext_port = GetFirstDocumentItem(ca_event->ActionRequest, "NewExternalPort") )
@@ -968,10 +1202,12 @@ unless control port is authorized. external_port:%s, internal_port:%s internal_c
             // create response message if success, AddNewPortMapping adds error to response if it fails
             if (result == 1)
             {
+                // create response SOAP message
+                IXML_Document *ActionResult = NULL;
+                ActionResult = UpnpMakeActionResponse(ca_event->ActionName, WANIP_SERVICE_TYPE,
+                                                0, NULL);
+                ca_event->ActionResult = ActionResult;
                 ca_event->ErrCode = UPNP_E_SUCCESS;
-                snprintf(resultStr, RESULT_LEN, "<u:%sResponse xmlns:u=\"%s\">\n%s\n</u:%sResponse>",
-                         ca_event->ActionName, "urn:schemas-upnp-org:service:WANIPConnection:2", "", ca_event->ActionName);
-                ca_event->ActionResult = ixmlParseBuffer(resultStr);
             }
         }
     }
@@ -1164,7 +1400,7 @@ unless control port is authorized. external_port:%s, internal_port:%s internal_c
     return(ca_event->ErrCode);
 }
 
- /**
+/**
  * WANIPConnection:2 Action: GetGenericPortMappingEntry
  * 
  * This action retrieves NAT port mappings one entry at a time.
@@ -1266,7 +1502,7 @@ int GetSpecificPortMappingEntry(struct Upnp_Action_Request *ca_event)
         if (((strcmp(proto, "TCP") != 0) && (strcmp(proto, "UDP") != 0)) || 
             (atoi(ext_port) < 0) )
         {
-            trace(1, "%s: Argument value out of range");
+            trace(1, "%s: Argument value out of range",ca_event->ActionName);
             addErrorData(ca_event, 601, "Argument Value Out of Range");
         }
         else if ((strcmp(remote_host, "") != 0) && !IsIpOrDomain(remote_host))
@@ -1387,7 +1623,7 @@ int DeletePortMapping(struct Upnp_Action_Request *ca_event)
         if (((strcmp(proto, "TCP") != 0) && (strcmp(proto, "UDP") != 0)) || 
             (atoi(ext_port) < 0) )
         {
-            trace(1, "%s: Argument value out of range");
+            trace(1, "%s: Argument value out of range",ca_event->ActionName);
             result = 601;
             addErrorData(ca_event, result, "Argument Value Out of Range");
         }
@@ -1518,7 +1754,7 @@ int DeletePortMappingRange(struct Upnp_Action_Request *ca_event)
             (atoi(start_port) < 0) ||
             (atoi(end_port) < 0) )
         {
-            trace(1, "%s: Argument value out of range");
+            trace(1, "%s: Argument value out of range",ca_event->ActionName);
             result = 601;
             addErrorData(ca_event, result, "Argument Value Out of Range");
         }        
@@ -1655,7 +1891,7 @@ int GetListOfPortmappings(struct Upnp_Action_Request *ca_event)
             (atoi(start_port) < 0) ||
             (atoi(end_port) < 0) )
         {
-            trace(1, "%s: Argument value out of range");
+            trace(1, "%s: Argument value out of range",ca_event->ActionName);
             addErrorData(ca_event, 601, "Argument Value Out of Range");
         }        
         // check that port values are greater than or equal to 1024 if CP is not authorized
@@ -1861,6 +2097,114 @@ void free_expiration_event(expiration_event *event)
 }
 
 /**
+ * Create timer for disconnecting WAN connection automatically after time defined by 
+ * AutoDisconnectTime state variable has elapsed from the connection status changing
+ * to Connected status.
+ * 
+ * Every time the state of connection changes to "Connected", this timer must be updated!
+ * See ConnectionStatusEventing().
+ * 
+ * @return Upnp error code.
+ */
+int createAutoDisconnectTimer(void)
+{
+    int result = 0;
+    // cancel possible previous autodisconnect job
+    if (gAutoDisconnectJobId != -1)
+    {
+        trace(3,"Remove previous AutoDisconnect timer");
+        TimerThreadRemove(&gExpirationTimerThread, gAutoDisconnectJobId, NULL);
+    }
+    
+    if (AutoDisconnectTime > 0)
+    {
+        trace(3,"Create new AutoDisconnect timer to be executed after %ld seconds",AutoDisconnectTime);
+        long int *pointer_to_delay = (long int *)malloc(sizeof(long int));
+        *pointer_to_delay = WarnDisconnectDelay;
+        // schedule new autodisconnect job
+        ThreadPoolJob job;
+        // Add disconnect job
+        TPJobInit( &job, ( start_routine ) DisconnectWAN, pointer_to_delay );
+        result = TimerThreadSchedule( &gExpirationTimerThread,
+                                        AutoDisconnectTime,
+                                        REL_SEC, &job, SHORT_TERM,
+                                        &gAutoDisconnectJobId );
+    }
+    return result;
+}
+
+/**
+ * Disconnects WAN connection. Does the needed eventing.
+ * 
+ * @param input Pointer to long int which contains possible WarnDisconnectDelay. Must be pointer that is possible to free. Or NULL.
+ */
+void DisconnectWAN(void *input)
+{
+    IXML_Document *propSet = NULL;
+    long int *delay = (long int *)input;
+    trace(2, "Request for WAN connection termination received. Start disconnecting... ");
+    //TODO: Some really good way to get serviceids and UDNs from descdoc!!
+    if (input && *delay > 0)
+    {
+        trace(2, "Pending WAN connection termination for %ld seconds...", *delay);
+        strcpy(ConnectionStatus, "PendingDisconnect");
+        UpnpAddToPropertySet(&propSet, "ConnectionStatus", ConnectionStatus);
+        UpnpNotifyExt(deviceHandle, wanConnectionUDN, "urn:upnp-org:serviceId:WANIPConn1", propSet);
+        ixmlDocument_free(propSet);
+        propSet = NULL;
+        
+        /* Sleep one second at a time and check if connection status has changed to Connected.
+         * This way we don't block the next possible disconnect job initiated from DisconnectWAN()
+         */
+        long int slept;
+        for (slept = 0; slept <= *delay; slept++)
+        {
+            if (strcmp(ConnectionStatus, "Connected") == 0)
+            {
+                /* so somebody called RequestConnection while we were sleeping. Don't terminate then. */
+                trace(2, "WAN connection termination has been canceled.");
+                free(input);
+                return;
+            }
+            sleep(1);
+        }
+    }
+
+    strcpy(ConnectionStatus, "Disconnecting");
+    UpnpAddToPropertySet(&propSet, "ConnectionStatus", ConnectionStatus);
+    UpnpNotifyExt(deviceHandle, wanConnectionUDN, "urn:upnp-org:serviceId:WANIPConn1", propSet);
+    ixmlDocument_free(propSet);
+    propSet = NULL;
+    
+    // terminate    
+    if (releaseIP(g_vars.extInterfaceName))
+    {       
+        trace(3, "WAN connection Disconnected!");
+    }
+    else
+    {
+        trace(3, "Failed to disconnect WAN connection!");
+        strcpy(ConnectionStatus, "Connected");
+    }
+          
+    GetConnectionStatus(ConnectionStatus, g_vars.extInterfaceName);
+    // Event ConnectionStatus
+    UpnpAddToPropertySet(&propSet, "ConnectionStatus", ConnectionStatus);
+    UpnpNotifyExt(deviceHandle, wanConnectionUDN, "urn:upnp-org:serviceId:WANIPConn1", propSet);    
+    ixmlDocument_free(propSet);
+    
+    if (strcmp(ConnectionStatus, "Disconnected") == 0)
+    {
+        trace(2, "Disconnecting WAN connection succeeded");
+    }
+    else
+    {
+        trace(2, "Disconnecting WAN connection failed. State of connection: '%s'",ConnectionStatus);
+    }
+    free(input);
+}
+
+/**
  * This timer is used to check periodically if values of some state variables have changed.
  * If some has chandeg then event is sent to control points which has subscribed those events.
  * 
@@ -1877,9 +2221,8 @@ int createEventUpdateTimer(void)
 
     // Add event update job
     TPJobInit( &gEventUpdateJob, ( start_routine ) UpdateEvents, event );
-    // timerthreads could be persistent also, but didn't get it working...
     TimerThreadSchedule( &gExpirationTimerThread,
-                         g_vars.eventUpdateInterval,
+                         EVENTS_UPDATE_INTERVAL,
                          REL_SEC, &gEventUpdateJob, SHORT_TERM,
                          &( event->eventId ) );
     return  event->eventId;
@@ -1965,24 +2308,37 @@ int ExternalIPAddressEventing(IXML_Document *propSet)
  * Check if ConnectionStatus state variable has changed since last check.
  * Update value and send notification for control points if it has changed.
  * 
+ * If state has changed and the new state of connection is "Connected", reset
+ * AutoDisconnectTimer.
+ * 
  * @param propSet IXML_Document used for notification.
  * @return 1 if ConnectionStatus has changed, 0 if not.
  */
 int ConnectionStatusEventing(IXML_Document *propSet)
 {
-    char prevStatus[20];
-
-    strcpy(prevStatus,ConnectionStatus);
-    GetConnectionStatus(ConnectionStatus, g_vars.extInterfaceName);
-
-    // has status changed?
-    if (strcmp(prevStatus,ConnectionStatus) != 0)
+    /* this is done only if previous state of connection is either "Connected" or "Disconnected"
+     * Other states are caused by DisconnectWAN or RequestConnection and they will take care of 
+     * eventing of those states. 
+     */
+    if (strcmp(ConnectionStatus, "Connected") == 0 || strcmp(ConnectionStatus, "Disconnected") == 0)
     {
-        UpnpAddToPropertySet(&propSet, "ConnectionStatus", ConnectionStatus);
-        UpnpNotifyExt(deviceHandle, wanConnectionUDN, "urn:upnp-org:serviceId:WANIPConn1", propSet);
-        trace(2, "ConnectionStatus changed: From %s to %s",prevStatus,ConnectionStatus);
-        propSet = NULL;
-        return 1;
+        char prevStatus[20];
+    
+        strcpy(prevStatus,ConnectionStatus);
+        GetConnectionStatus(ConnectionStatus, g_vars.extInterfaceName);
+    
+        // has status changed?
+        if (strcmp(prevStatus,ConnectionStatus) != 0)
+        {
+            if (strcmp(ConnectionStatus, "Connected") == 0)
+                createAutoDisconnectTimer();
+            
+            UpnpAddToPropertySet(&propSet, "ConnectionStatus", ConnectionStatus);
+            UpnpNotifyExt(deviceHandle, wanConnectionUDN, "urn:upnp-org:serviceId:WANIPConn1", propSet);
+            trace(2, "ConnectionStatus changed: From %s to %s",prevStatus,ConnectionStatus);
+            propSet = NULL;
+            return 1;
+        }
     }
     return 0;
 }
@@ -2321,3 +2677,57 @@ int AuthorizeControlPoint(struct Upnp_Action_Request *ca_event, int managed, int
     }
 }
 
+/**
+ * Creates new job for terminating WAN connection. Checks also common errors for RequestTermination
+ * and ForceTermination.
+ * 
+ * @param ca_event Upnp_Action_Request struct.
+ * @param disconnectDelay How long is waited before really terminates connection. If greater than 0, sends PendingDisconnect event.
+ * @return UPnP error code or 0 if CP is authorized
+ */
+int ConnectionTermination(struct Upnp_Action_Request *ca_event, long int disconnectDelay)
+{
+    int result = 0;
+
+    if (strcmp(ConnectionType,"IP_Routed") != 0)
+    {
+        trace(1, "%s: ConnectionType must be IP_Routed. Type: %s", ca_event->ActionName, ConnectionType);
+        result = 710;
+        addErrorData(ca_event, result, "InvalidConnectionType");
+    }    
+    else if (strcmp(ConnectionStatus,"Disconnected") == 0)
+    {
+        trace(1, "%s: Connection of %s already terminated", ca_event->ActionName, g_vars.extInterfaceName);
+        result = 711;
+        addErrorData(ca_event, result, "ConnectionAlreadyTerminated");
+    }
+
+    // if ok to continue termination
+    if (result == 0)
+    {
+        long int *pointer_to_delay = (long int *)malloc(sizeof(long int));
+        *pointer_to_delay = disconnectDelay;
+        // create new job that will disconnect and send events, we can return success to CP
+        int jobId;
+        ThreadPoolJob job;
+        TPJobInit( &job, ( start_routine ) DisconnectWAN, pointer_to_delay );
+        result = ThreadPoolAdd(&gExpirationThreadPool, &job, &jobId);
+
+        if (result == 0)
+        {
+            // create response SOAP message
+            IXML_Document *ActionResult = NULL;
+            ActionResult = UpnpMakeActionResponse(ca_event->ActionName, WANIP_SERVICE_TYPE,
+                                                    0, NULL);
+            ca_event->ActionResult = ActionResult;
+            ca_event->ErrCode = UPNP_E_SUCCESS;
+        }
+        else
+        {
+            trace(1, "%s: Failed to create job for WAN connection termination", ca_event->ActionName);
+            addErrorData(ca_event, 501, "Action Failed");
+        }
+    }
+    
+    return ca_event->ErrCode;
+}

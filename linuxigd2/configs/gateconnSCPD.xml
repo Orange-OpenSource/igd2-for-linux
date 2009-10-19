@@ -41,7 +41,44 @@
         </action>
 
         <action>
+            <name>RequestTermination</name>
+        </action>
+
+        <action>
             <name>ForceTermination</name>
+        </action>
+
+        <action>
+            <name>SetAutoDisconnectTime</name>
+            <argumentList>
+                <argument>
+                    <name>NewAutoDisconnectTime</name>
+                    <direction>in</direction>
+                    <relatedStateVariable>AutoDisconnectTime</relatedStateVariable>
+                </argument>
+            </argumentList>
+        </action>
+
+        <action>
+            <name>SetIdleDisconnectTime</name>
+            <argumentList>
+                <argument>
+                    <name>NewIdleDisconnectTime</name>
+                    <direction>in</direction>
+                    <relatedStateVariable>IdleDisconnectTime</relatedStateVariable>
+                </argument>
+            </argumentList>
+        </action>
+
+        <action>
+            <name>SetWarnDisconnectDelay</name>
+            <argumentList>
+                <argument>
+                    <name>NewWarnDisconnectDelay</name>
+                    <direction>in</direction>
+                    <relatedStateVariable>WarnDisconnectDelay</relatedStateVariable>
+                </argument>
+            </argumentList>
         </action>
 
         <action>
@@ -63,6 +100,39 @@
                     <name>NewUptime</name>
                     <direction>out</direction>
                     <relatedStateVariable>Uptime</relatedStateVariable>
+                </argument>
+            </argumentList>
+        </action>
+
+        <action>
+            <name>GetAutoDisconnectTime</name>
+            <argumentList>
+                <argument>
+                    <name>NewAutoDisconnectTime</name>
+                    <direction>out</direction>
+                    <relatedStateVariable>AutoDisconnectTime</relatedStateVariable>
+                </argument>
+            </argumentList>
+        </action>
+
+        <action>
+            <name>GetIdleDisconnectTime</name>
+            <argumentList>
+                <argument>
+                    <name>NewIdleDisconnectTime</name>
+                    <direction>out</direction>
+                    <relatedStateVariable>IdleDisconnectTime</relatedStateVariable>
+                </argument>
+            </argumentList>
+        </action>
+
+        <action>
+            <name>GetWarnDisconnectDelay</name>
+            <argumentList>
+                <argument>
+                    <name>NewWarnDisconnectDelay</name>
+                    <direction>out</direction>
+                    <relatedStateVariable>WarnDisconnectDelay</relatedStateVariable>
                 </argument>
             </argumentList>
         </action>

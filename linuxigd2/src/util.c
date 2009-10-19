@@ -634,7 +634,7 @@ int killDHCPClient(char *iface)
     {
         // brute force
         trace(3,"No PID file available for %s of %s",g_vars.dhcpc,iface);
-        snprintf(tmp, 30, "killall %s", g_vars.dhcpc);
+        snprintf(tmp, 30, "killall -9 %s", g_vars.dhcpc);
         trace(3,"system(%s)",tmp);
         system(tmp);
     }
@@ -661,10 +661,17 @@ int killDHCPClient(char *iface)
  */ 
 int startDHCPClient(char *iface)
 {
-    char tmp[50];
+    char tmp[100];
 
     trace(2,"Starting DHCP client...");
-    snprintf(tmp, 50, "%s -t 0 -i %s -R", g_vars.dhcpc, iface);
+    if (strcmp(g_vars.dhcpc,"dhclient") == 0)
+    {
+        snprintf(tmp, 100, "%s -pf /var/run/%s.pid %s", g_vars.dhcpc, iface, iface);
+    }
+    else
+    {
+        snprintf(tmp, 100, "%s -i %s -R -p /var/run/%s.pid", g_vars.dhcpc, iface, iface);
+    }
     trace(3,"system(%s)",tmp);
     system(tmp);
 
@@ -697,17 +704,44 @@ int releaseIP(char *iface)
     if (!GetIpAddressStr(tmp, iface))
         return 1;
 
-    // kill already running udhcpc-client for given iface and check if IP was released
-    if (killDHCPClient(iface))
-        success = 1; //OK
+    // if used dhcp client is dhclient, use -r parameter to release IP
+    if (strcmp(g_vars.dhcpc,"dhclient") == 0)
+    {
+        char tmp[50];
+    
+        trace(2,"Releasing IP...");
+        snprintf(tmp, 50, "%s -r %s", g_vars.dhcpc, iface);
+        trace(3,"system(%s)",tmp);
+        system(tmp);
+
+        sleep(2); // wait that IP is released
+    
+        if (!GetIpAddressStr(tmp, iface))
+        {
+            trace(3,"Success IP of %s is released",iface);
+            return 1;
+        }
+        else
+        {
+            trace(3,"Failure IP of %s: %s",iface,tmp);
+            return 0;
+        }
+    }
+    // if used dhcp client is udhcpc, IP is released when udhcpc is killed if udhcpc was started with -R parameter
     else
     {
-        // start udhcpc-clientdaemon with parameter -R which will release IP after quiting daemon
-        startDHCPClient(iface);
-
-        // then kill udhcpc-client running. Now there shouldn't be IP anymore.
-        if(killDHCPClient(iface))
-            success = 1;
+        // kill already running udhcpc-client for given iface and check if IP was released
+        if (killDHCPClient(iface))
+            success = 1; //OK
+        else
+        {
+            // start udhcpc-clientdaemon with parameter -R which will release IP after quiting daemon
+            startDHCPClient(iface);
+    
+            // then kill udhcpc-client running. Now there shouldn't be IP anymore.
+            if(killDHCPClient(iface))
+                success = 1;
+        }
     }
     return success;
 }

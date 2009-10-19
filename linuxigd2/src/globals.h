@@ -80,9 +80,6 @@ struct GLOBALS
     // resolv.conf location
     char resolvConf[OPTION_LEN];
 
-    // Event update thread checking interval
-    int eventUpdateInterval;
-
     // dhcp-client command
     char dhcpc[OPTION_LEN];
     
@@ -120,8 +117,6 @@ extern globals g_vars;
 #define UCI_CMD_DEFAULT "/sbin/uci"
 #define RESOLV_CONF_DEFAULT "/etc/resolv.conf"
 #define RESOLV_CONF_TMP "/tmp/resolv.conf.IGDv2"
-// How often check if update events should be sent
-#define DEFAULT_EVENT_UPDATE_INTERVAL 60
 #define DHCPC_DEFAULT "udhcpc"
 #define NETWORK_CMD_DEFAULT "/etc/init.d/network"
 
