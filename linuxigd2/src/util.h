@@ -23,6 +23,16 @@
 
 #include <upnp/upnp.h>
 
+/* interface statistics */
+typedef enum
+{
+    STATS_TX_BYTES,
+    STATS_RX_BYTES,
+    STATS_TX_PACKETS,
+    STATS_RX_PACKETS,
+    STATS_LIMIT
+} stats_t;
+
 // ACL error codes
 typedef enum {
     ACL_SUCCESS           = 0,
@@ -32,7 +42,7 @@ typedef enum {
     ACL_ROLE_ERROR        = -3,  //role either exist if it shouldn't or doesn't exist even if should
 } ACL_ERRORCODE;
 
-
+int readStats(unsigned long stats[STATS_LIMIT]);
 char* escapeXMLString(const char *xml);
 char* unescapeXMLString(const char *escXML);
 char *toUpperCase(const char * str);

@@ -22,17 +22,10 @@
 #define _GATEDEVICE_H_ 1
 
 #include <upnp/upnp.h>
+#include "util.h"
 
 #define WANIP_SERVICE_TYPE "urn:schemas-upnp-org:service:WANIPConnection:2"
-/* interface statistics */
-typedef enum
-{
-    STATS_TX_BYTES,
-    STATS_RX_BYTES,
-    STATS_TX_PACKETS,
-    STATS_RX_PACKETS,
-    STATS_LIMIT
-} stats_t;
+
 
 // IGD Device Globals
 UpnpDevice_Handle deviceHandle;
@@ -40,12 +33,13 @@ char *gateUDN;
 char *wanUDN;
 char *wanConnectionUDN;
 long int startup_time;
+unsigned long connection_stats[STATS_LIMIT]; // this is used for defining if connection is in idling
+long int idle_time;
 
 // State Variables
 char ConnectionType[50];
 char PossibleConnectionTypes[50];
 char ConnectionStatus[20];
-long int StartupTime;
 char LastConnectionError[35];
 long int AutoDisconnectTime;
 long int IdleDisconnectTime;

@@ -63,6 +63,38 @@ static int get_sockfd(void)
     return sockfd;
 }
 
+/**
+ * Get values for send bytes and packets and received bytes and packets for 
+ * external interface from /proc/net/dev
+ *
+ * @param stats Unsigned long array with size of STATS_LIMIT
+ * @return 0 if fails to open file, 1 if succeed to get values.
+ */
+int readStats(unsigned long stats[STATS_LIMIT])
+{
+    char dev[IFNAMSIZ];
+    FILE *proc;
+    int read;
+
+    proc = fopen("/proc/net/dev", "r");
+    if (!proc)
+    {
+        fprintf(stderr, "failed to open\n");
+        return 0;
+    }
+
+    /* skip first two lines */
+    fscanf(proc, "%*[^\n]\n%*[^\n]\n");
+
+    /* parse stats */
+    do
+        read = fscanf(proc, "%[^:]:%lu %lu %*u %*u %*u %*u %*u %*u %lu %lu %*u %*u %*u %*u %*u %*u\n", dev, &stats[STATS_RX_BYTES], &stats[STATS_RX_PACKETS], &stats[STATS_TX_BYTES], &stats[STATS_TX_PACKETS]);
+    while (read != EOF && (read == 5 && strncmp(dev, g_vars.extInterfaceName, IFNAMSIZ) != 0));
+
+    fclose(proc);
+    
+    return 1;
+}
 
 /**
  * THIS FUNCTION IS NOT ACTUALLY NEEDED, if you use UpnpMakeActionResponse and such

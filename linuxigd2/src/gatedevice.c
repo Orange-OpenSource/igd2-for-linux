@@ -31,7 +31,6 @@
 #include "globals.h"
 #include "gatedevice.h"
 #include "pmlist.h"
-#include "util.h"
 #include "lanhostconfig.h"
 #include "deviceprotection.h"
 
@@ -149,12 +148,19 @@ int StateTableInit(char *descDocUrl)
     GetIpAddressStr(ExternalIPAddress, g_vars.extInterfaceName);
     GetConnectionStatus(ConnectionStatus, g_vars.extInterfaceName);
 
+    if (!readStats(connection_stats))
+    {
+        syslog(LOG_ERR, "Failed get connection stats from /proc. Exiting ...");
+        UpnpFinish();
+        exit(1);
+    }
+    idle_time = 0;
+
     // only supported type at the moment
     strcpy(ConnectionType,"IP_Routed");
 
     // initialize Device Protection statevariables
     DPStateTableInit();
-
     return (ret);
 }
 
@@ -516,30 +522,19 @@ int GetCommonLinkProperties(struct Upnp_Action_Request *ca_event)
  */
 int GetTotal(struct Upnp_Action_Request *ca_event, stats_t stat)
 {
-    char dev[IFNAMSIZ], resultStr[RESULT_LEN];
+    char resultStr[RESULT_LEN];
     const char *methods[STATS_LIMIT] =
         { "BytesSent", "BytesReceived", "PacketsSent", "PacketsReceived" };
-    unsigned long stats[STATS_LIMIT];
-    FILE *proc;
     IXML_Document *result;
-    int read;
+    unsigned long stats[STATS_LIMIT];
 
-    proc = fopen("/proc/net/dev", "r");
-    if (!proc)
+    if (!readStats(stats))
     {
-        fprintf(stderr, "failed to open\n");
-        return 0;
+        trace(1, "Error reading stats for GetTotal");
+        ca_event->ActionResult = NULL;
+        ca_event->ErrCode = 501;
+        return (ca_event->ErrCode);
     }
-
-    /* skip first two lines */
-    fscanf(proc, "%*[^\n]\n%*[^\n]\n");
-
-    /* parse stats */
-    do
-        read = fscanf(proc, "%[^:]:%lu %lu %*u %*u %*u %*u %*u %*u %lu %lu %*u %*u %*u %*u %*u %*u\n", dev, &stats[STATS_RX_BYTES], &stats[STATS_RX_PACKETS], &stats[STATS_TX_BYTES], &stats[STATS_TX_PACKETS]);
-    while (read != EOF && (read == 5 && strncmp(dev, g_vars.extInterfaceName, IFNAMSIZ) != 0));
-
-    fclose(proc);
 
     snprintf(resultStr, RESULT_LEN,
              "<u:GetTotal%sResponse xmlns:u=\"urn:schemas-upnp-org:service:WANCommonInterfaceConfig:1\">\n"
@@ -557,7 +552,7 @@ int GetTotal(struct Upnp_Action_Request *ca_event, stats_t stat)
     {
         trace(1, "Error parsing response to GetTotal: %s", resultStr);
         ca_event->ActionResult = NULL;
-        ca_event->ErrCode = 402;
+        ca_event->ErrCode = 501;
     }
 
     return (ca_event->ErrCode);
@@ -590,7 +585,7 @@ int GetStatusInfo(struct Upnp_Action_Request *ca_event)
              "<u:GetStatusInfoResponse xmlns:u=\"urn:schemas-upnp-org:service:GetStatusInfo:1\">\n"
              "<NewConnectionStatus>Connected</NewConnectionStatus>\n"
              "<NewLastConnectionError>ERROR_NONE</NewLastConnectionError>\n"
-             "<NewUptime>%li</NewUptime>\n"
+             "<NewUptime>%ld</NewUptime>\n"
              "</u:GetStatusInfoResponse>",
              uptime);
 
@@ -769,7 +764,6 @@ int SetIdleDisconnectTime(struct Upnp_Action_Request *ca_event)
     long int delay;
     int result = 0;
 
-    trace(1, "NOTE: IdleDisconnectTime does not currently has any functionality!");
     if ((delay_str = GetFirstDocumentItem(ca_event->ActionRequest, "NewIdleDisconnectTime")))
     {
         delay = atol(delay_str);
@@ -794,7 +788,6 @@ int SetIdleDisconnectTime(struct Upnp_Action_Request *ca_event)
             ca_event->ActionResult = ActionResult;
             ca_event->ErrCode = UPNP_E_SUCCESS;
         }
-
     }
     else
     {
@@ -2146,7 +2139,7 @@ void DisconnectWAN(void *input)
     //TODO: Some really good way to get serviceids and UDNs from descdoc!!
     if (input && *delay > 0)
     {
-        trace(2, "Pending WAN connection termination for %ld seconds...", *delay);
+        trace(3, "Pending WAN connection termination for %ld seconds...", *delay);
         strcpy(ConnectionStatus, "PendingDisconnect");
         UpnpAddToPropertySet(&propSet, "ConnectionStatus", ConnectionStatus);
         UpnpNotifyExt(deviceHandle, wanConnectionUDN, "urn:upnp-org:serviceId:WANIPConn1", propSet);
@@ -2162,7 +2155,7 @@ void DisconnectWAN(void *input)
             if (strcmp(ConnectionStatus, "Connected") == 0)
             {
                 /* so somebody called RequestConnection while we were sleeping. Don't terminate then. */
-                trace(2, "WAN connection termination has been canceled.");
+                trace(3, "WAN connection termination has been canceled.");
                 free(input);
                 return;
             }
@@ -2229,6 +2222,45 @@ int createEventUpdateTimer(void)
 }
 
 /**
+ * Updates global variable idle_time which tells how long the WAN connection has been unused.
+ * If idle_time is equal or greater than IdleDisconnectTime, then the WAN connection is terminated.
+ */
+static void updateIdleTime()
+{
+    if (IdleDisconnectTime <= 0 || strcmp(ConnectionStatus, "Connected") != 0)
+        return;
+    
+    unsigned long stats[STATS_LIMIT];
+    if (!readStats(stats))
+    {
+        return;
+    }
+    
+    if (stats[STATS_RX_PACKETS] != connection_stats[STATS_RX_PACKETS] ||
+         stats[STATS_TX_PACKETS] != connection_stats[STATS_TX_PACKETS])
+        idle_time = 0;
+    else 
+        idle_time += EVENTS_UPDATE_INTERVAL; // this function is executed every EVENTS_UPDATE_INTERVAL seconds
+
+    // if we have idled long enough lets terminate WAN connection
+    if (idle_time >= IdleDisconnectTime)
+    {
+        trace(2,"WAN connection has been idling for IdleDisconnectTime %ld seconds. Terminate connection.",IdleDisconnectTime);
+        long int *pointer_to_delay = (long int *)malloc(sizeof(long int));
+        *pointer_to_delay = WarnDisconnectDelay;
+        DisconnectWAN((void *)pointer_to_delay);
+        idle_time = 0;
+    }
+    else
+    {
+        connection_stats[STATS_RX_BYTES] = stats[STATS_RX_BYTES];
+        connection_stats[STATS_RX_PACKETS] = stats[STATS_RX_PACKETS];
+        connection_stats[STATS_TX_BYTES] = stats[STATS_TX_BYTES];
+        connection_stats[STATS_TX_PACKETS] = stats[STATS_TX_PACKETS];
+    }
+}
+
+/**
  * UpdateEventTimer calls this to check if state variables, which may change on they own,
  * have changed. These variables are EthernetLinkStatus, ExternalIPAddress and ConnectionStatus.
  * 
@@ -2244,6 +2276,9 @@ void UpdateEvents(void *input)
     ExternalIPAddressEventing(propSet);
     ConnectionStatusEventing(propSet);
 
+    // this is not anything to do with eventing, but because this function is regularly executed this is here also.
+    updateIdleTime();
+    
     ithread_mutex_unlock(&DevMutex);
 
     ixmlDocument_free(propSet);
