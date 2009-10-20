@@ -1580,8 +1580,13 @@ int AddRolesForIdentity(struct Upnp_Action_Request *ca_event)
         if (identityDoc == NULL)
         {
             trace(1, "%s: Failed to parse Identity xml '%s'",ca_event->ActionName, unescValue);
-            result = 501;
-            addErrorData(ca_event, result, "Action Failed");
+            result = 600;
+            addErrorData(ca_event, result, "Argument Value Invalid");
+            free(unescValue);
+            free(identity);
+            free(rolelist);
+            
+            return ca_event->ErrCode;
         }
         
         // add roles for identity which is found from identityDoc
@@ -1657,8 +1662,13 @@ int RemoveRolesForIdentity(struct Upnp_Action_Request *ca_event)
         if (identityDoc == NULL)
         {
             trace(1, "%s: Failed to parse Identity xml '%s'",ca_event->ActionName, unescValue);
-            result = 501;
-            addErrorData(ca_event, result, "Action Failed");
+            result = 600;
+            addErrorData(ca_event, result, "Argument Value Invalid");
+            free(unescValue);
+            free(identity);
+            free(rolelist);
+            
+            return ca_event->ErrCode;
         }
         
         // remove roles from identity which is found from identityDoc
@@ -1666,19 +1676,19 @@ int RemoveRolesForIdentity(struct Upnp_Action_Request *ca_event)
         if (result == ACL_USER_ERROR)
         {
             // identity wasn't username or hash
-            trace(1, "RemoveRolesForIdentity: Unknown identity %s",identity);
+            trace(1, "%s: Unknown identity %s",ca_event->ActionName,identity);
             result = 600;
             addErrorData(ca_event, result, "Argument Value Invalid");
         }
         else if (result == ACL_ROLE_ERROR)
         {
-            trace(1, "RemoveRolesForIdentity: Invalid rolelist received %s",rolelist);
+            trace(1, "%s: Invalid rolelist received %s",ca_event->ActionName,rolelist);
             result = 600;
             addErrorData(ca_event, result, "Argument Value Invalid");
         }
         else if (result != ACL_SUCCESS)
         {
-            trace(1, "RemoveRolesForIdentity: Failed to remove roles '%s' from identity '%s'",rolelist,unescValue);
+            trace(1, "%s: Failed to remove roles '%s' from identity '%s'",ca_event->ActionName,rolelist,unescValue);
             result = 501;
             addErrorData(ca_event, result, "Action Failed");
         }
@@ -1697,7 +1707,7 @@ int RemoveRolesForIdentity(struct Upnp_Action_Request *ca_event)
     }
     else
     {
-        trace(1, "RemoveRolesForIdentity: Invalid Arguments!");
+        trace(1, "%s: Invalid Arguments!",ca_event->ActionName);
         trace(1, "  Identity: %s, RoleList: %s",identity,rolelist);
         addErrorData(ca_event, 402, "Invalid Args");
     }
