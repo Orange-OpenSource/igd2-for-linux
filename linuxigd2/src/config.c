@@ -124,7 +124,6 @@ int parseConfigFile(globals_p vars)
     regex_t re_advertisement_interval;
     regex_t re_cert_path;
     regex_t re_acc_lvl_xml;
-    regex_t re_passwd_file;
 
     // Make sure all vars are 0 or \0 terminated
     vars->debug = 0;
@@ -152,7 +151,6 @@ int parseConfigFile(globals_p vars)
     vars->advertisementInterval = ADVERTISEMENT_INTERVAL;
     strcpy(vars->certPath,"");
     strcpy(vars->accessLevelXml,"");
-    strcpy(vars->passwdFile,"");
 
     // Regexp to match a comment line
     regcomp(&re_comment,"^[[:blank:]]*#",0);
@@ -184,7 +182,6 @@ int parseConfigFile(globals_p vars)
     regcomp(&re_advertisement_interval,"advertisement_interval[[:blank:]]*=[[:blank:]]*([[:digit:]]+)",REG_EXTENDED);
     regcomp(&re_cert_path,"certificate_path[[:blank:]]*=[[:blank:]]*([[:alpha:]_/.]{1,50})",REG_EXTENDED);
     regcomp(&re_acc_lvl_xml,"access_level_xml[[:blank:]]*=[[:blank:]]*([[:alpha:]_/.]{1,50})",REG_EXTENDED);
-    regcomp(&re_passwd_file,"passwd_file[[:blank:]]*=[[:blank:]]*([[:alpha:]_/.]{1,50})",REG_EXTENDED);
 
     if ((conf_file=fopen(CONF_FILE,"r")) != NULL)
     {
@@ -313,10 +310,6 @@ int parseConfigFile(globals_p vars)
                 {
                     getConfigOptionArgument(vars->accessLevelXml, OPTION_LEN, line, submatch);
                 }
-                else if (regexec(&re_passwd_file,line,NMATCH,submatch,0) == 0)
-                {
-                    getConfigOptionArgument(vars->passwdFile, OPTION_LEN, line, submatch);
-                }  
                 else
                 {
                     // We end up here if ther is an unknown config directive
@@ -353,7 +346,6 @@ int parseConfigFile(globals_p vars)
     regfree(&re_advertisement_interval);
     regfree(&re_cert_path);
     regfree(&re_acc_lvl_xml);
-    regfree(&re_passwd_file);
     
     // Set default values for options not found in config file
     if (strnlen(vars->forwardChainName, OPTION_LEN) == 0)
@@ -423,11 +415,7 @@ int parseConfigFile(globals_p vars)
     if (strnlen(vars->accessLevelXml, OPTION_LEN) == 0)
     {
         snprintf(vars->accessLevelXml, OPTION_LEN, ACCESS_LEVEL_XML_DEFAULT);
-    }
-    if (strnlen(vars->passwdFile, OPTION_LEN) == 0)
-    {
-        snprintf(vars->passwdFile, OPTION_LEN, PASSWD_FILE_DEFAULT);
-    }        
+    }  
     if (strnlen(vars->iptables, OPTION_LEN) == 0)
     {
         // Can't find the iptables executable, return -1 to

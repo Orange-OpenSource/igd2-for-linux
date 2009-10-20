@@ -68,3 +68,4 @@ install: upnpd
 	install doc/upnpd.8 $(PREFIX)/share/man/man8
 	if [ ! -f /etc/upnpd.conf ]; then install configs/upnpd.conf /etc; fi
 	install configs/upnpd_ACL.xml /etc
+	rm /etc/linuxigd.passwd

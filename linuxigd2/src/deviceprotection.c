@@ -677,7 +677,7 @@ static int getValuesFromPasswdFile(const char *nameUPPER, unsigned char **b64_sa
     char *name;
     char *temp;
 
-    FILE *stream = fopen(g_vars.passwdFile, "r");
+    FILE *stream = fopen(PASSWD_FILE, "r");
     if (!stream) return -1;
     
     while(fgets(line, 200, stream) != NULL) 
@@ -735,7 +735,7 @@ static int putValuesToPasswdFile(const char *name, const unsigned char *b64_salt
     if (getValuesFromPasswdFile(name,NULL,NULL, NULL, NULL, 0) == 0)
         return -2;
     
-    FILE *stream = fopen(g_vars.passwdFile, "a");
+    FILE *stream = fopen(PASSWD_FILE, "a");
     if (!stream) return -1;
     
     fprintf(stream, "%s,%s,%s\n", name, b64_salt, b64_stored);
@@ -763,14 +763,14 @@ static int updateValuesToPasswdFile(const char *nameUPPER, const unsigned char *
     char *name;
     int ret = -2;
     
-    char tempfile[strlen(g_vars.passwdFile) + 5];
-    strcpy(tempfile,g_vars.passwdFile);
+    char tempfile[strlen(PASSWD_FILE) + 5];
+    strcpy(tempfile,PASSWD_FILE);
     strcat(tempfile,".temp");
     
     // open 2 files, passwordfile which is read and temp file where lines are written.
     // if usernames match write new values in temp file.
     // Finally remove original passwordfile and rename temp file as original.
-    FILE *in = fopen(g_vars.passwdFile, "r");
+    FILE *in = fopen(PASSWD_FILE, "r");
     if (!in) return -1;
     FILE *out = fopen(tempfile, "w");
     if (!out) 
@@ -807,9 +807,9 @@ static int updateValuesToPasswdFile(const char *nameUPPER, const unsigned char *
     fclose(out);
     
     // delete original password file
-    remove(g_vars.passwdFile);
+    remove(PASSWD_FILE);
     // rename temp file is original password file
-    rename(tempfile, g_vars.passwdFile); 
+    rename(tempfile, PASSWD_FILE); 
 
     return ret; 
 }
