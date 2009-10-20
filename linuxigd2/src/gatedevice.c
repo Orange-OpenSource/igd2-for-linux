@@ -1817,7 +1817,7 @@ int DeletePortMappingRange(struct Upnp_Action_Request *ca_event)
             else if (!action_succeeded) // there just is not any portmaps to match given parameters
             {
                 trace(1, "Failure in DeletePortMappingRange: StartPort:%s EndPort:%s Proto:%s Manage:%s NoSuchEntryInArray!\n", start_port,end_port,proto,bool_manage);
-                addErrorData(ca_event, 734, "PortMappingNotFound"); 
+                addErrorData(ca_event, 730, "PortMappingNotFound"); 
             }
         }
     }
@@ -1964,7 +1964,7 @@ int GetListOfPortmappings(struct Upnp_Action_Request *ca_event)
             else
             {
                 trace(2, "GetListOfPortmappings: Portmapping does not exist");
-                addErrorData(ca_event, 734, "PortMappingNotFound");
+                addErrorData(ca_event, 730, "PortMappingNotFound");
             }
         }
     }
