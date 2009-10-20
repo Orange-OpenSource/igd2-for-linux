@@ -32,7 +32,7 @@ gvalue_util_set_value_from_string (GValue     *value,
 {
         GValue tmp_value = {0, };
         int i;
-        long l;
+        unsigned long l;
         double d;
 
         g_return_val_if_fail (str != NULL, FALSE);
@@ -79,13 +79,13 @@ gvalue_util_set_value_from_string (GValue     *value,
 
         case G_TYPE_LONG:
                 l = atol (str);
-                g_value_set_long (value, l);
+                g_value_set_long (value, (glong) l);
 
                 break;
 
         case G_TYPE_ULONG:
-                l = atol (str);
-                g_value_set_ulong (value, (gulong) l);
+                l = strtoul (str, NULL, 10);
+                g_value_set_ulong (value, l);
 
                 break;
 

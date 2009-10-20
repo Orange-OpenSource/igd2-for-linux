@@ -394,13 +394,13 @@ set_variable_type (GUPnPServiceStateVariableInfo *variable,
         }
 
         else if (strcmp ("ui4", data_type) == 0) {
-                type = G_TYPE_UINT;
+                type = G_TYPE_ULONG;
                 g_value_init (&variable->minimum, type);
-                g_value_set_uint (&variable->minimum, 0);
+                g_value_set_ulong (&variable->minimum, 0);
                 g_value_init (&variable->maximum, type);
-                g_value_set_uint (&variable->maximum, G_MAXUINT32);
+                g_value_set_ulong (&variable->maximum, G_MAXULONG);
                 g_value_init (&variable->step, type);
-                g_value_set_uint (&variable->step, 1);
+                g_value_set_ulong (&variable->step, 1);
                 variable->is_numeric = TRUE;
         }
 
