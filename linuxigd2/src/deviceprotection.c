@@ -52,6 +52,9 @@ static unsigned char prev_CP_id[40];
 // Access Control List
 static IXML_Document *ACLDoc = NULL;
 
+// flag telling if WPS introduction process is going on
+static int gWpsIntroductionRunning = 0;
+
 #define PSEUDO_RANDOM_UUID_TYPE 0x4
 typedef struct {
     uint32_t  time_low;
@@ -538,13 +541,7 @@ static int startWPS()
         return err;
     }
 
-    // set state variable SetupReady to false, meaning DP service is busy
-    SetupReady = 0;
-    IXML_Document *propSet = NULL;
-    trace(3, "DeviceProtection SetupReady: %d", SetupReady);
-    UpnpAddToPropertySet(&propSet, "SetupReady", "0");
-    UpnpNotifyExt(deviceHandle, gateUDN, "urn:upnp-org:serviceId:DeviceProtection1", propSet);
-    ixmlDocument_free(propSet);
+    gWpsIntroductionRunning = 1;
     
     return 0;
 }
@@ -563,13 +560,18 @@ static void stopWPS()
     
     wpsu_cleanup_enrollee_sm(esm, &error);
     
-    // DP is free
-    SetupReady = 1;
-    IXML_Document *propSet = NULL;
-    trace(3, "DeviceProtection SetupReady: %d", SetupReady);
-    UpnpAddToPropertySet(&propSet, "SetupReady", "1");
-    UpnpNotifyExt(deviceHandle, gateUDN, "urn:upnp-org:serviceId:DeviceProtection1", propSet);
-    ixmlDocument_free(propSet);    
+    gWpsIntroductionRunning = 0;
+    
+    // DP is free. SetupReady is evented only if old value is 0
+    if (SetupReady == 0)
+    {
+        SetupReady = 1;
+        IXML_Document *propSet = NULL;
+        trace(3, "DeviceProtection SetupReady: %d", SetupReady);
+        UpnpAddToPropertySet(&propSet, "SetupReady", "1");
+        UpnpNotifyExt(deviceHandle, gateUDN, "urn:upnp-org:serviceId:DeviceProtection1", propSet);
+        ixmlDocument_free(propSet);
+    } 
 }
 
 
@@ -1115,7 +1117,7 @@ int SendSetupMessage(struct Upnp_Action_Request *ca_event)
         // this will tell if the same CP is doing all setup messages
         result = getIdentifierOfCP(ca_event, &CP_id, &id_len, NULL);
         
-        if (result == 0 && SetupReady && strcmp(inmessage, "") == 0) // ready to start introduction. InMessage MUST be empty for M1
+        if (result == 0 && !gWpsIntroductionRunning && strcmp(inmessage, "") == 0) // ready to start introduction. InMessage MUST be empty for M1
         {
             // store id of this CP to determine next time if still the same CP is using this.
             memcpy(prev_CP_id, CP_id, id_len);            
@@ -1132,14 +1134,14 @@ int SendSetupMessage(struct Upnp_Action_Request *ca_event)
                 addErrorData(ca_event, result, "Processing Error");               
             }
         }
-        else if (SetupReady && strcmp(inmessage, "") != 0)
+        else if (!gWpsIntroductionRunning && strcmp(inmessage, "") != 0)
         {
             trace(1, "Failure in SendSetupMessage: InMessage must be empty when fetching M1 message");
             result = 402;
             addErrorData(ca_event, result, "Invalid Args");            
         }
       
-        else if (!SetupReady && (memcmp(prev_CP_id, CP_id, id_len) == 0)) // continue started introduction
+        else if (gWpsIntroductionRunning && (memcmp(prev_CP_id, CP_id, id_len) == 0)) // continue started introduction
         {
             // to bin
             int b64msglen = strlen(inmessage);            
@@ -1156,7 +1158,15 @@ int SendSetupMessage(struct Upnp_Action_Request *ca_event)
         {
             trace(1, "Busy with someone else's introduction process. IP %s\n",IP_addr);
             result = 708;
-            addErrorData(ca_event, result, "Busy");         
+            addErrorData(ca_event, result, "Busy");
+            
+            // set state variable SetupReady to false, meaning DP service is busy
+            SetupReady = 0;
+            IXML_Document *propSet = NULL;
+            trace(3, "DeviceProtection SetupReady: %d", SetupReady);
+            UpnpAddToPropertySet(&propSet, "SetupReady", "0");
+            UpnpNotifyExt(deviceHandle, gateUDN, "urn:upnp-org:serviceId:DeviceProtection1", propSet);
+            ixmlDocument_free(propSet);
         }
     }
     else
