@@ -2,7 +2,7 @@
 <ACL xmlns="urn:schemas-upnp-org:gw:DeviceProtection" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="urn:schemas-upnp-org:gw:DeviceProtection http://www.upnp.org/schemas/gw/DeviceProtection-v1.xsd">
     <Identities>
         <User>
-            <Name>Admin</Name>
+            <Name>Administrator</Name>
             <RoleList>Admin</RoleList>
         </User>
     </Identities>

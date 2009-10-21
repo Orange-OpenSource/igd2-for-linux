@@ -818,7 +818,7 @@ static int updateValuesToPasswdFile(const char *nameUPPER, const unsigned char *
 
 /**
  * Get salt and stored values of user with nameUPPER as username.
- * Username "ADMIN" is an special case: if it is not found form password file, totally
+ * Username "ADMINISTRATOR" is an special case: if it is not found form password file, totally
  * new salt and stored values are creted for that username. Password used for creation 
  * of stored is stored in config file.
  *  
@@ -840,7 +840,7 @@ static int getSaltAndStoredForName(const char *nameUPPER, unsigned char **b64_sa
     
     if (ret != 0)
     {
-        if (strcmp(nameUPPER,"ADMIN") == 0)
+        if (strcmp(nameUPPER,"ADMINISTRATOR") == 0)
         {
             // create new salt and stored
             int name_len = strlen(nameUPPER);
@@ -1110,7 +1110,11 @@ int SendSetupMessage(struct Upnp_Action_Request *ca_event)
         {
             trace(1, "Introduction protocol type must be 'WPS': Invalid ProtocolType=%s\n",protocoltype);
             result = 600;
-            addErrorData(ca_event, result, "Argument Value Invalid");       
+            addErrorData(ca_event, result, "Argument Value Invalid");
+
+            free(inmessage);
+            free(protocoltype);
+            return ca_event->ErrCode;
         } 
         
         // get identifier of CP 
@@ -1139,8 +1143,7 @@ int SendSetupMessage(struct Upnp_Action_Request *ca_event)
             trace(1, "Failure in SendSetupMessage: InMessage must be empty when fetching M1 message");
             result = 402;
             addErrorData(ca_event, result, "Invalid Args");            
-        }
-      
+        }      
         else if (gWpsIntroductionRunning && (memcmp(prev_CP_id, CP_id, id_len) == 0)) // continue started introduction
         {
             // to bin
@@ -1273,8 +1276,8 @@ int GetUserLoginChallenge(struct Upnp_Action_Request *ca_event)
             result = 501;
             addErrorData(ca_event, result, "Action Failed");
         }
-        // check if user exits in password file and also in ACL. "Admin" is an exception and it doesn't have to be in those files.
-        if ((strcmp(nameUPPER, "ADMIN") == 0) || 
+        // check if user exits in password file and also in ACL. "Administrator" is an exception and it doesn't have to be in those files.
+        if ((strcmp(nameUPPER, "ADMINISTRATOR") == 0) || 
             ((getValuesFromPasswdFile(nameUPPER, NULL,NULL,NULL,NULL,0) == 0) &&
             (ACL_getRolesOfUser(ACLDoc, nameUPPER) != NULL)))
         {

@@ -2255,7 +2255,7 @@ int ACL_validateAndRemoveIdentity(IXML_Document *ACLdoc, IXML_Document *identity
             trace(2,"(ACL) Failed to find any ID or Name from given parameter");
             return 600;
         }
-        else if (strcmp(toUpperCase(id), "ADMIN") == 0) // username must not be Admin
+        else if (strcmp(toUpperCase(id), "ADMINISTRATOR") == 0) // username must not be Administrator
         {
             trace(2,"(ACL) Trying to remove Admin, that's not allowed");
             return 600;            
