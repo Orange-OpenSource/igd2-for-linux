@@ -2157,14 +2157,16 @@ int ACL_removeRolesFromCP(IXML_Document *doc, const char *id, const char *roles)
  * @param identitiesDoc IXML_Document which contains new CP-elements to add to ACL
  * @return upnp error codes:
  *         0 on succes,
- *         600 if identitiesDoc contains invalid values
+ *         600 if identitiesDoc is entirely rejected
  *         501 if processing error occurs
  */
 int ACL_validateListAndUpdateACL(IXML_Document *ACLdoc, IXML_Document *identitiesDoc)
 {
+    int entire_rejection = 1;
     int result;
     IXML_Node *tmpNode = NULL;
     char *name = NULL;
+    char *alias = NULL;
     char *id = NULL;
 
     // let's start adding new CP's to ACL
@@ -2179,11 +2181,11 @@ int ACL_validateListAndUpdateACL(IXML_Document *ACLdoc, IXML_Document *identitie
             trace(2,"(ACL) Name must be given for CP. Skip.");
             RemoveNode(tmpNode);
             continue;
-            //return 600;
         }
-                    
+        
+        alias = GetTextValueOfNode( GetSiblingWithTagName(tmpNode, "Alias") );
         // just try to add new
-        result = ACL_addCP(ACLdoc, name, NULL, id, "Public", 0);
+        result = ACL_addCP(ACLdoc, name, alias, id, "Public", 0);
 
         // if same CP already exists, it is OK for us. All we care if something else has gone wrong      
         if (result != ACL_USER_ERROR && result != ACL_SUCCESS)
@@ -2191,7 +2193,7 @@ int ACL_validateListAndUpdateACL(IXML_Document *ACLdoc, IXML_Document *identitie
             trace(2,"(ACL) Failed to add new CP. Name: '%s', ID: '%s'",name,id);
             return 501;
         }
-        
+        entire_rejection = 0;
         // remove node from identitiesDoc, so we can proceed to next one (if there is one)
         RemoveNode(tmpNode);
     }
@@ -2207,7 +2209,6 @@ int ACL_validateListAndUpdateACL(IXML_Document *ACLdoc, IXML_Document *identitie
             trace(2,"(ACL) Name must be given for User. Skip.");
             RemoveNode(tmpNode);
             continue;
-            //return 600;
         }
        
         // just try to add new
@@ -2219,11 +2220,14 @@ int ACL_validateListAndUpdateACL(IXML_Document *ACLdoc, IXML_Document *identitie
             trace(2,"(ACL) Failed to add new User. Name: '%s'",name);
             return 501;
         }
-        
+        entire_rejection = 0;
         // remove node from identitiesDoc, so we can proceed to next one (if there is one)
         RemoveNode(tmpNode);
     }
-        
+    
+    if (entire_rejection)
+        return 600;
+           
     return 0;  
 }
 

@@ -1339,8 +1339,10 @@ int UserLogin(struct Upnp_Action_Request *ca_event)
         if (result != 0 || !loginName || !loginChallenge)
         {
             trace(1, "%s: Failed to get login data for this session",ca_event->ActionName);
-            result = 501;
-            addErrorData(ca_event, result, "Action Failed");            
+            result = 600;
+            addErrorData(ca_event, result, "Argument Value Invalid");
+            
+            // don't return yet, we need to check if CP has tried to login too many times
         }
         
         // has CP tried to login too many times already?
