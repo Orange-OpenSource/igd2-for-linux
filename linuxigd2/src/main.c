@@ -536,9 +536,6 @@ int main (int argc, char** argv)
     // Initialize DeviceProtection
     InitDP();
 
-    // Record the startup time, for uptime
-    startup_time = time(NULL);
-
     // Send out initial advertisements of our device's services (with timeouts of 30 minutes, default value,can be changed from config file)
     if ( (ret = UpnpSendAdvertisement(deviceHandle, g_vars.advertisementInterval) != UPNP_E_SUCCESS ))
     {

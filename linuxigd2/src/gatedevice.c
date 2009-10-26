@@ -157,6 +157,9 @@ int StateTableInit(char *descDocUrl)
     // only supported type at the moment
     strcpy(ConnectionType,"IP_Routed");
 
+    // Record the startup time, for uptime
+    startup_time = time(NULL);
+
     // initialize Device Protection statevariables
     DPStateTableInit();
     return (ret);
@@ -577,15 +580,19 @@ int GetStatusInfo(struct Upnp_Action_Request *ca_event)
     char resultStr[RESULT_LEN];
     IXML_Document *result = NULL;
 
-    uptime = (time(NULL) - startup_time);
+    // If connection is not connected, uptime value is 0
+    if (strcmp(ConnectionStatus, "Connected") == 0)
+        uptime = (time(NULL) - startup_time);
+    else
+        uptime = 0;
 
     snprintf(resultStr, RESULT_LEN,
              "<u:GetStatusInfoResponse xmlns:u=\"urn:schemas-upnp-org:service:GetStatusInfo:1\">\n"
-             "<NewConnectionStatus>Connected</NewConnectionStatus>\n"
+             "<NewConnectionStatus>%s</NewConnectionStatus>\n"
              "<NewLastConnectionError>ERROR_NONE</NewLastConnectionError>\n"
              "<NewUptime>%ld</NewUptime>\n"
              "</u:GetStatusInfoResponse>",
-             uptime);
+             ConnectionStatus, uptime);
 
     // Create a IXML_Document from resultStr and return with ca_event
     if ((result = ixmlParseBuffer(resultStr)) != NULL)
@@ -2363,8 +2370,13 @@ int ConnectionStatusEventing(IXML_Document *propSet)
         // has status changed?
         if (strcmp(prevStatus,ConnectionStatus) != 0)
         {
+            // if new status is connected, we create autodisconnecttimer and set startup time for Uptime statevariable
             if (strcmp(ConnectionStatus, "Connected") == 0)
+            {
                 createAutoDisconnectTimer();
+                // Record the startup time, for uptime
+                startup_time = time(NULL);
+            }
             
             UpnpAddToPropertySet(&propSet, "ConnectionStatus", ConnectionStatus);
             UpnpNotifyExt(deviceHandle, wanConnectionUDN, "urn:upnp-org:serviceId:WANIPConn1", propSet);
