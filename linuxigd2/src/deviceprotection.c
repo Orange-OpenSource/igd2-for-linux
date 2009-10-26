@@ -39,12 +39,15 @@ static int putValuesToPasswdFile(const char *name, const unsigned char *b64_salt
 static int updateValuesToPasswdFile(const char *nameUPPER, const unsigned char *b64_salt, const unsigned char *b64_stored, int delete_values);
 static int getIdentifierOfCP(struct Upnp_Action_Request *ca_event, char **identifier, int *idLen, char **CN);
 static int createAuthenticator(const char *b64_stored, const char *b64_challenge, char **b64_authenticator, int *auth_len);
+static int startWPS();
+static void stopWPS();
 
 // WPS state machine related stuff
 static WPSuEnrolleeSM* esm;
 static unsigned char* Enrollee_send_msg;
 static int Enrollee_send_msg_len;
 static WPSuStationInput *wpsu_input;
+static int gStopWPSJobId = -1;
 
 // identifer of control point which is executing introduction process
 static unsigned char prev_CP_id[40];
@@ -530,14 +533,54 @@ static int getRolesOfSession(struct Upnp_Action_Request *ca_event, char **roles)
     return 0;
 }
 
+/**
+ * Create timer for stopping WPS setup process if it has been running over DP_MAX_WPS_SETUP_TIME
+ * (60 seconds).
+ * This way we release WPS for others to use if some client stays in error state for example.
+ * 
+ * @return Upnp error code.
+ */
+static int createStopWPSTimer(void)
+{
+    int result = 0;
+    
+    if (DP_MAX_WPS_SETUP_TIME > 0)
+    {
+        trace(3,"Create StopWPS timer to be executed after %d seconds",DP_MAX_WPS_SETUP_TIME);
+        // schedule new autodisconnect job
+        ThreadPoolJob job;
+        // Add disconnect job
+        TPJobInit( &job, ( start_routine ) stopWPS, NULL );
+        result = TimerThreadSchedule( &gExpirationTimerThread,
+                                        DP_MAX_WPS_SETUP_TIME,
+                                        REL_SEC, &job, SHORT_TERM,
+                                        &gStopWPSJobId );
+    }
+    return result;
+}
 
+/**
+ * Start WPS enrollee.
+ * Creates also timer which will automatically stop WPS introduction process if it takes too long.
+ * Meaning that process is halted because of error.
+ * 
+ * @return 0 on success, negative value on error.
+ */
 static int startWPS()
 {
     int err;
+    // create timer which will end introduction after 60 seconds if it is still runnning
+    if ((err = createStopWPSTimer()) != 0)
+    {
+        trace(1, "Failed to create StopWPS timer! Error: %d",err);
+        return err;
+    }
+
     // create enrollee state machine
     esm = wpsu_create_enrollee_sm_station(wpsu_input, &err);
     if (err != WPSU_E_SUCCESS)
     {
+        trace(1, "Failed to create WPS enrollee! Error: %d",err);
         return err;
     }
 
@@ -546,10 +589,25 @@ static int startWPS()
     return 0;
 }
 
+/**
+ * Stop WPS enrollee.
+ * Removes automatic WPS stop timer.
+ * Events SetupReady state variable if needed.
+ * 
+ * @return void.
+ */
 static void stopWPS()
 {
     int error;    
     trace(2,"Finished DeviceProtection pairwise introduction process\n");    
+
+    // cancel possible StopWPS thread job
+    if (gStopWPSJobId != -1)
+    {
+        trace(3,"Cancel StopWPS timer");
+        TimerThreadRemove(&gExpirationTimerThread, gStopWPSJobId, NULL);
+        gStopWPSJobId = -1;
+    }
 
     /*WPSuStationOutput *smOutput;
     smOutput = wpsu_get_enrollee_sm_station_output(esm, &error);

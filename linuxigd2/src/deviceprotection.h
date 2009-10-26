@@ -33,6 +33,8 @@
 
 #define DP_MAX_LOGIN_ATTEMPTS 5
 
+#define DP_MAX_WPS_SETUP_TIME 60
+
 // DeviceProtection state variables
 int SetupReady;
 char SupportedProtocols[500];

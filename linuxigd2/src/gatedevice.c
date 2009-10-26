@@ -26,7 +26,6 @@
 #include <time.h>
 #include <upnp/upnp.h>
 #include <upnp/upnptools.h>
-#include <upnp/TimerThread.h>
 #include <arpa/inet.h>
 #include "globals.h"
 #include "gatedevice.h"
@@ -35,7 +34,6 @@
 #include "deviceprotection.h"
 
 //Definitions for mapping expiration timer thread
-static TimerThread gExpirationTimerThread;
 static ThreadPool gExpirationThreadPool;
 static ThreadPoolJob gEventUpdateJob;
 
