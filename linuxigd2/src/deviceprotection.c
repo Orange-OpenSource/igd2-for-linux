@@ -133,7 +133,8 @@ void DPStateTableInit()
                                "xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" "
                                "xsi:schemaLocation=\"urn:schemas-upnp-org:gw:DeviceProtection "
                                "http://www.upnp.org/schemas/gw/DeviceProtection-v1.xsd\">"
-                               "<Introduction><Name>WPS</Name></Introduction></SupportedProtocols>");
+                               "<Introduction><Name>WPS</Name></Introduction>"
+                               "<Login><Name>PKCS5</Name></Login></SupportedProtocols>");
 }
 
 /**
@@ -1307,6 +1308,7 @@ int GetSupportedProtocols(struct Upnp_Action_Request *ca_event)
 int GetUserLoginChallenge(struct Upnp_Action_Request *ca_event)
 {
     int result = 0;
+    char *protocoltype = NULL;
     char *name = NULL;
     char *nameUPPER = NULL;
     int ret, len=0;
@@ -1324,8 +1326,21 @@ int GetUserLoginChallenge(struct Upnp_Action_Request *ca_event)
         return ca_event->ErrCode;
     }
     
-    if ( (name = GetFirstDocumentItem(ca_event->ActionRequest, "Name") ))
+    if (( protocoltype = GetFirstDocumentItem(ca_event->ActionRequest, "ProtocolType") )
+            && ( name = GetFirstDocumentItem(ca_event->ActionRequest, "Name") ))
     {
+        if (strcmp(protocoltype, "PKCS5") != 0)
+        {
+            trace(1, "Login protocol type must be 'PKCS5': Invalid ProtocolType=%s\n",protocoltype);
+            result = 600;
+            addErrorData(ca_event, result, "Argument Value Invalid");
+
+            free(name);
+            free(protocoltype);
+            free(identifier);
+            return ca_event->ErrCode;
+        } 
+        
         // name to uppercase
         nameUPPER = toUpperCase(name);     
         if (nameUPPER == NULL)
@@ -1355,12 +1370,13 @@ int GetUserLoginChallenge(struct Upnp_Action_Request *ca_event)
     else
     {
         trace(1, "Failure in GetUserLoginChallenge: Invalid Arguments!");
-        trace(1, "  Name: %s",name);
+        trace(1, "  ProtocolType: %s Name: %s",protocoltype,name);
         addErrorData(ca_event, 402, "Invalid Args");
     }
 
     free(name);    
     free(nameUPPER);
+    free(protocoltype);
     free(identifier);
     
     return ca_event->ErrCode;
@@ -1375,6 +1391,7 @@ int GetUserLoginChallenge(struct Upnp_Action_Request *ca_event)
 int UserLogin(struct Upnp_Action_Request *ca_event)
 {
     int result = 0;
+    char *protocoltype = NULL;
     char *challenge = NULL;
     char *authenticator = NULL;
     int loginattempts = 0;
@@ -1385,9 +1402,22 @@ int UserLogin(struct Upnp_Action_Request *ca_event)
     char *id =NULL;
     int id_len = 0;
     
-    if ( (challenge = GetFirstDocumentItem(ca_event->ActionRequest, "Challenge") )
-            && (authenticator = GetFirstDocumentItem(ca_event->ActionRequest, "Authenticator") ))
+    if (( protocoltype = GetFirstDocumentItem(ca_event->ActionRequest, "ProtocolType") )
+            &&( challenge = GetFirstDocumentItem(ca_event->ActionRequest, "Challenge") )
+            && ( authenticator = GetFirstDocumentItem(ca_event->ActionRequest, "Authenticator") ))
     {
+        if (strcmp(protocoltype, "PKCS5") != 0)
+        {
+            trace(1, "Login protocol type must be 'PKCS5': Invalid ProtocolType=%s\n",protocoltype);
+            result = 600;
+            addErrorData(ca_event, result, "Argument Value Invalid");
+
+            free(challenge);
+            free(protocoltype);
+            free(authenticator);
+            return ca_event->ErrCode;
+        }
+        
         result = getIdentifierOfCP(ca_event, &id, &id_len, NULL);
         trace(3,"CP with identifier '%s' is logging in.",id);
         // here we could try "session resumption" by getting identity from SIR?
@@ -1414,6 +1444,7 @@ int UserLogin(struct Upnp_Action_Request *ca_event)
             // remove session from SIR
             SIR_removeSession(SIRDoc, (char *)id);
             
+            free(protocoltype);
             free(challenge);
             free(authenticator);
             free(loginName);
@@ -1520,6 +1551,7 @@ int UserLogin(struct Upnp_Action_Request *ca_event)
         addErrorData(ca_event, 402, "Invalid Args");
     }
     
+    free(protocoltype);
     free(challenge);
     free(authenticator);
     free(loginName);
