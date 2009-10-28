@@ -1116,6 +1116,7 @@ int AddPortMapping(struct Upnp_Action_Request *ca_event)
     char *desc=NULL;
     struct portMap *ret;
     int result = 0;
+    int update_portmap = 0;
 
     if ( (remote_host = GetFirstDocumentItem(ca_event->ActionRequest, "NewRemoteHost") )
             && (ext_port = GetFirstDocumentItem(ca_event->ActionRequest, "NewExternalPort") )
@@ -1180,6 +1181,7 @@ unless control port is authorized. external_port:%s, internal_port:%s internal_c
             {
                 trace(3, "Found port map to already exist for this client.  Replacing");
                 pmlist_Delete(ret);
+                update_portmap = 1;
             }            
             
             // If the ExternalPort and PortMappingProtocol pair is already mapped to another 
@@ -1195,7 +1197,7 @@ unless control port is authorized. external_port:%s, internal_port:%s internal_c
 
             // if still no errors happened, add new portmapping
             if (result == 0)
-                result = AddNewPortMapping(ca_event,bool_enabled,atol(long_duration),remote_host,ext_port,int_port,proto,int_client,desc,0);
+                result = AddNewPortMapping(ca_event,bool_enabled,atol(long_duration),remote_host,ext_port,int_port,proto,int_client,desc,update_portmap);
 
             // create response message if success, AddNewPortMapping adds error to response if it fails
             if (result == 1)
@@ -1313,11 +1315,11 @@ unless control port is authorized. external_port:%s, internal_port:%s internal_c
         // Parameters OK... proceed with adding port map
         if (result == 0)
             {
-                // If port map with the same External Port, Protocol, and Internal Client exists
+                // If port map with the same External Port, Protocol, Internal Client and RemoteHost exists
                 // we should just update it, NOT create new
-                if ((ret = pmlist_FindBy_extPort_proto_intClient(ext_port, proto, int_client)) != NULL)
+                if ((ret = pmlist_Find(remote_host, ext_port, proto, int_client)) != NULL)
                 {
-                    trace(3, "Port map with same ExternalPort, Protocol and InternalClient exists. Updating existing.");
+                    trace(3, "Port map with same ExternalPort, Protocol, InternalClient and RemoteHost exists. Updating existing.");
                     // update existing (Remove old one and after that create new one with new values)
                     // TODO: Create functions which really updates existing portmappings found from iptables
                     //       Or at least find out if it is even possible.
@@ -1640,7 +1642,7 @@ int DeletePortMapping(struct Upnp_Action_Request *ca_event)
         // check that external port value is greater than or equal to 1024 if CP is not authorized
         if (result == 0 && !authorized && atoi(ext_port) < 1024)
         {
-            trace(1, "Failure in DeletePortMapping: Remote Host:%s Proto:%s Port:%s. Port value is under 1024 and CP is not authorized\n",remote_host, proto, ext_port);
+            trace(1, "Failure 'Action not authorized' in DeletePortMapping: Remote Host:%s Proto:%s Port:%s. Port value is under 1024 and CP is not authorized\n",remote_host, proto, ext_port);
             addErrorData(ca_event, 606, "Action not authorized");                
         }
         // if portmapping is found, we must check if CP is authorized OR if internalclient value of portmapping matches IP of CP
@@ -1653,35 +1655,35 @@ int DeletePortMapping(struct Upnp_Action_Request *ca_event)
             )
         {
             result = pmlist_Delete(temp);
+            
+            if (result==1)
+            {
+                trace(2, "DeletePortMap: Remote Host: %s Proto:%s Port:%s\n", remote_host, proto, ext_port);
+                PortMappingNumberOfEntries = pmlist_Size();
+                sprintf(num,"%d",PortMappingNumberOfEntries);
+                UpnpAddToPropertySet(&propSet,"PortMappingNumberOfEntries", num);
+                snprintf(tmp,11,"%ld",++SystemUpdateID);
+                UpnpAddToPropertySet(&propSet,"SystemUpdateID", tmp);
+                UpnpNotifyExt(deviceHandle, ca_event->DevUDN,ca_event->ServiceID,propSet);
+                ixmlDocument_free(propSet);
+                action_succeeded = 1;
+            }
+            else
+            {
+                trace(2, "%s: Failed to remove portmapping.", ca_event->ActionName);
+                // add error to ca_event
+                addErrorData(ca_event, 501, "Action Failed");
+            }
         }
         else if (!temp)
         {
-            trace(1, "Failure in DeletePortMapping: Remote Host:%s Proto:%s Port:%s\n",remote_host, proto, ext_port);
+            trace(1, "Failure 'NoSuchEntryInArray' in DeletePortMapping: Remote Host:%s Proto:%s Port:%s\n",remote_host, proto, ext_port);
             addErrorData(ca_event, 714, "NoSuchEntryInArray");
         }
         else
         {
-            trace(1, "Failure in DeletePortMapping: Remote Host:%s Proto:%s Port:%s\n",remote_host, proto, ext_port);
+            trace(1, "Failure 'Action not authorized' in DeletePortMapping: Remote Host:%s Proto:%s Port:%s\n",remote_host, proto, ext_port);
             addErrorData(ca_event, 606, "Action not authorized");
-        }
-       
-        if (result==1)
-        {
-            trace(2, "DeletePortMap: Remote Host: %s Proto:%s Port:%s\n", remote_host, proto, ext_port);
-            PortMappingNumberOfEntries = pmlist_Size();
-            sprintf(num,"%d",PortMappingNumberOfEntries);
-            UpnpAddToPropertySet(&propSet,"PortMappingNumberOfEntries", num);
-            snprintf(tmp,11,"%ld",++SystemUpdateID);
-            UpnpAddToPropertySet(&propSet,"SystemUpdateID", tmp);
-            UpnpNotifyExt(deviceHandle, ca_event->DevUDN,ca_event->ServiceID,propSet);
-            ixmlDocument_free(propSet);
-            action_succeeded = 1;
-        }
-        else
-        {
-            trace(2, "%s: Failed to remove portmapping.", ca_event->ActionName);
-            // add error to ca_event
-            addErrorData(ca_event, 501, "Action Failed");
         }
     }
     else
@@ -1814,7 +1816,7 @@ int DeletePortMappingRange(struct Upnp_Action_Request *ca_event)
             }
 
             // portmappings which are in area of deletion exists, but none has been deleted -> Action is not authorized
-            if (foundPortmapCount > 0 && !action_succeeded)
+            else if (foundPortmapCount > 0 && !action_succeeded)
             {
                 trace(1, "Failure in DeletePortMappingRange: StartPort:%s EndPort:%s Proto:%s Manage:%s Action not authorized!\n", start_port,end_port,proto,bool_manage);
                 addErrorData(ca_event, 606, "Action not authorized");
