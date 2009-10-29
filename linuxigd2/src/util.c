@@ -447,24 +447,23 @@ int IsIpOrDomain(char *address)
     int result;
 
     // is it IP
-    // TODO: improve regexp so that it checks that numbers are not over 255, previous one did not work on the device???
     regex_t re_IP;
-    regcomp(&re_IP,"^[[:digit:]]{1,3}[.][[:digit:]]{1,3}[.][[:digit:]]{1,3}[.]([[:digit:]]{1,3})$",REG_EXTENDED|REG_NOSUB);
+    regcomp(&re_IP, REGEX_IP_LASTBYTE, REG_EXTENDED|REG_NOSUB);
     result = regexec(&re_IP, address, (size_t) 0, NULL, 0);
     regfree(&re_IP);
     if (result == 0) {
         return 1;
     }
 
-    // is ot domain name
+    // is it domain name
     regex_t re_host;
-    regcomp(&re_host,"^([a-z0-9]([a-z0-9\\-]{0,61}[a-z0-9])?\\.)+[a-z]{2,6}$",REG_EXTENDED|REG_NOSUB|REG_ICASE);
+    regcomp(&re_host, REGEX_DOMAIN_NAME, REG_EXTENDED|REG_NOSUB|REG_ICASE);
     result = regexec(&re_host, address, (size_t) 0, NULL, 0);
     regfree(&re_host);
     if (result == 0) {
         return 1;
     }
-    
+
     return 0;
 }
 

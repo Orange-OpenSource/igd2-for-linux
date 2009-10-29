@@ -37,8 +37,7 @@ static const int MAX_IP_LAST_PART = 5;
 
 // regex to identify valid nameserver lines in resolv.conf
 static const char REGEX_NAMESERVER[] = "nameserver[[:blank:]]*([[:digit:]]{1,3}[.][[:digit:]]{1,3}[.][[:digit:]]{1,3}[.][[:digit:]]{1,3})";
-static const char REGEX_IP_LASTBYTE[] = "[[:digit:]]{1,3}[.][[:digit:]]{1,3}[.][[:digit:]]{1,3}[.]([[:digit:]]{1,3})";
-static const char REGEX_DOMAIN_NAME[] = "^[[:alnum:]_.-]{1,250}$";
+
 
 int SetDHCPServerConfigurable(struct Upnp_Action_Request *ca_event);
 int GetDHCPServerConfigurable(struct Upnp_Action_Request *ca_event);

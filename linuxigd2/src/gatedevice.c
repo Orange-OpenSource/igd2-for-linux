@@ -219,7 +219,7 @@ int HandleSubscriptionRequest(struct Upnp_Subscription_Request *sr_event)
             snprintf(tmp,11,"%ld",SystemUpdateID);
             UpnpAddToPropertySet(&propSet, "SystemUpdateID",tmp);
             snprintf(tmp,11,"%d",PortMappingNumberOfEntries);
-            UpnpAddToPropertySet(&propSet, "PortMappingNumberOfEntries",tmp);           
+            UpnpAddToPropertySet(&propSet, "PortMappingNumberOfEntries",tmp);
 
             UpnpAcceptSubscriptionExt(deviceHandle, sr_event->UDN, sr_event->ServiceId,
                                       propSet, sr_event->Sid);
@@ -282,7 +282,7 @@ int HandleActionRequest(struct Upnp_Action_Request *ca_event)
     if ( AuthorizeControlPoint(ca_event, 0, 1) == CONTROL_POINT_NOT_AUTHORIZED )
     {
         ithread_mutex_unlock(&DevMutex);
-        return ca_event->ErrCode;        
+        return ca_event->ErrCode;
     }
 
     if (strcmp(ca_event->DevUDN, gateUDN) == 0)
@@ -312,9 +312,9 @@ int HandleActionRequest(struct Upnp_Action_Request *ca_event)
             else if (strcmp(ca_event->ActionName,"AddRolesForIdentity") == 0)
                 result = AddRolesForIdentity(ca_event);
             else if (strcmp(ca_event->ActionName,"RemoveRolesForIdentity") == 0)
-                result = RemoveRolesForIdentity(ca_event);                
+                result = RemoveRolesForIdentity(ca_event);
             else if (strcmp(ca_event->ActionName,"SetUserLoginPassword") == 0)
-                result = SetUserLoginPassword(ca_event);              
+                result = SetUserLoginPassword(ca_event);
             else
             {
                 trace(1, "Invalid Action Request : %s",ca_event->ActionName);
@@ -889,7 +889,7 @@ int GetAutoDisconnectTime(struct Upnp_Action_Request *ca_event)
  * @return Upnp error code.
  */
 int GetIdleDisconnectTime(struct Upnp_Action_Request *ca_event)
-{   
+{
     IXML_Document *ActionResult = NULL;
     char tmp[11];
     snprintf(tmp,11,"%ld",IdleDisconnectTime);
@@ -897,11 +897,11 @@ int GetIdleDisconnectTime(struct Upnp_Action_Request *ca_event)
     ActionResult = UpnpMakeActionResponse(ca_event->ActionName, WANIP_SERVICE_TYPE,
                                           1,
                                           "NewIdleDisconnectTime", tmp);
-                                    
+
     if (ActionResult)
     {
         ca_event->ActionResult = ActionResult;
-        ca_event->ErrCode = UPNP_E_SUCCESS;        
+        ca_event->ErrCode = UPNP_E_SUCCESS;
     }
     else
     {
@@ -919,7 +919,7 @@ int GetIdleDisconnectTime(struct Upnp_Action_Request *ca_event)
  * @return Upnp error code.
  */
 int GetWarnDisconnectDelay(struct Upnp_Action_Request *ca_event)
-{   
+{
     IXML_Document *ActionResult = NULL;
     char tmp[11];
     snprintf(tmp,11,"%ld",WarnDisconnectDelay);
@@ -927,11 +927,11 @@ int GetWarnDisconnectDelay(struct Upnp_Action_Request *ca_event)
     ActionResult = UpnpMakeActionResponse(ca_event->ActionName, WANIP_SERVICE_TYPE,
                                           1,
                                           "NewWarnDisconnectDelay", tmp);
-                                    
+
     if (ActionResult)
     {
         ca_event->ActionResult = ActionResult;
-        ca_event->ErrCode = UPNP_E_SUCCESS;        
+        ca_event->ErrCode = UPNP_E_SUCCESS;
     }
     else
     {
@@ -962,12 +962,12 @@ int RequestConnection(struct Upnp_Action_Request *ca_event)
                                             0, NULL);
     ca_event->ActionResult = ActionResult;
     ca_event->ErrCode = UPNP_E_SUCCESS;
-    
+
     trace(2, "RequestConnection received ... Checking status...");
-    
+
     //Immediatley Set lastconnectionerror to none. We don't now care about errors.
     strcpy(LastConnectionError, "ERROR_NONE");
-    
+
     // connection already up. Nothing to do. Return success
     if (strcmp(ConnectionStatus,"Connected") == 0)
     {
@@ -2115,7 +2115,7 @@ int createAutoDisconnectTimer(void)
         trace(3,"Remove previous AutoDisconnect timer");
         TimerThreadRemove(&gExpirationTimerThread, gAutoDisconnectJobId, NULL);
     }
-    
+
     if (AutoDisconnectTime > 0)
     {
         trace(3,"Create new AutoDisconnect timer to be executed after %ld seconds",AutoDisconnectTime);
@@ -2152,7 +2152,7 @@ void DisconnectWAN(void *input)
         UpnpNotifyExt(deviceHandle, wanConnectionUDN, "urn:upnp-org:serviceId:WANIPConn1", propSet);
         ixmlDocument_free(propSet);
         propSet = NULL;
-        
+
         /* Sleep one second at a time and check if connection status has changed to Connected.
          * This way we don't block the next possible disconnect job initiated from DisconnectWAN()
          */
@@ -2175,10 +2175,10 @@ void DisconnectWAN(void *input)
     UpnpNotifyExt(deviceHandle, wanConnectionUDN, "urn:upnp-org:serviceId:WANIPConn1", propSet);
     ixmlDocument_free(propSet);
     propSet = NULL;
-    
+
     // terminate    
     if (releaseIP(g_vars.extInterfaceName))
-    {       
+    {
         trace(3, "WAN connection Disconnected!");
     }
     else
@@ -2186,13 +2186,13 @@ void DisconnectWAN(void *input)
         trace(3, "Failed to disconnect WAN connection!");
         strcpy(ConnectionStatus, "Connected");
     }
-          
+
     GetConnectionStatus(ConnectionStatus, g_vars.extInterfaceName);
     // Event ConnectionStatus
     UpnpAddToPropertySet(&propSet, "ConnectionStatus", ConnectionStatus);
     UpnpNotifyExt(deviceHandle, wanConnectionUDN, "urn:upnp-org:serviceId:WANIPConn1", propSet);    
     ixmlDocument_free(propSet);
-    
+
     if (strcmp(ConnectionStatus, "Disconnected") == 0)
     {
         trace(2, "Disconnecting WAN connection succeeded");
@@ -2236,13 +2236,13 @@ static void updateIdleTime()
 {
     if (IdleDisconnectTime <= 0 || strcmp(ConnectionStatus, "Connected") != 0)
         return;
-    
+
     unsigned long stats[STATS_LIMIT];
     if (!readStats(stats))
     {
         return;
     }
-    
+
     if (stats[STATS_RX_PACKETS] != connection_stats[STATS_RX_PACKETS] ||
          stats[STATS_TX_PACKETS] != connection_stats[STATS_TX_PACKETS])
         idle_time = 0;
@@ -2285,7 +2285,7 @@ void UpdateEvents(void *input)
 
     // this is not anything to do with eventing, but because this function is regularly executed this is here also.
     updateIdleTime();
-    
+
     ithread_mutex_unlock(&DevMutex);
 
     ixmlDocument_free(propSet);
@@ -2365,10 +2365,10 @@ int ConnectionStatusEventing(IXML_Document *propSet)
     if (strcmp(ConnectionStatus, "Connected") == 0 || strcmp(ConnectionStatus, "Disconnected") == 0)
     {
         char prevStatus[20];
-    
+
         strcpy(prevStatus,ConnectionStatus);
         GetConnectionStatus(ConnectionStatus, g_vars.extInterfaceName);
-    
+
         // has status changed?
         if (strcmp(prevStatus,ConnectionStatus) != 0)
         {
@@ -2379,7 +2379,7 @@ int ConnectionStatusEventing(IXML_Document *propSet)
                 // Record the startup time, for uptime
                 startup_time = time(NULL);
             }
-            
+
             UpnpAddToPropertySet(&propSet, "ConnectionStatus", ConnectionStatus);
             UpnpNotifyExt(deviceHandle, wanConnectionUDN, "urn:upnp-org:serviceId:WANIPConn1", propSet);
             trace(2, "ConnectionStatus changed: From %s to %s",prevStatus,ConnectionStatus);
