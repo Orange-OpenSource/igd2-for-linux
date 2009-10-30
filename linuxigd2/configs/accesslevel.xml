@@ -31,7 +31,7 @@
             <action>
                 <name>RequestConnection</name>
                 <requireSSL>1</requireSSL>
-                <accessLevel>Admin</accessLevel>
+                <accessLevel>Basic Admin</accessLevel>
             </action>
             <action>
                 <name>RequestTermination</name>
@@ -72,11 +72,11 @@
                 <name>GetIdleDisconnectTime</name>
                 <requireSSL>0</requireSSL>
                 <accessLevel>Public Basic Admin</accessLevel>
-            </action>            
+            </action>
             <action>
                 <name>GetWarnDisconnectDelay</name>
                 <requireSSL>0</requireSSL>
-                <accessLevel>Public</accessLevel>
+                <accessLevel>Public Basic Admin</accessLevel>
             </action>
             <action>
                 <name>GetNATRSIPStatus</name>
@@ -87,7 +87,7 @@
                 <name>GetGenericPortMappingEntry</name>
                 <requireSSL>0</requireSSL>
                 <accessLevel>Public Basic Admin</accessLevel>
-                <accessLevelManage>Admin</accessLevelManage>
+                <accessLevelManage>Basic Admin</accessLevelManage>
             </action>
             <action>
                 <name>GetSpecificPortMappingEntry</name>
@@ -100,7 +100,7 @@
                 <requireSSL>0</requireSSL>
                 <accessLevel>Public Basic Admin</accessLevel>
                 <accessLevelManage>Admin</accessLevelManage>
-            </action> 
+            </action>
             <action>
                 <name>AddAnyPortMapping</name>
                 <requireSSL>0</requireSSL>
@@ -110,26 +110,26 @@
             <action>
                 <name>DeletePortMapping</name>
                 <requireSSL>0</requireSSL>
-                <accessLevel>Public</accessLevel>
-                <accessLevelManage>Admin</accessLevelManage>
+                <accessLevel>Public Basic Admin</accessLevel>
+                <accessLevelManage>Basic Admin</accessLevelManage>
             </action>
             <action>
                 <name>DeletePortMappingRange</name>
                 <requireSSL>0</requireSSL>
                 <accessLevel>Public Basic Admin</accessLevel>
-                <accessLevelManage>Admin</accessLevelManage>
+                <accessLevelManage>Basic Admin</accessLevelManage>
             </action>
             <action>
                 <name>GetExternalIPAddress</name>
                 <requireSSL>0</requireSSL>
                 <accessLevel>Public Basic Admin</accessLevel>
-            </action> 
+            </action>
             <action>
                 <name>GetListOfPortMappings</name>
                 <requireSSL>0</requireSSL>
                 <accessLevel>Public Basic Admin</accessLevel>
                 <accessLevelManage>Basic Admin</accessLevelManage>
-            </action>             
+            </action>
         </actionList>
     </serviceEntry>
     <serviceEntry>
@@ -270,7 +270,7 @@
                 <name>GetRolesForAction</name>
                 <requireSSL>0</requireSSL>
                 <accessLevel>Public Basic Admin</accessLevel>
-            </action>            
+            </action>
             <action>
                 <name>GetUserLoginChallenge</name>
                 <requireSSL>1</requireSSL>
@@ -316,7 +316,7 @@
                 <name>RemoveIdentity</name>
                 <requireSSL>1</requireSSL>
                 <accessLevel>Admin</accessLevel>
-            </action>         
+            </action>
         </actionList>
     </serviceEntry>
     <serviceEntry>
