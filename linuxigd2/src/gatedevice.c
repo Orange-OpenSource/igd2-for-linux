@@ -446,7 +446,7 @@ int HandleActionRequest(struct Upnp_Action_Request *ca_event)
                 trace(1, "Invalid Action Request : %s",ca_event->ActionName);
                 result = InvalidAction(ca_event);
             }
-        }        
+        }
     }
 
     ithread_mutex_unlock(&DevMutex);
@@ -952,7 +952,7 @@ int GetWarnDisconnectDelay(struct Upnp_Action_Request *ca_event)
  * @return Upnp error code.
  */
 int RequestConnection(struct Upnp_Action_Request *ca_event)
-{ 
+{
     IXML_Document *propSet = NULL;
     int result = 0;
 
@@ -1000,19 +1000,19 @@ int RequestConnection(struct Upnp_Action_Request *ca_event)
         UpnpNotifyExt(deviceHandle, ca_event->DevUDN, ca_event->ServiceID, propSet);
         ixmlDocument_free(propSet);
         propSet = NULL;
-        
+
         return ca_event->ErrCode;
     }
-    
+
     if (result == 0)
     {
         strcpy(ConnectionStatus, "Connecting");
         UpnpAddToPropertySet(&propSet, "ConnectionStatus", ConnectionStatus);
         UpnpNotifyExt(deviceHandle, ca_event->DevUDN, ca_event->ServiceID, propSet);
         ixmlDocument_free(propSet);
-        propSet = NULL;        
+        propSet = NULL;
         trace(2, "RequestConnection received ... Connecting..");
-        
+
         if (startDHCPClient(g_vars.extInterfaceName))
             ca_event->ErrCode = UPNP_E_SUCCESS;
         else
@@ -1020,15 +1020,23 @@ int RequestConnection(struct Upnp_Action_Request *ca_event)
             trace(1, "%s: Connection set up failed",ca_event->ActionName, g_vars.extInterfaceName);
             result = 704;
             addErrorData(ca_event, result, "ConnectionSetupFailed");
-        }     
+        }
 
         GetConnectionStatus(ConnectionStatus, g_vars.extInterfaceName);
         // Build DOM Document with state variable connectionstatus and event it
         UpnpAddToPropertySet(&propSet, "ConnectionStatus", ConnectionStatus);
         // Send off notifications of state change
         UpnpNotifyExt(deviceHandle, ca_event->DevUDN, ca_event->ServiceID, propSet);
+
+        // if new status is connected, we create autodisconnecttimer and set startup time for Uptime statevariable
+        if (strcmp(ConnectionStatus, "Connected") == 0)
+        {
+            createAutoDisconnectTimer();
+            // Record the startup time, for uptime
+            startup_time = time(NULL);
+        }
     }
-    
+
     ixmlDocument_free(propSet);
     return ca_event->ErrCode;
 }
@@ -2143,6 +2151,13 @@ void DisconnectWAN(void *input)
     IXML_Document *propSet = NULL;
     long int *delay = (long int *)input;
     trace(2, "Request for WAN connection termination received. Start disconnecting... ");
+    if (strcmp(ConnectionStatus, "Disconnected") == 0 || strcmp(ConnectionStatus, "Disconnecting") == 0)
+    {
+        trace(2, "Disconnecting has been already started from somewhere else. Cancel this one. Status of connection: %s",ConnectionStatus);
+        free(input);
+        return;
+    }
+
     //TODO: Some really good way to get serviceids and UDNs from descdoc!!
     if (input && *delay > 0)
     {
@@ -2176,7 +2191,7 @@ void DisconnectWAN(void *input)
     ixmlDocument_free(propSet);
     propSet = NULL;
 
-    // terminate    
+    // terminate
     if (releaseIP(g_vars.extInterfaceName))
     {
         trace(3, "WAN connection Disconnected!");
@@ -2184,18 +2199,17 @@ void DisconnectWAN(void *input)
     else
     {
         trace(3, "Failed to disconnect WAN connection!");
-        strcpy(ConnectionStatus, "Connected");
     }
 
     GetConnectionStatus(ConnectionStatus, g_vars.extInterfaceName);
     // Event ConnectionStatus
     UpnpAddToPropertySet(&propSet, "ConnectionStatus", ConnectionStatus);
-    UpnpNotifyExt(deviceHandle, wanConnectionUDN, "urn:upnp-org:serviceId:WANIPConn1", propSet);    
+    UpnpNotifyExt(deviceHandle, wanConnectionUDN, "urn:upnp-org:serviceId:WANIPConn1", propSet);
     ixmlDocument_free(propSet);
 
     if (strcmp(ConnectionStatus, "Disconnected") == 0)
     {
-        trace(2, "Disconnecting WAN connection succeeded");
+        trace(2, "Disconnecting WAN connection succeeded. State of connection: '%s'",ConnectionStatus);
     }
     else
     {
@@ -2741,7 +2755,7 @@ int ConnectionTermination(struct Upnp_Action_Request *ca_event, long int disconn
         trace(1, "%s: ConnectionType must be IP_Routed. Type: %s", ca_event->ActionName, ConnectionType);
         result = 710;
         addErrorData(ca_event, result, "InvalidConnectionType");
-    }    
+    }
     else if (strcmp(ConnectionStatus,"Disconnected") == 0)
     {
         trace(1, "%s: Connection of %s already terminated", ca_event->ActionName, g_vars.extInterfaceName);
