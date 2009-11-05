@@ -84,7 +84,7 @@ int readStats(unsigned long stats[STATS_LIMIT])
     }
 
     /* skip first two lines */
-    fscanf(proc, "%*[^\n]\n%*[^\n]\n");
+    read = fscanf(proc, "%*[^\n]\n%*[^\n]\n");
 
     /* parse stats */
     do
@@ -621,6 +621,7 @@ int setEthernetLinkStatus(char *ethLinkStatus, char *iface)
 int readIntFromFile(char *file)
 {
     FILE *fp;
+    int read;
     int value = -1;
 
     trace(3,"Read integer value from %s", file);
@@ -630,7 +631,7 @@ int readIntFromFile(char *file)
     }
 
     while(!feof(fp)) {
-        fscanf(fp,"%d", &value);
+        read = fscanf(fp,"%d", &value);
         if (value > -1)
         {
             fclose(fp);
@@ -650,7 +651,7 @@ int readIntFromFile(char *file)
 int killDHCPClient(char *iface)
 {
     char tmp[30];
-    int pid;
+    int pid, ret;
 
     trace(2,"Killing DHCP client...");
     snprintf(tmp, 30, "/var/run/%s.pid", iface);
@@ -659,7 +660,7 @@ int killDHCPClient(char *iface)
     {
         snprintf(tmp, 30, "kill %d", pid);
         trace(3,"system(%s)",tmp);
-        system(tmp);
+        ret = system(tmp);
     }
     else
     {
@@ -667,7 +668,7 @@ int killDHCPClient(char *iface)
         trace(3,"No PID file available for %s of %s",g_vars.dhcpc,iface);
         snprintf(tmp, 30, "killall -9 %s", g_vars.dhcpc);
         trace(3,"system(%s)",tmp);
-        system(tmp);
+        ret = system(tmp);
     }
 
     sleep(2); // wait that IP is released
@@ -693,6 +694,7 @@ int killDHCPClient(char *iface)
 int startDHCPClient(char *iface)
 {
     char tmp[100];
+    int ret;
 
     trace(2,"Starting DHCP client...");
     if (strcmp(g_vars.dhcpc,"dhclient") == 0)
@@ -704,7 +706,7 @@ int startDHCPClient(char *iface)
         snprintf(tmp, 100, "%s -i %s -R -p /var/run/%s.pid", g_vars.dhcpc, iface, iface);
     }
     trace(3,"system(%s)",tmp);
-    system(tmp);
+    ret = system(tmp);
 
     sleep(2); // wait that IP is acquired
 
@@ -729,7 +731,7 @@ int startDHCPClient(char *iface)
 int releaseIP(char *iface)
 {
     char tmp[INET6_ADDRSTRLEN];
-    int success = 0;
+    int ret, success = 0;
 
     // check does IP exist
     if (!GetIpAddressStr(tmp, iface))
@@ -743,7 +745,7 @@ int releaseIP(char *iface)
         trace(2,"Releasing IP...");
         snprintf(tmp, 50, "%s -r %s", g_vars.dhcpc, iface);
         trace(3,"system(%s)",tmp);
-        system(tmp);
+        ret = system(tmp);
 
         sleep(2); // wait that IP is released
     

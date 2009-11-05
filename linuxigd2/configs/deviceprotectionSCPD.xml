@@ -180,6 +180,12 @@
         <action>
             <name>SetUserLoginPassword</name>
             <argumentList>
+              <argument>
+                <name>ProtocolType</name>
+                <direction>in</direction>
+                <relatedStateVariable>A_ARG_TYPE_String</relatedStateVariable>
+                </argument>
+
                 <argument>
                     <name>Name</name>
                     <direction>in</direction>

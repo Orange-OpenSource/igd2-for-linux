@@ -802,7 +802,7 @@ static int putValuesToPasswdFile(const char *name, const unsigned char *b64_salt
     fprintf(stream, "%s,%s,%s\n", name, b64_salt, b64_stored);
     
     fclose(stream);
-    return 0;     
+    return 0;
 }
 
 /**
@@ -823,11 +823,11 @@ static int updateValuesToPasswdFile(const char *nameUPPER, const unsigned char *
     char temp[200];
     char *name;
     int ret = -2;
-    
-    char tempfile[strlen(PASSWD_FILE) + 5];
+
+    char tempfile[strlen(PASSWD_FILE) + 6];
     strcpy(tempfile,PASSWD_FILE);
     strcat(tempfile,".temp");
-    
+
     // open 2 files, passwordfile which is read and temp file where lines are written.
     // if usernames match write new values in temp file.
     // Finally remove original passwordfile and rename temp file as original.
@@ -836,25 +836,26 @@ static int updateValuesToPasswdFile(const char *nameUPPER, const unsigned char *
     FILE *out = fopen(tempfile, "w");
     if (!out) 
     {
-        fclose(in);      
+        fclose(in);
         return -1;
     }
-    
+
     while(fgets(line, 200, in) != NULL) 
     {
         line[strlen(line)-1] = '\0';
         strcpy(temp,line); // copy line, strtok modifies it
-        
+
         name = strtok(line, ",");
-        
+
         if (name != NULL)
         {
-            // if names match        
+            // if names match
             if ( caseInsesitive_strcmp(name,nameUPPER) == 0 )
             {
                 // if we want to remove user from passwd file, lets not add him to temp file
                 if (!delete_values)
                     fprintf(out, "%s,%s,%s\n", nameUPPER, b64_salt, b64_stored);
+
                 ret = 0;
             }
             else
@@ -863,16 +864,16 @@ static int updateValuesToPasswdFile(const char *nameUPPER, const unsigned char *
             }
         }
     }
-    
+
     fclose(in);
     fclose(out);
-    
+
     // delete original password file
     remove(PASSWD_FILE);
     // rename temp file is original password file
-    rename(tempfile, PASSWD_FILE); 
+    rename(tempfile, PASSWD_FILE);
 
-    return ret; 
+    return ret;
 }
 
 /**
@@ -1339,10 +1340,10 @@ int GetUserLoginChallenge(struct Upnp_Action_Request *ca_event)
             free(protocoltype);
             free(identifier);
             return ca_event->ErrCode;
-        } 
-        
+        }
+
         // name to uppercase
-        nameUPPER = toUpperCase(name);     
+        nameUPPER = toUpperCase(name);
         if (nameUPPER == NULL)
         {
             trace(1, "Failed to convert name to upper case ");
@@ -1364,7 +1365,7 @@ int GetUserLoginChallenge(struct Upnp_Action_Request *ca_event)
         {
             trace(1, "Unknown username %s",nameUPPER);
             result = 600;
-            addErrorData(ca_event, result, "Argument Value Invalid");            
+            addErrorData(ca_event, result, "Argument Value Invalid");
         }
     }
     else
@@ -1374,11 +1375,11 @@ int GetUserLoginChallenge(struct Upnp_Action_Request *ca_event)
         addErrorData(ca_event, 402, "Invalid Args");
     }
 
-    free(name);    
+    free(name);
     free(nameUPPER);
     free(protocoltype);
     free(identifier);
-    
+
     return ca_event->ErrCode;
 }
 
@@ -1398,10 +1399,10 @@ int UserLogin(struct Upnp_Action_Request *ca_event)
     char *loginName = NULL;
     char *loginChallenge = NULL;
     int active;
-    
+
     char *id =NULL;
     int id_len = 0;
-    
+
     if (( protocoltype = GetFirstDocumentItem(ca_event->ActionRequest, "ProtocolType") )
             &&( challenge = GetFirstDocumentItem(ca_event->ActionRequest, "Challenge") )
             && ( authenticator = GetFirstDocumentItem(ca_event->ActionRequest, "Authenticator") ))
@@ -1417,22 +1418,22 @@ int UserLogin(struct Upnp_Action_Request *ca_event)
             free(authenticator);
             return ca_event->ErrCode;
         }
-        
+
         result = getIdentifierOfCP(ca_event, &id, &id_len, NULL);
         trace(3,"CP with identifier '%s' is logging in.",id);
         // here we could try "session resumption" by getting identity from SIR?
         // but not now, just continue as new login...
         result = SIR_getLoginDataOfSession(SIRDoc, (char *)id, &loginattempts, &loginName, &loginChallenge);
-        
+
         if (result != 0 || !loginName || !loginChallenge)
         {
             trace(1, "%s: Failed to get login data for this session",ca_event->ActionName);
             result = 600;
             addErrorData(ca_event, result, "Argument Value Invalid");
-            
+
             // don't return yet, we need to check if CP has tried to login too many times
         }
-        
+
         // has CP tried to login too many times already?
         if (++loginattempts >= DP_MAX_LOGIN_ATTEMPTS)
         {
@@ -1443,18 +1444,18 @@ int UserLogin(struct Upnp_Action_Request *ca_event)
             trace(3,"Cleaning SIR...");
             // remove session from SIR
             SIR_removeSession(SIRDoc, (char *)id);
-            
+
             free(protocoltype);
             free(challenge);
             free(authenticator);
             free(loginName);
             free(loginChallenge);
             free(id);
-            
+
             trace_ixml(3, "Contents of SIR:",SIRDoc);
-            return ca_event->ErrCode;            
+            return ca_event->ErrCode;
         }
-        
+
         // does our challenge stored in SIR match challenge received from control point
         if (result == 0 && strcmp(challenge, loginChallenge) != 0)
         {
@@ -1463,21 +1464,21 @@ int UserLogin(struct Upnp_Action_Request *ca_event)
             result = 600;
             addErrorData(ca_event, result, "Argument Value Invalid");
         }
-        
+
         if (result == 0)
         {
             // update loginattempts value
             result = SIR_updateSession(SIRDoc, (char *)id, NULL, NULL, NULL, &loginattempts, NULL, NULL);
-            
+
             // name to uppercase
             loginName = toUpperCase(loginName);
-            
+
             // get stored from passwd file
-            int maxb64len = 2*DP_STORED_BYTES;     
+            int maxb64len = 2*DP_STORED_BYTES;
             unsigned char *b64_salt = (unsigned char *)malloc(maxb64len); 
             unsigned char *b64_stored = (unsigned char *)malloc(maxb64len);
             int salt_len, stored_len;
-            
+
             result = getValuesFromPasswdFile(loginName, &b64_salt, &salt_len, &b64_stored, &stored_len, maxb64len);
             if (result != 0 || stored_len < 1)
             {
@@ -1492,20 +1493,20 @@ int UserLogin(struct Upnp_Action_Request *ca_event)
                 int auth_len = 0;
                 char *b64_authenticator = NULL;
                 result = createAuthenticator((char *)b64_stored, loginChallenge, &b64_authenticator, &auth_len);
-                
+
                 // do the authenticators match?
                 if (result != 0)
                 {
                     trace(2, "%s: Failed to create authenticator",ca_event->ActionName);
                     result = 501;
-                    addErrorData(ca_event, result, "Action Failed");                
+                    addErrorData(ca_event, result, "Action Failed");
                 }
                 else if ( strcmp(authenticator, b64_authenticator) != 0 )
                 {
                     trace(1, "%s: Authenticator values do not match!",ca_event->ActionName);
                     trace(3, "Received Authenticator was '%s' and local Authenticator was '%s'",authenticator, b64_authenticator);
                     result = 701;
-                    addErrorData(ca_event, result, "Authentication Failure");                
+                    addErrorData(ca_event, result, "Authentication Failure");
                 }
                 else
                 {
@@ -1517,27 +1518,27 @@ int UserLogin(struct Upnp_Action_Request *ca_event)
                     char *roles = ACL_getRolesOfUser(ACLDoc, loginName); 
                     result = SIR_updateSession(SIRDoc, (char *)id, &active, loginName, roles, &loginattempts, NULL, NULL);
                     free(roles);
-                    
+
                     // remove logindata from SIR
                     SIR_removeLoginDataOfSession(SIRDoc, (char *)id);
                     // create response SOAP message
                     IXML_Document *ActionResult = NULL;
                     ActionResult = UpnpMakeActionResponse(ca_event->ActionName, DP_SERVICE_TYPE,
                                                     0, NULL);
-                                                    
+
                     if (ActionResult && result == 0)
                     {
                         ca_event->ActionResult = ActionResult;
-                        ca_event->ErrCode = UPNP_E_SUCCESS;        
+                        ca_event->ErrCode = UPNP_E_SUCCESS;
                     }
                     else
                     {
                         trace(1, "Error parsing Response to %s (or failed to change identity of user in SIR)",ca_event->ActionName);
                         result = 501;
-                        addErrorData(ca_event, result, "Action Failed"); 
+                        addErrorData(ca_event, result, "Action Failed");
                     } 
                 }
-                
+
                 free(b64_authenticator);
             }
             free(b64_salt);
@@ -1550,14 +1551,14 @@ int UserLogin(struct Upnp_Action_Request *ca_event)
         trace(1, "Failure in %s: Invalid Arguments!",ca_event->ActionName);
         addErrorData(ca_event, 402, "Invalid Args");
     }
-    
+
     free(protocoltype);
     free(challenge);
     free(authenticator);
     free(loginName);
     free(loginChallenge);
     free(id);
-    
+
     trace_ixml(3, "Contents of SIR:",SIRDoc);
     return ca_event->ErrCode;
 }
@@ -1577,12 +1578,12 @@ int UserLogout(struct Upnp_Action_Request *ca_event)
     if (ca_event->SSLSession)
     {
         result = getIdentifierOfCP(ca_event, &id, &id_len, NULL);
-    
+
         if (result != 0)
         {
             trace(1, "%s: Failed to get identifier from certificate",ca_event->ActionName);
             result = 501;
-            addErrorData(ca_event, result, "Action Failed");            
+            addErrorData(ca_event, result, "Action Failed");
         }
         else
         {
@@ -1609,11 +1610,11 @@ int UserLogout(struct Upnp_Action_Request *ca_event)
         ActionResult = UpnpMakeActionResponse(ca_event->ActionName, DP_SERVICE_TYPE,
                                         0, NULL);
         ca_event->ActionResult = ActionResult;
-        ca_event->ErrCode = UPNP_E_SUCCESS;        
+        ca_event->ErrCode = UPNP_E_SUCCESS;
     }
-    
+
     free(id);
-    
+
     trace_ixml(3, "Contents of SIR:",SIRDoc);
     return ca_event->ErrCode;
 }
@@ -1637,7 +1638,7 @@ int GetACLData(struct Upnp_Action_Request *ca_event)
         ActionResult = UpnpMakeActionResponse(ca_event->ActionName, DP_SERVICE_TYPE,
                                         1,
                                         "ACL", ACL);
-        free (ACL);                                    
+        free (ACL);
     }
     else
     {
@@ -1645,12 +1646,12 @@ int GetACLData(struct Upnp_Action_Request *ca_event)
         ca_event->ActionResult = NULL;
         ca_event->ErrCode = 501;
         return ca_event->ErrCode;
-    }    
-                                    
+    }
+
     if (ActionResult)
     {
         ca_event->ActionResult = ActionResult;
-        ca_event->ErrCode = UPNP_E_SUCCESS;        
+        ca_event->ErrCode = UPNP_E_SUCCESS;
     }
     else
     {
@@ -1674,13 +1675,13 @@ int AddRolesForIdentity(struct Upnp_Action_Request *ca_event)
     char *identity = NULL;
     char *rolelist = NULL;
     IXML_Document *identityDoc = NULL;
-    
+
     if ( (identity = GetFirstDocumentItem(ca_event->ActionRequest, "Identity") )
             && (rolelist = GetFirstDocumentItem(ca_event->ActionRequest, "RoleList") ))
     {
         // unescape identity
         char *unescValue = unescapeXMLString(identity);
-        
+
         identityDoc = ixmlParseBuffer(unescValue);
         if (identityDoc == NULL)
         {
@@ -1690,12 +1691,12 @@ int AddRolesForIdentity(struct Upnp_Action_Request *ca_event)
             free(unescValue);
             free(identity);
             free(rolelist);
-            
+
             return ca_event->ErrCode;
         }
-        
+
         // add roles for identity which is found from identityDoc
-        result = ACL_addRolesForIdentity(ACLDoc, identityDoc, rolelist);        
+        result = ACL_addRolesForIdentity(ACLDoc, identityDoc, rolelist);
         if (result == ACL_USER_ERROR)
         {
             // ok, identity wasn't username or hash
@@ -1716,17 +1717,17 @@ int AddRolesForIdentity(struct Upnp_Action_Request *ca_event)
             addErrorData(ca_event, result, "Action Failed");
         }
         free(unescValue);
-        
+
         // all is well
         if (result == 0)
         {
             // write ACL in filesystem
             writeDocumentToFile(ACLDoc, ACL_XML);
             ca_event->ActionResult = UpnpMakeActionResponse(ca_event->ActionName, DP_SERVICE_TYPE,
-                                        0, NULL);                                        
-            ca_event->ErrCode = UPNP_E_SUCCESS;   
+                                        0, NULL);
+            ca_event->ErrCode = UPNP_E_SUCCESS;
         }
-        
+
     }
     else
     {
@@ -1734,13 +1735,13 @@ int AddRolesForIdentity(struct Upnp_Action_Request *ca_event)
         trace(1, "  Identity: %s, RoleList: %s",identity,rolelist);
         addErrorData(ca_event, 402, "Invalid Args");
     }
-    
+
     ixmlDocument_free(identityDoc);
     free(identity);
     free(rolelist);
-    
+
     trace_ixml(3, "Contents of ACL:",ACLDoc);
-    
+
     return ca_event->ErrCode;
 }
 
@@ -1756,13 +1757,13 @@ int RemoveRolesForIdentity(struct Upnp_Action_Request *ca_event)
     char *identity = NULL;
     char *rolelist = NULL;
     IXML_Document *identityDoc = NULL;
-    
+
     if ( (identity = GetFirstDocumentItem(ca_event->ActionRequest, "Identity") )
             && (rolelist = GetFirstDocumentItem(ca_event->ActionRequest, "RoleList") ))
-    {   
+    {
         // unescape identity
         char *unescValue = unescapeXMLString(identity);
-            
+
         identityDoc = ixmlParseBuffer(unescValue);
         if (identityDoc == NULL)
         {
@@ -1772,10 +1773,10 @@ int RemoveRolesForIdentity(struct Upnp_Action_Request *ca_event)
             free(unescValue);
             free(identity);
             free(rolelist);
-            
+
             return ca_event->ErrCode;
         }
-        
+
         // remove roles from identity which is found from identityDoc
         result = ACL_removeRolesFromIdentity(ACLDoc, identityDoc, rolelist);
         if (result == ACL_USER_ERROR)
@@ -1798,17 +1799,17 @@ int RemoveRolesForIdentity(struct Upnp_Action_Request *ca_event)
             addErrorData(ca_event, result, "Action Failed");
         }
         free(unescValue);
-        
+
         // all is well
         if (result == 0)
         {
             // write ACL in filesystem
             writeDocumentToFile(ACLDoc, ACL_XML);
             ca_event->ActionResult = UpnpMakeActionResponse(ca_event->ActionName, DP_SERVICE_TYPE,
-                                        0, NULL);                                        
-            ca_event->ErrCode = UPNP_E_SUCCESS;   
+                                        0, NULL);
+            ca_event->ErrCode = UPNP_E_SUCCESS;
         }
-        
+
     }
     else
     {
@@ -1816,13 +1817,13 @@ int RemoveRolesForIdentity(struct Upnp_Action_Request *ca_event)
         trace(1, "  Identity: %s, RoleList: %s",identity,rolelist);
         addErrorData(ca_event, 402, "Invalid Args");
     }
-  
+
     ixmlDocument_free(identityDoc);
     free(identity);
     free(rolelist);
-    
+
     trace_ixml(3, "Contents of ACL:",ACLDoc);
-    
+
     return ca_event->ErrCode;
 }
 
@@ -1833,8 +1834,8 @@ int RemoveRolesForIdentity(struct Upnp_Action_Request *ca_event)
  * @return Upnp error code.
  */
 int GetAssignedRoles(struct Upnp_Action_Request *ca_event)
-{   
-    IXML_Document *ActionResult = NULL; 
+{
+    IXML_Document *ActionResult = NULL;
     char *roles = NULL;
     int result = 0;
 
@@ -1847,7 +1848,7 @@ int GetAssignedRoles(struct Upnp_Action_Request *ca_event)
         roles = "Public";
         result = 0;
     }
-    
+
     if (result == 0 && roles)
     {
         ActionResult = UpnpMakeActionResponse(ca_event->ActionName, DP_SERVICE_TYPE,
@@ -1859,12 +1860,12 @@ int GetAssignedRoles(struct Upnp_Action_Request *ca_event)
         trace(1, "Error getting roles of session");
         addErrorData(ca_event, 501, "Action Failed");
         return ca_event->ErrCode;
-    }    
-                                    
+    }
+
     if (ActionResult)
     {
         ca_event->ActionResult = ActionResult;
-        ca_event->ErrCode = UPNP_E_SUCCESS;        
+        ca_event->ErrCode = UPNP_E_SUCCESS;
     }
     else
     {
@@ -1883,36 +1884,36 @@ int GetAssignedRoles(struct Upnp_Action_Request *ca_event)
  * @return Upnp error code.
  */
 int GetRolesForAction(struct Upnp_Action_Request *ca_event)
-{    
+{
     int result = 0;
 
     char *actionName = NULL;
     char *serviceId = NULL;
     char *accessLevel = NULL;
     char *accessLevelManage = NULL;
-    
+
     if ( (serviceId = GetFirstDocumentItem(ca_event->ActionRequest, "ServiceId"))
         && (actionName = GetFirstDocumentItem(ca_event->ActionRequest, "ActionName")) ) 
-    {       
+    {
         accessLevel = getAccessLevel(serviceId, actionName, 0, NULL);
-        
+
         if (accessLevel)
         {
-            // get managed accesslevel if it exists            
+            // get managed accesslevel if it exists
             accessLevelManage = getAccessLevel(serviceId,actionName, 1, NULL);
             if (accessLevelManage)
             {
                 ca_event->ActionResult = UpnpMakeActionResponse(ca_event->ActionName, DP_SERVICE_TYPE,
                                             2,
                                             "RoleList", accessLevel,
-                                            "RestrictedRoleList", accessLevelManage); 
+                                            "RestrictedRoleList", accessLevelManage);
             }
             else
             {
                 ca_event->ActionResult = UpnpMakeActionResponse(ca_event->ActionName, DP_SERVICE_TYPE,
                                             2,
                                             "RoleList", accessLevel,
-                                            "RestrictedRoleList", ""); 
+                                            "RestrictedRoleList", "");
             }
             ca_event->ErrCode = UPNP_E_SUCCESS;
         }
@@ -1922,16 +1923,16 @@ int GetRolesForAction(struct Upnp_Action_Request *ca_event)
             trace(1, "GetRolesForAction: Combination of ServiceId '%s' and ActionName '%s' is not found from %s",
                   serviceId,actionName,g_vars.accessLevelXml);
             result = 600;
-            addErrorData(ca_event, result, "Argument Value Invalid");            
+            addErrorData(ca_event, result, "Argument Value Invalid");
         }
-    }    
+    }
     else
     {
         trace(1, "GetRolesForAction: Invalid Arguments!");
         trace(1, "  ServiceId: %s, ActionName: %s  ", serviceId, actionName);
         addErrorData(ca_event, 402, "Invalid Args");
     }
-    
+
     free(actionName);
     free(accessLevel);
     free(accessLevelManage);
@@ -1949,23 +1950,37 @@ int GetRolesForAction(struct Upnp_Action_Request *ca_event)
 int SetUserLoginPassword(struct Upnp_Action_Request *ca_event)
 {
     int result = 0;
+    char *protocoltype = NULL;
     char *name = NULL;
     char *stored = NULL;
     char *salt = NULL;
     char *nameUPPER = NULL;
     char *identity = NULL;
-    
-    if ( (name = GetFirstDocumentItem(ca_event->ActionRequest, "Name") )
+
+    if ( (protocoltype = GetFirstDocumentItem(ca_event->ActionRequest, "ProtocolType") )
+            && (name = GetFirstDocumentItem(ca_event->ActionRequest, "Name") )
             && (stored = GetFirstDocumentItem(ca_event->ActionRequest, "Stored") )
             && (salt = GetFirstDocumentItem(ca_event->ActionRequest, "Salt") ))
-    {      
+    {
+        if (strcmp(protocoltype, "PKCS5") != 0)
+        {
+            trace(1, "Login protocol type must be 'PKCS5': Invalid ProtocolType=%s\n",protocoltype);
+            result = 600;
+            addErrorData(ca_event, result, "Argument Value Invalid");
+
+            free(protocoltype);
+            free(name);
+            free(stored);
+            free(salt);
+            return ca_event->ErrCode;
+        }
         // change name to uppercase, because usernames are not case sensitive
         nameUPPER = toUpperCase(name);
         if (nameUPPER == NULL)
         {
             trace(1, "%s: Failed to turn name '%s' to uppercase",ca_event->ActionName,name);
             result = 501;
-            addErrorData(ca_event, result, "Action Failed");            
+            addErrorData(ca_event, result, "Action Failed");
         }
         // First try to update existing username/password pair
         else
@@ -1976,8 +1991,8 @@ int SetUserLoginPassword(struct Upnp_Action_Request *ca_event)
             {
                 trace(1, "%s: Failed to turn identity '%s' to uppercase",ca_event->ActionName,identity);
                 result = 501;
-                addErrorData(ca_event, result, "Action Failed");            
-            }            
+                addErrorData(ca_event, result, "Action Failed");
+            }
             // check from SIR that username received as parameter is current identity of this session
             // or has "Admin" privileges
             // TODO: This might be better to do by getting managed roles from acceslevels. But spec might change so let this be now... 
@@ -1993,17 +2008,17 @@ int SetUserLoginPassword(struct Upnp_Action_Request *ca_event)
                     {
                         trace(1, "%s: Same username '%s' exists in passwd file already",ca_event->ActionName,name);
                         result = 600;
-                        addErrorData(ca_event, result, "Argument Value Invalid");                    
+                        addErrorData(ca_event, result, "Argument Value Invalid");
                     }
                     else if (result != 0)
                     {
                         trace(1, "%s: Failed to write login values to passwordfile",ca_event->ActionName);
                         result = 501;
                         addErrorData(ca_event, result, "Action Failed");
-                        
+
                         // if failed to add new logindata to file but reason wasn't that same username 
                         // existed in passwd file already, try to remove added data
-                        updateValuesToPasswdFile(nameUPPER, (unsigned char *)salt, (unsigned char *)stored, 1);          
+                        updateValuesToPasswdFile(nameUPPER, (unsigned char *)salt, (unsigned char *)stored, 1);
                     } 
                     else
                     {
@@ -2012,48 +2027,48 @@ int SetUserLoginPassword(struct Upnp_Action_Request *ca_event)
                         // user might have ben added through AddIdentityList previously
                         if (result == ACL_USER_ERROR) 
                             result = ACL_SUCCESS;
-                            
+
                         // if failed, try to clean up what have done so far
                         if (result != ACL_SUCCESS && result != ACL_USER_ERROR) 
                         {
                             trace(1, "%s: Failed to add username to ACL",ca_event->ActionName);
                             result = 501;
                             addErrorData(ca_event, result, "Action Failed");
-                            
+
                             // remove added username from passwdfile
                             updateValuesToPasswdFile(nameUPPER, (unsigned char *)salt, (unsigned char *)stored, 1);
                             // try to remove username from ACL
                             ACL_removeUser(ACLDoc, nameUPPER);
-                        }                    
-                    } // end of adding new            
-                   
+                        }
+                    } // end of adding new
+
                 }
                 else if (result != 0)
                 {
                     trace(1, "%s: Failed to update login values to passwordfile",ca_event->ActionName);
                     result = 501;
-                    addErrorData(ca_event, result, "Action Failed");       
-                }              
+                    addErrorData(ca_event, result, "Action Failed");
+                }
             }
             else
             {
                 trace(1, "%s: Not enough privileges to do this, '%s' is required",ca_event->ActionName, "Admin");
                 result = 606;
-                addErrorData(ca_event, result, "Action not authorized");                
-            }            
+                addErrorData(ca_event, result, "Action not authorized");
+            }
         }
 
-        
+
         // all is well
         if (result == 0)
         {
             // write ACL in filesystem
             writeDocumentToFile(ACLDoc, ACL_XML);
             ca_event->ActionResult = UpnpMakeActionResponse(ca_event->ActionName, DP_SERVICE_TYPE,
-                                        0, NULL);                                        
-            ca_event->ErrCode = UPNP_E_SUCCESS;   
+                                        0, NULL);
+            ca_event->ErrCode = UPNP_E_SUCCESS;
         }
-        
+
     }
     else
     {
@@ -2062,6 +2077,7 @@ int SetUserLoginPassword(struct Upnp_Action_Request *ca_event)
         addErrorData(ca_event, 402, "Invalid Args");
     }
 
+    free(protocoltype);
     free(name);
     free(stored);
     free(salt);
@@ -2085,12 +2101,12 @@ int AddIdentityList(struct Upnp_Action_Request *ca_event)
     int result = 0;
     char *identitylist = NULL;
     IXML_Document *identitiesDoc = NULL;
-    
+
     if ( (identitylist = GetFirstDocumentItem(ca_event->ActionRequest, "IdentityList") ))
-    {   
+    {
         // unescape identitylist
         char *unescValue = unescapeXMLString(identitylist);
-        
+
         trace(3, "%s: Received IdentityList: \n%s",ca_event->ActionName,unescValue); 
         identitiesDoc = ixmlParseBuffer(unescValue);
         if (identitiesDoc == NULL)
@@ -2111,19 +2127,19 @@ int AddIdentityList(struct Upnp_Action_Request *ca_event)
             {
                 result = 501;
                 addErrorData(ca_event, result, "Action Failed");
-            }  
+            }
         }
         free(unescValue);
-        
+
         // all is well
         if (result == 0)
         {
             // write ACL in filesystem
             writeDocumentToFile(ACLDoc, ACL_XML);
-            
+
             // get identities element from ACL and return it to CP
             char *responseIdentities = NodeWithNameToString(ACLDoc, "Identities");
-            
+
             if (responseIdentities)
             {
                 // replace <Identities> from beginning with <Identities xmlns="...>
@@ -2135,20 +2151,20 @@ int AddIdentityList(struct Upnp_Action_Request *ca_event)
                                                        "http://www.upnp.org/schemas/gw/DeviceProtection-v1.xsd\">");
 
                 strcat(responseIdentitiesWithNamespace, responseIdentities+12);
-                free(responseIdentities);                
-                
+                free(responseIdentities);
+
                 // Succesfull end happens here, libupnp takes care of escaping the string for SOAP
                 ca_event->ActionResult = UpnpMakeActionResponse(ca_event->ActionName, DP_SERVICE_TYPE,
                                             1, 
                                             "IdentityListResult", responseIdentitiesWithNamespace,
-                                            NULL);                                        
+                                            NULL);
                 ca_event->ErrCode = UPNP_E_SUCCESS;
             }
             else
             {
                 trace(1, "%s: Failed to get IdentityListResult",ca_event->ActionName);
                 result = 501;
-                addErrorData(ca_event, result, "Action Failed");                
+                addErrorData(ca_event, result, "Action Failed");
             }
         }
         else
@@ -2162,8 +2178,8 @@ int AddIdentityList(struct Upnp_Action_Request *ca_event)
                 trace(1, "Couldn't load ACL (Access Control List) document which should locate here: %s\nExiting...\n",ACL_XML);
                 UpnpFinish();
                 exit(1);
-            }               
-        }        
+            }
+        }
     }
     else
     {
@@ -2175,7 +2191,7 @@ int AddIdentityList(struct Upnp_Action_Request *ca_event)
     ixmlDocument_free(identitiesDoc);
     free(identitylist);
 
-    trace_ixml(3, "Contents of ACL:",ACLDoc);    
+    trace_ixml(3, "Contents of ACL:",ACLDoc);
     return ca_event->ErrCode;
 }
 
