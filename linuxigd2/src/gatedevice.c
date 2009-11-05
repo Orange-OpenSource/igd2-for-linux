@@ -136,7 +136,7 @@ int StateTableInit(char *descDocUrl)
 
     // Initialize our linked list of port mappings.
     pmlist_Head = pmlist_Current = NULL;
-    
+
     AutoDisconnectTime = 0;
     IdleDisconnectTime = 0;
     WarnDisconnectDelay = 0;
@@ -183,7 +183,7 @@ int HandleSubscriptionRequest(struct Upnp_Subscription_Request *sr_event)
         {
             char tmp[2];
             snprintf(tmp,2,"%d",SetupReady);
-            
+
             trace(3, "Received request to subscribe to DeviceProtection1");
             UpnpAddToPropertySet(&propSet, "SetupReady", tmp);
             UpnpAcceptSubscriptionExt(deviceHandle, sr_event->UDN, sr_event->ServiceId,
@@ -207,14 +207,14 @@ int HandleSubscriptionRequest(struct Upnp_Subscription_Request *sr_event)
     {
         // WAN IP Connection Device Notifications
         if (strcmp(sr_event->ServiceId, "urn:upnp-org:serviceId:WANIPConn1") == 0)
-        {                   
+        {
             GetIpAddressStr(ExternalIPAddress, g_vars.extInterfaceName);
             GetConnectionStatus(ConnectionStatus, g_vars.extInterfaceName);
             trace(3, "Received request to subscribe to WANIPConn1");
             UpnpAddToPropertySet(&propSet, "PossibleConnectionTypes","IP_Routed");
             UpnpAddToPropertySet(&propSet, "ExternalIPAddress", ExternalIPAddress);
             UpnpAddToPropertySet(&propSet, "ConnectionStatus", ConnectionStatus);
-            
+
             char tmp[11];
             snprintf(tmp,11,"%ld",SystemUpdateID);
             UpnpAddToPropertySet(&propSet, "SystemUpdateID",tmp);
@@ -242,7 +242,7 @@ int HandleSubscriptionRequest(struct Upnp_Subscription_Request *sr_event)
             UpnpAcceptSubscriptionExt(deviceHandle, sr_event->UDN, sr_event->ServiceId,
                                       propSet, sr_event->Sid);
             ixmlDocument_free(propSet);
-        }           
+        }
     }
     ithread_mutex_unlock(&DevMutex);
     return(1);
@@ -1150,7 +1150,7 @@ int AddPortMapping(struct Upnp_Action_Request *ca_event)
             trace(1, "%s: RemoteHost or InternalClient Argument Value Invalid:  ExtPort: %s RemHost: %s Proto: %s IntPort: %s IntIP: %s Dur: %s Ena: %s Desc: %s",
                     ca_event->ActionName, ext_port, remote_host, proto, int_port, int_client, long_duration, bool_enabled, desc);
             result = 600;
-            addErrorData(ca_event, result, "Argument Value Invalid");            
+            addErrorData(ca_event, result, "Argument Value Invalid");
         }
         // If ext_port or int_port is <1024 control point needs to be authorized
         else if ((atoi(ext_port) < 1024 || atoi(int_port) < 1024 || !ControlPointIP_equals_InternalClientIP(int_client, &ca_event->CtrlPtIPAddr))
@@ -1160,7 +1160,7 @@ int AddPortMapping(struct Upnp_Action_Request *ca_event)
 unless control port is authorized. external_port:%s, internal_port:%s internal_client:%s",
                   ext_port, int_port, int_client);
             result = 729;
-            addErrorData(ca_event, result, "PortMappingNotAllowed");
+            addErrorData(ca_event, result, "ConflictsWithOtherMechanisms");
         }
 
         // Check RemoteHost and InternalPort parameters
@@ -1175,23 +1175,22 @@ unless control port is authorized. external_port:%s, internal_port:%s internal_c
             trace(1, "Wild cards not permitted in internal_port:%s", int_port);
             result = 732;
             addErrorData(ca_event, result, "WildCardNotPermittedInIntPort");
-        }        
+        }
 
-        
         // parameters are OK
         if (result == 0)
         {
             // If port map with the same External Port, Protocol, Internal Client and remoteHost exists
             // then, as per spec, we overwrite it (for simplicity, we delete and re-add at end of list)
             // Note: This may cause problems with GetGernericPortMappingEntry if a CP expects the overwritten
-            // to be in the same place.            
+            // to be in the same place.
             if ((ret = pmlist_Find(remote_host, ext_port, proto, int_client)) != NULL)
             {
                 trace(3, "Found port map to already exist for this client.  Replacing");
                 pmlist_Delete(ret);
                 update_portmap = 1;
-            }            
-            
+            }
+
             // If the ExternalPort and PortMappingProtocol pair is already mapped to another 
             // internal client, an error is returned.
             else if ((ret = pmlist_FindBy_extPort_proto(ext_port, proto)) != NULL && 
@@ -1199,7 +1198,7 @@ unless control port is authorized. external_port:%s, internal_port:%s internal_c
             {
                 trace(1, "Portmapping with same external port '%s' and protocol '%s' are mapped to another client already.\n",ext_port,proto);
                 result = 718;
-                addErrorData(ca_event, result, "ConflictInMappingEntry");                
+                addErrorData(ca_event, result, "ConflictInMappingEntry");
             }
 
 
@@ -1233,7 +1232,7 @@ unless control port is authorized. external_port:%s, internal_port:%s internal_c
     free(desc);
     free(remote_host);
     free(long_duration);
-    
+
     return(ca_event->ErrCode);
 }
 
@@ -1302,7 +1301,7 @@ int AddAnyPortMapping(struct Upnp_Action_Request *ca_event)
 unless control port is authorized. external_port:%s, internal_port:%s internal_client:%s",
                   ext_port, int_port, int_client);
             result = 729;
-            addErrorData(ca_event, result, "PortMappingNotAllowed");
+            addErrorData(ca_event, result, "ConflictsWithOtherMechanisms");
         }
 
         // Check Internal client and Port parameters

@@ -382,6 +382,7 @@ int GetMACAddressStr(unsigned char *address, int addressSize, char *ifname)
 
 /**
  * Get IP address assigned for given network interface.
+ * If fails to get IP, sets value of address to empty string.
  *
  * @param address IP address is wrote into this.
  * @param ifname Interface name.
@@ -408,6 +409,7 @@ int GetIpAddressStr(char *address, char *ifname)
         else
         {
             syslog(LOG_ERR, "Failure obtaining ip address of interface %s", ifname);
+            strcpy(address,"");
             succeeded = 0;
         }
     }

@@ -257,7 +257,7 @@ int main (int argc, char** argv)
         foreground = 1;
         arg++;
     }
-    
+
     // check for '-s' option
     if (strcmp(argv[arg], "-s") == 0)
     {
@@ -293,7 +293,7 @@ int main (int argc, char** argv)
             else
             {
                 fprintf(stderr, "Invalid internal interface name '%s'\n", g_vars.intInterfaceName);
-                exit(EXIT_FAILURE);                
+                exit(EXIT_FAILURE);
             }
         }
     }
