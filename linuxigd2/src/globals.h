@@ -64,7 +64,7 @@ struct GLOBALS
     // <0 - expiration time
     char descDocName[OPTION_LEN];
     char xmlPath[OPTION_LEN];
-    int listenport;	//The port to listen on    
+    int listenport;	//The port to listen on
     int httpsListenport; //The https port to listen on
 
     // dnsmasq start / stop script
@@ -82,11 +82,11 @@ struct GLOBALS
 
     // dhcp-client command
     char dhcpc[OPTION_LEN];
-    
+
     // How often alive notifications are send
     int advertisementInterval;
     char certPath[OPTION_LEN];
-    
+
     // name of access level xml file
     char accessLevelXml[OPTION_LEN];
 };

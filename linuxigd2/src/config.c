@@ -267,7 +267,7 @@ int parseConfigFile(globals_p vars)
                     char tmp[6];
                     getConfigOptionArgument(tmp,sizeof(tmp),line,submatch);
                     vars->httpsListenport = atoi(tmp);
-                }                
+                }
                 else if (regexec(&re_dnsmasq,line,NMATCH,submatch,0) == 0)
                 {
                     getConfigOptionArgument(vars->dnsmasqCmd, OPTION_LEN, line, submatch);
@@ -305,7 +305,7 @@ int parseConfigFile(globals_p vars)
                 else if (regexec(&re_cert_path,line,NMATCH,submatch,0) == 0)
                 {
                     getConfigOptionArgument(vars->certPath, OPTION_LEN, line, submatch);
-                }   
+                }
                 else if (regexec(&re_acc_lvl_xml,line,NMATCH,submatch,0) == 0)
                 {
                     getConfigOptionArgument(vars->accessLevelXml, OPTION_LEN, line, submatch);
@@ -346,7 +346,7 @@ int parseConfigFile(globals_p vars)
     regfree(&re_advertisement_interval);
     regfree(&re_cert_path);
     regfree(&re_acc_lvl_xml);
-    
+
     // Set default values for options not found in config file
     if (strnlen(vars->forwardChainName, OPTION_LEN) == 0)
     {
@@ -415,7 +415,7 @@ int parseConfigFile(globals_p vars)
     if (strnlen(vars->accessLevelXml, OPTION_LEN) == 0)
     {
         snprintf(vars->accessLevelXml, OPTION_LEN, ACCESS_LEVEL_XML_DEFAULT);
-    }  
+    }
     if (strnlen(vars->iptables, OPTION_LEN) == 0)
     {
         // Can't find the iptables executable, return -1 to

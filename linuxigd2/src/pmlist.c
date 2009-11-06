@@ -272,23 +272,25 @@ int pmlist_FindNextFreePort(char *protocol)
 {
     // Iteratively search for free port...
     // lousy implementation....
+    // TODO: improve this. Are we sure that we can really use the found port?
     int i;
     int freePort = -1;
     char portBuf[5];
 
     struct portMap* temp;
 
-    for (i = 1024; i < 9999; i++) 
-    {   
-	sprintf(portBuf, "%d", i);
-	temp = pmlist_FindBy_extPort_proto(portBuf, protocol);
-        if (temp == NULL) {
-	   freePort = i;
-	   break;
-	}
+    for (i = 1024; i < 9999; i++)
+    {
+        sprintf(portBuf, "%d", i);
+        temp = pmlist_FindBy_extPort_proto(portBuf, protocol);
+        if (temp == NULL) 
+        {
+            freePort = i;
+            break;
+        }
     }
-   
-    return freePort;	
+
+    return freePort;
 }
 
 /**
@@ -381,7 +383,7 @@ int pmlist_FreeList(void)
                                  temp->m_ExternalPort, temp->m_InternalClient, temp->m_InternalPort);
         if (ret == 0)
             action_succeeded = 0;
-            
+
         next = temp->next;
         free(temp);
         temp = next;
@@ -405,7 +407,7 @@ int pmlist_PushBack(struct portMap* item)
                       item->m_ExternalPort, item->m_InternalClient, item->m_InternalPort);
 
     if (action_succeeded == 1)
-    {    
+    {
         if (pmlist_Tail) // We have a list, place on the end
         {
             pmlist_Tail->next = item;
@@ -425,7 +427,7 @@ int pmlist_PushBack(struct portMap* item)
                   item->m_InternalPort, item->m_PortMappingLeaseDuration);
         }
     }
-    
+
     if (action_succeeded == 1)
         return 1;
     else
@@ -555,7 +557,7 @@ int pmlist_AddPortMapping (int enabled, char *protocol, char *remoteHost, char *
     if (enabled)
     {
         int status;
-        
+
         //check if remoteHost is wild card then tmp_remoteHost = NULL
         char *tmp_remoteHost = NULL;
         if (!checkForWildCard(remoteHost)) tmp_remoteHost = remoteHost;
@@ -577,7 +579,7 @@ int pmlist_AddPortMapping (int enabled, char *protocol, char *remoteHost, char *
         }
         if (status == 0)
             return 0;
-            
+
         trace(3, "iptc_add_rule %s %s %s %s %s %s %s %s %s",
               "nat", g_vars.preroutingChainName, protocol, g_vars.extInterfaceName, tmp_remoteHost, tmp_externalPort, "DNAT", dest, "APPEND");
         status = iptc_add_rule("nat", g_vars.preroutingChainName, protocol, g_vars.extInterfaceName, NULL, tmp_remoteHost, NULL, NULL, tmp_externalPort, "DNAT", dest, TRUE);
@@ -749,7 +751,7 @@ int pmlist_DeletePortMapping(int enabled, char *remoteHost, char *protocol, char
         status = iptc_delete_rule("nat", g_vars.preroutingChainName, protocol, g_vars.extInterfaceName, NULL, remoteHost, NULL, NULL, externalPort, "DNAT", dest);
         if (status == 0)
             return 0;
-            
+
         if (g_vars.createForwardRules)
         {
             trace(3, "iptc_delete_rule %s %s %s %s %s %s %s",
@@ -835,8 +837,6 @@ int pmlist_DeletePortMapping(int enabled, char *remoteHost, char *protocol, char
                 args[11] = "-j";
                 args[12] = "ACCEPT";
                 args[13] =  NULL;
-
-                //char *args[] = {g_vars.iptables, "-D", g_vars.forwardChainName, "-p", protocol, "-d", internalClient, "--dport", internalPort, "-j", "ACCEPT", NULL};
 
                 trace(3, "%s -D %s -s %s -p %s -d %s --dport %s -j ACCEPT",
                           g_vars.iptables, g_vars.forwardChainName, remoteHost, protocol, internalClient, internalPort);

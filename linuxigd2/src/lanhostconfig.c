@@ -90,7 +90,7 @@ void DnsmasqRestart()
 {
     if(lanHostConfig.dhcrelay)
         return;
-    
+
     DnsmasqCommand( SERVICE_STOP );
     DnsmasqCommand( SERVICE_START );
 }
@@ -389,7 +389,7 @@ int SetSubnetMask( struct Upnp_Action_Request *ca_event )
             return ca_event->ErrCode;
         }
         regfree( &reg_ip );
-        
+
         snprintf( command, INET6_ADDRSTRLEN, "network.lan.netmask=%s", subnet_mask );
         args[2] = command;
         RunCommand( g_vars.uciCmd, args );
@@ -596,7 +596,7 @@ int SetDomainName( struct Upnp_Action_Request *ca_event )
             return ca_event->ErrCode;
         }
         regfree(&reg_domain);
-        
+
         snprintf( setdomain_cmd, LINE_LEN, "uci set dhcp.@dnsmasq[0].domain=%s", domainName );
         cmd = popen( setdomain_cmd, "r" );
         if ( cmd == NULL )
@@ -783,11 +783,11 @@ int SetAddressRange( struct Upnp_Action_Request *ca_event )
         // parse last part of both ip addresses
         if ( ParseAddressRange( ca_event, start, limit, start_addr, limit_addr ) )
             return ca_event->ErrCode;
-        
+
         snprintf( command, MAX_IP_LAST_PART+15, "dhcp.lan.start=%s", start );
         parmList[2] = command;
         RunCommand( g_vars.uciCmd, parmList );
-        
+
         snprintf( command, MAX_IP_LAST_PART+15, "dhcp.lan.limit=%s", limit );
         parmList[2] = command;
         RunCommand( g_vars.uciCmd, parmList );
@@ -1351,7 +1351,7 @@ int GetDNSServers( struct Upnp_Action_Request *ca_event )
 int CheckLanHostConfigFiles()
 {
     struct stat buf;
-    
+
     // check that dnsmasq exists
     if ( stat( g_vars.dnsmasqCmd, &buf ) )
     {
@@ -1369,7 +1369,7 @@ int CheckLanHostConfigFiles()
 
     return 0;
 }
-        
+
 /**
  * Checks that all required programs are present.
  *
@@ -1383,7 +1383,7 @@ int InitLanHostConfig()
     // check that all necessary programs to run lanhostconfig are installed
     if(CheckLanHostConfigFiles())
         return 1;
-    
+
     /** @todo We should save the state of dhcrelay and dnsmasq and start/stop them based on that. */
 
     DhcrelayStop();

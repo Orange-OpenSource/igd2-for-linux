@@ -175,7 +175,7 @@ int iptc_add_rule(const char *table,
     free(entry_match);
     free(entry_target);
     free(chain_entry);
-    
+
     return 1;
 }
 
@@ -281,7 +281,7 @@ int iptc_delete_rule(const char *table,
     }
     else
         trace(3, "deleted rule from block successfully");
-        
+
     return 1;
 }
 

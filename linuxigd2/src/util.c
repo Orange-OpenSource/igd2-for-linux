@@ -17,7 +17,7 @@
  * along with this program. If not, see http://www.gnu.org/licenses/. 
  * 
  */
- 
+
 #include <regex.h>
 #include <stdlib.h>
 #include <sys/wait.h>
@@ -92,7 +92,7 @@ int readStats(unsigned long stats[STATS_LIMIT])
     while (read != EOF && (read == 5 && strncmp(dev, g_vars.extInterfaceName, IFNAMSIZ) != 0));
 
     fclose(proc);
-    
+
     return 1;
 }
 
@@ -118,15 +118,15 @@ char* escapeXMLString(const char *xml)
 {
     if (xml == NULL)
         return NULL;
-    
+
     char *escXML = NULL;
     size_t size = strlen(xml);
     size_t alloc = size +1;
-    
+
     escXML = realloc(NULL, alloc);
     if (!escXML)
         return NULL;
-       
+
     int i,j; // i goes through original xml and j through escaped escXML
     for (i=0,j=0; i < size; i++)
     {
@@ -141,9 +141,9 @@ char* escapeXMLString(const char *xml)
                     return NULL;
                 }
                 escXML = new_buf;
-                
-                strcpy(escXML+j, "&lt;");  
-                j += strlen("&lt;");              
+
+                strcpy(escXML+j, "&lt;");
+                j += strlen("&lt;");
                 break;
             }
             case '>' :
@@ -155,9 +155,9 @@ char* escapeXMLString(const char *xml)
                     return NULL;
                 }
                 escXML = new_buf;
-                
-                strcpy(escXML+j, "&gt;");  
-                j += strlen("&gt;");             
+
+                strcpy(escXML+j, "&gt;");
+                j += strlen("&gt;");
                 break;
             }
             case '"' :
@@ -169,9 +169,9 @@ char* escapeXMLString(const char *xml)
                     return NULL;
                 }
                 escXML = new_buf;
-                
-                strcpy(escXML+j, "&quot;");  
-                j += strlen("&quot;");             
+
+                strcpy(escXML+j, "&quot;");
+                j += strlen("&quot;");
                 break;
             }
             case '\'' :
@@ -183,9 +183,9 @@ char* escapeXMLString(const char *xml)
                     return NULL;
                 }
                 escXML = new_buf;
-                
-                strcpy(escXML+j, "&apos;");  
-                j += strlen("&apos;");             
+
+                strcpy(escXML+j, "&apos;");
+                j += strlen("&apos;");
                 break;
             }
             case '&' :
@@ -197,9 +197,9 @@ char* escapeXMLString(const char *xml)
                     return NULL;
                 }
                 escXML = new_buf;
-                
-                strcpy(escXML+j, "&amp;");  
-                j += strlen("&amp;");             
+
+                strcpy(escXML+j, "&amp;");
+                j += strlen("&amp;");
                 break;
             }
             default :
@@ -207,13 +207,13 @@ char* escapeXMLString(const char *xml)
                 escXML[j++] = xml[i];
                 break;
             }
-        }   
+        }
     }
 
     if (j > 0)
         escXML[j] = '\0';
-        
-    return escXML;         
+
+    return escXML;
 }
 
 /**
@@ -221,9 +221,9 @@ char* escapeXMLString(const char *xml)
  * Following characters are converted:
  *  "&lt;"    -->  '<'
  *  "&gt;"    -->  '>'
- *  "&quot;"  -->  '"'  
- *  "&apos;"  -->  '''  
- *  "&amp;"   -->  '&'  
+ *  "&quot;"  -->  '"'
+ *  "&apos;"  -->  '''
+ *  "&amp;"   -->  '&'
  * 
  * User should free returned pointer.
  *
@@ -234,16 +234,16 @@ char* unescapeXMLString(const char *escXML)
 {
     if (escXML == NULL)
         return NULL;
-    
+
     char *xml = NULL;
     size_t size = strlen(escXML);
-    
+
     xml = (char *)malloc(size);
     if (!xml)
         return NULL;
 
     memset(xml, '\0', size);
-     
+
     int i,j; // i goes through unescaped xml and j through escaped escXML
     for (i=0,j=0; i < size && j < size; i++)
     {
@@ -271,7 +271,7 @@ char* unescapeXMLString(const char *escXML)
         {
             xml[i] = '&';
             j += strlen("&amp;");
-        }        
+        }
         else
         {
             xml[i] = escXML[j];
@@ -280,8 +280,8 @@ char* unescapeXMLString(const char *escXML)
     }
 
     xml[i] = '\0';
-        
-    return xml;         
+
+    return xml;
 }
 
 
@@ -300,12 +300,12 @@ char *toUpperCase(const char * str)
 {
     if (str == NULL)
         return NULL;
-    
+
     int slen = strlen(str);
     int wcslen;
     wchar_t wc[2*slen];  // doubling original string length should guarantee that there is enough space for wchar_t
     char *UPPER = (char *)malloc(slen+1);
-    
+
     wcslen = mbsrtowcs(wc, &str, slen, NULL); // to wide-character string
 
     int i;
@@ -313,13 +313,13 @@ char *toUpperCase(const char * str)
     {
         wc[i] = towupper(wc[i]);   // to upper-case
     }
- 
-    const wchar_t *ptr = wc;  
+
+    const wchar_t *ptr = wc;
     wcslen = wcsrtombs(UPPER, &ptr, slen, NULL);  // to character string, requires that wide-char string is constant
-    
+
     if (wcslen != slen)
         return NULL;
-    
+
     UPPER[slen] = '\0';
     return UPPER;
 }
@@ -330,7 +330,7 @@ char *toUpperCase(const char * str)
  *
  * @param str1 First string to compare.
  * @param str2 Second string to compare.
- * @return An integer greater than, equal to or less than 0, if the string pointed to by s1 is greater than, equal to or less than the string pointed to by s2 respectively. 
+ * @return An integer greater than, equal to or less than 0, if the string pointed to by s1 is greater than, equal to or less than the string pointed to by s2 respectively.
  *         ~0 if fails to turn strings to uppercase
  */
 int caseInsesitive_strcmp(const char *str1, const char *str2)
@@ -338,14 +338,14 @@ int caseInsesitive_strcmp(const char *str1, const char *str2)
     int ret = ~0;
     char *STR1 = toUpperCase(str1);
     char *STR2 = toUpperCase(str2);
-    
+
     if (STR1 && STR2)
     {
         ret = strcmp(STR1, STR2);
     }
     free(STR1);
     free(STR2);
-    
+
     return ret;
 }
 
@@ -367,7 +367,7 @@ int GetMACAddressStr(unsigned char *address, int addressSize, char *ifname)
     {
         strncpy(ifr.ifr_name, ifname, IFNAMSIZ);
         if (ioctl(fd, SIOCGIFHWADDR, &ifr) == 0)
-        {    
+        {
             memcpy(address, ifr.ifr_hwaddr.sa_data, addressSize);
             succeeded = 1;
         }
@@ -523,7 +523,7 @@ int checkForWildCard(const char *str)
     int retVal = 0;
 
     if ((strchr(str, '*') != NULL) || (strcmp(str,"0") == 0) || (strcmp(str,"") == 0))
-	   retVal = 1;
+        retVal = 1;
 
     return retVal;
 }
@@ -649,7 +649,7 @@ int readIntFromFile(char *file)
  * 
  * @param iface Network interface name.
  * @return 1 if DHCP client is killed and IP released, 0 else.
- */ 
+ */
 int killDHCPClient(char *iface)
 {
     char tmp[30];
@@ -692,7 +692,7 @@ int killDHCPClient(char *iface)
  * 
  * @param iface Network interface name.
  * @return 1 if DHCP client is started and iface has IP, 0 else.
- */ 
+ */
 int startDHCPClient(char *iface)
 {
     char tmp[100];
@@ -743,14 +743,14 @@ int releaseIP(char *iface)
     if (strcmp(g_vars.dhcpc,"dhclient") == 0)
     {
         char tmp[50];
-    
+
         trace(2,"Releasing IP...");
         snprintf(tmp, 50, "%s -r %s", g_vars.dhcpc, iface);
         trace(3,"system(%s)",tmp);
         ret = system(tmp);
 
         sleep(2); // wait that IP is released
-    
+
         if (!GetIpAddressStr(tmp, iface))
         {
             trace(3,"Success IP of %s is released",iface);
@@ -772,7 +772,7 @@ int releaseIP(char *iface)
         {
             // start udhcpc-clientdaemon with parameter -R which will release IP after quiting daemon
             startDHCPClient(iface);
-    
+
             // then kill udhcpc-client running. Now there shouldn't be IP anymore.
             if(killDHCPClient(iface))
                 success = 1;
@@ -800,10 +800,10 @@ int tokenizeAndSearch(const char *constList, const char *separator, const char *
 {
     if (!constList || !separator || !searchItem)
         return 0;
-    
+
     char list[strlen(constList)];
     strcpy(list,constList);
-    
+
     char *token = strtok(list, separator);
     if (token)
     {
@@ -816,14 +816,14 @@ int tokenizeAndSearch(const char *constList, const char *separator, const char *
             else if (caseInsensitive && caseInsesitive_strcmp(searchItem,token) == 0)
             {
                 return 1;
-            }            
-                
+            }
+
         } while ((token = strtok(NULL, separator)));
 
     }
-    
+
     return 0;
-} 
+}
 
 
 //-----------------------------------------------------------------------------
@@ -845,8 +845,6 @@ char* GetDocumentItem(IXML_Document * doc, const char *item, int index)
     IXML_NodeList *nodeList = NULL;
     IXML_Node *textNode = NULL;
     IXML_Node *tmpNode = NULL;
-
-    //fprintf(stderr,"%s\n",ixmlPrintDocument(doc)); //DEBUG
 
     char *ret = NULL;
 
@@ -896,17 +894,17 @@ int writeDocumentToFile(IXML_Document *doc, const char *file)
     int ret = 0;
     FILE *stream = fopen(file, "w");
     if (!stream) return -1;
-    
+
     char *contents = ixmlPrintDocument(doc);
     if (!contents)
         ret =-2;
     else
         fprintf(stream, "%s\n", contents);
-    
+
     fclose(stream);
-    
+
     ixmlFreeDOMString(contents);
-    return ret;         
+    return ret;
 }
 
 /**
@@ -921,7 +919,7 @@ char* GetTextValueOfNode(IXML_Node *tmpNode)
     IXML_Node *textNode = NULL;
     char *value = NULL;
     const char *tmp =NULL;
-        
+
     if ( tmpNode )
     {
         textNode = ixmlNode_getFirstChild( tmpNode );
@@ -930,14 +928,14 @@ char* GetTextValueOfNode(IXML_Node *tmpNode)
             tmp = ixmlNode_getNodeValue(textNode);
             if ( tmp == NULL)
                 value = strdup(""); // in this case node has childnodes
-            else    
+            else
                 value = strdup(tmp);
         }
         else
             value = strdup("");
-    } 
-    
-    return value;        
+    }
+
+    return value;
 }
 
 
@@ -958,26 +956,26 @@ static IXML_Node *GetNodeWithValue(IXML_Document *doc, const char *nodeName, con
     IXML_Node *tmpNode = NULL;
     char *tmp = NULL;
     char *valueUP = NULL;
-    
+
     if (caseInsensitive)
     {
         valueUP = toUpperCase(nodeValue);
         if (!valueUP)
             return NULL;
     }
-    
+
     nodeList = ixmlDocument_getElementsByTagName( doc, nodeName );
 
     if (nodeList)
     {
         listLen = ixmlNodeList_length(nodeList);
-        
+
         for (i = 0; i < listLen; i++)
         {
             if ( ( tmpNode = ixmlNodeList_item( nodeList, i ) ) )
             {
                 tmp = GetTextValueOfNode(tmpNode);
-                
+
                 // if case insensitive, convert tmp to uppercase and compare to uppercased nodevalue
                 if (caseInsensitive)
                 {
@@ -989,7 +987,7 @@ static IXML_Node *GetNodeWithValue(IXML_Document *doc, const char *nodeName, con
                         free(tmp);
                         return tmpNode;
                     }
-                    free(tmp);                     
+                    free(tmp);
                 }
                 // case sensitive
                 else
@@ -999,14 +997,14 @@ static IXML_Node *GetNodeWithValue(IXML_Document *doc, const char *nodeName, con
                         free(valueUP);
                         ixmlNodeList_free( nodeList );
                         return tmpNode;
-                    } 
-                }               
-            }            
+                    }
+                }
+            }
         }
     }
     free(valueUP);
     ixmlNodeList_free( nodeList );
-    
+
     return NULL;
 }
 
@@ -1024,24 +1022,23 @@ IXML_Node *GetNode(IXML_Document *doc, const char *nodeName)
     IXML_NodeList *nodeList = NULL;
     IXML_Node *tmpNode = NULL;
 
-    
     nodeList = ixmlDocument_getElementsByTagName( doc, nodeName );
 
     if (nodeList)
     {
         listLen = ixmlNodeList_length(nodeList);
-        
+
         for (i = 0; i < listLen; i++)
         {
             if ( ( tmpNode = ixmlNodeList_item( nodeList, i ) ) )
             {
                 ixmlNodeList_free( nodeList );
                 return tmpNode;
-            }            
+            }
         }
     }
     ixmlNodeList_free( nodeList );
-    
+
     return NULL;
 }
 
@@ -1056,12 +1053,12 @@ IXML_Node *GetNode(IXML_Document *doc, const char *nodeName)
 char *NodeWithNameToString(IXML_Document *doc, char *nodeName)
 {
     IXML_Node *tmpNode = GetNode(doc, nodeName);
-    
+
     if (tmpNode == NULL)
     {
         return NULL;
     }
-    
+
     return ixmlNodetoString(tmpNode);
 }
 
@@ -1077,7 +1074,7 @@ static IXML_Node *GetSiblingWithTagName(IXML_Node *node, const char *nodeName)
 {
     // get first sibling. No need to get and check previous siblings then.
     IXML_Node *tmpNode = ixmlNode_getFirstChild( ixmlNode_getParentNode(node) );
-         
+
     while (tmpNode != NULL)
     {
         // is name of element nodename?
@@ -1102,18 +1099,16 @@ static IXML_Node *GetSiblingWithTagName(IXML_Node *node, const char *nodeName)
 static char* GetAttributeValueOfNode(IXML_Node *tmpNode, const char *attrName)
 {
     if (tmpNode == NULL) return NULL;
-    
+
     IXML_NamedNodeMap *attrs = ixmlNode_getAttributes(tmpNode);
-    
     if (attrs == NULL) return NULL;
-    
+
     tmpNode = ixmlNamedNodeMap_getNamedItem(attrs, attrName);
-    
     if (tmpNode == NULL) return NULL;
-    
+
     ixmlNamedNodeMap_free( attrs );
-    
-    return tmpNode->nodeValue;    
+
+    return tmpNode->nodeValue;
 }
 
 
@@ -1130,7 +1125,7 @@ static IXML_Node *GetNodeWithNameAndAttribute(IXML_Document *doc, const char *no
 {
     IXML_Node *tmpNode = NULL;
     IXML_NodeList *nodeList = NULL;
-    
+
     int i;
     char *tmp;
     nodeList = ixmlDocument_getElementsByTagName( doc, nodeName );
@@ -1144,14 +1139,14 @@ static IXML_Node *GetNodeWithNameAndAttribute(IXML_Document *doc, const char *no
                 tmp = GetAttributeValueOfNode(tmpNode, attrName);
                 if ( tmp && (strcmp(attrValue, tmp) == 0) )
                 {
-                    ixmlNodeList_free( nodeList );  
+                    ixmlNodeList_free( nodeList );
                     return tmpNode;
                 }
             }
         }
     }
 
-    ixmlNodeList_free( nodeList );    
+    ixmlNodeList_free( nodeList );
     return NULL;
 }
 
@@ -1169,16 +1164,16 @@ IXML_Node *AddChildNode(IXML_Document *doc, IXML_Node *parent, const char *child
 {
     IXML_Element *tmpElement = NULL;
     IXML_Node *textNode = NULL;
-    
+
     if (!childNodeName || !childNodeValue)
         return NULL;
-        
+
     tmpElement = ixmlDocument_createElement(doc, childNodeName);
     textNode = ixmlDocument_createTextNode(doc,childNodeValue);
-    
+
     ixmlNode_appendChild(&tmpElement->n,textNode);
     ixmlNode_appendChild(parent,&tmpElement->n);
-    
+
     return &tmpElement->n;
 }
 
@@ -1198,18 +1193,18 @@ static IXML_Node *AddChildNodeWithAttribute(IXML_Document *doc, IXML_Node *paren
 {
     IXML_Element *tmpElement = NULL;
     IXML_Node *textNode = NULL;
-    
+
     if (!childNodeName || !childNodeValue || !attrName || !attrValue)
         return NULL;
-        
+
     tmpElement = ixmlDocument_createElement(doc, childNodeName);
     textNode = ixmlDocument_createTextNode(doc, childNodeValue);
-    
+
     ixmlElement_setAttribute(tmpElement, attrName, attrValue);
-    
+
     ixmlNode_appendChild(&tmpElement->n,textNode);
     ixmlNode_appendChild(parent,&tmpElement->n);
-    
+
     return &tmpElement->n;
 }
 
@@ -1225,16 +1220,16 @@ int RemoveNode(IXML_Node *node)
 {
     if (node == NULL)
         return 0;
-        
+
     int ret = ixmlNode_removeChild(node->parentNode, node, NULL);
-    
+
     if (ret == IXML_SUCCESS)
         ret = 0;
     else if (ret == IXML_INVALID_PARAMETER)
         ret = -2;
-    else 
+    else
         ret = -1; 
-        
+
     return ret;
 }
 
@@ -1252,11 +1247,11 @@ static IXML_Node *GetChildNodeWithName(IXML_Node *parent, const char *childNodeN
     IXML_Node *tmpNode = NULL;
     IXML_NodeList *nodeList = ixmlNode_getChildNodes( parent );
     char *tmp = NULL;
-    
+
     // name of node must be known
     if (!childNodeName)
         return NULL;
-    
+
     if ( nodeList )
     {
         for (i = 0; i < ixmlNodeList_length(nodeList); i++)
@@ -1296,11 +1291,11 @@ static IXML_Node *GetChildNodeWithAttribute(IXML_Node *parent, const char *child
     IXML_Node *tmpNode = NULL;
     IXML_NodeList *nodeList = ixmlNode_getChildNodes( parent );
     char *tmp = NULL;
-    
+
     // name of node, name of attribute and value of attribute must be known
     if (!childNodeName || !attrName || !attrValue)
         return NULL;
-    
+
     if ( nodeList )
     {
         for (i = 0; i < ixmlNodeList_length(nodeList); i++)
@@ -1310,19 +1305,19 @@ static IXML_Node *GetChildNodeWithAttribute(IXML_Node *parent, const char *child
                 // if nodename doesn't match, continue to next child
                 if ((tmp = (char *)ixmlNode_getNodeName(tmpNode)) == NULL || (strcmp(tmp, childNodeName) != 0))
                     continue;
-                
+
                 // if childnode is given and nodevalue doesn't match, continue to next child
                 if (childNodeValue)
                 {
                     if ((tmp = GetTextValueOfNode(tmpNode)) || (strcmp(tmp, childNodeValue) != 0))
                         continue;
                 }
-                
+
                 // check that attribute with right name and value exist 
                 if ((tmp = GetAttributeValueOfNode(tmpNode, attrName)) && (strcmp(tmp, attrValue) == 0))
                 {
                     // we have perfect match
-                    ixmlNodeList_free( nodeList ); 
+                    ixmlNodeList_free( nodeList );
                     return tmpNode;
                 }
             }
@@ -1353,7 +1348,7 @@ int initActionAccessLevels(const char *pathToFile)
     {
         return -1;
     }
-    
+
     return 0;
 }
 
@@ -1381,7 +1376,7 @@ char* getAccessLevel(const char *serviceId, const char *actionName, int manage, 
 
     // get first action from actionList
     actionNode = ixmlNode_getFirstChild(tmpNode);
-    
+
     while (actionNode != NULL)
     {
         // get value of child name
@@ -1389,11 +1384,11 @@ char* getAccessLevel(const char *serviceId, const char *actionName, int manage, 
         tmp = GetTextValueOfNode(tmpNode);
         if (!tmpNode || !tmp)
             continue;
-            
+
         if (strcmp(tmp, actionName) == 0)
         {
             free(tmp);
-            
+
             // right name node is found, get requireSSL-node
             if (requireSSL)
             {
@@ -1403,27 +1398,27 @@ char* getAccessLevel(const char *serviceId, const char *actionName, int manage, 
                 *requireSSL = atoi(tmp);
                 free(tmp);
             }
-            
+
             // and now get desired accesslevel-node
             if (manage)
             {
                 tmpNode = GetSiblingWithTagName(tmpNode, "accessLevelManage");
             }
             else
-            {    
+            {
                 tmpNode = GetSiblingWithTagName(tmpNode, "accessLevel");
             }
-            
+
             if (tmpNode == NULL) return NULL;
             accesslevel = GetTextValueOfNode(tmpNode);
-               
+
             return accesslevel;
         }
-        
+
         free(tmp);
-        actionNode = ixmlNode_getNextSibling(actionNode);   
+        actionNode = ixmlNode_getNextSibling(actionNode);
     }
-  
+
     return NULL;
 }
 
@@ -1481,26 +1476,26 @@ void deinitActionAccessLevels()
  * 
  * @param doc IXML_Document ACL document
  * @param roles Roles to validate
- * @return ACL_SUCCESS on succes, ACL_ROLE_ERROR if any of roles in invalid
+ * @return ACL_SUCCESS on succes, ACL_ROLE_ERROR if any of roles in invalid. ACL_COMMON_ERROR if other error happens.
  */
 static int ACL_validateRoleNames(IXML_Document *doc, const char *roles)
 {
     int i, OK;
     IXML_NodeList *nodeList = NULL;
     IXML_Node *tmpNode = NULL;
-    char *tmp = NULL; 
-    
+    char *tmp = NULL;
+
     nodeList = ixmlDocument_getElementsByTagName( doc, "Role" );
 
     if (nodeList)
     {
-        char rolelist[strlen(roles)];    
+        char rolelist[strlen(roles)];
         // go through all roles in roles parameter
-        strcpy(rolelist,roles);   
+        strcpy(rolelist,roles);
         char *role = strtok(rolelist, " ");
         if (role)
         {
-            do 
+            do
             {
                 OK = 0;
                 for (i = 0; i < ixmlNodeList_length(nodeList); i++)
@@ -1515,22 +1510,25 @@ static int ACL_validateRoleNames(IXML_Document *doc, const char *roles)
                         {
                             OK = 1;
                             break;
-                        }            
-                    } 
+                        }
+                    }
                 }
                 if (!OK)
                 {
                     ixmlNodeList_free( nodeList );
                     return ACL_ROLE_ERROR;
-                }                
-                    
+                }
             } while ((role = strtok(NULL, " ")));
-        } 
+        }
     }
-    
-    ixmlNodeList_free( nodeList );    
-    
-    return  ACL_SUCCESS; 
+    else
+    {
+        return ACL_COMMON_ERROR;
+    }
+
+    ixmlNodeList_free( nodeList );
+
+    return ACL_SUCCESS;
 }
 
 /**
@@ -1544,24 +1542,24 @@ static int ACL_validateRoleNames(IXML_Document *doc, const char *roles)
 static int ACL_addRolesToRoleList(IXML_Document *doc, IXML_Node *roleListNode, const char *roles)
 {
     IXML_Node *textNode = NULL;
-    
+
     // check validity of rolenames
     if (ACL_validateRoleNames(doc, roles) != ACL_SUCCESS) return ACL_ROLE_ERROR;
-       
+
     // get current value of "RoleList"
     char *currentRoles = GetTextValueOfNode(roleListNode);
     if (currentRoles == NULL) return ACL_COMMON_ERROR;
-   
+
     char newRoleList[strlen(roles) + strlen(currentRoles)+1];
     strcpy(newRoleList, currentRoles);
-    
-    char rolelist[strlen(roles)];    
+
+    char rolelist[strlen(roles)];
     // go through all roles in list
-    strcpy(rolelist,roles);   
+    strcpy(rolelist,roles);
     char *role = strtok(rolelist, " ");
     if (role)
     {
-        do 
+        do
         {
             // do "raw" check that this role isn't already in current roles
             if ( strstr(newRoleList,role) == NULL )
@@ -1571,11 +1569,10 @@ static int ACL_addRolesToRoleList(IXML_Document *doc, IXML_Node *roleListNode, c
                     strcat(newRoleList, " ");
                 strcat(newRoleList, role);
             }
-                
         } while ((role = strtok(NULL, " ")));
 
     }
-  
+
     // set text value of "RoleList" as new rolelist
     textNode = ixmlNode_getFirstChild(roleListNode);
     if (textNode == NULL)
@@ -1583,13 +1580,13 @@ static int ACL_addRolesToRoleList(IXML_Document *doc, IXML_Node *roleListNode, c
         textNode = ixmlDocument_createTextNode(doc, newRoleList);
         return ixmlNode_appendChild(roleListNode,textNode);
     }
-    
-    return ixmlNode_setNodeValue(textNode, newRoleList);    
+
+    return ixmlNode_setNodeValue(textNode, newRoleList);
 }
 
 
 /**
- * Remove roles from user/CP. 
+ * Remove roles from user/CP.
  * 
  * @param doc IXML_Document ACL document
  * @param roleListNode IXML_Node "RoleList" from where roles are removed
@@ -1599,25 +1596,25 @@ static int ACL_addRolesToRoleList(IXML_Document *doc, IXML_Node *roleListNode, c
 static int ACL_removeRolesFromRoleList(IXML_Document *doc, IXML_Node *roleListNode, const char *roles)
 {
     IXML_Node *textNode = NULL;
-    
+
     // check validity of rolenames
     if (ACL_validateRoleNames(doc, roles) != ACL_SUCCESS) return ACL_ROLE_ERROR;
- 
+
     // get current value of "RoleList"
     char *currentRoles = GetTextValueOfNode(roleListNode);
     if (currentRoles == NULL) return ACL_COMMON_ERROR;
-    
+
     char newRoleList[strlen(currentRoles)];
     strcpy(newRoleList,"");
-    
-    char rolelist[strlen(roles)];    
+
+    char rolelist[strlen(roles)];
     // go through all roles in current roles
-    strcpy(rolelist,currentRoles);   
+    strcpy(rolelist,currentRoles);
     char *role = strtok(rolelist, " ");
     if (role)
     {
-        do 
-        {        
+        do
+        {
             // do "raw" check that this current role isn't in roles which are to remove
             if ( strstr(roles,role) == NULL )
             {
@@ -1625,10 +1622,9 @@ static int ACL_removeRolesFromRoleList(IXML_Document *doc, IXML_Node *roleListNo
                 strcat(newRoleList, role);
                 strcat(newRoleList, " ");
             }
-                
         } while ((role = strtok(NULL, " ")));
     }
-    
+
     // remove last useless space from end of new rolelist
     if (strlen(newRoleList) > 0)
         newRoleList[strlen(newRoleList) - 1] = '\0';
@@ -1644,8 +1640,8 @@ static int ACL_removeRolesFromRoleList(IXML_Document *doc, IXML_Node *roleListNo
         textNode = ixmlDocument_createTextNode(doc, newRoleList);
         return ixmlNode_appendChild(roleListNode,textNode);
     }
-    
-    return ixmlNode_setNodeValue(textNode, newRoleList);    
+
+    return ixmlNode_setNodeValue(textNode, newRoleList);
 }
 
 /**
@@ -1659,12 +1655,11 @@ char *ACL_getRolesOfUser(IXML_Document *doc, const char *username)
 {
     // get element with name "Name" and value username
     IXML_Node *tmpNode = GetNodeWithValue(doc, "Name", username, 1);
-    if (tmpNode == NULL) return NULL;    
-    
+    if (tmpNode == NULL) return NULL;
+
     tmpNode = GetSiblingWithTagName(tmpNode, "RoleList");
-    
-    if (tmpNode == NULL) return NULL;   
-    
+    if (tmpNode == NULL) return NULL;
+
     return GetTextValueOfNode(tmpNode);
 }
 
@@ -1679,12 +1674,11 @@ char *ACL_getRolesOfCP(IXML_Document *doc, const char *id)
 {
     // get element with name "ID" and value id
     IXML_Node *tmpNode = GetNodeWithValue(doc, "ID", id, 1);
-    if (tmpNode == NULL) return NULL;    
+    if (tmpNode == NULL) return NULL;
 
     tmpNode = GetSiblingWithTagName(tmpNode, "RoleList");
-    
-    if (tmpNode == NULL) return NULL;   
-    
+    if (tmpNode == NULL) return NULL;
+
     return GetTextValueOfNode(tmpNode);
 }
 
@@ -1702,7 +1696,7 @@ int ACL_getCP(IXML_Document *doc, const char *id, char **name, char **alias, cha
 {
     // get element with name "ID" and value id
     IXML_Node *tmpNode = GetNodeWithValue(doc, "ID", id, 1);
-    if (tmpNode == NULL) return -1;    
+    if (tmpNode == NULL) return -1;
 
     if (name)
     {
@@ -1719,7 +1713,7 @@ int ACL_getCP(IXML_Document *doc, const char *id, char **name, char **alias, cha
         tmpNode = GetSiblingWithTagName(tmpNode, "RoleList");
         *rolelist = GetTextValueOfNode(tmpNode);
     }
-    
+
     return 0;
 }
 
@@ -1747,36 +1741,34 @@ int ACL_addCP(IXML_Document *doc, const char *name, const char *alias, const cha
     if ( GetNodeWithValue(doc, "ID", id, 1) != NULL )
     {
         return ACL_USER_ERROR;
-    } 
-    
+    }
+
     int ret = ACL_SUCCESS;
-    
+
     // create new element called "CP"
     IXML_Element *CP = ixmlDocument_createElement(doc, "CP");
-
     if (introduced)
         ixmlElement_setAttribute(CP, "introduced", "1");
-        
+
     AddChildNode(doc, &CP->n, "Name", name);
-    if (alias)
-        AddChildNode(doc, &CP->n, "Alias", alias);
     AddChildNode(doc, &CP->n, "ID", id);
     AddChildNode(doc, &CP->n, "RoleList", roles);
-    
+    if (alias)
+        AddChildNode(doc, &CP->n, "Alias", alias);
+
     IXML_Node *tmpNode = NULL;
     IXML_NodeList *nodeList = NULL;
     nodeList = ixmlDocument_getElementsByTagName( doc, "Identities" );
 
     if ( nodeList )
     {
-        if ( ( tmpNode = ixmlNodeList_item( nodeList, 0 ) ) )    
+        if ( ( tmpNode = ixmlNodeList_item( nodeList, 0 ) ) )
             ixmlNode_appendChild(tmpNode,&CP->n);
         else
             ret = ACL_COMMON_ERROR;
     }
-    
-    //fprintf(stderr,"\n\n\n%s\n",ixmlPrintDocument(doc));
-    ixmlNodeList_free( nodeList ); 
+
+    ixmlNodeList_free( nodeList );
     return ret;
 }
 
@@ -1800,15 +1792,15 @@ int ACL_updateCPAlias(IXML_Document *doc, const char *id, const char *alias, int
 {
     IXML_Node *tmpNode = GetNodeWithValue(doc, "ID", id, 1);
     IXML_Node *aliasNode = NULL;
-    
+
     // Check that ID does exist
     if ( tmpNode == NULL )
     {
         return ACL_USER_ERROR;
     }
-    
+
     aliasNode = GetSiblingWithTagName(tmpNode, "Alias");
-    
+
     // if changing Alias value is forced, first thing to do is to remove aliasNode (even if it doesn't exist)
     if (forceChange)
     {
@@ -1825,7 +1817,7 @@ int ACL_updateCPAlias(IXML_Document *doc, const char *id, const char *alias, int
     {
         return ACL_COMMON_ERROR;
     }
-    
+
     return ACL_SUCCESS;
 }
 
@@ -1848,30 +1840,29 @@ int ACL_addUser(IXML_Document *doc, const char *name, const char *roles)
     if ( GetNodeWithValue(doc, "Name", name, 1) != NULL )
     {
         return ACL_USER_ERROR;
-    } 
-    
+    }
+
     int ret = ACL_SUCCESS;
-    
+
     // create new element called "User"
     IXML_Element *user = ixmlDocument_createElement(doc, "User");
 
     AddChildNode(doc, &user->n, "Name", name);
     AddChildNode(doc, &user->n, "RoleList", roles);
-    
+
     IXML_Node *tmpNode = NULL;
     IXML_NodeList *nodeList = NULL;
     nodeList = ixmlDocument_getElementsByTagName( doc, "Identities" );
 
     if ( nodeList )
     {
-        if ( ( tmpNode = ixmlNodeList_item( nodeList, 0 ) ) )    
+        if ( ( tmpNode = ixmlNodeList_item( nodeList, 0 ) ) )
             ixmlNode_appendChild(tmpNode,&user->n);
         else
             ret = ACL_COMMON_ERROR;
     }
-    
-    //fprintf(stderr,"\n\n\n%s\n",ixmlPrintDocument(doc));
-    ixmlNodeList_free( nodeList ); 
+
+    ixmlNodeList_free( nodeList );
     return ret;
 }
 
@@ -1886,11 +1877,11 @@ int ACL_addUser(IXML_Document *doc, const char *name, const char *roles)
  */
 int ACL_removeUser(IXML_Document *doc, const char *name)
 {
-    IXML_Node *userNode = NULL;  
-    
+    IXML_Node *userNode = NULL;
+
     userNode = GetNodeWithValue(doc, "Name", name, 1);
     if (!userNode) return ACL_USER_ERROR;
-    
+
     return RemoveNode(userNode->parentNode);
 }
 
@@ -1906,10 +1897,10 @@ int ACL_removeUser(IXML_Document *doc, const char *name)
 int ACL_removeCP(IXML_Document *doc, const char *id)
 {
     IXML_Node *idNode = NULL;
-    
+
     idNode = GetNodeWithValue(doc, "ID", id, 1);
     if (!idNode) return ACL_USER_ERROR;
-    
+
     // remove <CP> node
     return RemoveNode(idNode->parentNode);
 }
@@ -1948,13 +1939,13 @@ int ACL_addRolesForIdentity(IXML_Document *ACLdoc, IXML_Document *identityDoc, c
         else
         {
             result = ACL_addRolesForUser(ACLdoc, id, roles);
-        }               
+        }
     }
     else
     {
         result = ACL_addRolesForCP(ACLdoc, id, roles);
     }
-    
+
     return result;
 }
 
@@ -1979,16 +1970,16 @@ int ACL_addRolesForUser(IXML_Document *doc, const char *name, const char *roles)
     if ( tmpNode == NULL || (strcmp(tmpNode->parentNode->nodeName, "User") != 0))
     {
         return ACL_USER_ERROR;
-    } 
-    
+    }
+
     tmpNode = GetSiblingWithTagName(tmpNode, "RoleList");
     if (tmpNode == NULL) 
     {
         // if Rolelist element is not found at all, just add it for User-element
         AddChildNode(doc, tmpNode->parentNode, "RoleList", roles);
         return ACL_SUCCESS;
-    }    
-    
+    }
+
     return ACL_addRolesToRoleList(doc, tmpNode, roles);
 }
 
@@ -2007,22 +1998,22 @@ int ACL_addRolesForUser(IXML_Document *doc, const char *name, const char *roles)
 int ACL_addRolesForCP(IXML_Document *doc, const char *id, const char *roles)
 {
     IXML_Node *tmpNode = GetNodeWithValue(doc, "ID", id, 1);
-    
+
     // Check that CP with ID does exist
     // remember to check that parent of "ID" is "CP" 
     if ( tmpNode == NULL || (strcmp(tmpNode->parentNode->nodeName, "CP") != 0))
     {
         return ACL_USER_ERROR;
-    } 
-    
+    }
+
     tmpNode = GetSiblingWithTagName(tmpNode, "RoleList");
     if (tmpNode == NULL) 
     {
         // if Rolelist element is not found at all, just add it for User-element
         AddChildNode(doc, tmpNode->parentNode, "RoleList", roles);
         return ACL_SUCCESS;
-    }    
-    
+    }
+
     return ACL_addRolesToRoleList(doc, tmpNode, roles);
 }
 
@@ -2060,13 +2051,13 @@ int ACL_removeRolesFromIdentity(IXML_Document *ACLdoc, IXML_Document *identityDo
         else
         {
             result = ACL_removeRolesFromUser(ACLdoc, id, roles);
-        }               
+        }
     }
     else
     {
         result = ACL_removeRolesFromCP(ACLdoc, id, roles);
     }
-    
+
     return result;
 }
 
@@ -2085,21 +2076,21 @@ int ACL_removeRolesFromIdentity(IXML_Document *ACLdoc, IXML_Document *identityDo
 int ACL_removeRolesFromUser(IXML_Document *doc, const char *name, const char *roles)
 {
     IXML_Node *tmpNode = GetNodeWithValue(doc, "Name", name, 1);
-    
+
     // Check that name does exist
     if ( tmpNode == NULL || (strcmp(tmpNode->parentNode->nodeName, "User") != 0))
     {
         return ACL_USER_ERROR;
-    } 
-    
+    }
+
     tmpNode = GetSiblingWithTagName(tmpNode, "RoleList");
     if (tmpNode == NULL) 
     {
         // if Rolelist element is not found at all, just add it for User-element
         AddChildNode(doc, tmpNode->parentNode, "RoleList", roles);
         return ACL_SUCCESS;
-    }    
-    
+    }
+
     return ACL_removeRolesFromRoleList(doc, tmpNode, roles);
 }
 
@@ -2118,21 +2109,21 @@ int ACL_removeRolesFromUser(IXML_Document *doc, const char *name, const char *ro
 int ACL_removeRolesFromCP(IXML_Document *doc, const char *id, const char *roles)
 {
     IXML_Node *tmpNode = GetNodeWithValue(doc, "ID", id, 1);
-    
+
     // Check that CP with id does exist
     if ( tmpNode == NULL || (strcmp(tmpNode->parentNode->nodeName, "CP") != 0))
     {
         return ACL_USER_ERROR;
-    } 
-    
+    }
+
     tmpNode = GetSiblingWithTagName(tmpNode, "RoleList");
     if (tmpNode == NULL) 
     {
         // if Rolelist element is not found at all, just add it for User-element
         AddChildNode(doc, tmpNode->parentNode, "RoleList", roles);
         return ACL_SUCCESS;
-    }    
-    
+    }
+
     return ACL_removeRolesFromRoleList(doc, tmpNode, roles);
 }
 
@@ -2178,19 +2169,19 @@ int ACL_validateListAndUpdateACL(IXML_Document *ACLdoc, IXML_Document *identitie
     {
         id = GetTextValueOfNode(tmpNode);
         name = GetTextValueOfNode( GetSiblingWithTagName(tmpNode, "Name") );
-        
+
         if (name == NULL)
         {
             trace(2,"(ACL) Name must be given for CP. Skip.");
             RemoveNode(tmpNode);
             continue;
         }
-        
+
         alias = GetTextValueOfNode( GetSiblingWithTagName(tmpNode, "Alias") );
         // just try to add new
         result = ACL_addCP(ACLdoc, name, alias, id, "Public", 0);
 
-        // if same CP already exists, it is OK for us. All we care if something else has gone wrong      
+        // if same CP already exists, it is OK for us. All we care if something else has gone wrong
         if (result != ACL_USER_ERROR && result != ACL_SUCCESS)
         {
             trace(2,"(ACL) Failed to add new CP. Name: '%s', ID: '%s'",name,id);
@@ -2206,18 +2197,18 @@ int ACL_validateListAndUpdateACL(IXML_Document *ACLdoc, IXML_Document *identitie
     while ( (tmpNode = GetNode(identitiesDoc, "User")) != NULL )
     {
         name = GetTextValueOfNode( GetChildNodeWithName(tmpNode, "Name") );
-        
+
         if (name == NULL)
         {
             trace(2,"(ACL) Name must be given for User. Skip.");
             RemoveNode(tmpNode);
             continue;
         }
-       
+
         // just try to add new
         result = ACL_addUser(ACLdoc, name, "Public");
 
-        // if same User already exists, it is OK for us. All we care if something else has gone wrong      
+        // if same User already exists, it is OK for us. All we care if something else has gone wrong
         if (result != ACL_USER_ERROR && result != ACL_SUCCESS)
         {
             trace(2,"(ACL) Failed to add new User. Name: '%s'",name);
@@ -2227,11 +2218,11 @@ int ACL_validateListAndUpdateACL(IXML_Document *ACLdoc, IXML_Document *identitie
         // remove node from identitiesDoc, so we can proceed to next one (if there is one)
         RemoveNode(tmpNode);
     }
-    
+
     if (entire_rejection)
         return 600;
-           
-    return 0;  
+
+    return 0;
 }
 
 
@@ -2265,7 +2256,7 @@ int ACL_validateAndRemoveIdentity(IXML_Document *ACLdoc, IXML_Document *identity
         else if (strcmp(toUpperCase(id), "ADMINISTRATOR") == 0) // username must not be Administrator
         {
             trace(2,"(ACL) Trying to remove Admin, that's not allowed");
-            return 600;            
+            return 600;
         }
         else
         {
@@ -2281,8 +2272,8 @@ int ACL_validateAndRemoveIdentity(IXML_Document *ACLdoc, IXML_Document *identity
                 trace(2,"(ACL) Failed to remove User with Name '%s' from ACL",id);
                 return 501;
             }
-        }               
-    }    
+        }
+    }
     else
     {
         // remove CP form ACL
@@ -2298,7 +2289,7 @@ int ACL_validateAndRemoveIdentity(IXML_Document *ACLdoc, IXML_Document *identity
             return 501;
         }
     }
-    
+
     return 0;
 }
 
@@ -2322,21 +2313,21 @@ int ACL_validateAndUpdateCPAlias(IXML_Document *ACLdoc, IXML_Document *identityD
     char *alias = NULL;
 
     // following assumes that identityDoc contains only one pair of ID and Alias elements
-    
+
     id = GetFirstDocumentItem(identityDoc, "ID");
     if (id == NULL)
     {
         trace(2,"(ACL) Failed to find any ID from given parameter");
-        return 600;                
-    } 
+        return 600;
+    }
 
     alias = GetFirstDocumentItem(identityDoc, "Alias");
     if (alias == NULL)
     {
         trace(2,"(ACL) Failed to get value of Alias");
-        return 600;                
-    } 
-    
+        return 600;
+    }
+
     // update alias
     result = ACL_updateCPAlias(ACLdoc, id, alias, 1);
     if (result == ACL_USER_ERROR)
@@ -2349,7 +2340,7 @@ int ACL_validateAndUpdateCPAlias(IXML_Document *ACLdoc, IXML_Document *identityD
         trace(2,"(ACL) Failed to update Alias value '%s' to ACL (id: '%s')",alias,id);
         return 501;
     }
-    
+
     return 0;
 }
 
@@ -2411,54 +2402,53 @@ int SIR_addSession(IXML_Document *doc, const char *id, int active, const char *i
 {
     IXML_Node *tmpNode = NULL;
     int ret = 0;
-    
+
     // Check that same session id doesn't already exist
     tmpNode = GetNodeWithNameAndAttribute(doc, "session", "id", id);
     if ( tmpNode != NULL )
     {
         return -1;
-    } 
+    }
 
     // create new element called "session"
     IXML_Element *sessionElement = ixmlDocument_createElement(doc, "session");
     // set id-attribute
     ixmlElement_setAttribute(sessionElement, "id", id);
-    
+
     // set active-attribute
     if (active)
         ixmlElement_setAttribute(sessionElement, "active", "1");
     else
         ixmlElement_setAttribute(sessionElement, "active", "0");
-    
+
     // add identity element
-    if (identity)      
+    if (identity)
         AddChildNode(doc, &sessionElement->n, "identity", identity);
 
     // add role element
-    if (role)      
+    if (role)
         AddChildNode(doc, &sessionElement->n, "rolelist", role);
-    
+
     // create logindata element
     if (loginName && loginChallenge)
     {
         // create new element called "logindata"
         IXML_Element *logindataElement = ixmlDocument_createElement(doc, "logindata");
-        
+
         if (attempts == NULL)
             *attempts = 0;
-        
+
         char tmp[2];
         snprintf(tmp, 2, "%d", *attempts);
         // add "loginattempts" attribute to logindata
         ixmlElement_setAttribute(logindataElement, "loginattempts", tmp);
-        
+
         AddChildNode(doc, &logindataElement->n, "name", loginName);
-        AddChildNode(doc, &logindataElement->n, "challenge", loginChallenge); 
-        
+        AddChildNode(doc, &logindataElement->n, "challenge", loginChallenge);
+
         // add logindata as child of session
         ixmlNode_appendChild(&sessionElement->n, &logindataElement->n);
     }
-    
 
     // add session to SIR
     IXML_NodeList *nodeList = NULL;
@@ -2466,14 +2456,13 @@ int SIR_addSession(IXML_Document *doc, const char *id, int active, const char *i
 
     if ( nodeList )
     {
-        if ( ( tmpNode = ixmlNodeList_item( nodeList, 0 ) ) )    
+        if ( ( tmpNode = ixmlNodeList_item( nodeList, 0 ) ) )
             ixmlNode_appendChild(tmpNode, &sessionElement->n);
         else
             ret = -2;
     }
-    
-    //fprintf(stderr,"\n\n\n%s\n",ixmlPrintDocument(doc));
-    ixmlNodeList_free( nodeList ); 
+
+    ixmlNodeList_free( nodeList );
     return ret;
 }
 
@@ -2516,48 +2505,47 @@ int SIR_updateSession(IXML_Document *doc, const char *id, int *active, const cha
     char *oldLoginName = NULL;
     char *oldLoginChallenge = NULL;
     char *newRoleList = NULL;
-    
     int newActive = 0;
     int newAttempts = 0;
     char *newIdentity = NULL;
     char *newRole = NULL;
     char *newLoginName = NULL;
-    char *newLoginChallenge = NULL;    
-    
+    char *newLoginChallenge = NULL;
+
     // Check if session id does exist
     tmpNode = GetNodeWithNameAndAttribute(doc, "session", "id", id);
     if ( tmpNode == NULL )
     {
         return -1;
     }
-    
+
     // get old values
     oldIdentity = SIR_getIdentityOfSession(doc, id, &oldActive, &oldRole);
     ret = SIR_getLoginDataOfSession(doc, id, &oldAttempts, &oldLoginName, &oldLoginChallenge);
-    
+
     if (active != NULL)
         newActive = *active;
-    else 
+    else
         newActive = oldActive;
-    
+
     if (identity != NULL)
         newIdentity = (char *)identity;
     else
         newIdentity = oldIdentity;
 
     if (roles != NULL)
-    {   
+    {
         // create union of old and new roles
         newRoleList = (char *)malloc(strlen(roles) + strlen(oldRole)+2);
         strcpy(newRoleList, oldRole);
-        
-        char rolelist[strlen(roles)];    
+
+        char rolelist[strlen(roles)];
         // go through all roles in list
-        strcpy(rolelist,roles);   
+        strcpy(rolelist,roles);
         char *role = strtok(rolelist, " ");
         if (role)
         {
-            do 
+            do
             {
                 // do "raw" check that this role isn't already in current roles
                 if ( strstr(newRoleList,role) == NULL )
@@ -2569,37 +2557,36 @@ int SIR_updateSession(IXML_Document *doc, const char *id, int *active, const cha
                     }
                     strcat(newRoleList, role);
                 }
-                    
             } while ((role = strtok(NULL, " ")));
-    
-        }       
-        newRole = newRoleList;     
+
+        }
+        newRole = newRoleList;
     }
     else
         newRole = oldRole;
 
     if (attempts != NULL)
         newAttempts = *attempts;
-    else 
+    else
         newAttempts = oldAttempts;
-        
+
     if (loginName != NULL)
         newLoginName = (char *)loginName;
     else
-        newLoginName = oldLoginName;        
+        newLoginName = oldLoginName;
 
     if (loginChallenge != NULL)
         newLoginChallenge = (char *)loginChallenge;
     else
-        newLoginChallenge = oldLoginChallenge;    
-    
+        newLoginChallenge = oldLoginChallenge;
+
     // first remove old session, then add new
     SIR_removeSession(doc, id);
-    
+
     ret = SIR_addSession(doc, id , newActive, newIdentity, newRole, &newAttempts, newLoginName, newLoginChallenge);
-    
+
     free(newRoleList);
-    
+
     return ret;
 }
 
@@ -2614,16 +2601,16 @@ int SIR_updateSession(IXML_Document *doc, const char *id, int *active, const cha
 int SIR_removeSession(IXML_Document *doc, const char *id)
 {
     IXML_Node *tmpNode = NULL;
-    
+
     // Check that same session id doesn't already exist
     tmpNode = GetNodeWithNameAndAttribute(doc, "session", "id", id);
     if ( tmpNode != NULL )
     {
-        return RemoveNode(tmpNode); 
+        return RemoveNode(tmpNode);
     }
-    
+
     // there's no session with that id at all
-    return 0; 
+    return 0;
 }
 
 
@@ -2648,10 +2635,10 @@ char *SIR_getIdentityOfSession(IXML_Document *doc, const char *id, int *active, 
     IXML_Node *sessionNode = NULL;
     IXML_Node *tmpNode = NULL;
     char *act = NULL;
-    
+
     // initial presumption is that session is not active
     *active = 0;
-    
+
     // Check that session id does exist
     sessionNode = GetNodeWithNameAndAttribute(doc, "session", "id", id);
     if ( sessionNode != NULL )
@@ -2660,20 +2647,20 @@ char *SIR_getIdentityOfSession(IXML_Document *doc, const char *id, int *active, 
         act = GetAttributeValueOfNode(sessionNode, "active");
         if ( strcmp(act, "1") == 0 )
             *active = 1;
-        
+
         // get value of childnode "rolelist"
         tmpNode = GetChildNodeWithName(sessionNode, "rolelist");
         if ( tmpNode != NULL )
             *role = GetTextValueOfNode(tmpNode);
         else
-            *role = NULL;    
-        
+            *role = NULL;
+
         // get value of childnode "identity"
         tmpNode = GetChildNodeWithName(sessionNode, "identity");
         if ( tmpNode != NULL )
-            return GetTextValueOfNode(tmpNode); 
-    } 
-    
+            return GetTextValueOfNode(tmpNode);
+    }
+
     return NULL;
 }
 
@@ -2701,40 +2688,40 @@ char *SIR_getIdentityOfSession(IXML_Document *doc, const char *id, int *active, 
 int SIR_getLoginDataOfSession(IXML_Document *doc, const char *id, int *loginattempts, char **loginName, char **loginChallenge)
 {
     IXML_Node *tmpNode = NULL;
-    
+
     if (id == NULL)
         return -1;
-    
+
     // Check that session id does exist
     tmpNode = GetNodeWithNameAndAttribute(doc, "session", "id", id);
     if ( tmpNode == NULL )
         return -1;
-    
+
     // get logindata element
     tmpNode = GetChildNodeWithName(tmpNode, "logindata");
     if ( tmpNode == NULL )
-        return -2;    
+        return -2;
 
     char *tmp = GetAttributeValueOfNode(tmpNode, "loginattempts");
     if (tmp)
         *loginattempts = atoi(tmp);
     else
-        *loginattempts = 0; 
-    
+        *loginattempts = 0;
+
     // get name element
     tmpNode = GetChildNodeWithName(tmpNode, "name");
     if ( tmpNode == NULL )
-        return -3;    
+        return -3;
     // get value of "name"
     *loginName = GetTextValueOfNode(tmpNode);
-    
+
     // get challenge element
     tmpNode = GetSiblingWithTagName(tmpNode, "challenge");
     if ( tmpNode == NULL )
-        return -4;    
-    // get value of "name"
+        return -4;
+    // get value of "challenge"
     *loginChallenge = GetTextValueOfNode(tmpNode);
-    
+
     return 0;
 }
 
@@ -2749,16 +2736,16 @@ int SIR_getLoginDataOfSession(IXML_Document *doc, const char *id, int *loginatte
 int SIR_removeLoginDataOfSession(IXML_Document *doc, const char *id)
 {
     IXML_Node *tmpNode = NULL;
-    
+
     // get session node
     tmpNode = GetNodeWithNameAndAttribute(doc, "session", "id", id);
     if ( tmpNode == NULL )
         return -1;
-        
+
     // get logindata node of session
     tmpNode = GetChildNodeWithName(tmpNode, "logindata");
     if ( tmpNode == NULL )
         return 0;
-    
+
     return RemoveNode(tmpNode);
 }

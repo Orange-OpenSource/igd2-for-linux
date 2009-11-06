@@ -17,7 +17,7 @@
  * along with this program. If not, see http://www.gnu.org/licenses/. 
  * 
  */
- 
+
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -73,17 +73,17 @@ static int updateHttpsDescDoc(const char *descDocFile, const char *IP, int port)
     char newValue[150];
     IXML_NodeList *nodeList = NULL;
     IXML_Node *tmpNode = NULL;
-    
+
     IXML_Document *descDoc = ixmlLoadDocument(descDocFile);
     if (descDoc == NULL)
         return -1; 
-    
+
     // modify all secureSCPDURL's
     nodeList = ixmlDocument_getElementsByTagName( descDoc, "dp:secureSCPDURL" );
     if (nodeList)
     {
         listLen = ixmlNodeList_length(nodeList);
-        
+
         for (i = 0; i < listLen; i++)
         {
             if ( ( tmpNode = ixmlNodeList_item( nodeList, i ) ) )
@@ -98,17 +98,17 @@ static int updateHttpsDescDoc(const char *descDocFile, const char *IP, int port)
                     RemoveNode(tmpNode);
                     free(tmp);
                 }
-            }            
+            }
         }
     }
     ixmlNodeList_free( nodeList );
-    
+
     // modify all secureControlURL's
     nodeList = ixmlDocument_getElementsByTagName( descDoc, "dp:secureControlURL" );
     if (nodeList)
     {
         listLen = ixmlNodeList_length(nodeList);
-        
+
         for (i = 0; i < listLen; i++)
         {
             if ( ( tmpNode = ixmlNodeList_item( nodeList, i ) ) )
@@ -123,17 +123,17 @@ static int updateHttpsDescDoc(const char *descDocFile, const char *IP, int port)
                     RemoveNode(tmpNode);
                     free(tmp);
                 }
-            }            
+            }
         }
     }
     ixmlNodeList_free( nodeList );
-        
+
     // modify all secureEventSubURL's
     nodeList = ixmlDocument_getElementsByTagName( descDoc, "dp:secureEventSubURL" );
     if (nodeList)
     {
         listLen = ixmlNodeList_length(nodeList);
-        
+
         for (i = 0; i < listLen; i++)
         {
             if ( ( tmpNode = ixmlNodeList_item( nodeList, i ) ) )
@@ -148,15 +148,15 @@ static int updateHttpsDescDoc(const char *descDocFile, const char *IP, int port)
                     RemoveNode(tmpNode);
                     free(tmp);
                 }
-            }            
+            }
         }
     }
     ixmlNodeList_free( nodeList );
 
     ret = writeDocumentToFile(descDoc, descDocFile);
     ixmlDocument_free(descDoc);
-    
-    return ret; 
+
+    return ret;
 }
 
 static int updateDescDocUuid(const char *descDocFile)
@@ -168,14 +168,14 @@ static int updateDescDocUuid(const char *descDocFile)
     IXML_Document *descDoc = ixmlLoadDocument(descDocFile);
     if (descDoc == NULL)
         return -1;
-    
+
     // update uuid. According to the DeviceProtection, Device impelementing DP 
     // MUST have uuid created from it's certificate
     int cert_size = 1000;
     char *uuid = NULL;
-    unsigned char cert[cert_size]; 
+    unsigned char cert[cert_size];
     unsigned char hash[cert_size];
-    
+
     // get server certificate
     ret = UpnpGetHttpsServerCertificate(cert, &cert_size);
     if (ret != 0)
@@ -183,42 +183,42 @@ static int updateDescDocUuid(const char *descDocFile)
         ixmlDocument_free(descDoc);
         return ret;
     }
-    
-    // create hash from certificate    
+
+    // create hash from certificate
     ret = wpsu_sha256(cert, cert_size, hash);
     if (ret < 0)
     {
         ixmlDocument_free(descDoc);
         return ret;
     }
-    
+
     // create uuid from certificate
-    createUuidFromData(&uuid, hash, 16);    
+    createUuidFromData(&uuid, hash, 16);
     if (uuid == NULL)
     {
         ixmlDocument_free(descDoc);
         return -2;
     }
-        
+
     // replace existing uuid with new
     if ( (tmpNode = GetNode(descDoc, "UDN") ) )
     {
         snprintf(newValue, 150, "uuid:%s", uuid);
         ret = ixmlNode_setNodeValue(ixmlNode_getFirstChild(tmpNode), newValue);
     }
-    
+
     free (uuid);
-    
+
     if (ret != 0)
     {
         ixmlDocument_free(descDoc);
         return ret;
     }
-    
+
     ret = writeDocumentToFile(descDoc, descDocFile);
     ixmlDocument_free(descDoc);
-    
-    return ret;     
+
+    return ret;
 }
 
 int main (int argc, char** argv)
@@ -228,7 +228,7 @@ int main (int argc, char** argv)
     char intIpAddress[INET6_ADDRSTRLEN];     // Server internal ip address updated IPv6 address length 16 -> 46
     sigset_t sigsToCatch;
     int ret, signum, arg = 1, foreground = 0, non_secure = 0;
-    
+
     if (!setlocale(LC_CTYPE, "")) {
       fprintf(stderr, "Can't set the specified locale! "
               "Check LANG, LC_CTYPE, LC_ALL.\n");
@@ -366,8 +366,7 @@ int main (int argc, char** argv)
     // initialize libgcrypt library which is used by both pupnp (gnutls) and wpsutil
     if (!gcry_control (GCRYCTL_INITIALIZATION_FINISHED_P))
     {
-        trace(3, "Initializing libgcrypt library ... ");      
-        
+        trace(3, "Initializing libgcrypt library ... ");
         /* Version check should be the very first call because it
           makes sure that important subsystems are intialized. */
         if (!gcry_check_version (GCRYPT_VERSION))
@@ -378,15 +377,15 @@ int main (int argc, char** argv)
         /* Make libgrypt (gnutls) thread save. This assumes that we are using pthred for threading.
            Check http://www.gnu.org/software/gnutls/manual/gnutls.html#Multi_002dthreaded-applications */
         gcry_control (GCRYCTL_SET_THREAD_CBS, &gcry_threads_pthread);
-    
+
         /* to disallow usage of the blocking /dev/random  */
         gcry_control (GCRYCTL_ENABLE_QUICK_RANDOM, 0);
-     
+
         /* Disable secure memory.  */
         gcry_control (GCRYCTL_DISABLE_SECMEM, 0);
 
         /* Tell Libgcrypt that initialization has completed. */
-        gcry_control (GCRYCTL_INITIALIZATION_FINISHED, 0);     
+        gcry_control (GCRYCTL_INITIALIZATION_FINISHED, 0);
     }
 
     // Initialize UPnP SDK on the internal Interface
@@ -412,7 +411,7 @@ int main (int argc, char** argv)
             exit(1);
         }
         trace(2, "Description Document Updated Successfully.");
-        
+
         trace(2, "Starting HTTPS server, this may take few seconds...");
         // start https server
         if ( (ret = UpnpStartHttpsServer(g_vars.httpsListenport, g_vars.certPath, NULL, NULL, NULL, NULL, "LinuxIGD 2.0") ) != UPNP_E_SUCCESS)
@@ -423,8 +422,7 @@ int main (int argc, char** argv)
             exit(1);
         }
         trace(2, "UPnP HTTPS Server Started Successfully.");
-    
-    
+
         // Modify description document on the fly again so that uuid is correct and created from certificate
         if ( (ret = updateDescDocUuid(descDocFile) ) != 0)
         {
@@ -434,7 +432,7 @@ int main (int argc, char** argv)
         }
         trace(2, "UDN Updated Successfully to Description Document.");
     }
-    
+
     // Set the Device Web Server Base Directory
     trace(3, "Setting the Web Server Root Directory to %s",g_vars.xmlPath);
     if ( (ret = UpnpSetWebServerRootDir(g_vars.xmlPath)) != UPNP_E_SUCCESS )
@@ -460,8 +458,8 @@ int main (int argc, char** argv)
     if (!non_secure)
     {
         sprintf(secureDescDocUrl, "https://%s:%d/%s", UpnpGetServerIpAddress(),
-                g_vars.httpsListenport, g_vars.descDocName);            
-    
+                g_vars.httpsListenport, g_vars.descDocName);
+
         // Register our IGD as a valid UPnP Root device
         trace(3, "Registering the root device with descDocUrl %s and secureDescDocUrl %s for byebye sending", descDocUrl, secureDescDocUrl);
         if ( (ret = UpnpRegisterRootDeviceHTTPS(descDocUrl, secureDescDocUrl, EventHandler, &deviceHandle,
@@ -510,7 +508,7 @@ int main (int argc, char** argv)
             UpnpFinish();
             exit(1);
         }
-        
+
         trace(3, "Send initial sspd:byebye messages");
         UpnpUnRegisterRootDevice(deviceHandle); // this will send byebye's
         // Register our IGD as a valid UPnP Root device
@@ -574,7 +572,7 @@ int main (int argc, char** argv)
 
     // Cleanup lanhostconfig module
     FreeLanHostConfig();
-    
+
     // Cleanup deviceprotection module
     FreeDP();
 

@@ -113,10 +113,10 @@ static void trace_ixml(int debuglevel, const char *msg, IXML_Document *doc)
 {
     if (!msg || !doc)
         return;
-        
+
     char *tmp = ixmlPrintDocument(doc);
     trace(3, "%s\n%s\n",msg, tmp);
-    free(tmp);    
+    free(tmp);
 }
 
 /**
@@ -143,9 +143,9 @@ void DPStateTableInit()
  * @return int. 0 on success
  */
 int InitDP()
-{   
+{
     DP_loadDocuments();
-    
+
     int err = 0;
     char descDocFile[sizeof(g_vars.xmlPath)+sizeof(g_vars.descDocName)+2];
     unsigned char MAC[WPSU_MAC_LEN];
@@ -155,7 +155,7 @@ int InitDP()
     // manufacturer and device info is read from device description XML
     sprintf(descDocFile, "%s/%s", g_vars.xmlPath, g_vars.descDocName);
     IXML_Document *descDoc = ixmlLoadDocument(descDocFile);
-    
+
     if (descDoc)
     {
         char *UDN = GetFirstDocumentItem(descDoc, "UDN");
@@ -168,15 +168,15 @@ int InitDP()
         char UUID[strlen(UDN)];
         strcpy(UUID,UDN + 5); // remove text uuid: from beginning of string
         free(UDN);
-        
+
         if (strlen(UUID) > WPSU_MAX_UUID_LEN) // if uuid is too long, crop only allowed length from beginning
         {
             UUID[WPSU_MAX_UUID_LEN] = '\0';
         }
-        
+
         wpsu_input = (WPSuStationInput *)malloc(sizeof(WPSuStationInput));
         memset(wpsu_input, 0, sizeof(*(wpsu_input)));
-       
+
         err = wpsu_enrollee_station_input_add_device_info(wpsu_input, 
                                             g_vars.pinCode,
                                             GetFirstDocumentItem(descDoc, "manufacturer"),
@@ -194,11 +194,11 @@ int InitDP()
                                             0,
                                             NULL,
                                             0,
-                                            WPSU_CONF_METHOD_LABEL, 
+                                            WPSU_CONF_METHOD_LABEL,
                                             WPSU_RFBAND_2_4GHZ);
     }
     else return UPNP_E_FILE_NOT_FOUND;
-    
+
     ixmlDocument_free(descDoc);
     return err;
 }
@@ -211,9 +211,9 @@ int InitDP()
  * @return void
  */
 void FreeDP()
-{    
+{
     wpsu_enrollee_station_input_free(wpsu_input);
-    
+
     // Save possible changes done in DeviceProtection XML's 
     DP_finishDocuments();
 }
@@ -234,7 +234,7 @@ void DP_loadDocuments()
         UpnpFinish();
         exit(1);
     }
-    
+
     // session-identity relationships are stored in this. Also user login data which is needed at UserLogin()
     SIRDoc = SIR_init();
     if (SIRDoc == NULL)
@@ -242,7 +242,7 @@ void DP_loadDocuments()
         trace(1, "Couldn't load SIR document.\nSIR is LinuxIDG's internal structure for containing SSL-session-User relationships\nExiting...\n");
         UpnpFinish();
         exit(1);
-    }    
+    }
 }
 
 /**
@@ -256,7 +256,7 @@ void DP_finishDocuments()
     // write ACL to file
     writeDocumentToFile(ACLDoc, ACL_XML);
     ixmlDocument_free(ACLDoc);
-    
+
     // should SIR stay or not. Probably not...?
     ixmlDocument_free(SIRDoc);
 }
@@ -286,7 +286,7 @@ int checkCPPrivileges(struct Upnp_Action_Request *ca_event, const char *targetRo
     {
         free(identifier);
         return ret;
-    } 
+    }
 
     // get "Name" of CP from ACL. It is possible that CP is not listed in ACL, 
     // in that case everything is OK. If CP is found from ACL, then "Name" from ACL must match 
@@ -299,16 +299,16 @@ int checkCPPrivileges(struct Upnp_Action_Request *ca_event, const char *targetRo
         UpnpTerminateSSLSession(ca_event->SSLSession, ca_event->Socket);
         // remove session from SIR
         SIR_removeSession(SIRDoc, (char *)identifier);
-        
+
         free(identifier);
         free(commonName);
         free(name);
-        
-        return -1;   
+
+        return -1;
     }
     free(commonName);
     free(name);
-    
+
     if (rolelist)
         // Let's add new entry to SIR. RoleList value is either value fetched from ACL for this CP or Public.
         // Identity value is not inserted to SIR now.
@@ -335,22 +335,19 @@ int checkCPPrivileges(struct Upnp_Action_Request *ca_event, const char *targetRo
         return -1;
     }
     free(rolelist);
-  
-  
+
     /* Actual privileges checking takes place here */
-    
     // SIR contains union of roles defined for contorl point in ACL and roles defined for username
     // which CP has logged in.
     // All we need to do is check that targetRole is found from "rolelist" of this session in SIR.
-    
+
     // fetch contents of session for this session from SIR. All we actually need is the value of rolelist
     int active;
     char *roles = NULL;
     char *identity = SIR_getIdentityOfSession(SIRDoc, identifier, &active, &roles);
     free(identifier);
     free(identity);
-    //TODO: is the active attribute currently totally useless??
-    
+
     // check if targetRole is found from roles of this session
     if (roles)
     {
@@ -378,7 +375,7 @@ int checkCPPrivileges(struct Upnp_Action_Request *ca_event, const char *targetRo
             return 0;
         }
     }
-    
+
     // so CP doesn't have privileges
     return 1;
 }
@@ -403,7 +400,7 @@ void createUuidFromData(char **uuid_str, unsigned char *hash, int hashLen)
     *uuid_str = malloc(37*sizeof(char));
     char tmp[3];
     memset(*uuid_str, '\0', 37);
-   
+
     memcpy(uuid, hash, sizeof *uuid);
     uuid->time_low = ntohl(uuid->time_low);
     uuid->time_mid = ntohs(uuid->time_mid);
@@ -414,8 +411,7 @@ void createUuidFromData(char **uuid_str, unsigned char *hash, int hashLen)
     uuid->time_hi_and_version |= (PSEUDO_RANDOM_UUID_TYPE << 12);
     uuid->clock_seq_hi_and_reserved &= 0x3F;
     uuid->clock_seq_hi_and_reserved |= 0x80;
-    
-    
+
     // create string representation from binary
     snprintf(*uuid_str, 37, "%8.8x-%4.4x-%4.4x-%2.2x%2.2x-", uuid->time_low, uuid->time_mid,
             uuid->time_hi_and_version, uuid->clock_seq_hi_and_reserved, uuid->clock_seq_low);
@@ -425,7 +421,7 @@ void createUuidFromData(char **uuid_str, unsigned char *hash, int hashLen)
         snprintf(tmp, 3, "%2.2x", uuid->node[i]);
         strcat(*uuid_str,tmp);
     }
-    
+
     free(uuid);
 }
 
@@ -465,7 +461,7 @@ static int getIdentifierOfCP(struct Upnp_Action_Request *ca_event, char **identi
 
     createUuidFromData(identifier, hash, 16);
     *idLen = strlen(*identifier);
-   
+
     return 0;
 }
 
@@ -481,24 +477,24 @@ static int getIdentityOfSession(struct Upnp_Action_Request *ca_event, char **ide
 {
     int ret, len=0;
     char *identifier = NULL;
-    
+
     // 1. get identifier of CP 
     ret = getIdentifierOfCP(ca_event, &identifier, &len, NULL);
     if (ret != 0 )
     {
         return ret;
-    } 
-    
+    }
+
     // 2. fetch current identity of CP from SIR. Identity may be username or identifier created from certificate
     int active;
     char *role = NULL;
     *identity = SIR_getIdentityOfSession(SIRDoc, identifier, &active, &role);
-    
+
     free(identifier);
-    
+
     if (*identity == NULL)
         return -1;
-    
+
     return 0;
 }
 
@@ -513,18 +509,18 @@ static int getRolesOfSession(struct Upnp_Action_Request *ca_event, char **roles)
 {
     int ret, len=0;
     char *identifier;
-    
+
     // 1. get identifier of CP 
     ret = getIdentifierOfCP(ca_event, &identifier, &len, NULL);
     if (ret != 0 )
     {
         return ret;
-    } 
-    
+    }
+
     // 2. fetch current roles of CP from SIR.
     int active;
     char *identity = SIR_getIdentityOfSession(SIRDoc, identifier, &active, roles);
-    
+
     free(identity);
     free(identifier);
 
@@ -544,7 +540,7 @@ static int getRolesOfSession(struct Upnp_Action_Request *ca_event, char **roles)
 static int createStopWPSTimer(void)
 {
     int result = 0;
-    
+
     if (DP_MAX_WPS_SETUP_TIME > 0)
     {
         trace(3,"Create StopWPS timer to be executed after %d seconds",DP_MAX_WPS_SETUP_TIME);
@@ -586,7 +582,7 @@ static int startWPS()
     }
 
     gWpsIntroductionRunning = 1;
-    
+
     return 0;
 }
 
@@ -599,8 +595,8 @@ static int startWPS()
  */
 static void stopWPS()
 {
-    int error;    
-    trace(2,"Finished DeviceProtection pairwise introduction process\n");    
+    int error;
+    trace(2,"Finished DeviceProtection pairwise introduction process\n");
 
     // cancel possible StopWPS thread job
     if (gStopWPSJobId != -1)
@@ -612,15 +608,15 @@ static void stopWPS()
 
     /*WPSuStationOutput *smOutput;
     smOutput = wpsu_get_enrollee_sm_station_output(esm, &error);
-    
+
     printf("ConfigurationError: %d\n",smOutput->ConfigurationError);
     printf("DeviceName: %s\n",smOutput->RegistrarInfo.DeviceName);
     printf("Uuid: %s\n",smOutput->RegistrarInfo.Uuid);*/
-    
+
     wpsu_cleanup_enrollee_sm(esm, &error);
-    
+
     gWpsIntroductionRunning = 0;
-    
+
     // DP is free. SetupReady is evented only if old value is 0
     if (SetupReady == 0)
     {
@@ -665,7 +661,7 @@ static void message_received(struct Upnp_Action_Request *ca_event, int error, un
             int ret, len=0;
             char *identifier = NULL;
             char *CN = NULL;
-    
+
             // get identity of CP 
             ret = getIdentifierOfCP(ca_event, &identifier, &len, &CN);
             if (ret != 0 )
@@ -673,7 +669,7 @@ static void message_received(struct Upnp_Action_Request *ca_event, int error, un
                 trace(1,"Failed to get Identifier value from Certificate (%d)! Ignoring...",ret);
             }
             else
-            {       
+            {
                 // Add CP to ACL with role Public 
                 ret = ACL_addCP(ACLDoc, CN, NULL, identifier, "Public", 1);
                 if (ret != ACL_SUCCESS && ret != ACL_USER_ERROR)
@@ -683,7 +679,7 @@ static void message_received(struct Upnp_Action_Request *ca_event, int error, un
             }
             free(identifier);
             free(CN);
-            
+
             trace_ixml(3, "Contents of ACL:",ACLDoc);
             break;
         }
@@ -740,11 +736,11 @@ static int getValuesFromPasswdFile(const char *nameUPPER, unsigned char **b64_sa
 
     FILE *stream = fopen(PASSWD_FILE, "r");
     if (!stream) return -1;
-    
+
     while(fgets(line, 200, stream) != NULL) 
     {
         line[strlen(line)-1] = '\0';
-    
+
         name = strtok(line, ",");
         if (name != NULL)
         {
@@ -752,15 +748,15 @@ static int getValuesFromPasswdFile(const char *nameUPPER, unsigned char **b64_sa
             if ( caseInsesitive_strcmp(name,nameUPPER) == 0 )
             {
                 fclose(stream);
-                
+
                 if (b64_salt)
                 {
                     memset(*b64_salt, '\0', max_size);
                     temp = strtok(NULL, ",");
                     *salt_len = strlen(temp);
-                    
+
                     if (*salt_len > max_size) return -3;
-                    
+
                     memcpy(*b64_salt, temp, *salt_len);
                 }
                 if (b64_stored)
@@ -768,19 +764,18 @@ static int getValuesFromPasswdFile(const char *nameUPPER, unsigned char **b64_sa
                     memset(*b64_stored, '\0', max_size);
                     temp = strtok(NULL, ",");
                     *stored_len = strlen(temp);
-                    
+
                     if (*stored_len > max_size) return -3;
-                    
+
                     memcpy(*b64_stored, temp, *stored_len);
                 }
-                
                 return 0;
             }
         }
     }
-    
+
     fclose(stream);
-    return -2; 
+    return -2;
 }
 
 /**
@@ -795,12 +790,12 @@ static int putValuesToPasswdFile(const char *name, const unsigned char *b64_salt
 {
     if (getValuesFromPasswdFile(name,NULL,NULL, NULL, NULL, 0) == 0)
         return -2;
-    
+
     FILE *stream = fopen(PASSWD_FILE, "a");
     if (!stream) return -1;
-    
+
     fprintf(stream, "%s,%s,%s\n", name, b64_salt, b64_stored);
-    
+
     fclose(stream);
     return 0;
 }
@@ -892,12 +887,12 @@ static int updateValuesToPasswdFile(const char *nameUPPER, const unsigned char *
  */
 static int getSaltAndStoredForName(const char *nameUPPER, unsigned char **b64_salt, int *salt_len, unsigned char **b64_stored, int *stored_len)
 {
-    int maxb64len = 2*DP_STORED_BYTES;     
-    *b64_salt = (unsigned char *)malloc(maxb64len); 
+    int maxb64len = 2*DP_STORED_BYTES;
+    *b64_salt = (unsigned char *)malloc(maxb64len);
     *b64_stored = (unsigned char *)malloc(maxb64len);
-    
+
     int ret = getValuesFromPasswdFile(nameUPPER, b64_salt, salt_len, b64_stored, stored_len, maxb64len);
-    
+
     if (ret != 0)
     {
         if (strcmp(nameUPPER,"ADMINISTRATOR") == 0)
@@ -906,15 +901,15 @@ static int getSaltAndStoredForName(const char *nameUPPER, unsigned char **b64_sa
             int name_len = strlen(nameUPPER);
             int namesalt_len = name_len + DP_SALT_BYTES;
             unsigned char namesalt[namesalt_len];
-        
-            // create SALT   
+
+            // create SALT
             unsigned char *salt = wpsu_createRandomValue(DP_SALT_BYTES);
-            
+
             memcpy(namesalt, nameUPPER, name_len);
             memcpy(namesalt+name_len, salt, DP_SALT_BYTES);
-            
+
             /* Create STORED = first 160 bits of the key T1, with T1 computed according to [PKCS#5] algorithm PBKDF2
-                
+
                 T1 is defined as the exclusive-or sum of the first c iterates of PRF applied to the concatenation 
                 of the Password, Name, Salt, and four-octet block index (0x00000001) in big-endian format.  
                 For DeviceProtection, the value for c is 5,000.  Name MUST be converted to upper-case, and 
@@ -925,9 +920,9 @@ static int getSaltAndStoredForName(const char *nameUPPER, unsigned char **b64_sa
                 U2 = PRF(Password, U1),
                 …
                 Uc = PRF(Password, Uc-1).
-              
+
                 NOTE1: SALT and STORED are created only if username is admin and passwordfile doesn't 
-                
+
                 NOTE2: wpsu_pbkdf2 goes through whole PBKDF2 algorithm, even if in this case only first block
                        is needed for result. First 160 bits are the same if all the data is processed or just 
                        the first block. (block size should be defined to 160bits => DP_STORED_BYTES = 8)
@@ -935,19 +930,18 @@ static int getSaltAndStoredForName(const char *nameUPPER, unsigned char **b64_sa
             unsigned char bin_stored[DP_STORED_BYTES];
             ret = wpsu_pbkdf2(g_vars.adminPassword, strlen(g_vars.adminPassword), namesalt,
                             namesalt_len, DP_PRF_ROUNDS, DP_STORED_BYTES, bin_stored);
-                            
-            if (ret != 0) return ret;
-            
-            // SALT and STORED to base 64
-            wpsu_bin_to_base64(DP_SALT_BYTES, salt, salt_len, *b64_salt, maxb64len);                                                
-            wpsu_bin_to_base64(DP_STORED_BYTES, bin_stored, stored_len, *b64_stored, maxb64len);             
 
-            
+            if (ret != 0) return ret;
+
+            // SALT and STORED to base 64
+            wpsu_bin_to_base64(DP_SALT_BYTES, salt, salt_len, *b64_salt, maxb64len);
+            wpsu_bin_to_base64(DP_STORED_BYTES, bin_stored, stored_len, *b64_stored, maxb64len);
+
             // write values to password file
             ret = putValuesToPasswdFile(nameUPPER, *b64_salt, *b64_stored);
         }
     }
-    
+
     return ret;
 }
 
@@ -991,46 +985,45 @@ static int createUserLoginChallengeResponse(struct Upnp_Action_Request *ca_event
     {
         // stored to binary format
         unsigned char *bin_stored = (unsigned char *)malloc(b64_stored_len);
-        int outlen;        
+        int outlen;
         wpsu_base64_to_bin(b64_stored_len, b64_stored, &outlen, bin_stored, DP_STORED_BYTES);
 
 
         // Create NONCE
         unsigned char *nonce = wpsu_createNonce(DP_NONCE_BYTES);
-        
         unsigned char storednonce[DP_STORED_BYTES+DP_NONCE_BYTES];
         memcpy(storednonce, bin_stored, DP_STORED_BYTES);
         memcpy(storednonce+DP_STORED_BYTES, nonce, DP_NONCE_BYTES);
-        
+
         free(nonce);
-            
+
         // Create CHALLENGE = SHA-256(STORED || nonce)
         unsigned char challenge[DP_STORED_BYTES+DP_NONCE_BYTES];
         if ( wpsu_sha256(storednonce, DP_STORED_BYTES+DP_NONCE_BYTES, challenge) < 0 )
         {
             trace(1, "Error creating CHALLENGE value for %s",ca_event->ActionName);
             result = 501;
-            addErrorData(ca_event, result, "Action Failed");                    
+            addErrorData(ca_event, result, "Action Failed");
         }
         else
-        {                
+        {
             // CHALLENGE to base64
-            int maxb64len = 2*(DP_STORED_BYTES+DP_NONCE_BYTES); 
-            int b64len = 0;        
-    
+            int maxb64len = 2*(DP_STORED_BYTES+DP_NONCE_BYTES);
+            int b64len = 0;
+
             unsigned char *b64_challenge = (unsigned char *)malloc(maxb64len);
-            wpsu_bin_to_base64(DP_STORED_BYTES+DP_NONCE_BYTES, challenge, &b64len, b64_challenge, maxb64len);               
+            wpsu_bin_to_base64(DP_STORED_BYTES+DP_NONCE_BYTES, challenge, &b64len, b64_challenge, maxb64len);
 
             IXML_Document *ActionResult = NULL;
             ActionResult = UpnpMakeActionResponse(ca_event->ActionName, DP_SERVICE_TYPE,
                                         2,
                                         "Salt", b64_salt,
                                         "Challenge", b64_challenge);
-                                        
+
             if (ActionResult)
             {
                 ca_event->ActionResult = ActionResult;
-                ca_event->ErrCode = UPNP_E_SUCCESS;        
+                ca_event->ErrCode = UPNP_E_SUCCESS;
             }
             else
             {
@@ -1038,7 +1031,7 @@ static int createUserLoginChallengeResponse(struct Upnp_Action_Request *ca_event
                 result = 501;
                 addErrorData(ca_event, result, "Action Failed");
             }
-            
+
             // insert user login values to SIR document
             char *identifier = NULL; 
             result = getIdentifierOfCP(ca_event, &identifier, &b64len, NULL);
@@ -1053,13 +1046,13 @@ static int createUserLoginChallengeResponse(struct Upnp_Action_Request *ca_event
             } 
             else
                 trace(1, "Failure on inserting UserLoginChallenge values to SIR. Ignoring...");
-            
+
             free(identifier);
             free(b64_challenge);
         }
         free(bin_stored);
     }
-    
+
     free(b64_salt);
     free(b64_stored);
     return result;
@@ -1085,23 +1078,22 @@ static int createAuthenticator(const char *b64_stored, const char *b64_challenge
     {
         return -1;
     }
-    int bin_stored_len;    
+    int bin_stored_len;
     wpsu_base64_to_bin(b64msglen, (const unsigned char *)b64_stored, &bin_stored_len, bin_stored, b64msglen);    
 
     b64msglen = strlen(b64_challenge);
     unsigned char *bin_challenge = (unsigned char *)malloc(b64msglen);
-    if (bin_challenge == NULL) 
+    if (bin_challenge == NULL)
     {
         free(bin_stored);
         return -1;
     }
-    int bin_challenge_len;    
+    int bin_challenge_len;
     wpsu_base64_to_bin(b64msglen, (const unsigned char *)b64_challenge, &bin_challenge_len, bin_challenge, b64msglen); 
-   
-    
+
     // concatenate stored || challenge
     int bin_concat_len = bin_stored_len + bin_challenge_len;
-    unsigned char *bin_concat = (unsigned char *)malloc(bin_concat_len);    
+    unsigned char *bin_concat = (unsigned char *)malloc(bin_concat_len);
     if (bin_concat == NULL) 
     {
         free(bin_stored);
@@ -1114,7 +1106,7 @@ static int createAuthenticator(const char *b64_stored, const char *b64_challenge
     // release useless stuff
     free(bin_stored);
     free(bin_challenge);
- 
+
     // crete hash from concatenation
     unsigned char hash[2*bin_concat_len];
     int hashlen = wpsu_sha256(bin_concat, bin_concat_len, hash);
@@ -1126,13 +1118,13 @@ static int createAuthenticator(const char *b64_stored, const char *b64_challenge
     }
 
     // encode 16 first bytes of created hash as base64 authenticator
-    int maxb64len = 2*DP_AUTH_BYTES; 
+    int maxb64len = 2*DP_AUTH_BYTES;
     *auth_len = 0;
     *b64_authenticator = (char *)malloc(maxb64len);
     wpsu_bin_to_base64(DP_AUTH_BYTES, hash, auth_len, (unsigned char *)*b64_authenticator, maxb64len);
-    
+
     free(bin_concat);
-    return 0;   
+    return 0;
 }
 
 //-----------------------------------------------------------------------------
@@ -1163,9 +1155,9 @@ int SendSetupMessage(struct Upnp_Action_Request *ca_event)
 
     if ((protocoltype = GetFirstDocumentItem(ca_event->ActionRequest, "ProtocolType")) &&
             (inmessage = GetFirstDocumentItem(ca_event->ActionRequest, "InMessage")))
-    {    
+    {
         inet_ntop(AF_INET, &ca_event->CtrlPtIPAddr, IP_addr, INET6_ADDRSTRLEN);
-        
+
         if (strcmp(protocoltype, "WPS") != 0)
         {
             trace(1, "Introduction protocol type must be 'WPS': Invalid ProtocolType=%s\n",protocoltype);
@@ -1175,17 +1167,17 @@ int SendSetupMessage(struct Upnp_Action_Request *ca_event)
             free(inmessage);
             free(protocoltype);
             return ca_event->ErrCode;
-        } 
-        
+        }
+
         // get identifier of CP 
         // this will tell if the same CP is doing all setup messages
         result = getIdentifierOfCP(ca_event, &CP_id, &id_len, NULL);
-        
+
         if (result == 0 && !gWpsIntroductionRunning && strcmp(inmessage, "") == 0) // ready to start introduction. InMessage MUST be empty for M1
         {
             // store id of this CP to determine next time if still the same CP is using this.
-            memcpy(prev_CP_id, CP_id, id_len);            
-            
+            memcpy(prev_CP_id, CP_id, id_len);
+
             // begin introduction
             trace(2,"Begin DeviceProtection pairwise introduction process. IP %s\n",IP_addr);
             startWPS();
@@ -1195,22 +1187,22 @@ int SendSetupMessage(struct Upnp_Action_Request *ca_event)
             {
                 trace(1, "Failed to start WPS state machine. Returned %d\n",result);
                 result = 704;
-                addErrorData(ca_event, result, "Processing Error");               
+                addErrorData(ca_event, result, "Processing Error");
             }
         }
         else if (!gWpsIntroductionRunning && strcmp(inmessage, "") != 0)
         {
             trace(1, "Failure in SendSetupMessage: InMessage must be empty when fetching M1 message");
             result = 402;
-            addErrorData(ca_event, result, "Invalid Args");            
-        }      
+            addErrorData(ca_event, result, "Invalid Args");
+        }
         else if (gWpsIntroductionRunning && (memcmp(prev_CP_id, CP_id, id_len) == 0)) // continue started introduction
         {
             // to bin
-            int b64msglen = strlen(inmessage);            
+            int b64msglen = strlen(inmessage);
             unsigned char *pBinMsg=(unsigned char *)malloc(b64msglen);
             int outlen;
-            
+
             wpsu_base64_to_bin(b64msglen,(const unsigned char *)inmessage,&outlen,pBinMsg,b64msglen);
 
             // update state machine
@@ -1222,7 +1214,7 @@ int SendSetupMessage(struct Upnp_Action_Request *ca_event)
             trace(1, "Busy with someone else's introduction process. IP %s\n",IP_addr);
             result = 708;
             addErrorData(ca_event, result, "Busy");
-            
+
             // set state variable SetupReady to false, meaning DP service is busy
             SetupReady = 0;
             IXML_Document *propSet = NULL;
@@ -1238,7 +1230,7 @@ int SendSetupMessage(struct Upnp_Action_Request *ca_event)
         result = 402;
         addErrorData(ca_event, result, "Invalid Args");
     }
-       
+
     if (result == 0)
     {
         // response (next message) to base64   
@@ -1246,23 +1238,22 @@ int SendSetupMessage(struct Upnp_Action_Request *ca_event)
         int b64len = 0;    
         unsigned char *pB64Msg = (unsigned char *)malloc(maxb64len);
         wpsu_bin_to_base64(Enrollee_send_msg_len,Enrollee_send_msg, &b64len, pB64Msg,maxb64len);
-        
+
         trace(3,"Send response for SendSetupMessage request\n");
-        
+
         ca_event->ErrCode = UPNP_E_SUCCESS;
         snprintf(resultStr, RESULT_LEN, "<u:%sResponse xmlns:u=\"%s\">\n<OutMessage>%s</OutMessage>\n</u:%sResponse>",
                  ca_event->ActionName, DP_SERVICE_TYPE, pB64Msg, ca_event->ActionName);
         ca_event->ActionResult = ixmlParseBuffer(resultStr);
-        free(pB64Msg);     
+        free(pB64Msg);
     }
 
-    
     // Any else state means that WPS is either ready or in error state and it must be terminated
-    if (sm_status != WPSU_SM_E_PROCESS)  
+    if (sm_status != WPSU_SM_E_PROCESS)
     {
         stopWPS();
     }
-    
+
     free(CP_id);
     free(inmessage);
     free(protocoltype);
@@ -1279,16 +1270,16 @@ int SendSetupMessage(struct Upnp_Action_Request *ca_event)
  * @return Upnp error code.
  */
 int GetSupportedProtocols(struct Upnp_Action_Request *ca_event)
-{    
+{
     IXML_Document *ActionResult = NULL;
     ActionResult = UpnpMakeActionResponse(ca_event->ActionName, DP_SERVICE_TYPE,
                                     1,
                                     "ProtocolList", SupportedProtocols);
-                                    
+
     if (ActionResult)
     {
         ca_event->ActionResult = ActionResult;
-        ca_event->ErrCode = UPNP_E_SUCCESS;        
+        ca_event->ErrCode = UPNP_E_SUCCESS;
     }
     else
     {
@@ -1314,9 +1305,9 @@ int GetUserLoginChallenge(struct Upnp_Action_Request *ca_event)
     char *nameUPPER = NULL;
     int ret, len=0;
     char *identifier = NULL;
-    
+
     // CP with same ID must be listed in ACL
-    ret = getIdentifierOfCP(ca_event, &identifier, &len, NULL);        
+    ret = getIdentifierOfCP(ca_event, &identifier, &len, NULL);
     if (identifier && (ACL_getRolesOfCP(ACLDoc, identifier) == NULL))
     {
         trace(1, "%s: ID '%s' of control point is not listed in ACL",ca_event->ActionName,identifier);
@@ -1326,7 +1317,7 @@ int GetUserLoginChallenge(struct Upnp_Action_Request *ca_event)
         free(identifier);
         return ca_event->ErrCode;
     }
-    
+
     if (( protocoltype = GetFirstDocumentItem(ca_event->ActionRequest, "ProtocolType") )
             && ( name = GetFirstDocumentItem(ca_event->ActionRequest, "Name") ))
     {
@@ -1893,7 +1884,7 @@ int GetRolesForAction(struct Upnp_Action_Request *ca_event)
     char *accessLevelManage = NULL;
 
     if ( (serviceId = GetFirstDocumentItem(ca_event->ActionRequest, "ServiceId"))
-        && (actionName = GetFirstDocumentItem(ca_event->ActionRequest, "ActionName")) ) 
+        && (actionName = GetFirstDocumentItem(ca_event->ActionRequest, "ActionName")) )
     {
         accessLevel = getAccessLevel(serviceId, actionName, 0, NULL);
 
@@ -2019,7 +2010,7 @@ int SetUserLoginPassword(struct Upnp_Action_Request *ca_event)
                         // if failed to add new logindata to file but reason wasn't that same username 
                         // existed in passwd file already, try to remove added data
                         updateValuesToPasswdFile(nameUPPER, (unsigned char *)salt, (unsigned char *)stored, 1);
-                    } 
+                    }
                     else
                     {
                         // add user to ACL also
@@ -2058,7 +2049,6 @@ int SetUserLoginPassword(struct Upnp_Action_Request *ca_event)
             }
         }
 
-
         // all is well
         if (result == 0)
         {
@@ -2068,7 +2058,6 @@ int SetUserLoginPassword(struct Upnp_Action_Request *ca_event)
                                         0, NULL);
             ca_event->ErrCode = UPNP_E_SUCCESS;
         }
-
     }
     else
     {
@@ -2122,7 +2111,7 @@ int AddIdentityList(struct Upnp_Action_Request *ca_event)
             if (result == 600)
             {
                 addErrorData(ca_event, result, "Argument Value Invalid");
-            } 
+            }
             else if (result != 0)
             {
                 result = 501;
@@ -2208,10 +2197,10 @@ int RemoveIdentity(struct Upnp_Action_Request *ca_event)
     IXML_Document *identityDoc = NULL;
 
     if ( (identity = GetFirstDocumentItem(ca_event->ActionRequest, "Identity") ))
-    {   
+    {
         // unescape identity
         char *unescValue = unescapeXMLString(identity);
-         
+
         identityDoc = ixmlParseBuffer(unescValue);
         if (identityDoc == NULL)
         {
@@ -2224,10 +2213,10 @@ int RemoveIdentity(struct Upnp_Action_Request *ca_event)
             trace(3, "%s: Received Identity: \n%s",ca_event->ActionName,unescValue); 
             // validate input and remove CP/User
             result = ACL_validateAndRemoveIdentity(ACLDoc, identityDoc);
-            
+
             if (result == 600)
             {
-                addErrorData(ca_event, result, "Argument Value Invalid");               
+                addErrorData(ca_event, result, "Argument Value Invalid");
             }
             else if (result != 0)
             {
@@ -2236,15 +2225,15 @@ int RemoveIdentity(struct Upnp_Action_Request *ca_event)
             }
         }
         free(unescValue);
-        
+
         // all is well
         if (result == 0)
         {
             // write ACL in filesystem
             writeDocumentToFile(ACLDoc, ACL_XML);
             ca_event->ActionResult = UpnpMakeActionResponse(ca_event->ActionName, DP_SERVICE_TYPE,
-                                        0, NULL);                                        
-            ca_event->ErrCode = UPNP_E_SUCCESS;   
+                                        0, NULL);
+            ca_event->ErrCode = UPNP_E_SUCCESS;
         }
         else
         {
@@ -2257,8 +2246,8 @@ int RemoveIdentity(struct Upnp_Action_Request *ca_event)
                 trace(1, "Couldn't load ACL (Access Control List) document which should locate here: %s\nExiting...\n",ACL_XML);
                 UpnpFinish();
                 exit(1);
-            }               
-        }         
+            }
+        }
     }
     else
     {
@@ -2266,11 +2255,11 @@ int RemoveIdentity(struct Upnp_Action_Request *ca_event)
         trace(1, "  Identity: %s",identity);
         addErrorData(ca_event, 402, "Invalid Args");
     }
-    
+
     ixmlDocument_free(identityDoc);
     free(identity);
-    
+
     trace_ixml(3, "Contents of ACL:",ACLDoc);
-    
+
     return ca_event->ErrCode;
 }
