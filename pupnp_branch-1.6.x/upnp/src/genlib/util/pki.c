@@ -52,8 +52,8 @@ static int initialize_gcrypt()
 {
     if (!gcry_control (GCRYCTL_INITIALIZATION_FINISHED_P))
     {
-        fputs ("libgcrypt has not been initialized. pupnp tries to initialize it.\n", stderr);        
-        
+        fputs ("libgcrypt has not been initialized. pupnp tries to initialize it.\n", stderr);
+
         /* Version check should be the very first call because it
           makes sure that important subsystems are intialized. */
         if (!gcry_check_version (GCRYPT_VERSION))
@@ -64,16 +64,16 @@ static int initialize_gcrypt()
         /* Make libgrypt (gnutls) thread save. This assumes that we are using pthred for threading.
            Check http://www.gnu.org/software/gnutls/manual/gnutls.html#Multi_002dthreaded-applications */
         gcry_control (GCRYCTL_SET_THREAD_CBS, &gcry_threads_pthread);
-    
+
         /* to disallow usage of the blocking /dev/random  */
         gcry_control (GCRYCTL_ENABLE_QUICK_RANDOM, 0);
-     
+
         /* Disable secure memory.  */
         gcry_control (GCRYCTL_DISABLE_SECMEM, 0);
 
         /* Tell Libgcrypt that initialization has completed. */
-        gcry_control (GCRYCTL_INITIALIZATION_FINISHED, 0);     
-    }   
+        gcry_control (GCRYCTL_INITIALIZATION_FINISHED, 0);
+    }
     return 0;
 }
 
@@ -97,19 +97,18 @@ int init_crypto_libraries()
     ret = initialize_gcrypt();
     if ( ret != 0 ) {
         UpnpPrintf( UPNP_CRITICAL, X509, __FILE__, __LINE__,
-            "Failed to initialize libgcrypt \n\n");        
-        return ret;       
+            "Failed to initialize libgcrypt \n\n");
+        return ret;
     }
 
     /* this must be called once in the program */
     ret = gnutls_global_init ();
     if ( ret != GNUTLS_E_SUCCESS ) {
         UpnpPrintf( UPNP_CRITICAL, X509, __FILE__, __LINE__,
-            "Failed to initialize gnutls. (%s) \n\n", gnutls_strerror(ret) );        
-        return ret;       
+            "Failed to initialize gnutls. (%s) \n\n", gnutls_strerror(ret) );
+        return ret;
     }
-    
-      
+
     return 0;
 }
 
@@ -129,19 +128,19 @@ int init_crypto_libraries()
 int clientCertCallback(gnutls_session_t session, const gnutls_datum_t* req_ca_dn, int nreqs, gnutls_pk_algorithm_t* pk_algos, int pk_algos_length, gnutls_retr_st* st)
 {
     gnutls_certificate_type type;
-       
+
     type = gnutls_certificate_type_get(session);
-    if (type == GNUTLS_CRT_X509) {         
+    if (type == GNUTLS_CRT_X509) {
         st->type = type;
-        st->ncerts = 1;        
+        st->ncerts = 1;
         st->cert.x509 = &client_crt;  // these two are globals defined in upnpapi
-        st->key.x509 = client_privkey;// 
+        st->key.x509 = client_privkey;//
         st->deinit_all = 0;
-    } 
+    }
     else {
         return -1;
     }
-    
+
     return 0;
 }
 
@@ -166,7 +165,7 @@ int clientCertCallback(gnutls_session_t session, const gnutls_datum_t* req_ca_dn
 static char* read_binary_file(const char *filename, size_t * length)
 {
     FILE *stream = fopen(filename, "rb");
-    
+
     if (!stream) return NULL;
 
     char *buf = NULL;
@@ -179,16 +178,16 @@ static char* read_binary_file(const char *filename, size_t * length)
 
         if (size + BUFSIZ + 1 > alloc) {
             char *new_buf;
-    
+
             alloc += alloc / 2;
             if (alloc < size + BUFSIZ + 1)
                 alloc = size + BUFSIZ + 1;
-    
+
             new_buf = realloc (buf, alloc);
             if (!new_buf) {
                 break;
             }
-    
+
             buf = new_buf;
         }
 
@@ -205,10 +204,10 @@ static char* read_binary_file(const char *filename, size_t * length)
             return buf;
         }
     }
-    
+
   fclose(stream);
-  if (buf) free (buf);
-  return NULL;     
+  free (buf);
+  return NULL;
 }
 
 
@@ -231,15 +230,15 @@ static int read_pem_data_file(const char *filename, gnutls_datum_t *pem_data)
 {
     size_t size = 0;
     char *data = read_binary_file(filename,&size);
-    
+
     if (data && size > 0) {
         pem_data->data = (unsigned char *)data;
-        pem_data->size = (unsigned int)size; 
+        pem_data->size = (unsigned int)size;
     }
     else {
         return -1;
     }
-    
+
     return 0;
 }
 
@@ -274,16 +273,16 @@ static int export_certificate_to_file(const gnutls_x509_crt_t *crt, const gnutls
         return UPNP_E_FILE_NOT_FOUND;  
     }
 
-    // export private key and certificate    
+    // export private key and certificate
     ret = gnutls_x509_privkey_export(*key, GNUTLS_X509_FMT_PEM, buffer, &buffer_size);
     if (ret < 0) {
         UpnpPrintf( UPNP_CRITICAL, X509, __FILE__, __LINE__,
             "gnutls_x509_privkey_export failed. %s \n", gnutls_strerror(ret) );
         fclose(fp);
-        return ret;  
+        return ret;
     }
     fprintf(fp, "%s", buffer);
-    
+
     // if certificate and privatekey files are different files, open second file. Else continue with old file
     if (strcmp(certfile, privkeyfile) != 0) {
         fclose(fp);
@@ -294,18 +293,18 @@ static int export_certificate_to_file(const gnutls_x509_crt_t *crt, const gnutls
             return UPNP_E_FILE_NOT_FOUND;
         }
     }
-    
+
     ret = gnutls_x509_crt_export(*crt, GNUTLS_X509_FMT_PEM, buffer, &buffer_size);
     if (ret < 0) {
         UpnpPrintf( UPNP_CRITICAL, X509, __FILE__, __LINE__,
             "gnutls_x509_crt_export failed. %s \n", gnutls_strerror(ret) );
-        return ret;  
+        return ret;
     }
     fprintf(fp, "%s", buffer);
-    
+
     fclose(fp);
-    
-    return 0; 
+
+    return 0;
 }
 
 
@@ -334,20 +333,20 @@ static int create_new_certificate(gnutls_x509_crt_t *crt, gnutls_x509_privkey_t 
 {
     unsigned char buffer[10 * 1024];
     int ret, serial;
-    
+
     // create dir if doesn't exist yet
     ret = mkdir(directory, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
     if (ret != 0 && errno != EEXIST) {
         UpnpPrintf( UPNP_CRITICAL, X509, __FILE__, __LINE__,
             "Failed to create certificate directory %s \n", directory );
-        return UPNP_E_FILE_NOT_FOUND;  
+        return UPNP_E_FILE_NOT_FOUND;
     }
-    
+
     ret = gnutls_x509_privkey_generate (*key, GNUTLS_PK_RSA, modulusBits, 0);
     if (ret < 0) {
         UpnpPrintf( UPNP_CRITICAL, X509, __FILE__, __LINE__,
             "gnutls_x509_privkey_generate failed. %s \n", gnutls_strerror(ret) );
-        return ret;  
+        return ret;
     }
 
     // set common name
@@ -355,22 +354,22 @@ static int create_new_certificate(gnutls_x509_crt_t *crt, gnutls_x509_privkey_t 
     if (ret < 0) {
         UpnpPrintf( UPNP_CRITICAL, X509, __FILE__, __LINE__,
             "gnutls_x509_crt_set_dn_by_oid failed. %s \n", gnutls_strerror(ret) );
-        return ret;  
-    }  
-        
+        return ret;
+    }
+
     // set private key for cert
     ret = gnutls_x509_crt_set_key (*crt, *key);
     if (ret < 0) {
         UpnpPrintf( UPNP_CRITICAL, X509, __FILE__, __LINE__,
             "gnutls_x509_crt_set_key failed. %s \n", gnutls_strerror(ret) );
-        return ret;  
+        return ret;
     }
 
     ret = gnutls_x509_crt_set_activation_time (*crt, time (NULL));
     if (ret < 0) {
         UpnpPrintf( UPNP_CRITICAL, X509, __FILE__, __LINE__,
             "gnutls_x509_crt_set_activation_time. %s \n", gnutls_strerror(ret) );
-        return ret;  
+        return ret;
     }
 
 // this tries to solve Year 2038 problem with "too big" unix timestamps http://en.wikipedia.org/wiki/Year_2038_problem
@@ -378,47 +377,47 @@ static int create_new_certificate(gnutls_x509_crt_t *crt, gnutls_x509_privkey_t 
     ret = gnutls_x509_crt_set_expiration_time (*crt, UPNP_X509_CERT_ULTIMATE_EXPIRE_DATE);
 #else
     ret = gnutls_x509_crt_set_expiration_time (*crt, time (NULL) + lifetime);
-#endif      
+#endif
     if (ret < 0) {
         UpnpPrintf( UPNP_CRITICAL, X509, __FILE__, __LINE__,
             "gnutls_x509_crt_set_expiration_time failed. %s \n", gnutls_strerror(ret) );
-        return ret;  
+        return ret;
     }
-        
+
     //serial
     serial = time (NULL);
     buffer[4] = serial & 0xff;
     buffer[3] = (serial >> 8) & 0xff;
     buffer[2] = (serial >> 16) & 0xff;
     buffer[1] = (serial >> 24) & 0xff;
-    buffer[0] = 0;    
-    
+    buffer[0] = 0;
+
     ret = gnutls_x509_crt_set_serial (*crt, buffer, 5);
     if (ret < 0) {
         UpnpPrintf( UPNP_CRITICAL, X509, __FILE__, __LINE__,
             "gnutls_x509_crt_set_serial failed. %s \n", gnutls_strerror(ret) );
-        return ret;  
+        return ret;
     }
-        
+
     // sign certificate
     ret = gnutls_x509_crt_sign2 (*crt, *crt, *key, GNUTLS_DIG_SHA256, 0);
     if (ret < 0) {
         UpnpPrintf( UPNP_CRITICAL, X509, __FILE__, __LINE__,
             "gnutls_x509_crt_sign2 failed. %s \n", gnutls_strerror(ret) );
-        return ret;  
-    }    
+        return ret;
+    }
 
     // set version
     ret = gnutls_x509_crt_set_version(*crt, UPNP_X509_CERT_VERSION);
     if (ret < 0) {
         UpnpPrintf( UPNP_CRITICAL, X509, __FILE__, __LINE__,
             "gnutls_x509_crt_set_version failed. %s \n", gnutls_strerror(ret) );
-        return ret;  
-    }    
-    
+        return ret;
+    }
+
     ret = export_certificate_to_file(crt, key, certfile, privkeyfile);
-    
-    return ret;        
+
+    return ret;
 }
 
 
@@ -445,67 +444,67 @@ int init_x509_certificate_credentials(gnutls_certificate_credentials_t *x509_cre
 {
     int ret;
     int dirlen = strlen(directory);
-    
+
     // add trailing '/' if directory doesn't have it yet
     char tmpDir[dirlen+1];
     strcpy(tmpDir,directory);
     if (directory[dirlen-1] != '/')
     {
-        strcat(tmpDir, "/"); 
+        strcat(tmpDir, "/");
         dirlen = strlen(tmpDir);
-    }   
+    }
 
     ret = gnutls_certificate_allocate_credentials (x509_cred);
     if ( ret != GNUTLS_E_SUCCESS ) {
         UpnpPrintf( UPNP_CRITICAL, X509, __FILE__, __LINE__,
-            "StartHttpsServer: gnutls_certificate_allocate_credentials failed. (%s) \n\n", gnutls_strerror(ret) );        
-        return ret;    
-    }    
-    
+            "StartHttpsServer: gnutls_certificate_allocate_credentials failed. (%s) \n\n", gnutls_strerror(ret) );
+        return ret;
+    }
+
     if (TrustFile) {
         char tmp_trustfile[dirlen+strlen(TrustFile)];
         strcpy(tmp_trustfile, tmpDir);
         strcat(tmp_trustfile,TrustFile);
-                
+
         ret = gnutls_certificate_set_x509_trust_file (*x509_cred, tmp_trustfile, GNUTLS_X509_FMT_PEM); // white list
         if (ret < 0) {
             UpnpPrintf( UPNP_CRITICAL, X509, __FILE__, __LINE__,
                 "StartHttpsServer: gnutls_certificate_set_x509_trust_file failed (%s)\n\n", gnutls_strerror (ret));
-            return ret;       
+            return ret;
         }
     }
-    
+
     if (CRLFile) {
         char tmp_crlfile[dirlen+strlen(CRLFile)];
         strcpy(tmp_crlfile, tmpDir);
         strcat(tmp_crlfile,CRLFile);
-        
-        ret = gnutls_certificate_set_x509_crl_file (*x509_cred, tmp_crlfile, GNUTLS_X509_FMT_PEM); // black list    
+
+        ret = gnutls_certificate_set_x509_crl_file (*x509_cred, tmp_crlfile, GNUTLS_X509_FMT_PEM); // black list
         if (ret < 0) {
             UpnpPrintf( UPNP_CRITICAL, X509, __FILE__, __LINE__,
                 "StartHttpsServer: gnutls_certificate_set_x509_crl_file failed. (%s)\n\n", gnutls_strerror (ret));
-            return ret;                   
+            return ret;
         }
     }
 
     if (CertFile && PrivKeyFile) {
         char tmp_certfile[dirlen+strlen(CertFile)];
         char tmp_privkeyfile[dirlen+strlen(PrivKeyFile)];
-        
+
         strcpy(tmp_certfile, tmpDir);
         strcat(tmp_certfile,CertFile);
-        
+
         strcpy(tmp_privkeyfile, tmpDir);
         strcat(tmp_privkeyfile,PrivKeyFile);
-        
-        ret = gnutls_certificate_set_x509_key_file (*x509_cred, tmp_certfile, tmp_privkeyfile, GNUTLS_X509_FMT_PEM);                    
+
+        ret = gnutls_certificate_set_x509_key_file (*x509_cred, tmp_certfile, tmp_privkeyfile, GNUTLS_X509_FMT_PEM);
         if (ret != GNUTLS_E_SUCCESS) {
             UpnpPrintf( UPNP_CRITICAL, X509, __FILE__, __LINE__,
                 "StartHttpsServer: gnutls_certificate_set_x509_key_file failed. (%s)\n\n", gnutls_strerror (ret));
-            return ret;    
-        } 
+            return ret;
+        }
     }
-    
+
     return 0;
 }
 
@@ -534,11 +533,11 @@ int init_x509_certificate_credentials(gnutls_certificate_credentials_t *x509_cre
 *   Note :
 ************************************************************************/
 int load_x509_self_signed_certificate(gnutls_x509_crt_t *crt, gnutls_x509_privkey_t *key, const char *directory, const char *certfile, const char *privkeyfile, const char *CN, const int modulusBits, const unsigned long lifetime)
-{    
+{
     int ret = 0;
     gnutls_datum_t pem_data = {NULL, 0};
     int dirlen = strlen(directory);
-    
+
     // add trailing '/' if directory doesn't have it yet
     char tmpDir[dirlen+1];
     strcpy(tmpDir,directory);
@@ -546,25 +545,25 @@ int load_x509_self_signed_certificate(gnutls_x509_crt_t *crt, gnutls_x509_privke
     {
         strcat(tmpDir, "/"); 
         dirlen = strlen(tmpDir);
-    }   
+    }
 
     char tmp_certfile[dirlen+strlen(certfile)];
     char tmp_privkeyfile[dirlen+strlen(privkeyfile)];
-    
+
     strcpy(tmp_certfile, tmpDir);
     strcat(tmp_certfile,certfile);
-    
+
     strcpy(tmp_privkeyfile, tmpDir);
     strcat(tmp_privkeyfile,privkeyfile);
-    
+
     // init private key
     ret = gnutls_x509_privkey_init (key);
     if (ret < 0) {
         UpnpPrintf( UPNP_CRITICAL, X509, __FILE__, __LINE__,
             "gnutls_x509_privkey_init failed. %s \n", gnutls_strerror(ret) );
-        return ret;  
+        return ret;
     }
-    
+
     //init certificate
     ret = gnutls_x509_crt_init (crt);
     if (ret < 0) {
@@ -582,11 +581,11 @@ int load_x509_self_signed_certificate(gnutls_x509_crt_t *crt, gnutls_x509_privke
             UpnpPrintf( UPNP_CRITICAL, X509, __FILE__, __LINE__,
                 "gnutls_x509_privkey_import failed. %s \n", gnutls_strerror(ret) );
             return ret;
-        }         
+        }
 
         // import certificate from file
         ret = read_pem_data_file(tmp_certfile, &pem_data);
-        if (ret == 0) { 
+        if (ret == 0) {
             ret = gnutls_x509_crt_import(*crt, &pem_data, GNUTLS_X509_FMT_PEM);
             if (ret < 0) {
                 UpnpPrintf( UPNP_CRITICAL, X509, __FILE__, __LINE__,
@@ -600,7 +599,7 @@ int load_x509_self_signed_certificate(gnutls_x509_crt_t *crt, gnutls_x509_privke
                     "X.509 certificate validation failed. %s \n", gnutls_strerror(ret) );
                 if (pem_data.data) free(pem_data.data); 
                 return ret;
-            }      
+            }
         }
         else {
             ret = create_new_certificate(crt, key, tmpDir, tmp_certfile, tmp_privkeyfile, CN, modulusBits, lifetime);
@@ -611,7 +610,7 @@ int load_x509_self_signed_certificate(gnutls_x509_crt_t *crt, gnutls_x509_privke
     }
 
     if (pem_data.data) free(pem_data.data); 
-    return ret;   
+    return ret;
 }
 
 
@@ -640,7 +639,7 @@ int validate_x509_certificate(const gnutls_x509_crt_t *crt, const char *hostname
     int ret = 0;
     size_t buf_size = 20;
     char buf[buf_size];
-    
+
     if (gnutls_x509_crt_get_expiration_time (*crt) < time (NULL)) {
         UpnpPrintf( UPNP_CRITICAL, X509, __FILE__, __LINE__,
             "Certificate has expired\n");
@@ -660,23 +659,23 @@ int validate_x509_certificate(const gnutls_x509_crt_t *crt, const char *hostname
             return GNUTLS_E_X509_CERTIFICATE_ERROR;
         }
     }
-    
+
     if (commonname) {
         ret = gnutls_x509_crt_get_dn_by_oid (*crt, GNUTLS_OID_X520_COMMON_NAME, 0, 0, buf, &buf_size);
         if (ret != 0) {
             UpnpPrintf( UPNP_CRITICAL, X509, __FILE__, __LINE__,
                 "Failed to get certificates Common Name value\n"); 
-            return ret; 
+            return ret;
         }
-        
+
         if (strcmp(buf, commonname) != 0) {
             UpnpPrintf( UPNP_CRITICAL, X509, __FILE__, __LINE__,
                 "Certificate's Common Name '%s' isn't what expected '%s'\n",buf,commonname);
             return GNUTLS_E_X509_CERTIFICATE_ERROR;
         }
     }
-    
-    return ret;  
+
+    return ret;
 }
 
 
@@ -708,10 +707,10 @@ int get_peer_certificate(gnutls_session_t session, unsigned char *data, int *dat
     if ((ret = gnutls_certificate_type_get (session)) != GNUTLS_CRT_X509)
     {
         UpnpPrintf( UPNP_CRITICAL, X509, __FILE__, __LINE__,
-            "Peer certificate type must be X.509. Wrong type received.\n");          
+            "Peer certificate type must be X.509. Wrong type received.\n");
         return GNUTLS_E_UNSUPPORTED_CERTIFICATE_TYPE;
     }
-    
+
     // get certificate list. First in list is peers
     cert_list = gnutls_certificate_get_peers (session, &cert_list_size);
     if (cert_list == NULL || cert_list_size < 1)
@@ -745,9 +744,9 @@ int get_peer_certificate(gnutls_session_t session, unsigned char *data, int *dat
         UpnpPrintf( UPNP_CRITICAL, X509, __FILE__, __LINE__,
             "gnutls_x509_crt_export failed. %s \n", gnutls_strerror(ret) );
         gnutls_x509_crt_deinit (cert);
-        return ret;  
+        return ret;
     }
-     
+
     // get Common name value from certificate
     if (CN != NULL)
     {
@@ -758,12 +757,11 @@ int get_peer_certificate(gnutls_session_t session, unsigned char *data, int *dat
             UpnpPrintf( UPNP_CRITICAL, X509, __FILE__, __LINE__,
                 "Failed to get certificates Common Name value\n");
             gnutls_x509_crt_deinit (cert);
-            return ret; 
+            return ret;
         }
     }
-     
-    gnutls_x509_crt_deinit (cert);
-     
-    return 0; 
-}
 
+    gnutls_x509_crt_deinit (cert);
+
+    return 0;
+}
