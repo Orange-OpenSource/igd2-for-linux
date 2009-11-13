@@ -1878,43 +1878,57 @@ int GetRolesForAction(struct Upnp_Action_Request *ca_event)
 {
     int result = 0;
 
-    char *actionName = NULL;
+    char *deviceUDN = NULL;
     char *serviceId = NULL;
+    char *actionName = NULL;
     char *accessLevel = NULL;
     char *accessLevelManage = NULL;
 
-    if ( (serviceId = GetFirstDocumentItem(ca_event->ActionRequest, "ServiceId"))
+    if ( (deviceUDN = GetFirstDocumentItem(ca_event->ActionRequest, "DeviceUDN"))
+        && (serviceId = GetFirstDocumentItem(ca_event->ActionRequest, "ServiceId"))
         && (actionName = GetFirstDocumentItem(ca_event->ActionRequest, "ActionName")) )
     {
-        accessLevel = getAccessLevel(serviceId, actionName, 0, NULL);
-
-        if (accessLevel)
+        /* Here we are going to cheat a little. Instead of checking that ActionName is found from device
+           with DeviceUDN, we just check that given DeviceUDN is valid. This IGD won't most probably 
+           have two services with same id under different devices. */
+        if ( (strcmp(deviceUDN, gateUDN) != 0) && (strcmp(deviceUDN, wanUDN) != 0) && (strcmp(deviceUDN, wanConnectionUDN) != 0) )
         {
-            // get managed accesslevel if it exists
-            accessLevelManage = getAccessLevel(serviceId,actionName, 1, NULL);
-            if (accessLevelManage)
-            {
-                ca_event->ActionResult = UpnpMakeActionResponse(ca_event->ActionName, DP_SERVICE_TYPE,
-                                            2,
-                                            "RoleList", accessLevel,
-                                            "RestrictedRoleList", accessLevelManage);
-            }
-            else
-            {
-                ca_event->ActionResult = UpnpMakeActionResponse(ca_event->ActionName, DP_SERVICE_TYPE,
-                                            2,
-                                            "RoleList", accessLevel,
-                                            "RestrictedRoleList", "");
-            }
-            ca_event->ErrCode = UPNP_E_SUCCESS;
+            trace(1, "%s: Invalid DeviceUDN '%s'",
+                  ca_event->ActionName, deviceUDN);
+            result = 600;
+            addErrorData(ca_event, result, "Argument Value Invalid");
         }
         else
         {
-            // invalid ActionName
-            trace(1, "GetRolesForAction: Combination of ServiceId '%s' and ActionName '%s' is not found from %s",
-                  serviceId,actionName,g_vars.accessLevelXml);
-            result = 600;
-            addErrorData(ca_event, result, "Argument Value Invalid");
+            accessLevel = getAccessLevel(serviceId, actionName, 0, NULL);
+            if (accessLevel)
+            {
+                // get managed accesslevel if it exists
+                accessLevelManage = getAccessLevel(serviceId,actionName, 1, NULL);
+                if (accessLevelManage)
+                {
+                    ca_event->ActionResult = UpnpMakeActionResponse(ca_event->ActionName, DP_SERVICE_TYPE,
+                                                2,
+                                                "RoleList", accessLevel,
+                                                "RestrictedRoleList", accessLevelManage);
+                }
+                else
+                {
+                    ca_event->ActionResult = UpnpMakeActionResponse(ca_event->ActionName, DP_SERVICE_TYPE,
+                                                2,
+                                                "RoleList", accessLevel,
+                                                "RestrictedRoleList", "");
+                }
+                ca_event->ErrCode = UPNP_E_SUCCESS;
+            }
+            else
+            {
+                // invalid ActionName
+                trace(1, "%s: Combination of ServiceId '%s' and ActionName '%s' is not found from %s",
+                    ca_event->ActionName,serviceId,actionName,g_vars.accessLevelXml);
+                result = 600;
+                addErrorData(ca_event, result, "Argument Value Invalid");
+            }
         }
     }
     else
@@ -1924,6 +1938,8 @@ int GetRolesForAction(struct Upnp_Action_Request *ca_event)
         addErrorData(ca_event, 402, "Invalid Args");
     }
 
+    free(deviceUDN);
+    free(serviceId);
     free(actionName);
     free(accessLevel);
     free(accessLevelManage);

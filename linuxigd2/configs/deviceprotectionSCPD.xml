@@ -57,6 +57,12 @@
             <name>GetRolesForAction</name>
             <argumentList>
                 <argument>
+                    <name>DeviceUDN</name>
+                    <direction>in</direction>
+                    <relatedStateVariable>A_ARG_TYPE_String</relatedStateVariable>
+                </argument>
+
+                <argument>
                     <name>ServiceId</name>
                     <direction>in</direction>
                     <relatedStateVariable>A_ARG_TYPE_String</relatedStateVariable>
