@@ -64,6 +64,54 @@ static int get_sockfd(void)
 }
 
 /**
+ * Create union from items separated with space in strings given.
+ * Use free() for created string.
+ *
+ * @param str1 First string to unionize
+ * @param str2 Second string to unionize
+ * @return New allocated union string or NULL if fails.
+ */
+char* createUnion(const char *str1, const char *str2)
+{
+    if (!str1 || !str2)
+        return NULL;
+
+    char *unionStr = NULL;
+    size_t size = strlen(str1) + strlen(str2) + 2;
+    unionStr = (char *)malloc(size);
+    if (!unionStr)
+        return NULL;
+
+    // base for the union is created by copying whole str1 to it
+    strcpy(unionStr,str1);
+
+    // make copy of str2 so we can tokenize it
+    char copystr[strlen(str1)];
+    // go through all roles in list
+    strcpy(copystr,str2);
+    char *item = strtok(copystr, " ");
+    if (item)
+    {
+        do
+        {
+            // do "raw" check that this item isn't already in current items
+            if ( strstr(unionStr,item) == NULL )
+            {
+                // add new item at the end of rolelist
+                if (strlen(unionStr) > 0)
+                {
+                    strcat(unionStr, " ");
+                }
+                strcat(unionStr, item);
+            }
+        } while ((item = strtok(NULL, " ")));
+
+    }
+
+    return unionStr;
+}
+
+/**
  * Get values for send bytes and packets and received bytes and packets for 
  * external interface from /proc/net/dev
  *
@@ -2369,16 +2417,16 @@ IXML_Document *SIR_init()
  * have logged in. 
  * NOTE:rolelist also automatically adds "lower roles" to rolelist. For example if role parameter
  *      contains role "Admin" then also roles "Basic" and "Public" are added to rolelist. Value of 
- *      rolelist would in this case be rolelist>Public Basic Admin</rolelist>
+ *      rolelist would in this case be <rolelist>Public Basic Admin</rolelist>
  * 
- * Logindata contains information received/send in GetUserLoginChallenge. "name" is username/
- * role that CP wishes to login, "challenge" is value of challenge that device send for CP
+ * Logindata contains information received/send in GetUserLoginChallenge. "name" is username
+ * that CP wishes to login, "challenge" is value of challenge that device send for CP
  * as response for GetUserLoginChallenge.
  * 
  * Challenge is base64 encoded strings.
  *
  * <SIR>
- *  <session id="AHHuendfn372jsuGDS==" active="1">
+ *  <session id="e7fd60a2-2053-447d-be2f-45f2d611cd1a" active="1">
  *      <identity>username</identity>
  *      <rolelist>Public</rolelist>
  *      <logindata>
@@ -2396,7 +2444,7 @@ IXML_Document *SIR_init()
  * @param attempts Value of "loginattempts" attribute
  * @param loginName Username or role that CP wishes to login. If this parameter is given, also loginChallenge must be given.
  * @param loginChallenge Login challenge which was send to CP as challenge for this login attempt. If this parameter is given, also loginName must be given.
- * @return 0 on success, -1 if same id is exist, something neagetive else.
+ * @return 0 on success, -1 if same id is exist, something negative else.
  */
 int SIR_addSession(IXML_Document *doc, const char *id, int active, const char *identity, const char *role, int *attempts, const char *loginName, const char *loginChallenge)
 {
@@ -2471,10 +2519,9 @@ int SIR_addSession(IXML_Document *doc, const char *id, int active, const char *i
  * Update values of Session with given identifier id to SIR.
  * Any of the values, except id, may be NULL. If value is NULL, existing old value is left 
  * untouched. 
- * Value of "rolelist" will be an union of old and new roles.
  *
  * <SIR>
- *  <session id="AHHuendfn372jsuGDS==" active="1">
+ *  <session id="e7fd60a2-2053-447d-be2f-45f2d611cd1a" active="1">
  *      <identity>username</identity>
  *      <rolelist>Public Basic</rolelist>
  *      <logindata loginattempts="5">
@@ -2534,34 +2581,7 @@ int SIR_updateSession(IXML_Document *doc, const char *id, int *active, const cha
         newIdentity = oldIdentity;
 
     if (roles != NULL)
-    {
-        // create union of old and new roles
-        newRoleList = (char *)malloc(strlen(roles) + strlen(oldRole)+2);
-        strcpy(newRoleList, oldRole);
-
-        char rolelist[strlen(roles)];
-        // go through all roles in list
-        strcpy(rolelist,roles);
-        char *role = strtok(rolelist, " ");
-        if (role)
-        {
-            do
-            {
-                // do "raw" check that this role isn't already in current roles
-                if ( strstr(newRoleList,role) == NULL )
-                {
-                    // add new role at the end of rolelist
-                    if (strlen(newRoleList) > 0)
-                    {
-                        strcat(newRoleList, " ");
-                    }
-                    strcat(newRoleList, role);
-                }
-            } while ((role = strtok(NULL, " ")));
-
-        }
-        newRole = newRoleList;
-    }
+        newRole = (char *)roles;
     else
         newRole = oldRole;
 
@@ -2615,7 +2635,8 @@ int SIR_removeSession(IXML_Document *doc, const char *id)
 
 
 /**
- * Get identity correspondign given id where id means that cool uuid thingy
+ * Get identity correspondign given id where id means that cool uuid thingy.
+ * Can also be used for fetching roles defined for ID.
  *
  * <SIR>
  *  <session id="e7fd60a2-2053-447d-be2f-45f2d611cd1a" active="1">

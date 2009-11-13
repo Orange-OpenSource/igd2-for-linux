@@ -1505,9 +1505,13 @@ int UserLogin(struct Upnp_Action_Request *ca_event)
                     // Login is now succeeded
                     loginattempts = 0;
                     active = 1;
-                    // fetch roles of logged in loginname and set those as parameter for SIR_updateSession
-                    char *roles = ACL_getRolesOfUser(ACLDoc, loginName); 
+
+                    // fetch roles of logged in loginname and roles defined for CP and set those as parameter for SIR_updateSession
+                    char *roles = createUnion(ACL_getRolesOfUser(ACLDoc, loginName), ACL_getRolesOfCP(ACLDoc, id));
+
+                    // after updating SIR, login is official
                     result = SIR_updateSession(SIRDoc, (char *)id, &active, loginName, roles, &loginattempts, NULL, NULL);
+
                     free(roles);
 
                     // remove logindata from SIR

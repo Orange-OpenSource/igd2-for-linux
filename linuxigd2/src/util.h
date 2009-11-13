@@ -45,6 +45,7 @@ typedef enum {
     ACL_ROLE_ERROR        = -3,  //role either exist if it shouldn't or doesn't exist even if should
 } ACL_ERRORCODE;
 
+char* createUnion(const char *str1, const char *str2);
 int readStats(unsigned long stats[STATS_LIMIT]);
 char* escapeXMLString(const char *xml);
 char* unescapeXMLString(const char *escXML);

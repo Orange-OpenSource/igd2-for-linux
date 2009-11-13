@@ -3,7 +3,7 @@
     <Identities>
         <User>
             <Name>Administrator</Name>
-            <RoleList>Admin</RoleList>
+            <RoleList>Admin Basic Public</RoleList>
         </User>
     </Identities>
     <Roles>
