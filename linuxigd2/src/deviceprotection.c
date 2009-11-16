@@ -2152,13 +2152,12 @@ int AddIdentityList(struct Upnp_Action_Request *ca_event)
             if (responseIdentities)
             {
                 // replace <Identities> from beginning with <Identities xmlns="...>
-                char responseIdentitiesWithNamespace[strlen(responseIdentities)+240];
+                char responseIdentitiesWithNamespace[strlen(responseIdentities)+300]; // 300 is few chars more than text below
                 strcpy(responseIdentitiesWithNamespace,"<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
                                                        "<Identities xmlns=\"urn:schemas-upnp-org:gw:DeviceProtection\" "
                                                        "xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" "
                                                        "xsi:schemaLocation=\"urn:schemas-upnp-org:gw:DeviceProtection "
                                                        "http://www.upnp.org/schemas/gw/DeviceProtection-v1.xsd\">");
-
                 strcat(responseIdentitiesWithNamespace, responseIdentities+12);
                 free(responseIdentities);
 
