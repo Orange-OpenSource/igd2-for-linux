@@ -1443,11 +1443,13 @@ gupnp_device_proxy_change_password (GUPnPDeviceProxy                       *prox
 
         g_free(b64_salt);
         g_free(b64_stored);
-
         gupnp_service_proxy_begin_action(passworddata->device_prot_service,
                                          "SetUserLoginPassword",
                                          set_user_login_password_response,
                                          passworddata,
+                                         "ProtocolType",
+                                         G_TYPE_STRING,
+                                         "PKCS5",
                                          "Name",
                                          G_TYPE_STRING,
                                          username,
@@ -1456,7 +1458,7 @@ gupnp_device_proxy_change_password (GUPnPDeviceProxy                       *prox
                                          passworddata->stored->str,
                                          "Salt",
                                          G_TYPE_STRING,
-                                         passworddata->salt->str,                                                                                  
+                                         passworddata->salt->str,
                                          NULL);
 
         return passworddata;

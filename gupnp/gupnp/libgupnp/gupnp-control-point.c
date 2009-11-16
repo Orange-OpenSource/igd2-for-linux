@@ -383,7 +383,8 @@ process_device_list (xmlNode           *element,
                                        proxy);
 
                         // set SSL client for proxy
-                        gupnp_device_proxy_set_ssl_client(proxy, *client);
+                        if (client != NULL && *client != NULL)
+                            gupnp_device_proxy_set_ssl_client(proxy, *client);
                         
                         if (root_proxy == NULL)               
                             root_proxy = proxy;

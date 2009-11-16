@@ -649,12 +649,12 @@ ssl_close_client_session( GUPnPSSLClient **client )
  * Return Values: int
  *      0 on success.
  *      
- ***************************************************************************/                                  
+ ***************************************************************************/
 int ssl_client_send_and_receive(  GUPnPSSLClient **client,
                                   char *message,
                                   SoupMessage *msg,
                                   GUPnPSSLClientCallback callback,
-                                  gpointer userdata)                                       
+                                  gpointer userdata)
 {
     GUPnPSSLThreadData *data = g_slice_new(GUPnPSSLThreadData);
     data->client = client;
@@ -662,9 +662,12 @@ int ssl_client_send_and_receive(  GUPnPSSLClient **client,
     data->soupmesg = msg;
     data->callback = callback;
     data->userdata = userdata;
+g_debug("Will not use threads for sending");
+ssl_client_send_and_receive_thread(data);
 
+/*
     g_thread_pool_push ((*client)->thread_pool,
                         data,
                         NULL); 
-    return 0;
+  */  return 0;
 }
