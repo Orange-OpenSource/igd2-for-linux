@@ -300,12 +300,12 @@ show_service_details (GUPnPServiceInfo *info)
         str = gupnp_service_info_get_location (info);
         if (str)
                 details[i++] = g_strdup (str);
-
+/*
         details[i++] = "Secure Location";
         str = gupnp_service_info_get_secure_location (info);
         if (str)
                 details[i++] = g_strdup (str);
-
+*/
         details[i++] = "UDN";
         str = gupnp_service_info_get_udn (info);
         if (str)
@@ -358,12 +358,12 @@ show_device_details (GUPnPDeviceInfo *info)
         str = gupnp_device_info_get_location (info);
         if (str)
                 details[i++] = g_strdup (str);
-
+/*
         details[i++] = "Secure Location";
         str = gupnp_device_info_get_secure_location (info);
         if (str)
                 details[i++] = g_strdup (str);
-
+*/
         details[i++] = "UDN";
         str = gupnp_device_info_get_udn (info);
         if (str)
