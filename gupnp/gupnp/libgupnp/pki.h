@@ -2,6 +2,7 @@
 #define PKI_H_
 
 #include <gnutls/gnutls.h>
+#include <pthread.h>
 
 // these error codes are used in libupnp. Here they are defined with extra G in their name
 // this is ugly, I know... Just too lazy to modify code to suite better with gupnp

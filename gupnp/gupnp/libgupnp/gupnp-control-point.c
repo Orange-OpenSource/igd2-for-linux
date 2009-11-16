@@ -676,7 +676,7 @@ static void header_callback(const char *name,
 /* Create a string from SoupMessage. String contains headers and the body */
 static int create_msg_string( SoupMessage *soupmsg, char *path, char *host, int port, char **full_message)
 {
-    char headers[500] = "\0";
+    char headers[1000] = "\0";
     char *http_version;
 
     if (soup_message_get_http_version(soupmsg) == SOUP_HTTP_1_1)

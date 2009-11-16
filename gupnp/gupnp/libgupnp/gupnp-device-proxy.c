@@ -559,15 +559,6 @@ gupnp_device_proxy_begin_wps (GUPnPDeviceProxy           *proxy,
         g_return_val_if_fail (callback, NULL);
         g_return_val_if_fail (client_name, NULL);
 
-
-        // we need to have SSL
-        // so let's create it (if not created already)
-        if (!gupnp_device_proxy_init_ssl (proxy, &wps->error))
-        {
-                g_warning("Error: %s", wps->error->message);
-                return wps;
-        }
-
         wps = g_slice_new (GUPnPDeviceProxyWps);
         wps->proxy = proxy;
         wps->callback = callback;
@@ -579,7 +570,15 @@ gupnp_device_proxy_begin_wps (GUPnPDeviceProxy           *proxy,
         wps->method = method;
         wps->done = FALSE;
         wps->wpsu_input = g_slice_new(WPSuRegistrarInput);
-        
+
+        // we need to have SSL
+        // so let's create it (if not created already)
+        if (!gupnp_device_proxy_init_ssl (proxy, &wps->error))
+        {
+                g_warning("Error: %s", wps->error->message);
+                return wps;
+        }
+
         // nullify input
         memset(wps->wpsu_input, 0, sizeof(*(wps->wpsu_input)));
 
@@ -1136,16 +1135,6 @@ gupnp_device_proxy_begin_login (GUPnPDeviceProxy           *proxy,
         // so let's create it
         gupnp_device_proxy_init_ssl (proxy, &gerror);
 
-        if (gupnp_device_proxy_get_ssl_client(proxy) == NULL)
-        {
-                logindata->error = g_error_new(GUPNP_SERVER_ERROR,
-                             GUPNP_SERVER_ERROR_OTHER,
-                             "For logging in SSL connection is needed.");
-                g_warning("Error: %s", logindata->error->message);
-                return logindata;
-        }
-
-
         logindata = g_slice_new (GUPnPDeviceProxyLogin);
         logindata->proxy = proxy;
         logindata->callback = callback;
@@ -1158,6 +1147,14 @@ gupnp_device_proxy_begin_login (GUPnPDeviceProxy           *proxy,
         logindata->challenge = NULL;
         logindata->done = FALSE;
 
+        if (gupnp_device_proxy_get_ssl_client(proxy) == NULL)
+        {
+                logindata->error = g_error_new(GUPNP_SERVER_ERROR,
+                             GUPNP_SERVER_ERROR_OTHER,
+                             "For logging in SSL connection is needed.");
+                g_warning("Error: %s", logindata->error->message);
+                return logindata;
+        }
 
         if (logindata->device_prot_service == NULL)
         {
@@ -1252,16 +1249,6 @@ gupnp_device_proxy_begin_logout (GUPnPDeviceProxy           *proxy,
         // so let's create it (if not created already
         gupnp_device_proxy_init_ssl (proxy, &gerror);
 
-        if (gupnp_device_proxy_get_ssl_client(proxy) == NULL)
-        {
-                logoutdata->error = g_error_new(GUPNP_SERVER_ERROR,
-                             GUPNP_SERVER_ERROR_OTHER,
-                             "For logging out SSL connection is needed.");
-                g_warning("Error: %s", logoutdata->error->message);
-                return logoutdata;
-        }
-
-
         logoutdata = g_slice_new (GUPnPDeviceProxyLogout);
         logoutdata->proxy = proxy;
         logoutdata->callback = callback;
@@ -1270,6 +1257,14 @@ gupnp_device_proxy_begin_logout (GUPnPDeviceProxy           *proxy,
         logoutdata->device_prot_service = find_device_protection_service (proxy);
         logoutdata->done = FALSE;
 
+        if (gupnp_device_proxy_get_ssl_client(proxy) == NULL)
+        {
+                logoutdata->error = g_error_new(GUPNP_SERVER_ERROR,
+                             GUPNP_SERVER_ERROR_OTHER,
+                             "For logging out SSL connection is needed.");
+                g_warning("Error: %s", logoutdata->error->message);
+                return logoutdata;
+        }
 
         if (logoutdata->device_prot_service == NULL)
         {
@@ -1351,16 +1346,6 @@ gupnp_device_proxy_change_password (GUPnPDeviceProxy                       *prox
         // we need to have SSL
         // so let's create it
         gupnp_device_proxy_init_ssl (proxy, &gerror);
-        
-        if (gupnp_device_proxy_get_ssl_client(proxy) == NULL)
-        {
-                passworddata->error = g_error_new(GUPNP_SERVER_ERROR,
-                             GUPNP_SERVER_ERROR_OTHER,
-                             "For changing user password SSL connection is needed.");
-                g_warning("Error: %s", passworddata->error->message);
-                return passworddata;
-        }
-
 
         passworddata = g_slice_new (GUPnPDeviceProxyChangePassword);
         passworddata->proxy = proxy;
@@ -1374,6 +1359,14 @@ gupnp_device_proxy_change_password (GUPnPDeviceProxy                       *prox
         passworddata->stored = NULL;
         passworddata->done = FALSE;
 
+        if (gupnp_device_proxy_get_ssl_client(proxy) == NULL)
+        {
+                passworddata->error = g_error_new(GUPNP_SERVER_ERROR,
+                             GUPNP_SERVER_ERROR_OTHER,
+                             "For changing user password SSL connection is needed.");
+                g_warning("Error: %s", passworddata->error->message);
+                return passworddata;
+        }
 
         if (passworddata->device_prot_service == NULL)
         {
@@ -1438,8 +1431,8 @@ gupnp_device_proxy_change_password (GUPnPDeviceProxy                       *prox
         wpsu_bin_to_base64(GUPNP_DP_STORED_BYTES, bin_stored, &stored_len, b64_stored, maxb64len);
 
         // create GStrings from salt and stored
-        passworddata->salt = g_string_new_len(b64_salt, salt_len);
-        passworddata->stored = g_string_new_len(b64_stored, stored_len);
+        passworddata->salt = g_string_new_len((char *)b64_salt, salt_len);
+        passworddata->stored = g_string_new_len((char *)b64_stored, stored_len);
 
         g_free(b64_salt);
         g_free(b64_stored);
@@ -1533,16 +1526,6 @@ gupnp_device_proxy_add_user (GUPnPDeviceProxy           *proxy,
         // so let's create it (if not created already
         gupnp_device_proxy_init_ssl (proxy, &gerror);
 
-        if (gupnp_device_proxy_get_ssl_client(proxy) == NULL)
-        {
-                adduserdata->error = g_error_new(GUPNP_SERVER_ERROR,
-                             GUPNP_SERVER_ERROR_OTHER,
-                             "For adding user SSL connection is needed.");
-                g_warning("Error: %s", adduserdata->error->message);
-                return adduserdata;
-        }
-
-
         adduserdata = g_slice_new (GUPnPDeviceProxyAddUser);
         adduserdata->proxy = proxy;
         adduserdata->callback = callback;
@@ -1553,6 +1536,15 @@ gupnp_device_proxy_add_user (GUPnPDeviceProxy           *proxy,
         adduserdata->username = g_string_new(username);
         adduserdata->password = g_string_new(password); // password is not used here, but let's keep it for change_password, if it is needed there
         adduserdata->identitylist = g_string_new("");
+
+        if (gupnp_device_proxy_get_ssl_client(proxy) == NULL)
+        {
+                adduserdata->error = g_error_new(GUPNP_SERVER_ERROR,
+                             GUPNP_SERVER_ERROR_OTHER,
+                             "For adding user SSL connection is needed.");
+                g_warning("Error: %s", adduserdata->error->message);
+                return adduserdata;
+        }
 
         if (adduserdata->device_prot_service == NULL)
         {
@@ -1646,16 +1638,6 @@ gupnp_device_proxy_remove_user (GUPnPDeviceProxy           *proxy,
         // so let's create it (if not created already
         gupnp_device_proxy_init_ssl (proxy, &gerror);
 
-        if (gupnp_device_proxy_get_ssl_client(proxy) == NULL)
-        {
-                removeuserdata->error = g_error_new(GUPNP_SERVER_ERROR,
-                             GUPNP_SERVER_ERROR_OTHER,
-                             "For removing user SSL connection is needed.");
-                g_warning("Error: %s", removeuserdata->error->message);
-                return removeuserdata;
-        }
-
-
         removeuserdata = g_slice_new (GUPnPDeviceProxyRemoveUser);
         removeuserdata->proxy = proxy;
         removeuserdata->callback = callback;
@@ -1665,6 +1647,15 @@ gupnp_device_proxy_remove_user (GUPnPDeviceProxy           *proxy,
         removeuserdata->done = FALSE;
         removeuserdata->username = g_string_new(username);
         removeuserdata->identity = g_string_new("");
+
+        if (gupnp_device_proxy_get_ssl_client(proxy) == NULL)
+        {
+                removeuserdata->error = g_error_new(GUPNP_SERVER_ERROR,
+                             GUPNP_SERVER_ERROR_OTHER,
+                             "For removing user SSL connection is needed.");
+                g_warning("Error: %s", removeuserdata->error->message);
+                return removeuserdata;
+        }
 
         if (removeuserdata->device_prot_service == NULL)
         {
@@ -1762,16 +1753,6 @@ gupnp_device_proxy_add_roles (GUPnPDeviceProxy           *proxy,
         // so let's create it (if not created already
         gupnp_device_proxy_init_ssl (proxy, &gerror);
 
-        if (gupnp_device_proxy_get_ssl_client(proxy) == NULL)
-        {
-                addrolesdata->error = g_error_new(GUPNP_SERVER_ERROR,
-                             GUPNP_SERVER_ERROR_OTHER,
-                             "For adding roles for user SSL connection is needed.");
-                g_warning("Error: %s", addrolesdata->error->message);
-                return addrolesdata;
-        }
-
-
         addrolesdata = g_slice_new (GUPnPDeviceProxySetRoles);
         addrolesdata->proxy = proxy;
         addrolesdata->callback = callback;
@@ -1782,6 +1763,15 @@ gupnp_device_proxy_add_roles (GUPnPDeviceProxy           *proxy,
         addrolesdata->username = g_string_new(username);
         addrolesdata->identity = g_string_new("");
         addrolesdata->rolelist = g_string_new(rolelist);
+
+        if (gupnp_device_proxy_get_ssl_client(proxy) == NULL)
+        {
+                addrolesdata->error = g_error_new(GUPNP_SERVER_ERROR,
+                             GUPNP_SERVER_ERROR_OTHER,
+                             "For adding roles for user SSL connection is needed.");
+                g_warning("Error: %s", addrolesdata->error->message);
+                return addrolesdata;
+        }
 
         if (addrolesdata->device_prot_service == NULL)
         {
@@ -1883,16 +1873,6 @@ gupnp_device_proxy_remove_roles (GUPnPDeviceProxy           *proxy,
         // so let's create it (if not created already
         gupnp_device_proxy_init_ssl (proxy, &gerror);
 
-        if (gupnp_device_proxy_get_ssl_client(proxy) == NULL)
-        {
-                removerolesdata->error = g_error_new(GUPNP_SERVER_ERROR,
-                             GUPNP_SERVER_ERROR_OTHER,
-                             "For removing roles for user SSL connection is needed.");
-                g_warning("Error: %s", removerolesdata->error->message);
-                return removerolesdata;
-        }
-
-
         removerolesdata = g_slice_new (GUPnPDeviceProxySetRoles);
         removerolesdata->proxy = proxy;
         removerolesdata->callback = callback;
@@ -1903,6 +1883,15 @@ gupnp_device_proxy_remove_roles (GUPnPDeviceProxy           *proxy,
         removerolesdata->username = g_string_new(username);
         removerolesdata->identity = g_string_new("");
         removerolesdata->rolelist = g_string_new(rolelist);
+
+        if (gupnp_device_proxy_get_ssl_client(proxy) == NULL)
+        {
+                removerolesdata->error = g_error_new(GUPNP_SERVER_ERROR,
+                             GUPNP_SERVER_ERROR_OTHER,
+                             "For removing roles for user SSL connection is needed.");
+                g_warning("Error: %s", removerolesdata->error->message);
+                return removerolesdata;
+        }
 
         if (removerolesdata->device_prot_service == NULL)
         {
@@ -2020,7 +2009,7 @@ get_ACL_data_response (GUPnPServiceProxy       *proxy,
                         g_warning("Name: %s RoleList:%s",name,rolelist);
                         
                         // insert to hashtable name-rolelist pairs. Name is the key
-                        g_hash_table_insert(users, g_strdup(name), g_strdup(rolelist));
+                        g_hash_table_insert(users, g_strdup((char *)name), g_strdup((char *)rolelist));
                     }         
                 }                           
             }                                   
@@ -2036,7 +2025,6 @@ gupnp_device_proxy_get_ACL_data (GUPnPDeviceProxy           *proxy,
                              gpointer                    user_data)
 {
         GUPnPDeviceProxyGetACLData *ACLData;
-        GError *gerror;
 
         g_return_val_if_fail (GUPNP_IS_DEVICE_PROXY (proxy), NULL);
 

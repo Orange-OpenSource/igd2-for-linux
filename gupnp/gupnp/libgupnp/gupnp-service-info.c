@@ -591,7 +591,7 @@ gupnp_service_info_get_secure_scpd_url (GUPnPServiceInfo *info)
 {
         g_return_val_if_fail (GUPNP_IS_SERVICE_INFO (info), NULL);
 
-        return xml_util_get_child_element_content (info->priv->element,
+        return (char *)xml_util_get_child_element_content (info->priv->element,
                                                    "secureSCPDURL");
 }
 
@@ -608,7 +608,7 @@ gupnp_service_info_get_secure_control_url (GUPnPServiceInfo *info)
 {
         g_return_val_if_fail (GUPNP_IS_SERVICE_INFO (info), NULL);
 
-        return xml_util_get_child_element_content (info->priv->element,
+        return (char *)xml_util_get_child_element_content (info->priv->element,
                                                    "secureControlURL");
 }
 
@@ -625,7 +625,7 @@ gupnp_service_info_get_secure_event_subscription_url (GUPnPServiceInfo *info)
 {
         g_return_val_if_fail (GUPNP_IS_SERVICE_INFO (info), NULL);
 
-        return xml_util_get_child_element_content (info->priv->element,
+        return (char *)xml_util_get_child_element_content (info->priv->element,
                                                    "secureEventSubURL");
 }
 

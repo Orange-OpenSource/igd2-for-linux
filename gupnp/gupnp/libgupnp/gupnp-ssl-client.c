@@ -5,6 +5,7 @@
 #include <glib.h>
 #include <string.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 #include "pki.h"
 #include "gupnp-ssl-client.h"
@@ -130,7 +131,7 @@ static void *ssl_client_send_and_receive_thread(void *data)
     if ((*client)->session == NULL)
     {
         g_slice_free(GUPnPSSLThreadData, data);
-        return;// GUPNP_E_SESSION_FAIL;
+        return NULL;// GUPNP_E_SESSION_FAIL;
     }
 
 
@@ -153,7 +154,7 @@ static void *ssl_client_send_and_receive_thread(void *data)
         // close the client
         ssl_finish_client(client);
         g_slice_free(GUPnPSSLThreadData, data);
-        return;// retVal;  
+        return NULL;// retVal;  
     }
     
     // Start receiving until error occurs or whole message is received.
@@ -169,7 +170,7 @@ static void *ssl_client_send_and_receive_thread(void *data)
             ssl_finish_client(client);
 
             g_slice_free(GUPnPSSLThreadData, data);
-            return;// retVal;
+            return NULL;// retVal;
         }
         else
         { 
@@ -186,7 +187,7 @@ static void *ssl_client_send_and_receive_thread(void *data)
             new_resp = realloc (response, alloc);
             if (!new_resp) {
                 g_slice_free(GUPnPSSLThreadData, data);
-                return;// -1; // not enough memory
+                return NULL;// -1; // not enough memory
             }
   
             response = new_resp;
@@ -238,7 +239,7 @@ static void *ssl_client_send_and_receive_thread(void *data)
             g_free(response);
 
             ssl_data->callback(ssl_data->client, msg, ssl_data->userdata);
-            return;// 0;
+            return NULL;// 0;
         }
         else
         {
@@ -248,7 +249,7 @@ static void *ssl_client_send_and_receive_thread(void *data)
         
     }
 
-    return;// retVal; 
+    return NULL;// retVal; 
 }
 
 
