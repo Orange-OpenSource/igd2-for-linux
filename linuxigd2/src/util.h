@@ -47,8 +47,8 @@ typedef enum {
 
 char* createUnion(const char *str1, const char *str2);
 int readStats(unsigned long stats[STATS_LIMIT]);
-char* escapeXMLString(const char *xml);
-char* unescapeXMLString(const char *escXML);
+char* escapeXMLString(char *xml);
+char* unescapeXMLString(char *escXML);
 char *toUpperCase(const char * str);
 int caseInsesitive_strcmp(const char *str1, const char *str2);
 int GetIpAddressStr(char *address, char *ifname);

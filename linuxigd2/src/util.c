@@ -34,6 +34,7 @@
 #include <sys/socket.h>
 #include <wchar.h>
 #include <wctype.h>
+#include <ctype.h>
 #include <upnp/upnp.h>
 #include <upnp/ixml.h>
 #include "globals.h"
@@ -145,6 +146,31 @@ int readStats(unsigned long stats[STATS_LIMIT])
 }
 
 /**
+ * Trims leading and trailing white spaces from a string.
+ *
+ * @param str String to trim.
+ * @return Trimmed string or NULL
+ */
+char *trimString(char *str)
+{
+    char *ptr;
+    if (!str)
+        return NULL;
+    if (!*str)
+        return str;
+
+    // trim leading white spaces
+    while(isspace(*str)) str++;
+
+    // trim trailing white spaces
+    ptr = str + strlen(str);
+    while (isspace(*--ptr))
+        *ptr = '\0';
+
+    return str;
+}
+
+/**
  * THIS FUNCTION IS NOT ACTUALLY NEEDED, if you use UpnpMakeActionResponse and such
  * functions for creating responses. libupnp then takes care of escaping xmls. 
  * Unescaping on the other hand must be done by ourself here. 
@@ -162,8 +188,9 @@ int readStats(unsigned long stats[STATS_LIMIT])
  * @param xml String to turn escaped xml.
  * @return Escaped xml string or NULL if failure.
  */
-char* escapeXMLString(const char *xml)
+char* escapeXMLString(char *xml)
 {
+    xml = trimString(xml);
     if (xml == NULL)
         return NULL;
 
@@ -275,11 +302,12 @@ char* escapeXMLString(const char *xml)
  * 
  * User should free returned pointer.
  *
- * @param xml String to turn unescaped xml.
+ * @param escXML String to turn unescaped xml.
  * @return Unescaped xml string or NULL if failure.
  */
-char* unescapeXMLString(const char *escXML)
+char* unescapeXMLString(char *escXML)
 {
+    escXML = trimString(escXML);
     if (escXML == NULL)
         return NULL;
 
@@ -2301,7 +2329,7 @@ int ACL_validateAndRemoveIdentity(IXML_Document *ACLdoc, IXML_Document *identity
             trace(2,"(ACL) Failed to find any ID or Name from given parameter");
             return 600;
         }
-        else if (strcmp(toUpperCase(id), "ADMINISTRATOR") == 0) // username must not be Administrator
+        else if (caseInsesitive_strcmp(id, "ADMINISTRATOR") == 0) // username cannot be Administrator
         {
             trace(2,"(ACL) Trying to remove Admin, that's not allowed");
             return 600;
