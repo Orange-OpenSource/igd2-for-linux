@@ -17,7 +17,7 @@
  * along with this program. If not, see http://www.gnu.org/licenses/. 
  * 
  */
-
+ 
 #ifndef _PMLIST_H_
 #define _PMLIST_H_
 #include <arpa/inet.h>
@@ -57,10 +57,12 @@ struct portMap* pmlist_NewNode(int enabled, long int duration, char *remoteHost,
                                            char *protocol, char *internalClient, char *desc);
 
 struct portMap* pmlist_Find(char * remoteHost, char *externalPort, char *proto, char *internalClient);
+struct portMap* pmlist_FindBy_extPort_proto_intClient(char *externalPort, char *proto, char *internalClient);
+struct portMap* pmlist_FindBy_extPort_proto(char *externalPort, char *proto);
 struct portMap* pmlist_FindByIndex(int index);
 struct portMap* pmlist_FindRangeAfter(int, int, char *, char *, struct portMap*);
 struct portMap* pmlist_FindSpecific(char * remoteHost, char *externalPort, char *protocol);
-struct portMap* pmlist_FindSpecificAfterIndex(char * remoteHost, char *externalPort, char *protocol, int index);
+struct portMap* pmlist_FindBy_extPort_proto_afterIndex(char *externalPort, char *protocol, int index);
 int pmlist_FindNextFreePort(char *protocol);
 int pmlist_IsEmtpy(void);
 int pmlist_Size(void);

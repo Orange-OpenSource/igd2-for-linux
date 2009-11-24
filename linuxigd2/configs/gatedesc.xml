@@ -53,7 +53,7 @@
         </serviceList>
         <deviceList>
           <device>
-            <deviceType>urn:schemas-upnp-org:device:WANConnectionDevice:1</deviceType>
+            <deviceType>urn:schemas-upnp-org:device:WANConnectionDevice:2</deviceType>
             <friendlyName>WANConnectionDevice</friendlyName>
             <manufacturer>Linux UPnP IGD Project</manufacturer>
             <manufacturerURL>http://linux-igd.sourceforge.net</manufacturerURL>
@@ -67,9 +67,9 @@
             <serviceList>
               <service>
                 <serviceType>urn:schemas-upnp-org:service:WANIPConnection:2</serviceType>
-                <serviceId>urn:upnp-org:serviceId:WANIPConn2</serviceId>
-                <controlURL>/upnp/control/WANIPConn2</controlURL>
-                <eventSubURL>/upnp/control/WANIPConn2</eventSubURL>
+                <serviceId>urn:upnp-org:serviceId:WANIPConn1</serviceId>
+                <controlURL>/upnp/control/WANIPConn1</controlURL>
+                <eventSubURL>/upnp/control/WANIPConn1</eventSubURL>
                 <SCPDURL>/gateconnSCPD.xml</SCPDURL>
               </service>
               <service>

@@ -17,22 +17,18 @@
  * along with this program. If not, see http://www.gnu.org/licenses/. 
  * 
  */
-
+ 
 #ifndef _GATEDEVICE_H_
 #define _GATEDEVICE_H_ 1
 
 #include <upnp/upnp.h>
+#include <upnp/TimerThread.h>
+#include "util.h"
 
+#define WANIP_SERVICE_TYPE "urn:schemas-upnp-org:service:WANIPConnection:2"
 
-/* interface statistics */
-typedef enum
-{
-    STATS_TX_BYTES,
-    STATS_RX_BYTES,
-    STATS_TX_PACKETS,
-    STATS_RX_PACKETS,
-    STATS_LIMIT
-} stats_t;
+// Thread which contains all kind of timers and threads used in gatedevice.c and deviceprotection.c
+TimerThread gExpirationTimerThread;
 
 // IGD Device Globals
 UpnpDevice_Handle deviceHandle;
@@ -40,12 +36,13 @@ char *gateUDN;
 char *wanUDN;
 char *wanConnectionUDN;
 long int startup_time;
+unsigned long connection_stats[STATS_LIMIT]; // this is used for defining if connection is in idling
+long int idle_time;
 
 // State Variables
 char ConnectionType[50];
 char PossibleConnectionTypes[50];
 char ConnectionStatus[20];
-long int StartupTime;
 char LastConnectionError[35];
 long int AutoDisconnectTime;
 long int IdleDisconnectTime;
@@ -75,6 +72,12 @@ int HandleActionRequest(struct Upnp_Action_Request *ca_event);
 int GetConnectionTypeInfo(struct Upnp_Action_Request *ca_event);
 int GetNATRSIPStatus(struct Upnp_Action_Request *ca_event);
 int SetConnectionType(struct Upnp_Action_Request *ca_event);
+int SetAutoDisconnectTime(struct Upnp_Action_Request *ca_event);
+int SetIdleDisconnectTime(struct Upnp_Action_Request *ca_event);
+int SetWarnDisconnectDelay(struct Upnp_Action_Request *ca_event);
+int GetAutoDisconnectTime(struct Upnp_Action_Request *ca_event);
+int GetIdleDisconnectTime(struct Upnp_Action_Request *ca_event);
+int GetWarnDisconnectDelay(struct Upnp_Action_Request *ca_event);
 int RequestConnection(struct Upnp_Action_Request *ca_event);
 int GetTotal(struct Upnp_Action_Request *ca_event, stats_t stat);
 int GetCommonLinkProperties(struct Upnp_Action_Request *ca_event);
@@ -89,7 +92,7 @@ int DeletePortMappingRange(struct Upnp_Action_Request *ca_event);
 int AddAnyPortMapping(struct Upnp_Action_Request *ca_event);
 int GetListOfPortmappings(struct Upnp_Action_Request *ca_event);
 int ForceTermination(struct Upnp_Action_Request *ca_event);
-int AuthorizeControlPoint(struct Upnp_Action_Request *ca_event);
+int RequestTermination(struct Upnp_Action_Request *ca_event);
 
 // WANEthernetLinkConfig Actions
 int GetEthernetLinkStatus (struct Upnp_Action_Request *ca_event);
@@ -100,24 +103,35 @@ int GetEthernetLinkStatus (struct Upnp_Action_Request *ca_event);
 #define MIN_THREADS 2
 #define MAX_THREADS 12
 
+// how often it is checked if defined state variables has changed
+#define EVENTS_UPDATE_INTERVAL 5
 
 int ExpirationTimerThreadInit(void);
 int ExpirationTimerThreadShutdown(void);
 int ScheduleMappingExpiration(struct portMap *mapping, char *DevUDN, char *ServiceID);
 int CancelMappingExpiration(int eventId);
 void DeleteAllPortMappings(void);
-int AddNewPortMapping(struct Upnp_Action_Request *ca_event, char* new_enabled, int leaseDuration,
+int AddNewPortMapping(struct Upnp_Action_Request *ca_event, char* new_enabled, long int leaseDuration,
                      char* new_remote_host, char* new_external_port, char* new_internal_port,
-                     char* new_protocol, char* new_internal_client, char* new_port_mapping_description);
-
+                     char* new_protocol, char* new_internal_client, char* new_port_mapping_description,
+                     int is_update);
+int createAutoDisconnectTimer(void);
+void DisconnectWAN(void *input);
 int createEventUpdateTimer(void);
 void UpdateEvents(void *input);
 int EthernetLinkStatusEventing(IXML_Document *propSet);
 int ExternalIPAddressEventing(IXML_Document *propSet);
 int ConnectionStatusEventing(IXML_Document *propSet);
+int ConnectionTermination(struct Upnp_Action_Request *ca_event, long int disconnectDelay);
+int AuthorizeControlPoint(struct Upnp_Action_Request *ca_event, int managed, int addError);
 
 
 // Definition for authorizing control point
-#define CONTROL_POINT_AUTHORIZED    1
+typedef enum
+{
+    CONTROL_POINT_AUTHORIZED,
+    CONTROL_POINT_HALF_AUTHORIZED,
+    CONTROL_POINT_NOT_AUTHORIZED
+} authorization_levels;
 
 #endif //_GATEDEVICE_H

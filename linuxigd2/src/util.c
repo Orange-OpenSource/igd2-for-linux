@@ -18,6 +18,7 @@
  * 
  */
 
+#include <regex.h>
 #include <stdlib.h>
 #include <sys/wait.h>
 #include <unistd.h>
@@ -33,10 +34,11 @@
 #include <sys/socket.h>
 #include <wchar.h>
 #include <wctype.h>
+#include <ctype.h>
 #include <upnp/upnp.h>
 #include <upnp/ixml.h>
 #include "globals.h"
-
+#include "util.h"
 
 
 /**
@@ -59,6 +61,302 @@ static int get_sockfd(void)
     return sockfd;
 }
 
+/**
+ * Create union from items separated with space in strings given.
+ * Use free() for created string.
+ *
+ * @param str1 First string to unionize
+ * @param str2 Second string to unionize
+ * @return New allocated union string or NULL if fails.
+ */
+char* createUnion(const char *str1, const char *str2)
+{
+    if (!str1 || !str2)
+        return NULL;
+
+    char *unionStr = NULL;
+    size_t size = strlen(str1) + strlen(str2) + 2;
+    unionStr = (char *)malloc(size);
+    if (!unionStr)
+        return NULL;
+
+    // base for the union is created by copying whole str1 to it
+    strcpy(unionStr,str1);
+
+    // make copy of str2 so we can tokenize it
+    char copystr[strlen(str1)];
+    // go through all roles in list
+    strcpy(copystr,str2);
+    char *item = strtok(copystr, " ");
+    if (item)
+    {
+        do
+        {
+            // do "raw" check that this item isn't already in current items
+            if ( strstr(unionStr,item) == NULL )
+            {
+                // add new item at the end of rolelist
+                if (strlen(unionStr) > 0)
+                {
+                    strcat(unionStr, " ");
+                }
+                strcat(unionStr, item);
+            }
+        } while ((item = strtok(NULL, " ")));
+
+    }
+
+    return unionStr;
+}
+
+/**
+ * Get values for send bytes and packets and received bytes and packets for 
+ * external interface from /proc/net/dev
+ *
+ * @param stats Unsigned long array with size of STATS_LIMIT
+ * @return 0 if fails to open file, 1 if succeed to get values.
+ */
+int readStats(unsigned long stats[STATS_LIMIT])
+{
+    char dev[IFNAMSIZ];
+    FILE *proc;
+    int read;
+
+    proc = fopen("/proc/net/dev", "r");
+    if (!proc)
+    {
+        fprintf(stderr, "failed to open\n");
+        return 0;
+    }
+
+    /* skip first two lines */
+    read = fscanf(proc, "%*[^\n]\n%*[^\n]\n");
+
+    /* parse stats */
+    do
+        read = fscanf(proc, "%[^:]:%lu %lu %*u %*u %*u %*u %*u %*u %lu %lu %*u %*u %*u %*u %*u %*u\n", dev, &stats[STATS_RX_BYTES], &stats[STATS_RX_PACKETS], &stats[STATS_TX_BYTES], &stats[STATS_TX_PACKETS]);
+    while (read != EOF && (read == 5 && strncmp(dev, g_vars.extInterfaceName, IFNAMSIZ) != 0));
+
+    fclose(proc);
+
+    return 1;
+}
+
+/**
+ * Trims leading and trailing white spaces from a string.
+ *
+ * @param str String to trim.
+ * @return Trimmed string or NULL
+ */
+char *trimString(char *str)
+{
+    char *ptr;
+    if (!str)
+        return NULL;
+    if (!*str)
+        return str;
+
+    // trim leading white spaces
+    while(isspace(*str)) str++;
+
+    // trim trailing white spaces
+    ptr = str + strlen(str);
+    while (isspace(*--ptr))
+        *ptr = '\0';
+
+    return str;
+}
+
+/**
+ * THIS FUNCTION IS NOT ACTUALLY NEEDED, if you use UpnpMakeActionResponse and such
+ * functions for creating responses. libupnp then takes care of escaping xmls. 
+ * Unescaping on the other hand must be done by ourself here. 
+ * 
+ * Change given XML string in escaped form. 
+ * Following characters are converted:
+ *  '<'  -->  "&lt;"
+ *  '>'  -->  "&gt;"
+ *  '"'  -->  "&quot;"
+ *  '''  -->  "&apos;"
+ *  '&'  -->  "&amp;"
+ * 
+ * User should free returned pointer.
+ *
+ * @param xml String to turn escaped xml.
+ * @return Escaped xml string or NULL if failure.
+ */
+char* escapeXMLString(char *xml)
+{
+    xml = trimString(xml);
+    if (xml == NULL)
+        return NULL;
+
+    char *escXML = NULL;
+    size_t size = strlen(xml);
+    size_t alloc = size +1;
+
+    escXML = realloc(NULL, alloc);
+    if (!escXML)
+        return NULL;
+
+    int i,j; // i goes through original xml and j through escaped escXML
+    for (i=0,j=0; i < size; i++)
+    {
+        switch (xml[i])
+        {
+            case '<' :
+            {
+                char *new_buf;
+                alloc += strlen("&lt;");
+                new_buf = realloc (escXML, alloc);
+                if (!new_buf) {
+                    return NULL;
+                }
+                escXML = new_buf;
+
+                strcpy(escXML+j, "&lt;");
+                j += strlen("&lt;");
+                break;
+            }
+            case '>' :
+            {
+                char *new_buf;
+                alloc += strlen("&gt;");
+                new_buf = realloc (escXML, alloc);
+                if (!new_buf) {
+                    return NULL;
+                }
+                escXML = new_buf;
+
+                strcpy(escXML+j, "&gt;");
+                j += strlen("&gt;");
+                break;
+            }
+            case '"' :
+            {
+                char *new_buf;
+                alloc += strlen("&quot;");
+                new_buf = realloc (escXML, alloc);
+                if (!new_buf) {
+                    return NULL;
+                }
+                escXML = new_buf;
+
+                strcpy(escXML+j, "&quot;");
+                j += strlen("&quot;");
+                break;
+            }
+            case '\'' :
+            {
+                char *new_buf;
+                alloc += strlen("&apos;");
+                new_buf = realloc (escXML, alloc);
+                if (!new_buf) {
+                    return NULL;
+                }
+                escXML = new_buf;
+
+                strcpy(escXML+j, "&apos;");
+                j += strlen("&apos;");
+                break;
+            }
+            case '&' :
+            {
+                char *new_buf;
+                alloc += strlen("&amp;");
+                new_buf = realloc (escXML, alloc);
+                if (!new_buf) {
+                    return NULL;
+                }
+                escXML = new_buf;
+
+                strcpy(escXML+j, "&amp;");
+                j += strlen("&amp;");
+                break;
+            }
+            default :
+            {
+                escXML[j++] = xml[i];
+                break;
+            }
+        }
+    }
+
+    if (j > 0)
+        escXML[j] = '\0';
+
+    return escXML;
+}
+
+/**
+ * Change given XML string in unescaped form. 
+ * Following characters are converted:
+ *  "&lt;"    -->  '<'
+ *  "&gt;"    -->  '>'
+ *  "&quot;"  -->  '"'
+ *  "&apos;"  -->  '''
+ *  "&amp;"   -->  '&'
+ * 
+ * User should free returned pointer.
+ *
+ * @param escXML String to turn unescaped xml.
+ * @return Unescaped xml string or NULL if failure.
+ */
+char* unescapeXMLString(char *escXML)
+{
+    escXML = trimString(escXML);
+    if (escXML == NULL)
+        return NULL;
+
+    char *xml = NULL;
+    size_t size = strlen(escXML);
+
+    xml = (char *)malloc(size);
+    if (!xml)
+        return NULL;
+
+    memset(xml, '\0', size);
+
+    int i,j; // i goes through unescaped xml and j through escaped escXML
+    for (i=0,j=0; i < size && j < size; i++)
+    {
+        if (strncmp(escXML+j, "&lt;", strlen("&lt;")) == 0)
+        {
+            xml[i] = '<';
+            j += strlen("&lt;");
+        }
+        else if (strncmp(escXML+j, "&gt;", strlen("&gt;")) == 0)
+        {
+            xml[i] = '>';
+            j += strlen("&gt;");
+        }
+        else if (strncmp(escXML+j, "&quot;", strlen("&quot;")) == 0)
+        {
+            xml[i] = '"';
+            j += strlen("&quot;");
+        }
+        else if (strncmp(escXML+j, "&apos;", strlen("&apos;")) == 0)
+        {
+            xml[i] = '\'';
+            j += strlen("&apos;");
+        }
+        else if (strncmp(escXML+j, "&amp;", strlen("&amp;")) == 0)
+        {
+            xml[i] = '&';
+            j += strlen("&amp;");
+        }
+        else
+        {
+            xml[i] = escXML[j];
+            j++;
+        }
+    }
+
+    xml[i] = '\0';
+
+    return xml;
+}
+
 
 /**
  * Change given string in uppercase. Converts given string first as wide-character string
@@ -73,11 +371,14 @@ static int get_sockfd(void)
  */
 char *toUpperCase(const char * str)
 {
+    if (str == NULL)
+        return NULL;
+
     int slen = strlen(str);
     int wcslen;
     wchar_t wc[2*slen];  // doubling original string length should guarantee that there is enough space for wchar_t
-    char *UPPER = (char *)malloc(slen);
-    
+    char *UPPER = (char *)malloc(slen+1);
+
     wcslen = mbsrtowcs(wc, &str, slen, NULL); // to wide-character string
 
     int i;
@@ -85,17 +386,41 @@ char *toUpperCase(const char * str)
     {
         wc[i] = towupper(wc[i]);   // to upper-case
     }
- 
-    const wchar_t *ptr = wc;  
+
+    const wchar_t *ptr = wc;
     wcslen = wcsrtombs(UPPER, &ptr, slen, NULL);  // to character string, requires that wide-char string is constant
-    
+
     if (wcslen != slen)
         return NULL;
-    
+
     UPPER[slen] = '\0';
     return UPPER;
 }
 
+/**
+ * Do case insensitive string comparison for strings. 
+ * Works like normal strcmp(), but turns both string to uppercase before comparing
+ *
+ * @param str1 First string to compare.
+ * @param str2 Second string to compare.
+ * @return An integer greater than, equal to or less than 0, if the string pointed to by s1 is greater than, equal to or less than the string pointed to by s2 respectively.
+ *         ~0 if fails to turn strings to uppercase
+ */
+int caseInsesitive_strcmp(const char *str1, const char *str2)
+{
+    int ret = ~0;
+    char *STR1 = toUpperCase(str1);
+    char *STR2 = toUpperCase(str2);
+
+    if (STR1 && STR2)
+    {
+        ret = strcmp(STR1, STR2);
+    }
+    free(STR1);
+    free(STR2);
+
+    return ret;
+}
 
 /**
  * Get MAC address of given network interface.
@@ -115,7 +440,7 @@ int GetMACAddressStr(unsigned char *address, int addressSize, char *ifname)
     {
         strncpy(ifr.ifr_name, ifname, IFNAMSIZ);
         if (ioctl(fd, SIOCGIFHWADDR, &ifr) == 0)
-        {    
+        {
             memcpy(address, ifr.ifr_hwaddr.sa_data, addressSize);
             succeeded = 1;
         }
@@ -130,6 +455,7 @@ int GetMACAddressStr(unsigned char *address, int addressSize, char *ifname)
 
 /**
  * Get IP address assigned for given network interface.
+ * If fails to get IP, sets value of address to empty string.
  *
  * @param address IP address is wrote into this.
  * @param ifname Interface name.
@@ -156,6 +482,7 @@ int GetIpAddressStr(char *address, char *ifname)
         else
         {
             syslog(LOG_ERR, "Failure obtaining ip address of interface %s", ifname);
+            strcpy(address,"");
             succeeded = 0;
         }
     }
@@ -182,6 +509,37 @@ int GetConnectionStatus(char *conStatus, char *ifname)
         strcpy(conStatus,"Disconnected");
 
     return status;
+}
+
+/**
+ * Check if address is either valid IP address or network host address.
+ * 
+ * @param address String to check
+ * @return 1 if it is IP or host address, 0 else.
+ */
+int IsIpOrDomain(char *address)
+{
+    int result;
+
+    // is it IP
+    regex_t re_IP;
+    regcomp(&re_IP, REGEX_IP_LASTBYTE, REG_EXTENDED|REG_NOSUB);
+    result = regexec(&re_IP, address, (size_t) 0, NULL, 0);
+    regfree(&re_IP);
+    if (result == 0) {
+        return 1;
+    }
+
+    // is it domain name
+    regex_t re_host;
+    regcomp(&re_host, REGEX_DOMAIN_NAME, REG_EXTENDED|REG_NOSUB|REG_ICASE);
+    result = regexec(&re_host, address, (size_t) 0, NULL, 0);
+    regfree(&re_host);
+    if (result == 0) {
+        return 1;
+    }
+
+    return 0;
 }
 
 /**
@@ -238,7 +596,7 @@ int checkForWildCard(const char *str)
     int retVal = 0;
 
     if ((strchr(str, '*') != NULL) || (strcmp(str,"0") == 0) || (strcmp(str,"") == 0))
-	   retVal = 1;
+        retVal = 1;
 
     return retVal;
 }
@@ -293,59 +651,6 @@ void ParseXMLResponse(struct Upnp_Action_Request *ca_event, const char *result_s
     }
 }
 
-/**
- * Get document item which is at position index in nodelist (all nodes with same name item).
- * Index 0 means first, 1 second, etc.
- * 
- * @param doc XML document where item is fetched.
- * @param item Name of xml-node to fetch.
- * @param index Which one of nodes with same name is selected.
- * @return Value of desired node.
- */
-char* GetDocumentItem(IXML_Document * doc, const char *item, int index)
-{
-    IXML_NodeList *nodeList = NULL;
-    IXML_Node *textNode = NULL;
-    IXML_Node *tmpNode = NULL;
-
-    //fprintf(stderr,"%s\n",ixmlPrintDocument(doc)); //DEBUG
-
-    char *ret = NULL;
-
-    nodeList = ixmlDocument_getElementsByTagName( doc, ( char * )item );
-
-    if ( nodeList )
-    {
-        if ( ( tmpNode = ixmlNodeList_item( nodeList, index ) ) )
-        {
-            textNode = ixmlNode_getFirstChild( tmpNode );
-            if (textNode != NULL)
-            {
-                ret = strdup( ixmlNode_getNodeValue( textNode ) );
-            }
-            // if desired node exist, but textNode is NULL, then value of node propably is ""
-            else
-                ret = strdup("");
-        }
-    }
-
-    if ( nodeList )
-        ixmlNodeList_free( nodeList );
-    return ret;
-}
-
-/**
- * Get first document item in nodelist with name given in item parameter.
- * 
- * @param doc XML document where item is fetched.
- * @param item Name of xml-node to fetch.
- * @return Value of desired node.
- */
-char* GetFirstDocumentItem( IN IXML_Document * doc,
-                            IN const char *item )
-{
-    return GetDocumentItem(doc,item,0);
-}
 
 /**
  * Resolve up/down status of given network interface and insert it into given string.
@@ -391,6 +696,7 @@ int setEthernetLinkStatus(char *ethLinkStatus, char *iface)
 int readIntFromFile(char *file)
 {
     FILE *fp;
+    int read;
     int value = -1;
 
     trace(3,"Read integer value from %s", file);
@@ -400,7 +706,7 @@ int readIntFromFile(char *file)
     }
 
     while(!feof(fp)) {
-        fscanf(fp,"%d", &value);
+        read = fscanf(fp,"%d", &value);
         if (value > -1)
         {
             fclose(fp);
@@ -416,28 +722,28 @@ int readIntFromFile(char *file)
  * 
  * @param iface Network interface name.
  * @return 1 if DHCP client is killed and IP released, 0 else.
- */ 
+ */
 int killDHCPClient(char *iface)
 {
     char tmp[30];
-    int pid;
+    int pid, ret;
 
     trace(2,"Killing DHCP client...");
-    snprintf(tmp, 50, "/var/run/%s.pid", iface);
+    snprintf(tmp, 30, "/var/run/%s.pid", iface);
     pid = readIntFromFile(tmp);
     if (pid > -1)
     {
         snprintf(tmp, 30, "kill %d", pid);
         trace(3,"system(%s)",tmp);
-        system(tmp);
+        ret = system(tmp);
     }
     else
     {
         // brute force
         trace(3,"No PID file available for %s of %s",g_vars.dhcpc,iface);
-        snprintf(tmp, 30, "killall %s", g_vars.dhcpc);
+        snprintf(tmp, 30, "killall -9 %s", g_vars.dhcpc);
         trace(3,"system(%s)",tmp);
-        system(tmp);
+        ret = system(tmp);
     }
 
     sleep(2); // wait that IP is released
@@ -459,15 +765,23 @@ int killDHCPClient(char *iface)
  * 
  * @param iface Network interface name.
  * @return 1 if DHCP client is started and iface has IP, 0 else.
- */ 
+ */
 int startDHCPClient(char *iface)
 {
-    char tmp[50];
+    char tmp[100];
+    int ret;
 
     trace(2,"Starting DHCP client...");
-    snprintf(tmp, 50, "%s -t 0 -i %s -R", g_vars.dhcpc, iface);
+    if (strcmp(g_vars.dhcpc,"dhclient") == 0)
+    {
+        snprintf(tmp, 100, "%s -pf /var/run/%s.pid %s", g_vars.dhcpc, iface, iface);
+    }
+    else
+    {
+        snprintf(tmp, 100, "%s -i %s -R -p /var/run/%s.pid", g_vars.dhcpc, iface, iface);
+    }
     trace(3,"system(%s)",tmp);
-    system(tmp);
+    ret = system(tmp);
 
     sleep(2); // wait that IP is acquired
 
@@ -492,23 +806,109 @@ int startDHCPClient(char *iface)
 int releaseIP(char *iface)
 {
     char tmp[INET6_ADDRSTRLEN];
-    int success = 0;
+    int ret, success = 0;
 
     // check does IP exist
     if (!GetIpAddressStr(tmp, iface))
         return 1;
 
-    // kill already running udhcpc-client for given iface and check if IP was released
-    if (killDHCPClient(iface))
-        success = 1; //OK
+    // if used dhcp client is dhclient, use -r parameter to release IP
+    if (strcmp(g_vars.dhcpc,"dhclient") == 0)
+    {
+        char tmp[50];
+
+        trace(2,"Releasing IP...");
+        snprintf(tmp, 50, "%s -r %s", g_vars.dhcpc, iface);
+        trace(3,"system(%s)",tmp);
+        ret = system(tmp);
+
+        sleep(2); // wait that IP is released
+
+        if (!GetIpAddressStr(tmp, iface))
+        {
+            trace(3,"Success IP of %s is released",iface);
+            return 1;
+        }
+        else
+        {
+            trace(3,"Failure IP of %s: %s",iface,tmp);
+            return 0;
+        }
+    }
+    // if used dhcp client is udhcpc, IP is released when udhcpc is killed if udhcpc was started with -R parameter
     else
     {
-        // start udhcpc-clientdaemon with parameter -R which will release IP after quiting daemon
-        startDHCPClient(iface);
+        // kill already running udhcpc-client for given iface and check if IP was released
+        if (killDHCPClient(iface))
+            success = 1; //OK
+        else
+        {
+            // start udhcpc-clientdaemon with parameter -R which will release IP after quiting daemon
+            startDHCPClient(iface);
 
-        // then kill udhcpc-client running. Now there shouldn't be IP anymore.
-        if(killDHCPClient(iface))
-            success = 1;
+            // then kill udhcpc-client running. Now there shouldn't be IP anymore.
+            if(killDHCPClient(iface))
+                success = 1;
+        }
     }
     return success;
 }
+
+
+
+//-----------------------------------------------------------------------------
+//
+//                      Common extensions for ixml
+//
+//-----------------------------------------------------------------------------
+/**
+ * Get document item which is at position index in nodelist (all nodes with same name item).
+ * Index 0 means first, 1 second, etc.
+ * 
+ * @param doc XML document where item is fetched.
+ * @param item Name of xml-node to fetch.
+ * @param index Which one of nodes with same name is selected.
+ * @return Value of desired node.
+ */
+char* GetDocumentItem(IXML_Document * doc, const char *item, int index)
+{
+    IXML_NodeList *nodeList = NULL;
+    IXML_Node *textNode = NULL;
+    IXML_Node *tmpNode = NULL;
+
+    char *ret = NULL;
+
+    nodeList = ixmlDocument_getElementsByTagName( doc, ( char * )item );
+
+    if ( nodeList )
+    {
+        if ( ( tmpNode = ixmlNodeList_item( nodeList, index ) ) )
+        {
+            textNode = ixmlNode_getFirstChild( tmpNode );
+            if (textNode != NULL)
+            {
+                ret = strdup( ixmlNode_getNodeValue( textNode ) );
+            }
+            // if desired node exist, but textNode is NULL, then value of node propably is ""
+            else
+                ret = strdup("");
+        }
+    }
+
+    ixmlNodeList_free( nodeList );
+    return ret;
+}
+
+/**
+ * Get first document item in nodelist with name given in item parameter.
+ * 
+ * @param doc XML document where item is fetched.
+ * @param item Name of xml-node to fetch.
+ * @return Value of desired node.
+ */
+char* GetFirstDocumentItem( IN IXML_Document * doc,
+                            IN const char *item )
+{
+    return GetDocumentItem(doc,item,0);
+}
+

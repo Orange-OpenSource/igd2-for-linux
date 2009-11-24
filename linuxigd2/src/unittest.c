@@ -1,6 +1,6 @@
 /* 
  * This file is part of Nokia InternetGatewayDevice v2 reference implementation 
- * Copyright © 2009 Nokia Corporation and/or its subsidiary(-ies).* 
+ * Copyright © 2009 Nokia Corporation and/or its subsidiary(-ies).
  * Contact:mika.saaranen@nokia.com
  * 
  * This program is free software: you can redistribute it and/or modify 
@@ -16,6 +16,10 @@
  * License along with this program. If not, see http://www.gnu.org/licenses/. 
  * 
  */
+
+/*
+    THESE ARE, AT LEAST FOR SOME PARTS, OUTDATED!!!
+*/
 
 #include <CUnit/Basic.h>
 #include <CUnit/Automated.h>
@@ -152,7 +156,7 @@ void Test_AddPortMapping(void)
     // Add with wildcarded remotehost
     event.ActionRequest = ixmlParseBuffer(add_portmapping_request_wildcard_remotehost_xml);
     CU_ASSERT(AddPortMapping(&event) == 0);
-    
+
     // Add with wildcarded internalclient
     event.ActionRequest = ixmlParseBuffer(add_portmapping_request_wildcard_internalclient_xml);
     CU_ASSERT(AddPortMapping(&event) == 715);
@@ -160,15 +164,15 @@ void Test_AddPortMapping(void)
     // Add with wildcarded external port
     event.ActionRequest = ixmlParseBuffer(add_portmapping_request_wildcard_extport_xml);
     CU_ASSERT(AddPortMapping(&event) == 716);
-    
+
     // Add with wildcarded internal port
     event.ActionRequest = ixmlParseBuffer(add_portmapping_request_wildcard_intport_xml);
-    CU_ASSERT(AddPortMapping(&event) == 732);    
+    CU_ASSERT(AddPortMapping(&event) == 732);
 
     // Add with different port values
     event.ActionRequest = ixmlParseBuffer(add_portmapping_request_diff_ports_xml);
-    CU_ASSERT(AddPortMapping(&event) == 724);   
-    
+    CU_ASSERT(AddPortMapping(&event) == 724);
+
     // Invalid args
     event.ActionRequest = ixmlParseBuffer(add_portmapping_request_missing_parameter_xml);
     CU_ASSERT(AddPortMapping(&event) == 402);

@@ -17,17 +17,44 @@
  * along with this program. If not, see http://www.gnu.org/licenses/. 
  * 
  */
-
+ 
 #ifndef _UTIL_H_
 #define _UTIL_H_
 
 #include <upnp/upnp.h>
 
-int get_sockfd(void);
+static const char REGEX_IP_LASTBYTE[] = "^(25[0-5]|2[0-4][0-9]|[0-1]{1}[0-9]{2}|[1-9]{1}[0-9]{1}|[1-9])\\.(25[0-5]|2[0-4][0-9]|[0-1]{1}[0-9]{2}|[1-9]{1}[0-9]{1}|[1-9]|0)\\.(25[0-5]|2[0-4][0-9]|[0-1]{1}[0-9]{2}|[1-9]{1}[0-9]{1}|[1-9]|0)\\.(25[0-5]|2[0-4][0-9]|[0-1]{1}[0-9]{2}|[1-9]{1}[0-9]{1}|[0-9])$";
+static const char REGEX_DOMAIN_NAME[] = "^([a-z0-9]([a-z0-9\\-]{0,61}[a-z0-9])?\\.)+[a-z]{2,6}$";
+
+/* interface statistics */
+typedef enum
+{
+    STATS_TX_BYTES,
+    STATS_RX_BYTES,
+    STATS_TX_PACKETS,
+    STATS_RX_PACKETS,
+    STATS_LIMIT
+} stats_t;
+
+// ACL error codes
+typedef enum {
+    ACL_SUCCESS           = 0,
+
+    ACL_COMMON_ERROR      = -1,
+    ACL_USER_ERROR        = -2,  //user either exist if it shouldn't or doesn't exist even if should
+    ACL_ROLE_ERROR        = -3,  //role either exist if it shouldn't or doesn't exist even if should
+} ACL_ERRORCODE;
+
+char* createUnion(const char *str1, const char *str2);
+int readStats(unsigned long stats[STATS_LIMIT]);
+char* escapeXMLString(char *xml);
+char* unescapeXMLString(char *escXML);
 char *toUpperCase(const char * str);
+int caseInsesitive_strcmp(const char *str1, const char *str2);
 int GetIpAddressStr(char *address, char *ifname);
 int GetMACAddressStr(unsigned char *address, int addressSize, char *ifname);
 int GetConnectionStatus(char *conStatus, char *ifname);
+int IsIpOrDomain(char *address);
 int ControlPointIP_equals_InternalClientIP(char *ICAddress, struct in_addr *);
 int checkForWildCard(const char *str);
 void addErrorData(struct Upnp_Action_Request *ca_event, int errorCode, char* message);

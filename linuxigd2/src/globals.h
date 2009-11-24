@@ -17,7 +17,7 @@
  * along with this program. If not, see http://www.gnu.org/licenses/. 
  * 
  */
-
+ 
 #ifndef _GLOBALS_H_
 #define _GLOBALS_H_
 
@@ -30,6 +30,7 @@
 #define BITRATE_LEN 32
 #define OPTION_LEN 64
 #define RESULT_LEN 4096
+#define RESULT_LEN_LONG 65536
 #define NUM_LEN 32
 
 #define SUB_MATCH 2
@@ -78,16 +79,13 @@ struct GLOBALS
     // resolv.conf location
     char resolvConf[OPTION_LEN];
 
-    // Event update thread checking interval
-    int eventUpdateInterval;
-
     // dhcp-client command
     char dhcpc[OPTION_LEN];
-    
+
     // How often alive notifications are send
     int advertisementInterval;
     char certPath[OPTION_LEN];
-    
+
     // name of access level xml file
     char accessLevelXml[OPTION_LEN];
 };
@@ -114,8 +112,6 @@ extern globals g_vars;
 #define UCI_CMD_DEFAULT "/sbin/uci"
 #define RESOLV_CONF_DEFAULT "/etc/resolv.conf"
 #define RESOLV_CONF_TMP "/tmp/resolv.conf.IGDv2"
-// How often check if update events should be sent
-#define DEFAULT_EVENT_UPDATE_INTERVAL 60
 #define DHCPC_DEFAULT "udhcpc"
 #define NETWORK_CMD_DEFAULT "/etc/init.d/network"
 
@@ -123,5 +119,8 @@ extern globals g_vars;
 #define ADVERTISEMENT_INTERVAL 1800
 #define CERT_PATH_DEFAULT "/etc/certstore"  // must be something else than XML_PATH_DEFAULT!!
 #define ACCESS_LEVEL_XML_DEFAULT "/etc/linuxigd/accesslevel.xml"
+
+// location of ACL (access control list) xml file. This is totally internal file, and is not listed in config file. 
+#define ACL_XML "/etc/upnpd_ACL.xml"
 
 #endif // _GLOBALS_H_

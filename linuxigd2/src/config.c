@@ -17,7 +17,7 @@
  * along with this program. If not, see http://www.gnu.org/licenses/. 
  * 
  */
-
+ 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -114,7 +114,6 @@ int parseConfigFile(globals_p vars)
     regex_t re_dnsmasq;
     regex_t re_uci;
     regex_t re_resolv;
-    regex_t re_event_interval;
     regex_t re_dhcrelay;
     regex_t re_dhcrelay_server;
     regex_t re_dhcpc;
@@ -139,7 +138,6 @@ int parseConfigFile(globals_p vars)
     strcpy(vars->resolvConf, "");
     strcpy(vars->dhcrelayCmd, "");
     strcpy(vars->dhcrelayServer, "");
-    vars->eventUpdateInterval = DEFAULT_EVENT_UPDATE_INTERVAL;
     strcpy(vars->dhcpc, "");
     strcpy(vars->networkCmd, "");
     vars->advertisementInterval = ADVERTISEMENT_INTERVAL;
@@ -165,7 +163,6 @@ int parseConfigFile(globals_p vars)
     regcomp(&re_uci,"uci_command[[:blank:]]*=[[:blank:]]*([[:alpha:]_/.]{1,50})",REG_EXTENDED);
     regcomp(&re_dhcrelay,"dhcrelay_script[[:blank:]]*=[[:blank:]]*([[:alpha:]_/.]{1,50})",REG_EXTENDED);
     regcomp(&re_resolv,"resolf_conf[[:blank:]]*=[[:blank:]]*([[:alpha:]_/.]{1,50})",REG_EXTENDED);
-    regcomp(&re_event_interval,"event_update_interval[[:blank:]]*=[[:blank:]]*([[:digit:]]+)",REG_EXTENDED);
     regcomp(&re_dhcrelay_server,"dhcrelay_server[[:blank:]]*=[[:blank:]]*([[:digit:].:]+)",REG_EXTENDED);
     regcomp(&re_dhcpc,"dhcpc_cmd[[:blank:]]*=[[:blank:]]*([[:alpha:]_/.]{1,50})",REG_EXTENDED);
     regcomp(&re_network,"network_script[[:blank:]]*=[[:blank:]]*([[:alpha:]_/.]{1,50})",REG_EXTENDED);
@@ -261,12 +258,6 @@ int parseConfigFile(globals_p vars)
                 {
                     getConfigOptionArgument(vars->dhcrelayServer, OPTION_LEN, line, submatch);
                 }
-                else if (regexec(&re_event_interval,line,NMATCH,submatch,0) == 0)
-                {
-                    char tmp[6];
-                    getConfigOptionArgument(tmp, OPTION_LEN, line, submatch);
-                    vars->eventUpdateInterval = atoi(tmp);
-                }
                 else if (regexec(&re_dhcpc,line,NMATCH,submatch,0) == 0)
                 {
                     getConfigOptionArgument(vars->dhcpc, OPTION_LEN, line, submatch);
@@ -309,11 +300,9 @@ int parseConfigFile(globals_p vars)
     regfree(&re_dhcrelay);
     regfree(&re_dhcrelay_server);
     regfree(&re_resolv);
-    regfree(&re_event_interval);
     regfree(&re_dhcpc);
     regfree(&re_network);
     regfree(&re_advertisement_interval);
-    
     // Set default values for options not found in config file
     if (strnlen(vars->forwardChainName, OPTION_LEN) == 0)
     {
@@ -367,7 +356,7 @@ int parseConfigFile(globals_p vars)
     {
         snprintf(vars->networkCmd, OPTION_LEN, NETWORK_CMD_DEFAULT);
     }
-    if (vars->advertisementInterval < 300)
+    if (vars->advertisementInterval < 300) // smaller would mess everything
     {
         vars->advertisementInterval = 300;
     }

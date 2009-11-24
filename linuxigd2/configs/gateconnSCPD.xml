@@ -1,10 +1,13 @@
 <?xml version="1.0"?>
 <scpd xmlns="urn:schemas-upnp-org:service-1-0">
+
     <specVersion>
         <major>1</major>
         <minor>0</minor>
     </specVersion>
+
     <actionList>
+
         <action>
             <name>SetConnectionType</name>
             <argumentList>
@@ -15,6 +18,7 @@
                 </argument>
             </argumentList>
         </action>
+
         <action>
             <name>GetConnectionTypeInfo</name>
             <argumentList>
@@ -23,6 +27,7 @@
                     <direction>out</direction>
                     <relatedStateVariable>ConnectionType</relatedStateVariable>
                 </argument>
+
                 <argument>
                     <name>NewPossibleConnectionTypes</name>
                     <direction>out</direction>
@@ -30,12 +35,52 @@
                 </argument>
             </argumentList>
         </action>
+
+        <action>
+            <name>RequestConnection</name>
+        </action>
+
+        <action>
+            <name>RequestTermination</name>
+        </action>
+
         <action>
             <name>ForceTermination</name>
         </action>
+
         <action>
-            <name>RequestConnection</name>
-        </action>        
+            <name>SetAutoDisconnectTime</name>
+            <argumentList>
+                <argument>
+                    <name>NewAutoDisconnectTime</name>
+                    <direction>in</direction>
+                    <relatedStateVariable>AutoDisconnectTime</relatedStateVariable>
+                </argument>
+            </argumentList>
+        </action>
+
+        <action>
+            <name>SetIdleDisconnectTime</name>
+            <argumentList>
+                <argument>
+                    <name>NewIdleDisconnectTime</name>
+                    <direction>in</direction>
+                    <relatedStateVariable>IdleDisconnectTime</relatedStateVariable>
+                </argument>
+            </argumentList>
+        </action>
+
+        <action>
+            <name>SetWarnDisconnectDelay</name>
+            <argumentList>
+                <argument>
+                    <name>NewWarnDisconnectDelay</name>
+                    <direction>in</direction>
+                    <relatedStateVariable>WarnDisconnectDelay</relatedStateVariable>
+                </argument>
+            </argumentList>
+        </action>
+
         <action>
             <name>GetStatusInfo</name>
             <argumentList>
@@ -44,11 +89,13 @@
                     <direction>out</direction>
                     <relatedStateVariable>ConnectionStatus</relatedStateVariable>
                 </argument>
+
                 <argument>
                     <name>NewLastConnectionError</name>
                     <direction>out</direction>
                     <relatedStateVariable>LastConnectionError</relatedStateVariable>
                 </argument>
+
                 <argument>
                     <name>NewUptime</name>
                     <direction>out</direction>
@@ -56,6 +103,40 @@
                 </argument>
             </argumentList>
         </action>
+
+        <action>
+            <name>GetAutoDisconnectTime</name>
+            <argumentList>
+                <argument>
+                    <name>NewAutoDisconnectTime</name>
+                    <direction>out</direction>
+                    <relatedStateVariable>AutoDisconnectTime</relatedStateVariable>
+                </argument>
+            </argumentList>
+        </action>
+
+        <action>
+            <name>GetIdleDisconnectTime</name>
+            <argumentList>
+                <argument>
+                    <name>NewIdleDisconnectTime</name>
+                    <direction>out</direction>
+                    <relatedStateVariable>IdleDisconnectTime</relatedStateVariable>
+                </argument>
+            </argumentList>
+        </action>
+
+        <action>
+            <name>GetWarnDisconnectDelay</name>
+            <argumentList>
+                <argument>
+                    <name>NewWarnDisconnectDelay</name>
+                    <direction>out</direction>
+                    <relatedStateVariable>WarnDisconnectDelay</relatedStateVariable>
+                </argument>
+            </argumentList>
+        </action>
+
         <action>
             <name>GetNATRSIPStatus</name>
             <argumentList>
@@ -64,6 +145,7 @@
                     <direction>out</direction>
                     <relatedStateVariable>RSIPAvailable</relatedStateVariable>
                 </argument>
+
                 <argument>
                     <name>NewNATEnabled</name>
                     <direction>out</direction>
@@ -71,6 +153,7 @@
                 </argument>
             </argumentList>
         </action>
+
         <action>
             <name>GetGenericPortMappingEntry</name>
             <argumentList>
@@ -79,41 +162,49 @@
                     <direction>in</direction>
                     <relatedStateVariable>PortMappingNumberOfEntries</relatedStateVariable>
                 </argument>
+
                 <argument>
                     <name>NewRemoteHost</name>
                     <direction>out</direction>
                     <relatedStateVariable>RemoteHost</relatedStateVariable>
                 </argument>
+
                 <argument>
                     <name>NewExternalPort</name>
                     <direction>out</direction>
                     <relatedStateVariable>ExternalPort</relatedStateVariable>
                 </argument>
+
                 <argument>
                     <name>NewProtocol</name>
                     <direction>out</direction>
                     <relatedStateVariable>PortMappingProtocol</relatedStateVariable>
                 </argument>
+
                 <argument>
                     <name>NewInternalPort</name>
                     <direction>out</direction>
                     <relatedStateVariable>InternalPort</relatedStateVariable>
                 </argument>
+
                 <argument>
                     <name>NewInternalClient</name>
                     <direction>out</direction>
                     <relatedStateVariable>InternalClient</relatedStateVariable>
                 </argument>
+
                 <argument>
                     <name>NewEnabled</name>
                     <direction>out</direction>
                     <relatedStateVariable>PortMappingEnabled</relatedStateVariable>
                 </argument>
+
                 <argument>
                     <name>NewPortMappingDescription</name>
                     <direction>out</direction>
                     <relatedStateVariable>PortMappingDescription</relatedStateVariable>
                 </argument>
+
                 <argument>
                     <name>NewLeaseDuration</name>
                     <direction>out</direction>
@@ -121,6 +212,7 @@
                 </argument>
             </argumentList>
         </action>
+
         <action>
             <name>GetSpecificPortMappingEntry</name>
             <argumentList>
@@ -129,36 +221,43 @@
                     <direction>in</direction>
                     <relatedStateVariable>RemoteHost</relatedStateVariable>
                 </argument>
+
                 <argument>
                     <name>NewExternalPort</name>
                     <direction>in</direction>
                     <relatedStateVariable>ExternalPort</relatedStateVariable>
                 </argument>
+
                 <argument>
                     <name>NewProtocol</name>
                     <direction>in</direction>
                     <relatedStateVariable>PortMappingProtocol</relatedStateVariable>
                 </argument>
+
                 <argument>
                     <name>NewInternalPort</name>
                     <direction>out</direction>
                     <relatedStateVariable>InternalPort</relatedStateVariable>
                 </argument>
+
                 <argument>
                     <name>NewInternalClient</name>
                     <direction>out</direction>
                     <relatedStateVariable>InternalClient</relatedStateVariable>
                 </argument>
+
                 <argument>
                     <name>NewEnabled</name>
                     <direction>out</direction>
                     <relatedStateVariable>PortMappingEnabled</relatedStateVariable>
                 </argument>
+
                 <argument>
                     <name>NewPortMappingDescription</name>
                     <direction>out</direction>
                     <relatedStateVariable>PortMappingDescription</relatedStateVariable>
                 </argument>
+
                 <argument>
                     <name>NewLeaseDuration</name>
                     <direction>out</direction>
@@ -166,6 +265,7 @@
                 </argument>
             </argumentList>
         </action>
+
         <action>
             <name>AddPortMapping</name>
             <argumentList>
@@ -174,36 +274,43 @@
                     <direction>in</direction>
                     <relatedStateVariable>RemoteHost</relatedStateVariable>
                 </argument>
+
                 <argument>
                     <name>NewExternalPort</name>
                     <direction>in</direction>
                     <relatedStateVariable>ExternalPort</relatedStateVariable>
                 </argument>
+
                 <argument>
                     <name>NewProtocol</name>
                     <direction>in</direction>
                     <relatedStateVariable>PortMappingProtocol</relatedStateVariable>
                 </argument>
+
                 <argument>
                     <name>NewInternalPort</name>
                     <direction>in</direction>
                     <relatedStateVariable>InternalPort</relatedStateVariable>
                 </argument>
+
                 <argument>
                     <name>NewInternalClient</name>
                     <direction>in</direction>
                     <relatedStateVariable>InternalClient</relatedStateVariable>
                 </argument>
+
                 <argument>
                     <name>NewEnabled</name>
                     <direction>in</direction>
                     <relatedStateVariable>PortMappingEnabled</relatedStateVariable>
                 </argument>
+
                 <argument>
                     <name>NewPortMappingDescription</name>
                     <direction>in</direction>
                     <relatedStateVariable>PortMappingDescription</relatedStateVariable>
                 </argument>
+
                 <argument>
                     <name>NewLeaseDuration</name>
                     <direction>in</direction>
@@ -211,6 +318,7 @@
                 </argument>
             </argumentList>
         </action>
+
         <action>
             <name>DeletePortMapping</name>
             <argumentList>
@@ -219,11 +327,13 @@
                     <direction>in</direction>
                     <relatedStateVariable>RemoteHost</relatedStateVariable>
                 </argument>
+
                 <argument>
                     <name>NewExternalPort</name>
                     <direction>in</direction>
                     <relatedStateVariable>ExternalPort</relatedStateVariable>
                 </argument>
+
                 <argument>
                     <name>NewProtocol</name>
                     <direction>in</direction>
@@ -231,6 +341,7 @@
                 </argument>
             </argumentList>
         </action>
+
         <action>
             <name>GetExternalIPAddress</name>
             <argumentList>
@@ -241,6 +352,7 @@
                 </argument>
             </argumentList>
         </action>
+
         <action>
             <name>DeletePortMappingRange</name>
             <argumentList>
@@ -249,16 +361,19 @@
                     <direction>in</direction>
                     <relatedStateVariable>ExternalPort</relatedStateVariable>
                 </argument>
+
                 <argument>
                     <name>NewEndPort</name>
                     <direction>in</direction>
                     <relatedStateVariable>ExternalPort</relatedStateVariable>
                 </argument>
+
                 <argument>
                     <name>NewProtocol</name>
                     <direction>in</direction>
                     <relatedStateVariable>PortMappingProtocol</relatedStateVariable>
                 </argument>
+
                 <argument>
                     <name>NewManage</name>
                     <direction>in</direction>
@@ -266,6 +381,7 @@
                 </argument>
             </argumentList>
         </action>
+
         <action>
             <name>GetListOfPortMappings</name>
             <argumentList>
@@ -274,26 +390,31 @@
                     <direction>in</direction>
                     <relatedStateVariable>ExternalPort</relatedStateVariable>
                 </argument>
+
                 <argument>
                     <name>NewEndPort</name>
                     <direction>in</direction>
                     <relatedStateVariable>ExternalPort</relatedStateVariable>
                 </argument>
+
                 <argument>
                     <name>NewProtocol</name>
                     <direction>in</direction>
                     <relatedStateVariable>PortMappingProtocol</relatedStateVariable>
                 </argument>
+
                 <argument>
                     <name>NewManage</name>
                     <direction>in</direction>
                     <relatedStateVariable>A_ARG_TYPE_Manage</relatedStateVariable>
                 </argument>
+
                 <argument>
                     <name>NewNumberOfPorts</name>
                     <direction>in</direction>
-                    <relatedStateVariable>ExternalPort</relatedStateVariable>
+                    <relatedStateVariable>PortMappingNumberOfEntries</relatedStateVariable>
                 </argument>
+
                 <argument>
                     <name>NewPortListing</name>
                     <direction>out</direction>
@@ -301,6 +422,7 @@
                 </argument>
             </argumentList>
         </action>
+
         <action>
             <name>AddAnyPortMapping</name>
             <argumentList>
@@ -309,41 +431,49 @@
                     <direction>in</direction>
                     <relatedStateVariable>RemoteHost</relatedStateVariable>
                 </argument>
+
                 <argument>
                     <name>NewExternalPort</name>
                     <direction>in</direction>
                     <relatedStateVariable>ExternalPort</relatedStateVariable>
                 </argument>
+
                 <argument>
                     <name>NewProtocol</name>
                     <direction>in</direction>
                     <relatedStateVariable>PortMappingProtocol</relatedStateVariable>
                 </argument>
+
                 <argument>
                     <name>NewInternalPort</name>
                     <direction>in</direction>
                     <relatedStateVariable>InternalPort</relatedStateVariable>
                 </argument>
+
                 <argument>
                     <name>NewInternalClient</name>
                     <direction>in</direction>
                     <relatedStateVariable>InternalClient</relatedStateVariable>
                 </argument>
+
                 <argument>
                     <name>NewEnabled</name>
                     <direction>in</direction>
                     <relatedStateVariable>PortMappingEnabled</relatedStateVariable>
                 </argument>
+
                 <argument>
                     <name>NewPortMappingDescription</name>
                     <direction>in</direction>
                     <relatedStateVariable>PortMappingDescription</relatedStateVariable>
                 </argument>
+
                 <argument>
                     <name>NewLeaseDuration</name>
                     <direction>in</direction>
                     <relatedStateVariable>PortMappingLeaseDuration</relatedStateVariable>
                 </argument>
+
                 <argument>
                     <name>NewReservedPort</name>
                     <direction>out</direction>
@@ -351,21 +481,29 @@
                 </argument>
             </argumentList>
         </action>
+
+    <!-- Declarations for other actions defined by UPnP vendor (if any) go here -->
+
     </actionList>
+
     <serviceStateTable>
+
         <stateVariable sendEvents="no">
             <name>ConnectionType</name>
             <dataType>string</dataType>
-        </stateVariable>
-        <stateVariable sendEvents="yes">
-            <name>PossibleConnectionTypes</name>
-            <dataType>string</dataType>
+            <defaultValue>IP_Routed</defaultValue>
             <allowedValueList>
                 <allowedValue>Unconfigured</allowedValue>
                 <allowedValue>IP_Routed</allowedValue>
                 <allowedValue>IP_Bridged</allowedValue>
             </allowedValueList>
         </stateVariable>
+
+        <stateVariable sendEvents="yes">
+            <name>PossibleConnectionTypes</name>
+            <dataType>string</dataType>
+        </stateVariable>
+
         <stateVariable sendEvents="yes">
             <name>ConnectionStatus</name>
             <dataType>string</dataType>
@@ -378,10 +516,12 @@
                 <allowedValue>Disconnected</allowedValue>
             </allowedValueList>
         </stateVariable>
+
         <stateVariable sendEvents="no">
             <name>Uptime</name>
             <dataType>ui4</dataType>
         </stateVariable>
+
         <stateVariable sendEvents="no">
             <name>LastConnectionError</name>
             <dataType>string</dataType>
@@ -398,54 +538,76 @@
                 <allowedValue>ERROR_UNKNOWN</allowedValue>
             </allowedValueList>
         </stateVariable>
+
         <stateVariable sendEvents="no">
             <name>AutoDisconnectTime</name>
             <dataType>ui4</dataType>
         </stateVariable>
+
         <stateVariable sendEvents="no">
             <name>IdleDisconnectTime</name>
             <dataType>ui4</dataType>
         </stateVariable>
+
         <stateVariable sendEvents="no">
             <name>WarnDisconnectDelay</name>
             <dataType>ui4</dataType>
         </stateVariable>
+
         <stateVariable sendEvents="no">
             <name>RSIPAvailable</name>
             <dataType>boolean</dataType>
         </stateVariable>
+
         <stateVariable sendEvents="no">
             <name>NATEnabled</name>
             <dataType>boolean</dataType>
         </stateVariable>
+
         <stateVariable sendEvents="yes">
             <name>ExternalIPAddress</name>
             <dataType>string</dataType>
         </stateVariable>
+
         <stateVariable sendEvents="yes">
             <name>PortMappingNumberOfEntries</name>
             <dataType>ui2</dataType>
         </stateVariable>
+
         <stateVariable sendEvents="no">
             <name>PortMappingEnabled</name>
             <dataType>boolean</dataType>
         </stateVariable>
+
         <stateVariable sendEvents="no">
             <name>PortMappingLeaseDuration</name>
             <dataType>ui4</dataType>
+            <defaultValue>3600</defaultValue>
+            <allowedValueRange>
+                <minimum>0</minimum>
+                <maximum>604800</maximum>
+            </allowedValueRange>
         </stateVariable>
+
         <stateVariable sendEvents="no">
             <name>RemoteHost</name>
             <dataType>string</dataType>
         </stateVariable>
+
         <stateVariable sendEvents="no">
             <name>ExternalPort</name>
             <dataType>ui2</dataType>
         </stateVariable>
+
         <stateVariable sendEvents="no">
             <name>InternalPort</name>
             <dataType>ui2</dataType>
+            <allowedValueRange>
+                <minimum>1</minimum>
+                <maximum>65535</maximum>
+            </allowedValueRange>
         </stateVariable>
+
         <stateVariable sendEvents="no">
             <name>PortMappingProtocol</name>
             <dataType>string</dataType>
@@ -454,25 +616,33 @@
                 <allowedValue>UDP</allowedValue>
             </allowedValueList>
         </stateVariable>
+
         <stateVariable sendEvents="no">
             <name>InternalClient</name>
             <dataType>string</dataType>
         </stateVariable>
+
         <stateVariable sendEvents="no">
             <name>PortMappingDescription</name>
             <dataType>string</dataType>
         </stateVariable>
+
         <stateVariable sendEvents="yes">
             <name>SystemUpdateID</name>
             <dataType>ui4</dataType>
         </stateVariable>
+
         <stateVariable sendEvents="no">
             <name>A_ARG_TYPE_Manage</name>
             <dataType>boolean</dataType>
         </stateVariable>
+
         <stateVariable sendEvents="no">
             <name>A_ARG_TYPE_PortListing</name>
             <dataType>string</dataType>
         </stateVariable>
+
+        <!-- Declarations for other state variables defined by UPnP vendor (if any) go here -->
+
     </serviceStateTable>
 </scpd>

@@ -17,7 +17,7 @@
  * along with this program. If not, see http://www.gnu.org/licenses/. 
  * 
  */
-
+ 
 #if HAVE_LIBIPTC
 #include <stdlib.h>
 #include <stdio.h>
@@ -53,8 +53,9 @@ static int matchcmp(const struct ipt_entry_match *match, const char *srcports, c
  * @param target What rule should do if packet match. (ACCEPT or DNAT)
  * @param dnat_to In case of DNAT this is same as src:srcports
  * @param append If true, rule is appended as last chain, else rule is inserted as first in chain.
+ * @return 1 if succesfull, 0 else.
  */
-void iptc_add_rule(const char *table,
+int iptc_add_rule(const char *table,
                    const char *chain,
                    const char *protocol,
                    const char *iniface,
@@ -68,7 +69,7 @@ void iptc_add_rule(const char *table,
                    const int append)
 {
     iptc_handle_t handle;
-    struct ipt_entry *chain_entry;
+    struct ipt_entry *chain_entry = NULL;
     struct ipt_entry_match *entry_match = NULL;
     struct ipt_entry_target *entry_target = NULL;
     ipt_chainlabel labelit;
@@ -104,7 +105,7 @@ void iptc_add_rule(const char *table,
     else
     {
         trace(1, "Unsupported protocol: %s", protocol);
-        return;
+        return 0;
     }
 
     if (strcmp(target, "") == 0
@@ -142,7 +143,7 @@ void iptc_add_rule(const char *table,
     if (!handle)
     {
         trace(1, "libiptc error: Can't initialize table %s, %s", table, iptc_strerror(errno));
-        return;
+        return 0;
     }
 
     strncpy(labelit, chain, sizeof(ipt_chainlabel));
@@ -150,7 +151,7 @@ void iptc_add_rule(const char *table,
     if (!result)
     {
         trace(1, "libiptc error: Chain %s does not exist!", chain);
-        return;
+        return 0;
     }
     if (append)
         result = iptc_append_entry(labelit, chain_entry, &handle);
@@ -160,20 +161,22 @@ void iptc_add_rule(const char *table,
     if (!result)
     {
         trace(1, "libiptc error: Can't add, %s", iptc_strerror(errno));
-        return;
+        return 0;
     }
     result = iptc_commit(&handle);
     if (!result)
     {
         trace(1, "libiptc error: Commit error, %s", iptc_strerror(errno));
-        return;
+        return 0;
     }
     else
         trace(3, "added new rule to block successfully");
 
-    if (entry_match) free(entry_match);
+    free(entry_match);
     free(entry_target);
     free(chain_entry);
+
+    return 1;
 }
 
 /**
@@ -190,8 +193,9 @@ void iptc_add_rule(const char *table,
  * @param destports Destination port of packet. 
  * @param target What rule should do if packet match. (ACCEPT or DNAT)
  * @param dnat_to In case of DNAT this is same as src:srcports
+ * @return 1 if succesfull, 0 else.
  */
-void iptc_delete_rule(const char *table,
+int iptc_delete_rule(const char *table,
                       const char *chain,
                       const char *protocol,
                       const char *iniface,
@@ -216,7 +220,7 @@ void iptc_delete_rule(const char *table,
     if (!handle)
     {
         trace(1, "libiptc error: Can't initialize table %s, %s", table, iptc_strerror(errno));
-        return;
+        return 0;
     }
 
     strncpy(labelit, chain, sizeof(ipt_chainlabel));
@@ -224,7 +228,7 @@ void iptc_delete_rule(const char *table,
     if (!result)
     {
         trace(1, "libiptc error: Chain %s does not exist!", chain);
-        return;
+        return 0;
     }
 
     /* check through rules to find match */
@@ -262,21 +266,23 @@ void iptc_delete_rule(const char *table,
 
         break;
     }
-    if (!e) return;
+    if (!e) return 0;
     result = iptc_delete_num_entry(chain, i, &handle);
     if (!result)
     {
         trace(1, "libiptc error: Delete error, %s", iptc_strerror(errno));
-        return;
+        return 0;
     }
     result = iptc_commit(&handle);
     if (!result)
     {
         trace(1, "libiptc error: Commit error, %s", iptc_strerror(errno));
-        return;
+        return 0;
     }
     else
         trace(3, "deleted rule from block successfully");
+
+    return 1;
 }
 
 static int matchcmp(const struct ipt_entry_match *match, const char *srcports, const char *destports)

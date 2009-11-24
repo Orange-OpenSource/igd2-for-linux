@@ -50,7 +50,7 @@ int main (int argc, char** argv)
     char intIpAddress[INET6_ADDRSTRLEN];     // Server internal ip address updated IPv6 address length 16 -> 46
     sigset_t sigsToCatch;
     int ret, signum, arg = 1, foreground = 0;
-    
+
     if (!setlocale(LC_CTYPE, "")) {
       fprintf(stderr, "Can't set the specified locale! "
               "Check LANG, LC_CTYPE, LC_ALL.\n");
@@ -107,7 +107,7 @@ int main (int argc, char** argv)
             else
             {
                 fprintf(stderr, "Invalid internal interface name '%s'\n", g_vars.intInterfaceName);
-                exit(EXIT_FAILURE);                
+                exit(EXIT_FAILURE);
             }
         }
     }
@@ -207,7 +207,7 @@ int main (int argc, char** argv)
         exit(1);
     }
 
-    // Form the Description Doc URL to pass to RegisterRootDevice
+    // Form the Description Doc URL's to pass to RegisterRootDevice
     sprintf(descDocUrl, "http://%s:%d/%s", UpnpGetServerIpAddress(),
             UpnpGetServerPort(), g_vars.descDocName);
 
@@ -256,13 +256,11 @@ int main (int argc, char** argv)
     // Initialize lanhostconfig module
     InitLanHostConfig();
 
-    // Record the startup time, for uptime
-    startup_time = time(NULL);
 
     // Send out initial advertisements of our device's services (with timeouts of 30 minutes, default value,can be changed from config file)
     if ( (ret = UpnpSendAdvertisement(deviceHandle, g_vars.advertisementInterval) != UPNP_E_SUCCESS ))
     {
-        syslog(LOG_ERR, "Error Sending Advertisements.  Exiting ...");
+        syslog(LOG_ERR, "Error Sending Advertisements. Exiting ...");
         UpnpFinish();
         exit(1);
     }
