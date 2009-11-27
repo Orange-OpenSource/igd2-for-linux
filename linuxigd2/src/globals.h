@@ -117,8 +117,6 @@ extern globals g_vars;
 
 #define ROUTE_COMMAND "route"
 #define ADVERTISEMENT_INTERVAL 1800
-#define CERT_PATH_DEFAULT "/etc/certstore"  // must be something else than XML_PATH_DEFAULT!!
-#define ACCESS_LEVEL_XML_DEFAULT "/etc/linuxigd/accesslevel.xml"
 
 // location of ACL (access control list) xml file. This is totally internal file, and is not listed in config file. 
 #define ACL_XML "/etc/upnpd_ACL.xml"
