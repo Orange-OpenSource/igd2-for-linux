@@ -64,13 +64,13 @@ static void GenaAutoRenewSubscription(
 	IN void *input)
 {
 	upnp_timeout *event = (upnp_timeout *) input;
-        struct Upnp_Event_Subscribe *sub_struct = (struct Upnp_Event_Subscribe *)event->Event;
+	struct Upnp_Event_Subscribe *sub_struct = (struct Upnp_Event_Subscribe *)event->Event;
 	void *cookie;
 	Upnp_FunPtr callback_fun;
 	struct Handle_Info *handle_info;
 	int send_callback = 0;
 	int eventType = 0;
-	int timeout = 0;
+	int timeout = sub_struct->TimeOut;
 	int errCode = 0;
 
 	if (AUTO_RENEW_TIME == 0) {
@@ -111,7 +111,7 @@ static void GenaAutoRenewSubscription(
 		callback_fun(eventType, event->Event, cookie);
 	}
 
-	free_upnp_timeout(event);
+	//free_upnp_timeout(event); // will cause problems when renewing
 }
 
 
@@ -643,8 +643,7 @@ int genaRenewSubscription(
 	HandleUnlock();
 
 exit_function:
-	free(ActualSID);
-	
+	//free(ActualSID);
 	return return_code;
 }
 

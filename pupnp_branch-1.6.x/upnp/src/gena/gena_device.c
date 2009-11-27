@@ -215,12 +215,12 @@ static UPNP_INLINE int notify_send_and_recv(
 
     timeout = HTTP_DEFAULT_TIMEOUT;
 
-    // send msg (note +1 for propertyset; null-terminator is also sent)
+	// send msg
     if( ( ret_code = http_SendMessage( &info, &timeout,
                                        "bb",
                                        start_msg.buf, start_msg.length,
                                        propertySet,
-                                       strlen( propertySet ) + 1 ) ) !=
+									   strlen( propertySet ) ) ) !=
         0 ) {
         membuffer_destroy( &start_msg );
         sock_destroy( &info, SD_BOTH );
@@ -445,7 +445,7 @@ static char *AllocGenaHeaders(
 	sprintf(headers, "%s%s%"PRIzu"%s%s%s",
 		HEADER_LINE_1,
 		HEADER_LINE_2A,
-		strlen(propertySet) + 1,
+		strlen(propertySet),
 		HEADER_LINE_2B,
 		HEADER_LINE_3,
 		HEADER_LINE_4);
