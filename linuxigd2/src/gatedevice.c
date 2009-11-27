@@ -1097,8 +1097,8 @@ int AddPortMapping(struct Upnp_Action_Request *ca_event)
             trace(1, "Port numbers must be greater than 1023 and NewInternalClient must be same as IP of Control point \
 unless control port is authorized. external_port:%s, internal_port:%s internal_client:%s",
                   ext_port, int_port, int_client);
-            result = 729;
-            addErrorData(ca_event, result, "ConflictsWithOtherMechanisms");
+            result = 606;
+            addErrorData(ca_event, result, "Action not authorized");
         }
 
         // Check RemoteHost and InternalPort parameters
@@ -1138,7 +1138,6 @@ unless control port is authorized. external_port:%s, internal_port:%s internal_c
                 result = 718;
                 addErrorData(ca_event, result, "ConflictInMappingEntry");
             }
-
 
             // if still no errors happened, add new portmapping
             if (result == 0)
@@ -1234,8 +1233,8 @@ int AddAnyPortMapping(struct Upnp_Action_Request *ca_event)
             trace(1, "Port numbers must be greater than 1023 and NewInternalClient must be same as IP of Control point \
 unless control port is authorized. external_port:%s, internal_port:%s internal_client:%s",
                   ext_port, int_port, int_client);
-            result = 729;
-            addErrorData(ca_event, result, "ConflictsWithOtherMechanisms");
+            result = 606;
+            addErrorData(ca_event, result, "Action not authorized");
         }
 
         // Check Internal client and Port parameters
