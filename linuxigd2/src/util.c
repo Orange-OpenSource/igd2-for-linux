@@ -1434,14 +1434,14 @@ int initActionAccessLevels(const char *pathToFile)
  *
  * @param serviceId ServiceId of service which child action actionName is
  * @param actionName Name of action
- * @param manage Is value of accessLevelManage (1) or accessLevel (0) returned.
+ * @param manage Is roleList (1) or restrictedRoleList (0) returned. -1 return union of both rolelists.
  * @param requireSSL Return value of requireSSL element from this action.
  * @return Access level string or NULL
  */
 char* getAccessLevel(const char *serviceId, const char *actionName, int manage, int *requireSSL)
 {
     char *accesslevel = NULL;
-    char *tmp = NULL;
+    char *tmp = NULL, *tmp2 = NULL;
     IXML_Node *tmpNode = NULL, *actionNode = NULL;
 
     // get node with given serviceId
@@ -1476,14 +1476,36 @@ char* getAccessLevel(const char *serviceId, const char *actionName, int manage, 
             }
 
             // and now get desired accesslevel-node
-            if (manage)
+            if (manage == -1)
             {
-                tmpNode = GetSiblingWithTagName(tmpNode, "accessLevelManage");
+                // union of both lists
+                tmpNode = GetSiblingWithTagName(tmpNode, "roleList");
+                // every action must have roleList node in accesslevel.xml
+                if (tmpNode == NULL) return NULL;
+                tmp = GetTextValueOfNode(tmpNode);
+
+                tmpNode = GetSiblingWithTagName(tmpNode, "restrictedRoleList");
+                if (tmpNode == NULL)
+                {
+                    return tmp;
+                }
+
+                tmp2 = GetTextValueOfNode(tmpNode);
+                accesslevel = createUnion(tmp, tmp2);
+
+                free(tmp);
+                free(tmp2);
+                return accesslevel;
+            }
+            else if (manage == 0)
+            {
+                tmpNode = GetSiblingWithTagName(tmpNode, "restrictedRoleList");
             }
             else
             {
-                tmpNode = GetSiblingWithTagName(tmpNode, "accessLevel");
+                tmpNode = GetSiblingWithTagName(tmpNode, "roleList");
             }
+
 
             if (tmpNode == NULL) return NULL;
             accesslevel = GetTextValueOfNode(tmpNode);

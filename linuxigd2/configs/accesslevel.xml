@@ -1,16 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE serviceList [
-  <!ELEMENT serviceList       (serviceEntry+)>
-  <!ELEMENT serviceEntry      (serviceId,serviceName,serviceVersion?,actionList)>
-  <!ELEMENT serviceName       (#PCDATA)>
-  <!ELEMENT serviceVersion    (#PCDATA)>
-  <!ELEMENT serviceId         (#PCDATA)>
-  <!ELEMENT actionList        (action+)>
-  <!ELEMENT action            (name,requireSSL,accessLevel,accessLevelManage?)>
-  <!ELEMENT name              (#PCDATA)>
-  <!ELEMENT requireSSL        (#PCDATA)>
-  <!ELEMENT accessLevel       (#PCDATA)>
-  <!ELEMENT accessLevelManage (#PCDATA)>
+  <!ELEMENT serviceList        (serviceEntry+)>
+  <!ELEMENT serviceEntry       (serviceId,serviceName,serviceVersion?,actionList)>
+  <!ELEMENT serviceName        (#PCDATA)>
+  <!ELEMENT serviceVersion     (#PCDATA)>
+  <!ELEMENT serviceId          (#PCDATA)>
+  <!ELEMENT actionList         (action+)>
+  <!ELEMENT action             (name,requireSSL,roleList,restrictedRoleList?)>
+  <!ELEMENT name               (#PCDATA)>
+  <!ELEMENT requireSSL         (#PCDATA)>
+  <!ELEMENT roleList           (#PCDATA)>
+  <!ELEMENT restrictedRoleList (#PCDATA)>
 ]>
 <serviceList>
     <serviceEntry>
@@ -21,114 +21,114 @@
             <action>
                 <name>SetConnectionType</name>
                 <requireSSL>1</requireSSL>
-                <accessLevel>Admin</accessLevel>
+                <roleList>Admin</roleList>
             </action>
             <action>
                 <name>GetConnectionTypeInfo</name>
                 <requireSSL>0</requireSSL>
-                <accessLevel>Public Basic Admin</accessLevel>
+                <roleList>Public Basic Admin</roleList>
             </action>
             <action>
                 <name>RequestConnection</name>
                 <requireSSL>1</requireSSL>
-                <accessLevel>Basic Admin</accessLevel>
+                <roleList>Basic Admin</roleList>
             </action>
             <action>
                 <name>RequestTermination</name>
                 <requireSSL>1</requireSSL>
-                <accessLevel>Admin</accessLevel>
+                <roleList>Admin</roleList>
             </action>
             <action>
                 <name>ForceTermination</name>
                 <requireSSL>1</requireSSL>
-                <accessLevel>Admin</accessLevel>
+                <roleList>Admin</roleList>
             </action>
             <action>
                 <name>SetAutoDisconnectTime</name>
                 <requireSSL>1</requireSSL>
-                <accessLevel>Admin</accessLevel>
+                <roleList>Admin</roleList>
             </action>
             <action>
                 <name>SetIdleDisconnectTime</name>
                 <requireSSL>1</requireSSL>
-                <accessLevel>Admin</accessLevel>
+                <roleList>Admin</roleList>
             </action>
             <action>
                 <name>SetWarnDisconnectDelay</name>
                 <requireSSL>1</requireSSL>
-                <accessLevel>Admin</accessLevel>
+                <roleList>Admin</roleList>
             </action>
             <action>
                 <name>GetStatusInfo</name>
                 <requireSSL>0</requireSSL>
-                <accessLevel>Public Basic Admin</accessLevel>
+                <roleList>Public Basic Admin</roleList>
             </action>
             <action>
                 <name>GetAutoDisconnectTime</name>
                 <requireSSL>0</requireSSL>
-                <accessLevel>Public Basic Admin</accessLevel>
+                <roleList>Public Basic Admin</roleList>
             </action>
             <action>
                 <name>GetIdleDisconnectTime</name>
                 <requireSSL>0</requireSSL>
-                <accessLevel>Public Basic Admin</accessLevel>
+                <roleList>Public Basic Admin</roleList>
             </action>
             <action>
                 <name>GetWarnDisconnectDelay</name>
                 <requireSSL>0</requireSSL>
-                <accessLevel>Public Basic Admin</accessLevel>
+                <roleList>Public Basic Admin</roleList>
             </action>
             <action>
                 <name>GetNATRSIPStatus</name>
                 <requireSSL>0</requireSSL>
-                <accessLevel>Public Basic Admin</accessLevel>
+                <roleList>Public Basic Admin</roleList>
             </action>
             <action>
                 <name>GetGenericPortMappingEntry</name>
                 <requireSSL>0</requireSSL>
-                <accessLevel>Public Basic Admin</accessLevel>
-                <accessLevelManage>Basic Admin</accessLevelManage>
+                <restrictedRoleList>Public</restrictedRoleList>
+                <roleList>Basic Admin</roleList>
             </action>
             <action>
                 <name>GetSpecificPortMappingEntry</name>
                 <requireSSL>0</requireSSL>
-                <accessLevel>Public Basic Admin</accessLevel>
-                <accessLevelManage>Basic Admin</accessLevelManage>
+                <restrictedRoleList>Public</restrictedRoleList>
+                <roleList>Basic Admin</roleList>
             </action>
             <action>
                 <name>AddPortMapping</name>
                 <requireSSL>0</requireSSL>
-                <accessLevel>Public Basic Admin</accessLevel>
-                <accessLevelManage>Admin</accessLevelManage>
+                <restrictedRoleList>Public Basic</restrictedRoleList>
+                <roleList>Admin</roleList>
             </action>
             <action>
                 <name>AddAnyPortMapping</name>
                 <requireSSL>0</requireSSL>
-                <accessLevel>Public Basic Admin</accessLevel>
-                <accessLevelManage>Admin</accessLevelManage>
+                <restrictedRoleList>Public Basic</restrictedRoleList>
+                <roleList>Admin</roleList>
             </action>
             <action>
                 <name>DeletePortMapping</name>
                 <requireSSL>0</requireSSL>
-                <accessLevel>Public Basic Admin</accessLevel>
-                <accessLevelManage>Basic Admin</accessLevelManage>
+                <restrictedRoleList>Public</restrictedRoleList>
+                <roleList>Basic Admin</roleList>
             </action>
             <action>
                 <name>DeletePortMappingRange</name>
                 <requireSSL>0</requireSSL>
-                <accessLevel>Public Basic Admin</accessLevel>
-                <accessLevelManage>Basic Admin</accessLevelManage>
+                <restrictedRoleList>Public</restrictedRoleList>
+                <roleList>Basic Admin</roleList>
             </action>
             <action>
                 <name>GetExternalIPAddress</name>
                 <requireSSL>0</requireSSL>
-                <accessLevel>Public Basic Admin</accessLevel>
+                <roleList>Public Basic Admin</roleList>
             </action>
             <action>
                 <name>GetListOfPortMappings</name>
                 <requireSSL>0</requireSSL>
-                <accessLevel>Public Basic Admin</accessLevel>
-                <accessLevelManage>Basic Admin</accessLevelManage>
+                <restrictedRoleList>Public</restrictedRoleList>
+                <roleList>Basic Admin</roleList>
             </action>
         </actionList>
     </serviceEntry>
@@ -140,97 +140,97 @@
             <action>
                 <name>SetDHCPServerConfigurable</name>
                 <requireSSL>1</requireSSL>
-                <accessLevel>Admin</accessLevel>
+                <roleList>Admin</roleList>
             </action>
             <action>
                 <name>GetDHCPServerConfigurable</name>
                 <requireSSL>0</requireSSL>
-                <accessLevel>Public Basic Admin</accessLevel>
+                <roleList>Public Basic Admin</roleList>
             </action>
             <action>
                 <name>SetDHCPRelay</name>
                 <requireSSL>1</requireSSL>
-                <accessLevel>Admin</accessLevel>
+                <roleList>Admin</roleList>
             </action>
             <action>
                 <name>GetDHCPRelay</name>
                 <requireSSL>0</requireSSL>
-                <accessLevel>Public Basic Admin</accessLevel>
+                <roleList>Public Basic Admin</roleList>
             </action>
             <action>
                 <name>SetSubnetMask</name>
                 <requireSSL>1</requireSSL>
-                <accessLevel>Admin</accessLevel>
+                <roleList>Admin</roleList>
             </action>
             <action>
                 <name>GetSubnetMask</name>
                 <requireSSL>0</requireSSL>
-                <accessLevel>Public Basic Admin</accessLevel>
+                <roleList>Public Basic Admin</roleList>
             </action>
             <action>
                 <name>SetIPRouter</name>
                 <requireSSL>1</requireSSL>
-                <accessLevel>Admin</accessLevel>
+                <roleList>Admin</roleList>
             </action>
             <action>
                 <name>DeleteIPRouter</name>
                 <requireSSL>1</requireSSL>
-                <accessLevel>Admin</accessLevel>
+                <roleList>Admin</roleList>
             </action>
             <action>
                 <name>GetIPRoutersList</name>
                 <requireSSL>0</requireSSL>
-                <accessLevel>Public Basic Admin</accessLevel>
+                <roleList>Public Basic Admin</roleList>
             </action>
             <action>
                 <name>SetDomainName</name>
                 <requireSSL>1</requireSSL>
-                <accessLevel>Admin</accessLevel>
+                <roleList>Admin</roleList>
             </action>
             <action>
                 <name>GetDomainName</name>
                 <requireSSL>0</requireSSL>
-                <accessLevel>Public Basic Admin</accessLevel>
+                <roleList>Public Basic Admin</roleList>
             </action>
             <action>
                 <name>SetAddressRange</name>
                 <requireSSL>1</requireSSL>
-                <accessLevel>Admin</accessLevel>
+                <roleList>Admin</roleList>
             </action>
             <action>
                 <name>GetAddressRange</name>
                 <requireSSL>0</requireSSL>
-                <accessLevel>Public Basic Admin</accessLevel>
+                <roleList>Public Basic Admin</roleList>
             </action>
             <action>
                 <name>SetReservedAddress</name>
                 <requireSSL>1</requireSSL>
-                <accessLevel>Admin</accessLevel>
+                <roleList>Admin</roleList>
             </action>
             <action>
                 <name>DeleteReservedAddress</name>
                 <requireSSL>1</requireSSL>
-                <accessLevel>Admin</accessLevel>
+                <roleList>Admin</roleList>
             </action>
             <action>
                 <name>GetReservedAddresses</name>
                 <requireSSL>1</requireSSL>
-                <accessLevel>Admin</accessLevel>
+                <roleList>Admin</roleList>
             </action>
             <action>
                 <name>SetDNSServer</name>
                 <requireSSL>1</requireSSL>
-                <accessLevel>Admin</accessLevel>
+                <roleList>Admin</roleList>
             </action>
             <action>
                 <name>DeleteDNSServer</name>
                 <requireSSL>1</requireSSL>
-                <accessLevel>Admin</accessLevel>
+                <roleList>Admin</roleList>
             </action>
             <action>
                 <name>GetDNSServers</name>
                 <requireSSL>0</requireSSL>
-                <accessLevel>Public Basic Admin</accessLevel>
+                <roleList>Public Basic Admin</roleList>
             </action>
         </actionList>
     </serviceEntry>
@@ -242,7 +242,7 @@
             <action>
                 <name>GetEthernetLinkStatus</name>
                 <requireSSL>0</requireSSL>
-                <accessLevel>Public Basic Admin</accessLevel>
+                <roleList>Public Basic Admin</roleList>
             </action>
         </actionList>
     </serviceEntry>
@@ -254,68 +254,68 @@
             <action>
                 <name>SendSetupMessage</name>
                 <requireSSL>1</requireSSL>
-                <accessLevel>Public Basic Admin</accessLevel>
+                <roleList>Public Basic Admin</roleList>
             </action>
             <action>
                 <name>GetSupportedProtocols</name>
                 <requireSSL>0</requireSSL>
-                <accessLevel>Public Basic Admin</accessLevel>
+                <roleList>Public Basic Admin</roleList>
             </action>
             <action>
                 <name>GetAssignedRoles</name>
                 <requireSSL>0</requireSSL>
-                <accessLevel>Public Basic Admin</accessLevel>
+                <roleList>Public Basic Admin</roleList>
             </action>
             <action>
                 <name>GetRolesForAction</name>
                 <requireSSL>0</requireSSL>
-                <accessLevel>Public Basic Admin</accessLevel>
+                <roleList>Public Basic Admin</roleList>
             </action>
             <action>
                 <name>GetUserLoginChallenge</name>
                 <requireSSL>1</requireSSL>
-                <accessLevel>Public Basic Admin</accessLevel>
+                <roleList>Public Basic Admin</roleList>
             </action>
             <action>
                 <name>UserLogin</name>
                 <requireSSL>1</requireSSL>
-                <accessLevel>Public Basic Admin</accessLevel>
+                <roleList>Public Basic Admin</roleList>
             </action>
             <action>
                 <name>UserLogout</name>
                 <requireSSL>0</requireSSL>
-                <accessLevel>Public Basic Admin</accessLevel>
+                <roleList>Public Basic Admin</roleList>
             </action>
             <action>
                 <name>GetACLData</name>
                 <requireSSL>0</requireSSL>
-                <accessLevel>Public Basic Admin</accessLevel>
+                <roleList>Public Basic Admin</roleList>
             </action>
             <action>
                 <name>AddRolesForIdentity</name>
                 <requireSSL>1</requireSSL>
-                <accessLevel>Admin</accessLevel>
+                <roleList>Admin</roleList>
             </action>
             <action>
                 <name>RemoveRolesForIdentity</name>
                 <requireSSL>1</requireSSL>
-                <accessLevel>Admin</accessLevel>
+                <roleList>Admin</roleList>
             </action>
             <action>
                 <name>SetUserLoginPassword</name>
                 <requireSSL>1</requireSSL>
-                <accessLevel>Basic Admin</accessLevel>
-                <accessLevelManage>Admin</accessLevelManage>
+                <restrictedRoleList>Basic</restrictedRoleList>
+                <roleList>Admin</roleList>
             </action>
             <action>
                 <name>AddIdentityList</name>
                 <requireSSL>1</requireSSL>
-                <accessLevel>Basic Admin</accessLevel>
+                <roleList>Basic Admin</roleList>
             </action>
             <action>
                 <name>RemoveIdentity</name>
                 <requireSSL>1</requireSSL>
-                <accessLevel>Admin</accessLevel>
+                <roleList>Admin</roleList>
             </action>
         </actionList>
     </serviceEntry>
@@ -327,27 +327,27 @@
             <action>
                 <name>GetCommonLinkProperties</name>
                 <requireSSL>0</requireSSL>
-                <accessLevel>Public Basic Admin</accessLevel>
+                <roleList>Public Basic Admin</roleList>
             </action>
             <action>
                 <name>GetTotalBytesSent</name>
                 <requireSSL>0</requireSSL>
-                <accessLevel>Public Basic Admin</accessLevel>
+                <roleList>Public Basic Admin</roleList>
             </action>
             <action>
                 <name>GetTotalBytesReceived</name>
                 <requireSSL>0</requireSSL>
-                <accessLevel>Public Basic Admin</accessLevel>
+                <roleList>Public Basic Admin</roleList>
             </action>
             <action>
                 <name>GetTotalPacketsSent</name>
                 <requireSSL>0</requireSSL>
-                <accessLevel>Public Basic Admin</accessLevel>
+                <roleList>Public Basic Admin</roleList>
             </action>
             <action>
                 <name>GetTotalPacketsReceived</name>
                 <requireSSL>0</requireSSL>
-                <accessLevel>Public Basic Admin</accessLevel>
+                <roleList>Public Basic Admin</roleList>
             </action>
         </actionList>
     </serviceEntry>

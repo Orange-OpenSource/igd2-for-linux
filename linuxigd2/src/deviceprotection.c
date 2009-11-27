@@ -1885,8 +1885,8 @@ int GetRolesForAction(struct Upnp_Action_Request *ca_event)
     char *deviceUDN = NULL;
     char *serviceId = NULL;
     char *actionName = NULL;
-    char *accessLevel = NULL;
-    char *accessLevelManage = NULL;
+    char *roleList = NULL;
+    char *restrictedRoleList = NULL;
 
     if ( (deviceUDN = GetFirstDocumentItem(ca_event->ActionRequest, "DeviceUDN"))
         && (serviceId = GetFirstDocumentItem(ca_event->ActionRequest, "ServiceId"))
@@ -1904,23 +1904,23 @@ int GetRolesForAction(struct Upnp_Action_Request *ca_event)
         }
         else
         {
-            accessLevel = getAccessLevel(serviceId, actionName, 0, NULL);
-            if (accessLevel)
+            roleList = getAccessLevel(serviceId, actionName, 1, NULL);
+            if (roleList)
             {
-                // get managed accesslevel if it exists
-                accessLevelManage = getAccessLevel(serviceId,actionName, 1, NULL);
-                if (accessLevelManage)
+                // get restricted rolelist if it exists
+                restrictedRoleList = getAccessLevel(serviceId,actionName, 0, NULL);
+                if (restrictedRoleList)
                 {
                     ca_event->ActionResult = UpnpMakeActionResponse(ca_event->ActionName, DP_SERVICE_TYPE,
                                                 2,
-                                                "RoleList", accessLevel,
-                                                "RestrictedRoleList", accessLevelManage);
+                                                "RoleList", roleList,
+                                                "RestrictedRoleList", restrictedRoleList);
                 }
                 else
                 {
                     ca_event->ActionResult = UpnpMakeActionResponse(ca_event->ActionName, DP_SERVICE_TYPE,
                                                 2,
-                                                "RoleList", accessLevel,
+                                                "RoleList", roleList,
                                                 "RestrictedRoleList", "");
                 }
                 ca_event->ErrCode = UPNP_E_SUCCESS;
@@ -1945,8 +1945,8 @@ int GetRolesForAction(struct Upnp_Action_Request *ca_event)
     free(deviceUDN);
     free(serviceId);
     free(actionName);
-    free(accessLevel);
-    free(accessLevelManage);
+    free(roleList);
+    free(restrictedRoleList);
 
     return ca_event->ErrCode;
 }

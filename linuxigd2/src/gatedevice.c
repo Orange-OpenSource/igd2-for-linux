@@ -278,8 +278,7 @@ int HandleActionRequest(struct Upnp_Action_Request *ca_event)
     trace(3, "ActionName = %s", ca_event->ActionName);
 
     // check if CP is authorized to use this action.
-    // checking managed flag is left to action itself
-    if ( AuthorizeControlPoint(ca_event, 0, 1) == CONTROL_POINT_NOT_AUTHORIZED )
+    if ( AuthorizeControlPoint(ca_event, -1, 1) == CONTROL_POINT_NOT_AUTHORIZED )
     {
         ithread_mutex_unlock(&DevMutex);
         return ca_event->ErrCode;
@@ -1159,8 +1158,8 @@ int AddPortMapping(struct Upnp_Action_Request *ca_event)
             trace(1, "Port numbers must be greater than 1023 and NewInternalClient must be same as IP of Control point \
 unless control port is authorized. external_port:%s, internal_port:%s internal_client:%s",
                   ext_port, int_port, int_client);
-            result = 729;
-            addErrorData(ca_event, result, "ConflictsWithOtherMechanisms");
+            result = 606;
+            addErrorData(ca_event, result, "Action not authorized");
         }
 
         // Check RemoteHost and InternalPort parameters
@@ -1200,7 +1199,6 @@ unless control port is authorized. external_port:%s, internal_port:%s internal_c
                 result = 718;
                 addErrorData(ca_event, result, "ConflictInMappingEntry");
             }
-
 
             // if still no errors happened, add new portmapping
             if (result == 0)
@@ -1296,8 +1294,8 @@ int AddAnyPortMapping(struct Upnp_Action_Request *ca_event)
             trace(1, "Port numbers must be greater than 1023 and NewInternalClient must be same as IP of Control point \
 unless control port is authorized. external_port:%s, internal_port:%s internal_client:%s",
                   ext_port, int_port, int_client);
-            result = 729;
-            addErrorData(ca_event, result, "ConflictsWithOtherMechanisms");
+            result = 606;
+            addErrorData(ca_event, result, "Action not authorized");
         }
 
         // Check Internal client and Port parameters
@@ -2649,9 +2647,14 @@ int AddNewPortMapping(struct Upnp_Action_Request *ca_event, char* bool_enabled, 
 /**
  * Checks if control point is authorized
  * If not, inserts error data in Upnp_Action_Request-struct if addError is != 0.
- * 
+ *
+ * Accesslevel.xml has all supported actions listed in. Every action has roleList element
+ * which lists all the roles which can use the action with _all_ possible parameter values.
+ * Some actions have also restrictedRoleList element which contains roles that can use action 
+ * with some predefined parameter values. Those limitations are handled by the actions themselves.
+ *
  * @param ca_event Upnp_Action_Request struct.
- * @param managed Is accessLevelManage or accessLevel used from accesslevel.xml
+ * @param managed Is roleList (1) or restrictedRoleList (0) used. -1 checks both rolelists
  * @param addError Is error data added to ca_event if control point is not authorized.
  * @return UPnP error code or 0 if CP is authorized
  */
