@@ -665,12 +665,12 @@ static void header_callback(const char *name,
 {
     if (user_data)
     {
-        strcat((char *)user_data,name);                                                            
+        strcat((char *)user_data,name);
         strcat((char *)user_data,": ");
         strcat((char *)user_data,value); 
         strcat((char *)user_data,"\r\n");
-    }                                                
-    //g_warning ("HEADER: %s: %s",name,value);                                                            
+    }
+    //g_debug ("HEADER: %s: %s\nMESSAGE SO FAR: %s",name,value,(char *)user_data);
 }
 
 /* Create a string from SoupMessage. String contains headers and the body */
@@ -685,11 +685,15 @@ static int create_msg_string( SoupMessage *soupmsg, char *path, char *host, int 
         http_version = "HTTP/1.0";
     // add GET and Host headers
     snprintf(headers,1000,"GET %s %s\r\nHost: %s:%d\r\n",path,http_version,host,port);
-    
-    soup_message_headers_foreach (soupmsg->request_headers, (SoupMessageHeadersForeachFunc)header_callback, headers);   
+
+    soup_message_headers_foreach (soupmsg->request_headers, (SoupMessageHeadersForeachFunc)header_callback, headers);
     strcat(headers,"\r\n");
-    //g_warning ("FULL MESSAGE:\n%s",*full_message);    
-    
+
+    *full_message = (char *)malloc(strlen(headers)+2);
+    strcpy(*full_message, headers);
+
+    //g_debug ("FULL MESSAGE:\n%s",*full_message);
+
     return 0;
 }
 
@@ -736,9 +740,8 @@ secure_load_description (GUPnPControlPoint *control_point,
         {
             g_warning("Failed create SSL session to '%s'",secure_description_url);
             return;
-        }    
-    
-    
+        }
+
         XmlDocWrapper *doc;
 
         doc = g_hash_table_lookup (control_point->priv->doc_cache,
@@ -752,7 +755,7 @@ secure_load_description (GUPnPControlPoint *control_point,
                                     description_url,
                                     secure_description_url,
                                     &ssl_client);
-       } else {       
+       } else {
                 /* Asynchronously download doc */
                 GUPnPContext *context;
                 SoupSession *session;
@@ -788,17 +791,17 @@ secure_load_description (GUPnPControlPoint *control_point,
                 control_point->priv->pending_gets =
                         g_list_prepend (control_point->priv->pending_gets,
                                         data);
-           
+
                 // Create SoupURI from description url. It is easy to get host, port and path values 
                 // to message from SoupURI
                 SoupURI *uri;
                 uri = soup_uri_new (secure_description_url);
-    
+
                 // create message string which is send to server (GET-message)  char *path, char *host, int port,
                 char *message;
                 create_msg_string( data->message, uri->path, uri->host, uri->port, &message);
                 soup_uri_free (uri);
-                
+
                 // send the message
                 ssl_client_send_and_receive(&ssl_client, message, data->message, 
                                             (GUPnPSSLClientCallback)secure_got_description_url, data);
@@ -950,11 +953,11 @@ gupnp_control_point_secure_resource_available (GSSDPResourceBrowser *resource_br
                                   url,
                                   securl,
                                   udn,
-                                  service_type);            
+                                  service_type);
         }
-        
+
         g_free (udn);
-        g_free (service_type);    
+        g_free (service_type);
 }
 
 static void
@@ -1063,8 +1066,7 @@ gupnp_control_point_set_property (GObject      *object,
 
         switch (property_id) {
         case PROP_RESOURCE_FACTORY:
-                control_point->priv->factory = 
-			GUPNP_RESOURCE_FACTORY (g_value_dup_object (value));
+                control_point->priv->factory = GUPNP_RESOURCE_FACTORY (g_value_dup_object (value));
                 break;
         default:
                 G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
@@ -1111,7 +1113,7 @@ gupnp_control_point_class_init (GUPnPControlPointClass *klass)
         //browser_class->resource_available =
         //        gupnp_control_point_resource_available;
         browser_class->secure_resource_available =
-                        gupnp_control_point_secure_resource_available;                
+                        gupnp_control_point_secure_resource_available;
         browser_class->resource_unavailable =
                 gupnp_control_point_resource_unavailable;
 
