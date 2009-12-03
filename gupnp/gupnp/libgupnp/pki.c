@@ -22,6 +22,7 @@
 * Certificate and private key creation and such. 
 ************************************************************************/
 
+#include <arpa/inet.h>
 #include <sys/stat.h>
 #include <stdio.h>
 #include <errno.h>
@@ -698,3 +699,46 @@ int get_peer_certificate(gnutls_session_t session, unsigned char *data, int *dat
     return 0; 
 }
 
+/**
+ * Create uuid string from given data. (In this case data is hash created from certificate)
+ * 
+ * "The CP Identity is a UUID derived from the first 128 bits of the SHA-256 hash of the 
+ * CP’s X.509 certificate in accordance with the procedure given in Section 4.4 and Appendix A 
+ * of RFC 4122."
+ * 
+ * @param uuid_str Pointer to string where uuid is created. User must release this with free()
+ * @param hash Input data from which uuid is created
+ * @param hashLen Length of input data. Or how much of it is used.
+ * @return void
+ */
+void createUuidFromData(char **uuid_str, unsigned char *hash, int hashLen)
+{
+    my_uuid_t *uuid = malloc(sizeof *uuid);
+    int i;
+    *uuid_str = malloc(37*sizeof(char));
+    char tmp[3];
+    memset(*uuid_str, '\0', 37);
+
+    memcpy(uuid, hash, sizeof *uuid);
+    uuid->time_low = ntohl(uuid->time_low);
+    uuid->time_mid = ntohs(uuid->time_mid);
+    uuid->time_hi_and_version = ntohs(uuid->time_hi_and_version);
+
+    /* put in the variant and version bits */
+    uuid->time_hi_and_version &= 0x0FFF;
+    uuid->time_hi_and_version |= (PSEUDO_RANDOM_UUID_TYPE << 12);
+    uuid->clock_seq_hi_and_reserved &= 0x3F;
+    uuid->clock_seq_hi_and_reserved |= 0x80;
+
+    // create string representation from binary
+    snprintf(*uuid_str, 37, "%8.8x-%4.4x-%4.4x-%2.2x%2.2x-", uuid->time_low, uuid->time_mid,
+            uuid->time_hi_and_version, uuid->clock_seq_hi_and_reserved, uuid->clock_seq_low);
+
+    for (i = 0; i < 6; i++)
+    {
+        snprintf(tmp, 3, "%2.2x", uuid->node[i]);
+        strcat(*uuid_str,tmp);
+    }
+
+    free(uuid);
+}

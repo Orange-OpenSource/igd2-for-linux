@@ -672,3 +672,33 @@ ssl_client_send_and_receive_thread(data);
                         NULL); 
   */  return 0;
 }
+
+/************************************************************************
+ * Function: ssl_client_export_cert. From pupnp.
+ *
+ * Parameters:
+ *  unsigned char *data - Certificate is returned in DER format here
+ *  int *data_size - Pointer to integer which represents length of certificate
+ *
+ * Description:
+ *  Get X.509 certificate that HTTPS server uses in DER format.
+ *
+ * Return: int
+ *      0 on success, gnutls error else. 
+ ************************************************************************/
+int ssl_client_export_cert (unsigned char *data, int *data_size)
+{
+    int ret;
+
+    if (client_crt == NULL)
+        return GNUTLS_E_X509_CERTIFICATE_ERROR;
+
+    // export certificate to data
+    ret = gnutls_x509_crt_export(client_crt, GNUTLS_X509_FMT_DER, data, (size_t *)data_size);
+    if (ret < 0) {
+        g_warning("Error: gnutls_x509_crt_export failed. %s", gnutls_strerror(ret) );
+        return ret;
+    }
+
+    return 0;
+}

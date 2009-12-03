@@ -2,6 +2,7 @@
 #define PKI_H_
 
 #include <gnutls/gnutls.h>
+#include <stdint.h>
 #include <pthread.h>
 
 // these error codes are used in libupnp. Here they are defined with extra G in their name
@@ -61,6 +62,17 @@
 #ifndef GUPNP_X509_CERT_ULTIMATE_EXPIRE_DATE   //Thu Dec 31 23:59:59 UTC 2037
 #define GUPNP_X509_CERT_ULTIMATE_EXPIRE_DATE   2145916799
 #endif 
+
+
+#define PSEUDO_RANDOM_UUID_TYPE 0x4
+typedef struct {
+    uint32_t  time_low;
+    uint16_t  time_mid;
+    uint16_t time_hi_and_version;
+    uint8_t   clock_seq_hi_and_reserved;
+    uint8_t   clock_seq_low;
+    unsigned char   node[6];
+} my_uuid_t;
 
 /************************************************************************
 *   Function :  init_crypto_libraries
@@ -167,5 +179,19 @@ int validate_x509_certificate(const gnutls_x509_crt_t *crt, const char *hostname
 *   Note :
 ************************************************************************/
 int get_peer_certificate(gnutls_session_t session, unsigned char *data, int *data_size, char **CN);
+
+/**
+ * Create uuid string from given data. (In this case data is hash created from certificate)
+ * 
+ * "The CP Identity is a UUID derived from the first 128 bits of the SHA-256 hash of the 
+ * CP’s X.509 certificate in accordance with the procedure given in Section 4.4 and Appendix A 
+ * of RFC 4122."
+ * 
+ * @param uuid_str Pointer to string where uuid is created. User must release this with free()
+ * @param hash Input data from which uuid is created
+ * @param hashLen Length of input data. Or how much of it is used.
+ * @return void
+ */
+void createUuidFromData(char **uuid_str, unsigned char *hash, int hashLen);
 
 #endif /*PKI_H_*/

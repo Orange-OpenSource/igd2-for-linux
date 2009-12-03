@@ -37,6 +37,7 @@
 #include "gupnp-device-info-private.h"
 #include "gupnp-resource-factory-private.h"
 #include "xml-util.h"
+#include "pki.h"
 
 G_DEFINE_TYPE (GUPnPDeviceProxy,
                gupnp_device_proxy,
@@ -71,7 +72,7 @@ struct _GUPnPDeviceProxyWps {
         WPSuRegistrarSM   *wpsu_rsm;
         unsigned char     *wpsu_registrar_send_msg;
         int                wpsu_registrar_send_msg_len;
-        unsigned char      uuid[WPSU_MAX_UUID_LEN];
+        unsigned char      uuid[WPSU_MAX_UUID_LEN+1];
 };
 
 struct _GUPnPDeviceProxyLogin {
@@ -543,6 +544,40 @@ find_device_protection_service (GUPnPDeviceProxy *proxy)
         return serv;
 }
 
+static int createUUIDR(char **uuid)
+{
+    int ret, cert_size = 10000;
+    *uuid = NULL;
+    unsigned char cert[cert_size];
+    unsigned char hash[cert_size];
+
+    // get certificate
+    ret = ssl_client_export_cert(cert, &cert_size);
+    if (ret != 0)
+    {
+        g_warning("Failed to export client certificate");
+        return ret;
+    }
+
+    // create hash from certificate
+    ret = wpsu_sha256(cert, cert_size, hash);
+    if (ret < 0)
+    {
+        g_warning("Failed to create hash from client certificate");
+        return ret;
+    }
+
+    // create uuid from certificate
+    createUuidFromData(uuid, hash, 16);
+    if (*uuid == NULL)
+    {
+        g_warning("Failed to create uuid from the hash of client certificate");
+        return -2;
+    }
+
+    return 0;
+}
+
 GUPnPDeviceProxyWps *
 gupnp_device_proxy_begin_wps (GUPnPDeviceProxy           *proxy,
                               guint                       method,
@@ -600,8 +635,21 @@ gupnp_device_proxy_begin_wps (GUPnPDeviceProxy           *proxy,
                 return wps;
         }
 
-        strncpy((char *)wps->uuid, gupnp_device_info_get_udn (GUPNP_DEVICE_INFO (proxy)), WPSU_MAX_UUID_LEN);
-        wps->uuid[WPSU_MAX_UUID_LEN-1] = 0;
+        // create UUID-R for WPS
+        char *tmp = NULL;
+        if (createUUIDR(&tmp) != 0)
+        {
+                wps->error = g_error_new(GUPNP_SERVER_ERROR,
+                                         GUPNP_SERVER_ERROR_OTHER,
+                                         "Failed to create UUID-R for WPS.");
+                g_warning("Error: %s", wps->error->message);
+                return wps;
+        }
+        if (strlen(tmp) > WPSU_MAX_UUID_LEN) // if uuid is too long, crop only allowed length from beginning
+        {
+            tmp[WPSU_MAX_UUID_LEN] = '\0';
+        }
+        strcpy((char *)wps->uuid, tmp);
 
         error = wpsu_registrar_input_add_device_info (wps->wpsu_input,
                                                        wps->pin->str, //device_pin
@@ -615,7 +663,7 @@ gupnp_device_proxy_begin_wps (GUPnPDeviceProxy           *proxy,
                                                        NULL,
                                                        0,
                                                        wps->uuid,
-                                                       WPSU_MAX_UUID_LEN,
+                                                       strlen((char *)wps->uuid),
                                                        NULL,
                                                        0,
                                                        NULL,
@@ -628,7 +676,7 @@ gupnp_device_proxy_begin_wps (GUPnPDeviceProxy           *proxy,
                 wps->error = g_error_new(GUPNP_SERVER_ERROR,
                                          GUPNP_SERVER_ERROR_OTHER,
                                          "Failed to create WPS input.");
-                g_warning("%s", wps->error->message);
+                g_warning("%s, %d", wps->error->message, error);
                 return wps;
         }
 

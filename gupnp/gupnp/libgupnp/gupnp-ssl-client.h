@@ -113,6 +113,20 @@ int ssl_client_send_and_receive(  GUPnPSSLClient **client,
 ************************************************************************/
 int clientCertCallback(gnutls_session_t session, const gnutls_datum_t* req_ca_dn, int nreqs, gnutls_pk_algorithm_t* pk_algos, int pk_algos_length, gnutls_retr_st* st);
 
+/************************************************************************
+ * Function: ssl_client_export_cert. From pupnp.
+ *
+ * Parameters:
+ *  unsigned char *data - Certificate is returned in DER format here
+ *  int *data_size - Pointer to integer which represents length of certificate
+ *
+ * Description:
+ *  Get X.509 certificate that HTTPS server uses in DER format.
+ *
+ * Return: int
+ *      0 on success, gnutls error else. 
+ ************************************************************************/
+int ssl_client_export_cert (unsigned char *data, int *data_size);
 
 G_END_DECLS
 
