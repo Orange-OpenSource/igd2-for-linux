@@ -45,7 +45,7 @@ void DPStateTableInit();
 void DP_loadDocuments();
 void DP_finishDocuments();
 int checkCPPrivileges(struct Upnp_Action_Request *ca_event, const char *targetRole);
-void createUuidFromData(char **uuid_str, unsigned char *hash, int hashLen);
+void createUuidFromData(char **uuid_str, unsigned char **uuid_bin, size_t *uuid_size, unsigned char *hash, int hashLen);
 
 
 // deviceprotection actions

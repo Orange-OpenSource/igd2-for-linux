@@ -146,7 +146,7 @@ int InitDP()
 {
     DP_loadDocuments();
 
-    int err = 0;
+    int ret = 0;
     char descDocFile[sizeof(g_vars.xmlPath)+sizeof(g_vars.descDocName)+2];
     unsigned char MAC[WPSU_MAC_LEN];
     memset(MAC, 0x00, WPSU_MAC_LEN);
@@ -158,26 +158,41 @@ int InitDP()
 
     if (descDoc)
     {
-        char *UDN = GetFirstDocumentItem(descDoc, "UDN");
-        if (!UDN || strlen(UDN) < 6)
-        {
-            trace(1,"Failed to get valid UUID value from Description document!");
-            free(UDN);
-            return -1;
-        }
-        char UUID[strlen(UDN)];
-        strcpy(UUID,UDN + 5); // remove text uuid: from beginning of string
-        free(UDN);
+        // create the UUID
+        int cert_size = 10000;
+        unsigned char *uuid = NULL;
+        size_t uuid_size;
+        unsigned char cert[cert_size];
+        unsigned char hash[cert_size];
 
-        if (strlen(UUID) > WPSU_MAX_UUID_LEN) // if uuid is too long, crop only allowed length from beginning
+        // get server certificate
+        ret = UpnpGetHttpsServerCertificate(cert, &cert_size);
+        if (ret != 0)
         {
-            UUID[WPSU_MAX_UUID_LEN] = '\0';
+            trace(1, "Failed to get server certificate");
+            return ret;
+        }
+
+        // create hash from certificate
+        ret = wpsu_sha256(cert, cert_size, hash);
+        if (ret < 0)
+        {
+            trace(1, "Failed to create hash from server certificate");
+            return ret;
+        }
+
+        // create uuid from certificate
+        createUuidFromData(NULL, &uuid, &uuid_size, hash, 16);
+        if (uuid == NULL)
+        {
+            trace(1, "Failed to create uuid from server certificate");
+            return -2;
         }
 
         wpsu_input = (WPSuStationInput *)malloc(sizeof(WPSuStationInput));
         memset(wpsu_input, 0, sizeof(*(wpsu_input)));
 
-        err = wpsu_enrollee_station_input_add_device_info(wpsu_input, 
+        ret = wpsu_enrollee_station_input_add_device_info(wpsu_input, 
                                             g_vars.pinCode,
                                             GetFirstDocumentItem(descDoc, "manufacturer"),
                                             GetFirstDocumentItem(descDoc, "modelName"),
@@ -188,19 +203,20 @@ int InitDP()
                                             0,
                                             MAC,
                                             WPSU_MAC_LEN,
-                                            (unsigned char*)UUID,
-                                            strlen(UUID),
+                                            uuid,
+                                            uuid_size,
                                             NULL,
                                             0,
                                             NULL,
                                             0,
                                             WPSU_CONF_METHOD_LABEL,
                                             WPSU_RFBAND_2_4GHZ);
+        free(uuid);
     }
     else return UPNP_E_FILE_NOT_FOUND;
 
     ixmlDocument_free(descDoc);
-    return err;
+    return ret;
 }
 
 
@@ -389,19 +405,18 @@ int checkCPPrivileges(struct Upnp_Action_Request *ca_event, const char *targetRo
  * of RFC 4122."
  * 
  * @param uuid_str Pointer to string where uuid is created. User must release this with free()
+ * @param uuid_bin Created uuid in binary form before it is converted to its string presentation
+ * @param uuid_size Pointer to length of uuid_bin. (16 bytes)
  * @param hash Input data from which uuid is created
  * @param hashLen Length of input data. Or how much of it is used.
  * @return void
  */
-void createUuidFromData(char **uuid_str, unsigned char *hash, int hashLen)
+void createUuidFromData(char **uuid_str, unsigned char **uuid_bin, size_t *uuid_bin_size, unsigned char *hash, int hashLen)
 {
-    my_uuid_t *uuid = malloc(sizeof *uuid);
-    int i;
-    *uuid_str = malloc(37*sizeof(char));
-    char tmp[3];
-    memset(*uuid_str, '\0', 37);
+    size_t uuid_size = sizeof(my_uuid_t);
+    my_uuid_t *uuid = malloc(uuid_size);
 
-    memcpy(uuid, hash, sizeof *uuid);
+    memcpy(uuid, hash, uuid_size);
     uuid->time_low = ntohl(uuid->time_low);
     uuid->time_mid = ntohs(uuid->time_mid);
     uuid->time_hi_and_version = ntohs(uuid->time_hi_and_version);
@@ -412,14 +427,30 @@ void createUuidFromData(char **uuid_str, unsigned char *hash, int hashLen)
     uuid->clock_seq_hi_and_reserved &= 0x3F;
     uuid->clock_seq_hi_and_reserved |= 0x80;
 
-    // create string representation from binary
-    snprintf(*uuid_str, 37, "%8.8x-%4.4x-%4.4x-%2.2x%2.2x-", uuid->time_low, uuid->time_mid,
-            uuid->time_hi_and_version, uuid->clock_seq_hi_and_reserved, uuid->clock_seq_low);
-
-    for (i = 0; i < 6; i++)
+    if (uuid_bin && uuid_bin_size)
     {
-        snprintf(tmp, 3, "%2.2x", uuid->node[i]);
-        strcat(*uuid_str,tmp);
+        // copy uuid struct to uuid_bin
+        *uuid_bin = (unsigned char*)malloc(uuid_size);
+        memcpy(*uuid_bin, uuid, uuid_size);
+        *uuid_bin_size = uuid_size;
+    }
+
+    if (uuid_str)
+    {
+        *uuid_str = malloc(37*sizeof(char));
+        char tmp[3];
+        int i;
+        memset(*uuid_str, '\0', 37);
+
+        // create string representation from binary
+        snprintf(*uuid_str, 37, "%8.8x-%4.4x-%4.4x-%2.2x%2.2x-", uuid->time_low, uuid->time_mid,
+                uuid->time_hi_and_version, uuid->clock_seq_hi_and_reserved, uuid->clock_seq_low);
+
+        for (i = 0; i < 6; i++)
+        {
+            snprintf(tmp, 3, "%2.2x", uuid->node[i]);
+            strcat(*uuid_str,tmp);
+        }
     }
 
     free(uuid);
@@ -447,7 +478,14 @@ static int getIdentifierOfCP(struct Upnp_Action_Request *ca_event, char **identi
     unsigned char hash[cert_size];
 
     if (ca_event->SSLSession == NULL)
-        return 1;
+    {
+        // TODO remove this from comments. This is PLUGFEST mod
+        //return 1;
+        *idLen = strlen("TOTALLY9-FAKE-4c67-b98a-a7460d220f67");
+        *identifier = (char *)malloc(*idLen + 1);
+        strcpy(*identifier, "TOTALLY9-FAKE-4c67-b98a-a7460d220f67");
+        return 0;
+    }
 
     // 1. get certificate of client
     ret = UpnpGetClientCert(ca_event->SSLSession, cert, &cert_size, CN);
@@ -459,7 +497,7 @@ static int getIdentifierOfCP(struct Upnp_Action_Request *ca_event, char **identi
     if (ret < 0)
         return ret;
 
-    createUuidFromData(identifier, hash, 16);
+    createUuidFromData(identifier, NULL, NULL, hash, 16);
     *idLen = strlen(*identifier);
 
     return 0;
@@ -1233,9 +1271,9 @@ int SendSetupMessage(struct Upnp_Action_Request *ca_event)
 
     if (result == 0)
     {
-        // response (next message) to base64   
-        int maxb64len = 2*Enrollee_send_msg_len; 
-        int b64len = 0;    
+        // response (next message) to base64
+        int maxb64len = 2*Enrollee_send_msg_len;
+        int b64len = 0;
         unsigned char *pB64Msg = (unsigned char *)malloc(maxb64len);
         wpsu_bin_to_base64(Enrollee_send_msg_len,Enrollee_send_msg, &b64len, pB64Msg,maxb64len);
 

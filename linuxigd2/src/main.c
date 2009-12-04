@@ -171,7 +171,7 @@ static int updateDescDocUuid(const char *descDocFile)
 
     // update uuid. According to the DeviceProtection, Device impelementing DP 
     // MUST have uuid created from it's certificate
-    int cert_size = 1000;
+    int cert_size = 10000;
     char *uuid = NULL;
     unsigned char cert[cert_size];
     unsigned char hash[cert_size];
@@ -193,7 +193,7 @@ static int updateDescDocUuid(const char *descDocFile)
     }
 
     // create uuid from certificate
-    createUuidFromData(&uuid, hash, 16);
+    createUuidFromData(&uuid, NULL, NULL, hash, 16);
     if (uuid == NULL)
     {
         ixmlDocument_free(descDoc);
