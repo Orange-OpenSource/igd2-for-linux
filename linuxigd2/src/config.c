@@ -157,7 +157,7 @@ int parseConfigFile(globals_p vars)
     regcomp(&re_empty_row,"^[[:blank:]]*\r?\n$",REG_EXTENDED);
 
     // Regexps to match configuration file settings
-    regcomp(&re_pin_code,"pin_code[[:blank:]]*=[[:blank:]]*([[:alpha:]_/.]{1,50})",REG_EXTENDED);
+    regcomp(&re_pin_code,"pin_code[[:blank:]]*=[[:blank:]]*([[:alnum:][:punct:]_/.]{1,50})",REG_EXTENDED);
     regcomp(&re_admin_passwd,"admin_password[[:blank:]]*=[[:blank:]]*([[:alpha:]_/.]{1,50})",REG_EXTENDED);
     regcomp(&re_iptables_location,"iptables_location[[:blank:]]*=[[:blank:]]*\"([^\"]+)\"",REG_EXTENDED);
     regcomp(&re_debug_mode,"debug_mode[[:blank:]]*=[[:blank:]]*([[:digit:]])",REG_EXTENDED);
