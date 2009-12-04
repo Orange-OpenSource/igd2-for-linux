@@ -72,7 +72,8 @@ struct _GUPnPDeviceProxyWps {
         WPSuRegistrarSM   *wpsu_rsm;
         unsigned char     *wpsu_registrar_send_msg;
         int                wpsu_registrar_send_msg_len;
-        unsigned char      uuid[WPSU_MAX_UUID_LEN+1];
+        unsigned char      *uuid;
+        size_t             uuid_len;
 };
 
 struct _GUPnPDeviceProxyLogin {
@@ -544,7 +545,7 @@ find_device_protection_service (GUPnPDeviceProxy *proxy)
         return serv;
 }
 
-static int createUUIDR(char **uuid)
+static int createUUIDR(unsigned char **uuid, size_t *uuid_len)
 {
     int ret, cert_size = 10000;
     *uuid = NULL;
@@ -568,7 +569,7 @@ static int createUUIDR(char **uuid)
     }
 
     // create uuid from certificate
-    createUuidFromData(uuid, hash, 16);
+    createUuidFromData(NULL, uuid, uuid_len, hash, 16);
     if (*uuid == NULL)
     {
         g_warning("Failed to create uuid from the hash of client certificate");
@@ -636,8 +637,7 @@ gupnp_device_proxy_begin_wps (GUPnPDeviceProxy           *proxy,
         }
 
         // create UUID-R for WPS
-        char *tmp = NULL;
-        if (createUUIDR(&tmp) != 0)
+        if (createUUIDR(&wps->uuid, &wps->uuid_len) != 0)
         {
                 wps->error = g_error_new(GUPNP_SERVER_ERROR,
                                          GUPNP_SERVER_ERROR_OTHER,
@@ -645,11 +645,6 @@ gupnp_device_proxy_begin_wps (GUPnPDeviceProxy           *proxy,
                 g_warning("Error: %s", wps->error->message);
                 return wps;
         }
-        if (strlen(tmp) > WPSU_MAX_UUID_LEN) // if uuid is too long, crop only allowed length from beginning
-        {
-            tmp[WPSU_MAX_UUID_LEN] = '\0';
-        }
-        strcpy((char *)wps->uuid, tmp);
 
         error = wpsu_registrar_input_add_device_info (wps->wpsu_input,
                                                        wps->pin->str, //device_pin
@@ -663,7 +658,7 @@ gupnp_device_proxy_begin_wps (GUPnPDeviceProxy           *proxy,
                                                        NULL,
                                                        0,
                                                        wps->uuid,
-                                                       strlen((char *)wps->uuid),
+                                                       wps->uuid_len,
                                                        NULL,
                                                        0,
                                                        NULL,

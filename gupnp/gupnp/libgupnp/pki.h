@@ -188,10 +188,12 @@ int get_peer_certificate(gnutls_session_t session, unsigned char *data, int *dat
  * of RFC 4122."
  * 
  * @param uuid_str Pointer to string where uuid is created. User must release this with free()
+ * @param uuid_bin Created uuid in binary form before it is converted to its string presentation
+ * @param uuid_size Pointer to length of uuid_bin. (16 bytes)
  * @param hash Input data from which uuid is created
  * @param hashLen Length of input data. Or how much of it is used.
  * @return void
  */
-void createUuidFromData(char **uuid_str, unsigned char *hash, int hashLen);
+void createUuidFromData(char **uuid_str, unsigned char **uuid_bin, size_t *uuid_bin_size, unsigned char *hash, int hashLen);
 
 #endif /*PKI_H_*/

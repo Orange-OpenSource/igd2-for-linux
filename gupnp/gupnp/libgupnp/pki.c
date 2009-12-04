@@ -707,19 +707,18 @@ int get_peer_certificate(gnutls_session_t session, unsigned char *data, int *dat
  * of RFC 4122."
  * 
  * @param uuid_str Pointer to string where uuid is created. User must release this with free()
+ * @param uuid_bin Created uuid in binary form before it is converted to its string presentation
+ * @param uuid_size Pointer to length of uuid_bin. (16 bytes)
  * @param hash Input data from which uuid is created
  * @param hashLen Length of input data. Or how much of it is used.
  * @return void
  */
-void createUuidFromData(char **uuid_str, unsigned char *hash, int hashLen)
+void createUuidFromData(char **uuid_str, unsigned char **uuid_bin, size_t *uuid_bin_size, unsigned char *hash, int hashLen)
 {
-    my_uuid_t *uuid = malloc(sizeof *uuid);
-    int i;
-    *uuid_str = malloc(37*sizeof(char));
-    char tmp[3];
-    memset(*uuid_str, '\0', 37);
+    size_t uuid_size = sizeof(my_uuid_t);
+    my_uuid_t *uuid = malloc(uuid_size);
 
-    memcpy(uuid, hash, sizeof *uuid);
+    memcpy(uuid, hash, uuid_size);
     uuid->time_low = ntohl(uuid->time_low);
     uuid->time_mid = ntohs(uuid->time_mid);
     uuid->time_hi_and_version = ntohs(uuid->time_hi_and_version);
@@ -730,14 +729,30 @@ void createUuidFromData(char **uuid_str, unsigned char *hash, int hashLen)
     uuid->clock_seq_hi_and_reserved &= 0x3F;
     uuid->clock_seq_hi_and_reserved |= 0x80;
 
-    // create string representation from binary
-    snprintf(*uuid_str, 37, "%8.8x-%4.4x-%4.4x-%2.2x%2.2x-", uuid->time_low, uuid->time_mid,
-            uuid->time_hi_and_version, uuid->clock_seq_hi_and_reserved, uuid->clock_seq_low);
-
-    for (i = 0; i < 6; i++)
+    if (uuid_bin && uuid_bin_size)
     {
-        snprintf(tmp, 3, "%2.2x", uuid->node[i]);
-        strcat(*uuid_str,tmp);
+        // copy uuid struct to uuid_bin
+        *uuid_bin = (unsigned char*)malloc(uuid_size);
+        memcpy(*uuid_bin, uuid, uuid_size);
+        *uuid_bin_size = uuid_size;
+    }
+
+    if (uuid_str)
+    {
+        *uuid_str = malloc(37*sizeof(char));
+        char tmp[3];
+        int i;
+        memset(*uuid_str, '\0', 37);
+
+        // create string representation from binary
+        snprintf(*uuid_str, 37, "%8.8x-%4.4x-%4.4x-%2.2x%2.2x-", uuid->time_low, uuid->time_mid,
+                uuid->time_hi_and_version, uuid->clock_seq_hi_and_reserved, uuid->clock_seq_low);
+
+        for (i = 0; i < 6; i++)
+        {
+            snprintf(tmp, 3, "%2.2x", uuid->node[i]);
+            strcat(*uuid_str,tmp);
+        }
     }
 
     free(uuid);
