@@ -120,7 +120,7 @@ static int parse_headers(SoupMessageHeaders *soup_headers, const char *headers)
 static void *ssl_client_send_and_receive_thread(void *data)
 {
     int headers_ready = 0;
-    char *tmp, *body = NULL;
+    char *tmp = NULL, *body = NULL;
     int retVal = 0;
     int size = 0;
     int content_len = 0;
@@ -162,7 +162,7 @@ static void *ssl_client_send_and_receive_thread(void *data)
     {
         memset(recv, '\0',len+1);// earlier receivings doesn't bother after this
         retVal = gnutls_record_recv ((*client)->session, recv, len);
-               
+
         if (retVal <= 0) // 0 should mean EOF, peer has closed session?
         {
             g_warning("Error: gnutls_record_recv failed. %s", gnutls_strerror(retVal));
@@ -177,19 +177,48 @@ static void *ssl_client_send_and_receive_thread(void *data)
             recv[retVal] = '\0';
             //g_warning("Received %d bytes", retVal);
         }
-       
+
+    // chunked encoding is used
+    if (content_len == -1 && recv[0] != '0' && recv[0] != '\r' && (tmp = strstr(recv, "\r\n")) != NULL)
+    {
+        // this is totally stupid way to do this, but:
+        // if received data begins with 1-4 characters and after that there is CRLF
+        // we assume that this is length of chunk and we remove and totally ignore that.
+        // Unless it is "0\r\n\r\n"
+        if (strlen(recv) > 2 && recv[1] == '\r' && recv[2] == '\n') 
+        {
+            tmp = recv + 3;
+            strcpy(recv, tmp);
+        }
+        if (strlen(recv) > 3 && recv[2] == '\r' && recv[3] == '\n') 
+        {
+            tmp = recv + 4;
+            strcpy(recv, tmp);
+        }
+        if (strlen(recv) > 4 && recv[3] == '\r' && recv[4] == '\n') 
+        {
+            tmp = recv + 5;
+            strcpy(recv, tmp);
+        }
+        if (strlen(recv) > 5 && recv[4] == '\r' && recv[5] == '\n') 
+        {
+            tmp = recv + 6;
+            strcpy(recv, tmp);
+        }
+    }
+
         // does *response have enough space. If not realloc
         if ( (size + retVal) > alloc )
         {
             char *new_resp;
             alloc = alloc + retVal + 1;
-            
+
             new_resp = realloc (response, alloc);
             if (!new_resp) {
                 g_slice_free(GUPnPSSLThreadData, data);
                 return NULL;// -1; // not enough memory
             }
-  
+
             response = new_resp;
             // because *response may now locate somewhere else than before
             // we need to update location of body.
@@ -198,19 +227,18 @@ static void *ssl_client_send_and_receive_thread(void *data)
             if (headers_ready && (tmp = strstr(response, "\r\n\r\n")) != NULL)
             {
                 body = tmp + 4; // body of message is everything that comes after "\r\n\r\n"
-            }            
+            }
         }
-         
+
         strcat(response, recv);
         size = strlen(response);
-       
+
         // receive data until empty line containing only \r\n is received (also previous line must end with \r\n). 
         // That means that headers are done
-        // This "parser" doesn't support chunked encoding...    
         if (!headers_ready && (tmp = strstr(response, "\r\n\r\n")) != NULL)
         {
             body = tmp + 4; // body of message is everything that comes after "\r\n\r\n". body is just pointer to somewhere in the midle of *response
-           
+
             // add response header values to SoupMessage
             retVal = parse_headers(msg->response_headers, response);
             if (retVal > 0)
@@ -218,24 +246,38 @@ static void *ssl_client_send_and_receive_thread(void *data)
                 soup_message_set_status (msg, retVal);
             else
                 g_warning("Failed to parse response headers");
-            
+
             // this is deprecated call in newer versions of libsoup. Use soup_message_headers_get_one instead
-            const char *clen = soup_message_headers_get (msg->response_headers, "content-length");
-            content_len = atoi(clen);            
-            
+            const char *header_value = soup_message_headers_get (msg->response_headers, "transfer-encoding");
+            if (header_value != NULL && strstr(header_value, "chunked") != NULL)
+            {
+                content_len = -1;
+            }
+            else
+            {
+                header_value = soup_message_headers_get (msg->response_headers, "content-length");
+                if (!header_value)
+                {
+                    g_warning("Did not find content-length. Parse failed.");
+                    return NULL;
+                }
+                content_len = atoi(header_value);
+            }
+
             headers_ready = 1;
-            
         }
 
-        if (headers_ready && body != NULL && strlen(body) >= content_len)
-        {   
-            body[content_len] = '\0';
+        if (headers_ready && body != NULL && 
+            (strlen(body) >= content_len || (content_len == -1 && (tmp = strstr(response, "0\r\n\r\n")) != NULL)))
+        {
+            // if chunked data
+            if (content_len == -1) *tmp = '\0';
+            else body[content_len] = '\0';
             // body should be ready    
-            
             // Put body to SoupMessage (soup_message_set_response() should do that also, but didn't get it working 
             msg->response_body->data = strdup(body);
             msg->response_body->length = strlen(body);
-            
+            //g_debug("WHOLE BODY: '%s'",body);
             g_free(response);
 
             ssl_data->callback(ssl_data->client, msg, ssl_data->userdata);
@@ -243,7 +285,7 @@ static void *ssl_client_send_and_receive_thread(void *data)
         }
         else
         {
-            //g_warning("RESPONSE SO FAR\n %s", *response); 
+            //g_debug("RESPONSE SO FAR\n %s", response); 
             // whole message is not received yet...
         }
         
@@ -294,7 +336,7 @@ void ssl_create_https_url(const char *http_url, int port, char **https_url)
 int clientCertCallback(gnutls_session_t session, const gnutls_datum_t* req_ca_dn, int nreqs, gnutls_pk_algorithm_t* pk_algos, int pk_algos_length, gnutls_retr_st* st)
 {
     gnutls_certificate_type type;
-       
+
     type = gnutls_certificate_type_get(session);
     if (type == GNUTLS_CRT_X509) {         
         st->type = type;
@@ -387,7 +429,7 @@ ssl_init_client( GUPnPSSLClient **client,
     // set callback function for returning client certificate. (in default case server says in 
     // certificate request that who has to be the signer of cert. Our client may not be on that list)
     gnutls_certificate_client_set_retrieve_function((*client)->xcred, (gnutls_certificate_client_retrieve_function *)clientCertCallback);
-    
+
     // init session to NULL
     (*client)->session = NULL;
 
