@@ -5,6 +5,11 @@
 #include <stdint.h>
 #include <pthread.h>
 
+/* Maximum amount of certificates in one chain/file */
+#define MAX_CRT 6
+
+#define GUPNP_CA_CERT_CN      "GUPNP Local CA"
+
 // these error codes are used in libupnp. Here they are defined with extra G in their name
 // this is ugly, I know... Just too lazy to modify code to suite better with gupnp
 #define GUPNP_E_SUCCESS         0
@@ -15,6 +20,16 @@
 
 #define GUPNP_E_SESSION_FAIL    -104
 
+/* default file for CA certificate storing */
+#ifndef GUPNP_X509_CA_CERT_FILE
+#define GUPNP_X509_CA_CERT_FILE      "gupnpX509-CA-cert.pem"
+#endif
+
+/* default file for CA private key storing */
+#ifndef GUPNP_X509_CA_PRIVKEY_FILE
+#define GUPNP_X509_CA_PRIVKEY_FILE      "gupnpX509-CA-key.pem"
+#endif
+
 /* default file for client certificate storing */
 #ifndef GUPNP_X509_CLIENT_CERT_FILE
 #define GUPNP_X509_CLIENT_CERT_FILE      "gupnpX509.pem"
@@ -22,7 +37,7 @@
 
 /* default file for client private key storing */
 #ifndef GUPNP_X509_CLIENT_PRIVKEY_FILE
-#define GUPNP_X509_CLIENT_PRIVKEY_FILE      "gupnpX509.pem"
+#define GUPNP_X509_CLIENT_PRIVKEY_FILE      "gupnpX509-client-key.pem"
 #endif
 
 /* default file for server certificate storing */
@@ -32,7 +47,7 @@
 
 /* default file for server private key storing */
 #ifndef GUPNP_X509_SERVER_PRIVKEY_FILE
-#define GUPNP_X509_SERVER_PRIVKEY_FILE      "gupnpX509server.pem"
+#define GUPNP_X509_SERVER_PRIVKEY_FILE      "gupnpX509-server-key.pem"
 #endif
 
 /* Used X.509 certificate version */
@@ -134,7 +149,7 @@ int init_x509_certificate_credentials(gnutls_certificate_credentials_t *x509_cre
 *
 *   Note :
 ************************************************************************/
-int load_x509_self_signed_certificate(gnutls_x509_crt_t *crt, gnutls_x509_privkey_t *key, const char *directory, const char *certfile, const char *privkeyfile, const char *CN, const int modulusBits, const unsigned long lifetime);
+int load_x509_self_signed_certificate(gnutls_x509_crt_t *crt, unsigned int *crt_size, gnutls_x509_privkey_t *key, const char *directory, const char *certfile, const char *privkeyfile, const char *CN, const int modulusBits, const unsigned long lifetime);
 
 
 /************************************************************************
