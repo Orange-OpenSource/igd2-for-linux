@@ -308,7 +308,7 @@ static int export_certificate_to_file(const gnutls_x509_crt_t *crt, const gnutls
 *
 *   Note :
 ************************************************************************/
-static int create_certificate(gnutls_x509_crt_t *crt, gnutls_x509_privkey_t *key, const char *CN, const int modulusBits, const unsigned long lifetime)
+static int create_certificate(gnutls_x509_crt_t *crt, gnutls_x509_privkey_t *key, const char *CN, const int modulusBits, const unsigned long lifetime, const void *purpose, unsigned int is_ca)
 {
     unsigned char buffer[10 * 1024];
     int ret, serial;
@@ -363,6 +363,25 @@ static int create_certificate(gnutls_x509_crt_t *crt, gnutls_x509_privkey_t *key
     if (ret < 0) {
         g_warning("Error: gnutls_x509_crt_set_serial failed. %s", gnutls_strerror(ret) );
         return ret;
+    }
+
+    if (purpose)
+    {
+        ret = gnutls_x509_crt_set_key_purpose_oid (*crt, purpose, 0);
+        if (ret < 0) {
+            g_warning("Error: gnutls_x509_crt_set_key_purpose_oid failed. %s", gnutls_strerror(ret) );
+            return ret;
+        }
+    }
+
+    if (is_ca)
+    {
+        // if ceritficate is used as CA
+        ret = gnutls_x509_crt_set_ca_status (*crt, is_ca);
+        if (ret < 0) {
+            g_warning("Error: gnutls_x509_crt_set_ca_status failed. %s", gnutls_strerror(ret) );
+            return ret;
+        }
     }
 
     return 0;
@@ -439,7 +458,7 @@ static int create_new_certificate(gnutls_x509_crt_t *crt, gnutls_x509_privkey_t 
         }
 
         // create ca certificate
-        ret = create_certificate(&ca_crt, &ca_privkey, GUPNP_CA_CERT_CN, modulusBits, lifetime);
+        ret = create_certificate(&ca_crt, &ca_privkey, GUPNP_CA_CERT_CN, modulusBits, lifetime, NULL, 1);
         if (ret < 0) {
             g_warning("Error: CA cert, Failed to create certificate. %s", gnutls_strerror(ret) );
             return ret;
@@ -463,7 +482,7 @@ static int create_new_certificate(gnutls_x509_crt_t *crt, gnutls_x509_privkey_t 
     }
 
     // create the client certificate
-    ret = create_certificate(crt, key, CN, modulusBits, lifetime);
+    ret = create_certificate(crt, key, CN, modulusBits, lifetime, GNUTLS_KP_TLS_WWW_CLIENT, 0);
     if (ret < 0) {
         g_warning("Error: Failed to create certificate. %s", gnutls_strerror(ret) );
         return ret;
