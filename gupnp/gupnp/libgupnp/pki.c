@@ -308,7 +308,7 @@ static int export_certificate_to_file(const gnutls_x509_crt_t *crt, const gnutls
 *
 *   Note :
 ************************************************************************/
-static int create_certificate(gnutls_x509_crt_t *crt, gnutls_x509_privkey_t *key, const char *CN, const int modulusBits, const unsigned long lifetime, const void *purpose, unsigned int is_ca)
+static int create_certificate(gnutls_x509_crt_t *crt, gnutls_x509_privkey_t *key, const char *CN, const int modulusBits, const unsigned long lifetime, const void *purpose, unsigned int key_usage, unsigned int is_ca)
 {
     unsigned char buffer[10 * 1024];
     int ret, serial;
@@ -374,6 +374,12 @@ static int create_certificate(gnutls_x509_crt_t *crt, gnutls_x509_privkey_t *key
         }
     }
 
+    ret = gnutls_x509_crt_set_key_usage (*crt, key_usage);
+    if (ret < 0) {
+        g_warning("Error: gnutls_x509_crt_set_key_usage failed. %s", gnutls_strerror(ret) );
+        return ret;
+    }
+
     if (is_ca)
     {
         // if ceritficate is used as CA
@@ -382,6 +388,13 @@ static int create_certificate(gnutls_x509_crt_t *crt, gnutls_x509_privkey_t *key
             g_warning("Error: gnutls_x509_crt_set_ca_status failed. %s", gnutls_strerror(ret) );
             return ret;
         }
+    }
+
+    // set version
+    ret = gnutls_x509_crt_set_version(*crt, GUPNP_X509_CERT_VERSION);
+    if (ret < 0) {
+        g_warning("Error: gnutls_x509_crt_set_version failed. %s", gnutls_strerror(ret) );
+        return ret;
     }
 
     return 0;
@@ -458,16 +471,9 @@ static int create_new_certificate(gnutls_x509_crt_t *crt, gnutls_x509_privkey_t 
         }
 
         // create ca certificate
-        ret = create_certificate(&ca_crt, &ca_privkey, GUPNP_CA_CERT_CN, modulusBits, lifetime, NULL, 1);
+        ret = create_certificate(&ca_crt, &ca_privkey, GUPNP_CA_CERT_CN, modulusBits, lifetime, NULL, GNUTLS_KEY_KEY_CERT_SIGN, 1);
         if (ret < 0) {
             g_warning("Error: CA cert, Failed to create certificate. %s", gnutls_strerror(ret) );
-            return ret;
-        }
-
-        // self sign certificate
-        ret = gnutls_x509_crt_sign2 (ca_crt, ca_crt, ca_privkey, GNUTLS_DIG_SHA256, 0);
-        if (ret < 0) {
-            g_warning("Error: CA cert, gnutls_x509_crt_sign2 failed. %s", gnutls_strerror(ret) );
             return ret;
         }
 
@@ -478,11 +484,18 @@ static int create_new_certificate(gnutls_x509_crt_t *crt, gnutls_x509_privkey_t 
             return ret;
         }
 
+        // self sign certificate
+        ret = gnutls_x509_crt_sign2 (ca_crt, ca_crt, ca_privkey, GNUTLS_DIG_SHA1, 0);
+        if (ret < 0) {
+            g_warning("Error: CA cert, gnutls_x509_crt_sign2 failed. %s", gnutls_strerror(ret) );
+            return ret;
+        }
+
         ret = export_certificate_to_file(&ca_crt, &ca_privkey, tmp_certfile, tmp_privkeyfile, 0);
     }
 
     // create the client certificate
-    ret = create_certificate(crt, key, CN, modulusBits, lifetime, GNUTLS_KP_TLS_WWW_CLIENT, 0);
+    ret = create_certificate(crt, key, CN, modulusBits, lifetime, GNUTLS_KP_TLS_WWW_CLIENT, GNUTLS_KEY_DIGITAL_SIGNATURE, 0);
     if (ret < 0) {
         g_warning("Error: Failed to create certificate. %s", gnutls_strerror(ret) );
         return ret;
@@ -492,13 +505,6 @@ static int create_new_certificate(gnutls_x509_crt_t *crt, gnutls_x509_privkey_t 
     ret = gnutls_x509_crt_sign2 (*crt, ca_crt, ca_privkey, GNUTLS_DIG_SHA256, 0);
     if (ret < 0) {
         g_warning("Error: gnutls_x509_crt_sign2 failed. %s", gnutls_strerror(ret) );
-        return ret;
-    }
-
-    // set version
-    ret = gnutls_x509_crt_set_version(*crt, GUPNP_X509_CERT_VERSION);
-    if (ret < 0) {
-        g_warning("Error: gnutls_x509_crt_set_version failed. %s", gnutls_strerror(ret) );
         return ret;
     }
 
