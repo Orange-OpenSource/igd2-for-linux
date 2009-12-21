@@ -60,6 +60,7 @@ gupnp_device_get_device (GUPnPDeviceInfo *info,
         const char           *location;
         const char           *secure_location;
         const SoupURI        *url_base;
+        const SoupURI        *secure_url_base;
 
         device = GUPNP_DEVICE (info);
 
@@ -76,6 +77,7 @@ gupnp_device_get_device (GUPnPDeviceInfo *info,
         location = gupnp_device_info_get_location (info);
         secure_location = gupnp_device_info_get_secure_location (info);
         url_base = gupnp_device_info_get_url_base (info);
+        secure_url_base = gupnp_device_info_get_secure_url_base (info);
 
         device = gupnp_resource_factory_create_device (factory,
                                                        context,
@@ -84,7 +86,8 @@ gupnp_device_get_device (GUPnPDeviceInfo *info,
                                                        NULL,
                                                        location,
                                                        secure_location,
-                                                       url_base);
+                                                       url_base,
+                                                       secure_url_base);
 
         return GUPNP_DEVICE_INFO (device);
 }
@@ -100,6 +103,7 @@ gupnp_device_get_service (GUPnPDeviceInfo *info,
         GUPnPDevice          *root_device;
         const char           *location, *secure_location, *udn;
         const SoupURI        *url_base;
+        const SoupURI        *secure_url_base;
 
         device = GUPNP_DEVICE (info);
 
@@ -117,6 +121,7 @@ gupnp_device_get_service (GUPnPDeviceInfo *info,
         location = gupnp_device_info_get_location (info);
         secure_location = gupnp_device_info_get_secure_location (info);
         url_base = gupnp_device_info_get_url_base (info);
+        secure_url_base = gupnp_device_info_get_secure_url_base (info);
 
         service = gupnp_resource_factory_create_service (factory,
                                                          context,
@@ -125,7 +130,8 @@ gupnp_device_get_service (GUPnPDeviceInfo *info,
                                                          udn,
                                                          location,
                                                          secure_location,
-                                                         url_base);
+                                                         url_base,
+                                                         secure_url_base);
 
         return GUPNP_SERVICE_INFO (service);
 }

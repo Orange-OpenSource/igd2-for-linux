@@ -133,7 +133,8 @@ gupnp_resource_factory_create_device_proxy
                                  const char           *udn,
                                  const char           *location,
                                  const char           *secure_location,
-                                 const SoupURI        *url_base)
+                                 const SoupURI        *url_base,
+                                 const SoupURI        *secure_url_base)
 {
         GUPnPDeviceProxy *proxy;
         char             *upnp_type;
@@ -144,7 +145,7 @@ gupnp_resource_factory_create_device_proxy
         g_return_val_if_fail (IS_XML_DOC_WRAPPER (doc), NULL);
         g_return_val_if_fail (element != NULL, NULL);       
         g_return_val_if_fail ((location != NULL || secure_location != NULL), NULL);
-        g_return_val_if_fail (url_base != NULL, NULL);
+        g_return_val_if_fail ((url_base != NULL || secure_url_base != NULL), NULL);
 
         upnp_type = xml_util_get_child_element_content_glib (element,
                                                              "deviceType");
@@ -166,6 +167,7 @@ gupnp_resource_factory_create_device_proxy
                               "secure-location", secure_location,
                               "udn", udn,
                               "url-base", url_base,
+                              "secure-url-base", secure_url_base,
                               "document", doc,
                               "element", element,
                               NULL);
@@ -200,7 +202,8 @@ gupnp_resource_factory_create_service_proxy
                                  const char             *service_type,
                                  const char             *location,
                                  const char             *secure_location,
-                                 const SoupURI          *url_base)
+                                 const SoupURI          *url_base,
+                                 const SoupURI          *secure_url_base)
 {
         GUPnPServiceProxy *proxy;
         GType              proxy_type = GUPNP_TYPE_SERVICE_PROXY;
@@ -210,7 +213,7 @@ gupnp_resource_factory_create_service_proxy
         g_return_val_if_fail (IS_XML_DOC_WRAPPER (wrapper), NULL);
         g_return_val_if_fail (element != NULL, NULL);
         g_return_val_if_fail ((location != NULL || secure_location != NULL), NULL);
-        g_return_val_if_fail (url_base != NULL, NULL);
+        g_return_val_if_fail ((url_base != NULL || secure_url_base != NULL), NULL);
 
         if (service_type) {
                 gpointer value;
@@ -228,6 +231,7 @@ gupnp_resource_factory_create_service_proxy
                               "udn", udn,
                               "service-type", service_type,
                               "url-base", url_base,
+                              "secure-url-base", secure_url_base,
                               "document", wrapper,
                               "element", element,
                               NULL);
@@ -260,7 +264,8 @@ gupnp_resource_factory_create_device
                                  const char           *udn,
                                  const char           *location,
                                  const char           *secure_location,
-                                 const SoupURI        *url_base)
+                                 const SoupURI        *url_base,
+                                 const SoupURI        *secure_url_base)
 {
         GUPnPDevice *device;
         char        *upnp_type;
@@ -270,7 +275,7 @@ gupnp_resource_factory_create_device
         g_return_val_if_fail (GUPNP_IS_CONTEXT (context), NULL);
         g_return_val_if_fail (GUPNP_IS_ROOT_DEVICE (root_device), NULL);
         g_return_val_if_fail (element != NULL, NULL);
-        g_return_val_if_fail (url_base != NULL, NULL);
+        g_return_val_if_fail ((url_base != NULL || secure_url_base != NULL), NULL);
 
         upnp_type = xml_util_get_child_element_content_glib (element,
                                                              "deviceType");
@@ -293,6 +298,7 @@ gupnp_resource_factory_create_device
                                "secure-location", secure_location,
                                "udn", udn,
                                "url-base", url_base,
+                               "secure-url-base", secure_url_base,
                                "element", element,
                                NULL);
 
@@ -324,7 +330,8 @@ gupnp_resource_factory_create_service
                                  const char           *udn,
                                  const char           *location,
                                  const char           *secure_location,
-                                 const SoupURI        *url_base)
+                                 const SoupURI        *url_base,
+                                 const SoupURI        *secure_url_base)
 {
         GUPnPService *service;
         char         *upnp_type;
@@ -335,7 +342,7 @@ gupnp_resource_factory_create_service
         g_return_val_if_fail (GUPNP_IS_ROOT_DEVICE (root_device), NULL);
         g_return_val_if_fail (element != NULL, NULL);
         g_return_val_if_fail ((location != NULL || secure_location != NULL), NULL);
-        g_return_val_if_fail (url_base != NULL, NULL);
+        g_return_val_if_fail ((url_base != NULL || secure_url_base != NULL), NULL);
 
         upnp_type = xml_util_get_child_element_content_glib (element,
                                                              "serviceType");
@@ -357,6 +364,7 @@ gupnp_resource_factory_create_service
                                 "secure-location", secure_location,
                                 "udn", udn,
                                 "url-base", url_base,
+                                "secure-url-base", secure_url_base,
                                 "element", element,
                                 NULL);
 

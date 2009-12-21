@@ -153,7 +153,7 @@ gupnp_control_point_dispose (GObject *object)
                 control_point->priv->factory = NULL;
         }
 
-        while (control_point->priv->devices) {           
+        while (control_point->priv->devices) {
                 // Remove SSL here
                 GUPnPDeviceInfo *info;
                 GUPnPDeviceProxy *proxy;
@@ -165,8 +165,7 @@ gupnp_control_point_dispose (GObject *object)
                 ssl_finish_client( gupnp_device_proxy_get_ssl_client(proxy) );
 
                 g_object_unref (proxy);
-            
-            
+
                 g_object_unref (control_point->priv->devices->data);
                 control_point->priv->devices =
                         g_list_delete_link (control_point->priv->devices,
@@ -233,7 +232,8 @@ process_service_list (xmlNode           *element,
                       const char        *service_type,
                       const char        *description_url,
                       const char        *secure_description_url,
-                      SoupURI           *url_base)
+                      SoupURI           *url_base,
+                      SoupURI           *secure_url_base)
 {
         for (element = element->children; element; element = element->next) {
                 xmlChar *prop;
@@ -270,9 +270,10 @@ process_service_list (xmlNode           *element,
                                                   element,
                                                   udn,
                                                   service_type,
-                                                  description_url,   
-                                                  secure_description_url,   
-                                                  url_base);
+                                                  description_url,
+                                                  secure_description_url,
+                                                  url_base,
+                                                  secure_url_base);
 
                 control_point->priv->services =
                         g_list_prepend (control_point->priv->services,
@@ -296,9 +297,10 @@ process_device_list (xmlNode           *element,
                      const char        *service_type,
                      const char        *description_url,
                      const char        *secure_description_url,
-                     SoupURI           *url_base)
+                     SoupURI           *url_base,
+                     SoupURI           *secure_url_base)
 { 
-        for (element = element->children; element; element = element->next) {           
+        for (element = element->children; element; element = element->next) {
                 xmlNode *children;
                 xmlChar *prop;
                 gboolean match;
@@ -322,7 +324,8 @@ process_device_list (xmlNode           *element,
                                              service_type,
                                              description_url,
                                              secure_description_url,
-                                             url_base);
+                                             url_base,
+                                             secure_url_base);
                 }
 
                 /* See if this is a matching device */
@@ -356,7 +359,8 @@ process_device_list (xmlNode           *element,
                                                       service_type,
                                                       description_url,
                                                       secure_description_url,
-                                                      url_base);
+                                                      url_base,
+                                                      secure_url_base);
                         }
                 } else {
                         /* Create device proxy */
@@ -370,7 +374,8 @@ process_device_list (xmlNode           *element,
                                          udn,
                                          description_url,
                                          secure_description_url,
-                                         url_base);
+                                         url_base,
+                                         secure_url_base);
 
                         control_point->priv->devices =
                                 g_list_prepend
@@ -385,12 +390,12 @@ process_device_list (xmlNode           *element,
                         // set SSL client for proxy
                         if (client != NULL && *client != NULL)
                             gupnp_device_proxy_set_ssl_client(proxy, *client);
-                        
-                        if (root_proxy == NULL)               
+
+                        if (root_proxy == NULL)
                             root_proxy = proxy;
-                            
+
                         // set root_proxy to proxy
-                        gupnp_device_proxy_set_root_proxy(proxy, root_proxy);                              
+                        gupnp_device_proxy_set_root_proxy(proxy, root_proxy);
                 }
         }
 }
@@ -409,6 +414,7 @@ description_loaded (GUPnPControlPoint *control_point,
 {
         xmlNode *element;
         SoupURI *url_base;
+        SoupURI *secure_url_base;
 
         /* Save the URL base, if any */
         element = xml_util_get_element ((xmlNode *) doc->doc,
@@ -420,8 +426,8 @@ description_loaded (GUPnPControlPoint *control_point,
                                                            NULL);
         if (!url_base)
                 url_base = soup_uri_new (description_url);
-        
-        // TODO: secure_url_base?????
+
+        secure_url_base = soup_uri_new (secure_description_url);
 
         /* Iterate matching devices */
         process_device_list (element,
@@ -433,10 +439,12 @@ description_loaded (GUPnPControlPoint *control_point,
                              service_type,
                              description_url,
                              secure_description_url,
-                             url_base);
+                             url_base,
+                             secure_url_base);
 
         /* Cleanup */
         soup_uri_free (url_base);
+        soup_uri_free (secure_url_base);
 }
 
 /*

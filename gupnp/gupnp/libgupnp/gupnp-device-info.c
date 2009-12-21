@@ -48,6 +48,7 @@ struct _GUPnPDeviceInfoPrivate {
         char *device_type;
 
         SoupURI *url_base;
+        SoupURI *secure_url_base;
 
         XmlDocWrapper *doc;
 
@@ -63,6 +64,7 @@ enum {
         PROP_UDN,
         PROP_DEVICE_TYPE,
         PROP_URL_BASE,
+        PROP_SECURE_URL_BASE,
         PROP_DOCUMENT,
         PROP_ELEMENT
 };
@@ -110,6 +112,13 @@ gupnp_device_info_set_property (GObject      *object,
                 if (info->priv->url_base)
                         info->priv->url_base =
                                 soup_uri_copy (info->priv->url_base);
+
+                break;
+        case PROP_SECURE_URL_BASE:
+                info->priv->secure_url_base = g_value_get_pointer (value);
+                if (info->priv->secure_url_base)
+                        info->priv->secure_url_base =
+                                soup_uri_copy (info->priv->secure_url_base);
 
                 break;
         case PROP_DOCUMENT:
@@ -165,6 +174,10 @@ gupnp_device_info_get_property (GObject    *object,
         case PROP_URL_BASE:
                 g_value_set_pointer (value,
                                      info->priv->url_base);
+                break;
+        case PROP_SECURE_URL_BASE:
+                g_value_set_pointer (value,
+                                     info->priv->secure_url_base);
                 break;
         default:
                 G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
@@ -352,6 +365,23 @@ gupnp_device_info_class_init (GUPnPDeviceInfoClass *klass)
                                        G_PARAM_STATIC_BLURB));
 
         /**
+         * GUPnPDeviceInfo:secure-url-base
+         *
+         * The secure URL base (#SoupURI).
+         **/
+        g_object_class_install_property
+                (object_class,
+                 PROP_SECURE_URL_BASE,
+                 g_param_spec_pointer ("secure-url-base",
+                                       "Secure URL base",
+                                       "The secure URL base",
+                                       G_PARAM_READWRITE |
+                                       G_PARAM_CONSTRUCT_ONLY |
+                                       G_PARAM_STATIC_NAME |
+                                       G_PARAM_STATIC_NICK |
+                                       G_PARAM_STATIC_BLURB));
+
+        /**
          * GUPnPDeviceInfo:document
          *
          * Private property.
@@ -471,6 +501,22 @@ gupnp_device_info_get_url_base (GUPnPDeviceInfo *info)
         g_return_val_if_fail (GUPNP_IS_DEVICE_INFO (info), NULL);
 
         return info->priv->url_base;
+}
+
+/**
+ * gupnp_device_info_get_secure_url_base
+ * @info: A #GUPnPDeviceInfo
+ *
+ * Get the secure URL base of this device.
+ *
+ * Returns: A #SoupURI.
+ **/
+const SoupURI *
+gupnp_device_info_get_secure_url_base (GUPnPDeviceInfo *info)
+{
+        g_return_val_if_fail (GUPNP_IS_DEVICE_INFO (info), NULL);
+
+        return info->priv->secure_url_base;
 }
 
 /**

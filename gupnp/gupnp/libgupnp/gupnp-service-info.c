@@ -51,6 +51,7 @@ struct _GUPnPServiceInfoPrivate {
         char *service_type;
 
         SoupURI *url_base;
+        SoupURI *secure_url_base;
 
         XmlDocWrapper *doc;
 
@@ -68,6 +69,7 @@ enum {
         PROP_UDN,
         PROP_SERVICE_TYPE,
         PROP_URL_BASE,
+        PROP_SECURE_URL_BASE,
         PROP_DOCUMENT,
         PROP_ELEMENT
 };
@@ -128,6 +130,13 @@ gupnp_service_info_set_property (GObject      *object,
                                 soup_uri_copy (info->priv->url_base);
 
                 break;
+        case PROP_SECURE_URL_BASE:
+                info->priv->secure_url_base = g_value_get_pointer (value);
+                if (info->priv->secure_url_base)
+                        info->priv->secure_url_base =
+                                soup_uri_copy (info->priv->secure_url_base);
+
+                break;
         case PROP_DOCUMENT:
                 info->priv->doc = g_value_get_object (value);
                 if (info->priv->doc)
@@ -177,6 +186,10 @@ gupnp_service_info_get_property (GObject    *object,
         case PROP_URL_BASE:
                 g_value_set_pointer (value,
                                      info->priv->url_base);
+                break;
+        case PROP_SECURE_URL_BASE:
+                g_value_set_pointer (value,
+                                     info->priv->secure_url_base);
                 break;
         default:
                 G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
@@ -237,6 +250,7 @@ gupnp_service_info_finalize (GObject *object)
         g_free (info->priv->service_type);
 
         soup_uri_free (info->priv->url_base);
+        soup_uri_free (info->priv->secure_url_base);
 }
 
 static void
@@ -363,6 +377,23 @@ gupnp_service_info_class_init (GUPnPServiceInfoClass *klass)
                                        G_PARAM_STATIC_BLURB));
 
         /**
+         * GUPnPServiceInfo:secure-url-base
+         *
+         * The URL base (#SoupURI).
+         **/
+        g_object_class_install_property
+                (object_class,
+                 PROP_SECURE_URL_BASE,
+                 g_param_spec_pointer ("secure-url-base",
+                                       "Secure URL base",
+                                       "The secure URL base",
+                                       G_PARAM_READWRITE |
+                                       G_PARAM_CONSTRUCT_ONLY |
+                                       G_PARAM_STATIC_NAME |
+                                       G_PARAM_STATIC_NICK |
+                                       G_PARAM_STATIC_BLURB));
+
+        /**
          * GUPnPServiceInfo:document
          *
          * Private property.
@@ -466,6 +497,22 @@ gupnp_service_info_get_url_base (GUPnPServiceInfo *info)
         g_return_val_if_fail (GUPNP_IS_SERVICE_INFO (info), NULL);
 
         return info->priv->url_base;
+}
+
+/**
+ * gupnp_service_info_get_secure_url_base
+ * @info: A #GUPnPServiceInfo
+ *
+ * Get the secure URL base of this service.
+ *
+ * Returns: A constant #SoupURI.
+ **/
+const SoupURI *
+gupnp_service_info_get_secure_url_base (GUPnPServiceInfo *info)
+{
+        g_return_val_if_fail (GUPNP_IS_SERVICE_INFO (info), NULL);
+
+        return info->priv->secure_url_base;
 }
 
 /**
@@ -591,8 +638,11 @@ gupnp_service_info_get_secure_scpd_url (GUPnPServiceInfo *info)
 {
         g_return_val_if_fail (GUPNP_IS_SERVICE_INFO (info), NULL);
 
-        return (char *)xml_util_get_child_element_content (info->priv->element,
-                                                   "secureSCPDURL");
+        //return (char *)xml_util_get_child_element_content (info->priv->element,
+        //                                           "secureSCPDURL");
+        return xml_util_get_child_element_content_url (info->priv->element,
+                                                       "secureSCPDURL",
+                                                       info->priv->secure_url_base);
 }
 
 /**
@@ -608,8 +658,9 @@ gupnp_service_info_get_secure_control_url (GUPnPServiceInfo *info)
 {
         g_return_val_if_fail (GUPNP_IS_SERVICE_INFO (info), NULL);
 
-        return (char *)xml_util_get_child_element_content (info->priv->element,
-                                                   "secureControlURL");
+        return xml_util_get_child_element_content_url (info->priv->element,
+                                                       "secureControlURL",
+                                                       info->priv->secure_url_base);
 }
 
 /**
@@ -625,8 +676,9 @@ gupnp_service_info_get_secure_event_subscription_url (GUPnPServiceInfo *info)
 {
         g_return_val_if_fail (GUPNP_IS_SERVICE_INFO (info), NULL);
 
-        return (char *)xml_util_get_child_element_content (info->priv->element,
-                                                   "secureEventSubURL");
+        return xml_util_get_child_element_content_url (info->priv->element,
+                                                       "secureEventSubURL",
+                                                       info->priv->secure_url_base);
 }
 
 

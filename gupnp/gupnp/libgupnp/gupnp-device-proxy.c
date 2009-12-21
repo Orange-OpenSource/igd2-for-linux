@@ -236,6 +236,7 @@ gupnp_device_proxy_get_device (GUPnPDeviceInfo *info,
         XmlDocWrapper        *doc;
         const char           *location, *secure_location;
         const SoupURI        *url_base;
+        const SoupURI        *secure_url_base;
 
         proxy = GUPNP_DEVICE_PROXY (info);
 
@@ -245,6 +246,7 @@ gupnp_device_proxy_get_device (GUPnPDeviceInfo *info,
         location = gupnp_device_info_get_location (info);
         secure_location = gupnp_device_info_get_secure_location (info);
         url_base = gupnp_device_info_get_url_base (info);
+        secure_url_base = gupnp_device_info_get_secure_url_base (info);
 
         device = gupnp_resource_factory_create_device_proxy (factory,
                                                              context,
@@ -253,7 +255,8 @@ gupnp_device_proxy_get_device (GUPnPDeviceInfo *info,
                                                              NULL,
                                                              location,
                                                              secure_location,
-                                                             url_base);
+                                                             url_base,
+                                                             secure_url_base);
 
         if (device) {
             // Add root deviceproxy information for new proxy
@@ -282,6 +285,7 @@ gupnp_device_proxy_get_service (GUPnPDeviceInfo *info,
         XmlDocWrapper        *doc;
         const char           *location, *secure_location, *udn;
         const SoupURI        *url_base;
+        const SoupURI        *secure_url_base;
 
         proxy = GUPNP_DEVICE_PROXY (info);
 
@@ -292,6 +296,7 @@ gupnp_device_proxy_get_service (GUPnPDeviceInfo *info,
         location = gupnp_device_info_get_location (info);
         secure_location = gupnp_device_info_get_secure_location (info);
         url_base = gupnp_device_info_get_url_base (info);
+        secure_url_base = gupnp_device_info_get_secure_url_base (info);
 
         service = gupnp_resource_factory_create_service_proxy (factory,
                                                                context,
@@ -301,7 +306,8 @@ gupnp_device_proxy_get_service (GUPnPDeviceInfo *info,
                                                                NULL,
                                                                location,
                                                                secure_location,
-                                                               url_base);
+                                                               url_base,
+                                                               secure_url_base);
 
         // set device proxy for GUPnPServiceProxy
         gupnp_service_proxy_set_device_proxy(service, proxy);
