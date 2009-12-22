@@ -1543,7 +1543,7 @@ UpnpInitClientSSL( IN const char *dir,
     int retVal;
     char *directory = NULL;
 
-    if (dir) directory = directory;
+    if (dir) directory = dir;
     else directory = UPNP_X509_CERTSTORE;
 
     retVal = init_crypto_libraries();
