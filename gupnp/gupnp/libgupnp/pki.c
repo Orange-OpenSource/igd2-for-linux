@@ -415,6 +415,7 @@ static int create_certificate(gnutls_x509_crt_t *crt, gnutls_x509_privkey_t *key
 *       IN char *CN                    ;  Common Name velue in certificate
 *       IN int modulusBits             ;  Size of modulus in certificate
 *       IN unsigned long lifetime      ;  How many seconds until certificate will expire. Counted from now.
+*       IN int is_client               ;  Is created certificate client certificate. Affects to purpose of certificate.
 *
 *   Description :   Create new self signed certificate. Creates also new private key.
 *           Some inspiration for this code is took from gnutls certtool.
@@ -424,7 +425,7 @@ static int create_certificate(gnutls_x509_crt_t *crt, gnutls_x509_privkey_t *key
 *
 *   Note :
 ************************************************************************/
-static int create_new_certificate(gnutls_x509_crt_t *crt, gnutls_x509_privkey_t *key, const char *directory, const char *certfile, const char *privkeyfile, const char *CN, const int modulusBits, const unsigned long lifetime)
+static int create_new_certificate(gnutls_x509_crt_t *crt, gnutls_x509_privkey_t *key, const char *directory, const char *certfile, const char *privkeyfile, const char *CN, const int modulusBits, const unsigned long lifetime, int is_client)
 {
     int ret;
 
@@ -499,7 +500,7 @@ static int create_new_certificate(gnutls_x509_crt_t *crt, gnutls_x509_privkey_t 
             }
 
             // self sign certificate
-            ret = gnutls_x509_crt_sign2 (ca_crt, ca_crt, ca_privkey, GNUTLS_DIG_SHA1, 0);
+            ret = gnutls_x509_crt_sign2 (ca_crt, ca_crt, ca_privkey, GNUTLS_DIG_SHA256, 0);
             if (ret < 0) {
                 g_warning("Error: CA cert, gnutls_x509_crt_sign2 failed. %s", gnutls_strerror(ret) );
                 return ret;
@@ -510,7 +511,10 @@ static int create_new_certificate(gnutls_x509_crt_t *crt, gnutls_x509_privkey_t 
     }
 
     // create the client certificate
-    ret = create_certificate(crt, key, CN, modulusBits, lifetime, GNUTLS_KP_TLS_WWW_CLIENT, GNUTLS_KEY_DIGITAL_SIGNATURE, 0);
+    if (is_client)
+        ret = create_certificate(crt, key, CN, modulusBits, lifetime, GNUTLS_KP_TLS_WWW_CLIENT, GNUTLS_KEY_DIGITAL_SIGNATURE, 0);
+    else
+        ret = create_certificate(crt, key, CN, modulusBits, lifetime, GNUTLS_KP_TLS_WWW_SERVER, GNUTLS_KEY_DIGITAL_SIGNATURE, 0);
     if (ret < 0) {
         g_warning("Error: Failed to create certificate. %s", gnutls_strerror(ret) );
         return ret;
@@ -627,6 +631,7 @@ int init_x509_certificate_credentials(gnutls_certificate_credentials_t *x509_cre
 *       IN char *CN                    ;  Common Name velue in certificate
 *       IN int modulusBits             ;  Size of modulus in certificate
 *       IN unsigned long lifetime      ;  How many seconds until certificate will expire. Counted from now.
+*       IN int is_client               ;  Is created certificate client certificate. Affects to purpose of certificate.
 * 
 *   Description :   Create self signed certificate. For this private key is also created.
 *           If certfile already contains certificate and privkeyfile contains privatekey,
@@ -637,7 +642,7 @@ int init_x509_certificate_credentials(gnutls_certificate_credentials_t *x509_cre
 *
 *   Note :
 ************************************************************************/
-int load_x509_self_signed_certificate(gnutls_x509_crt_t *crt, unsigned int *crt_size, gnutls_x509_privkey_t *key, const char *directory, const char *certfile, const char *privkeyfile, const char *CN, const int modulusBits, const unsigned long lifetime)
+int load_x509_self_signed_certificate(gnutls_x509_crt_t *crt, unsigned int *crt_size, gnutls_x509_privkey_t *key, const char *directory, const char *certfile, const char *privkeyfile, const char *CN, const int modulusBits, const unsigned long lifetime, int is_client)
 {
     int cert_ok = 0;
     int ret = 0;
@@ -712,11 +717,11 @@ int load_x509_self_signed_certificate(gnutls_x509_crt_t *crt, unsigned int *crt_
             cert_ok = 1;
         }
         else {
-            ret = create_new_certificate(&tmp_crt, key, tmpDir, tmp_certfile, tmp_privkeyfile, CN, modulusBits, lifetime);
+            ret = create_new_certificate(&tmp_crt, key, tmpDir, tmp_certfile, tmp_privkeyfile, CN, modulusBits, lifetime, is_client);
         }
     }
     else {
-        ret = create_new_certificate(&tmp_crt, key, tmpDir, tmp_certfile, tmp_privkeyfile, CN, modulusBits, lifetime);
+        ret = create_new_certificate(&tmp_crt, key, tmpDir, tmp_certfile, tmp_privkeyfile, CN, modulusBits, lifetime, is_client);
     }
 
     if (!cert_ok)

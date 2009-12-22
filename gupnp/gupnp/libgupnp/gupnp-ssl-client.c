@@ -401,7 +401,7 @@ ssl_init_client( GUPnPSSLClient **client,
 
     if (CertFile && PrivKeyFile) {
         // put certificate and private key in global variables for use in tls handshake
-        retVal = load_x509_self_signed_certificate(client_crt, &client_crt_size, &client_privkey, directory, CertFile, PrivKeyFile, devName, GUPNP_X509_CERT_MODULUS_SIZE, GUPNP_X509_CERT_LIFETIME);
+        retVal = load_x509_self_signed_certificate(client_crt, &client_crt_size, &client_privkey, directory, CertFile, PrivKeyFile, devName, GUPNP_X509_CERT_MODULUS_SIZE, GUPNP_X509_CERT_LIFETIME, 1);
         if ( retVal != GNUTLS_E_SUCCESS ) {
             g_warning("Error: %s", "Certificate loading failed");
             return retVal;
@@ -414,7 +414,7 @@ ssl_init_client( GUPnPSSLClient **client,
     }
     else {
         // create own private key and self signed certificate or use default file
-        retVal = load_x509_self_signed_certificate(client_crt, &client_crt_size, &client_privkey, directory, GUPNP_X509_CLIENT_CERT_FILE, GUPNP_X509_CLIENT_PRIVKEY_FILE, devName, GUPNP_X509_CERT_MODULUS_SIZE, GUPNP_X509_CERT_LIFETIME);
+        retVal = load_x509_self_signed_certificate(client_crt, &client_crt_size, &client_privkey, directory, GUPNP_X509_CLIENT_CERT_FILE, GUPNP_X509_CLIENT_PRIVKEY_FILE, devName, GUPNP_X509_CERT_MODULUS_SIZE, GUPNP_X509_CERT_LIFETIME, 1);
         if ( retVal != GNUTLS_E_SUCCESS ) {
             g_warning("Error: %s", "Certificate loading failed");
             return retVal;
