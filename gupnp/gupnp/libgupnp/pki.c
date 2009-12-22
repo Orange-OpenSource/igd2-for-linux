@@ -173,11 +173,13 @@ static char* read_binary_file(const char *filename, size_t * length)
                 break;
             buf[size] = '\0';
             *length = size;
+            fclose(stream);
             return buf;
         }
     }
 
-  if (buf) free (buf);
+  fclose(stream);
+  free (buf);
   return NULL;     
 }
 
@@ -255,6 +257,7 @@ static int export_certificate_to_file(const gnutls_x509_crt_t *crt, const gnutls
     ret = gnutls_x509_privkey_export(*key, GNUTLS_X509_FMT_PEM, buffer, &buffer_size);
     if (ret < 0) {
         g_warning("Error: gnutls_x509_privkey_export failed. %s", gnutls_strerror(ret) );
+        fclose(fp);
         return ret;
     }
     fprintf(fp, "%s", buffer);
@@ -433,7 +436,6 @@ static int create_new_certificate(gnutls_x509_crt_t *crt, gnutls_x509_privkey_t 
     }
 
     // first we create CA certificate and key if those doesn't exist yet
-    // TODO: Try to get those first from the files!!!!!!
     if (ca_crt == NULL || ca_privkey == NULL)
     {
         int dirlen = strlen(directory);
@@ -469,29 +471,42 @@ static int create_new_certificate(gnutls_x509_crt_t *crt, gnutls_x509_privkey_t 
             g_warning("Error: gnutls_x509_crt_init failed. %s", gnutls_strerror(ret) );
             return ret;
         }
-
-        // create ca certificate
-        ret = create_certificate(&ca_crt, &ca_privkey, GUPNP_CA_CERT_CN, modulusBits, lifetime, NULL, GNUTLS_KEY_KEY_CERT_SIGN, 1);
-        if (ret < 0) {
-            g_warning("Error: CA cert, Failed to create certificate. %s", gnutls_strerror(ret) );
-            return ret;
+        int createNewCA = 1;
+        gnutls_datum_t pem_data = {NULL, 0};
+        //  import CA private key from file
+        ret = read_pem_data_file(tmp_privkeyfile, &pem_data);
+        if (ret == 0) {
+            ret = gnutls_x509_privkey_import(ca_privkey, &pem_data, GNUTLS_X509_FMT_PEM);
+            if (ret == GNUTLS_E_SUCCESS ) {
+                // import CA certificate from file
+                ret = read_pem_data_file(tmp_certfile, &pem_data);
+                if (ret == 0) {
+                    ret = gnutls_x509_crt_import(ca_crt, &pem_data, GNUTLS_X509_FMT_PEM);
+                    if (ret == GNUTLS_E_SUCCESS) {
+                        createNewCA = 0; // no need to create new CA certificate and key
+                    }
+                }
+            }
         }
 
-        // set version
-        ret = gnutls_x509_crt_set_version(ca_crt, GUPNP_X509_CERT_VERSION);
-        if (ret < 0) {
-            g_warning("Error: CA cert, gnutls_x509_crt_set_version failed. %s", gnutls_strerror(ret) );
-            return ret;
-        }
+        if (createNewCA)
+        {
+            // create ca certificate
+            ret = create_certificate(&ca_crt, &ca_privkey, GUPNP_CA_CERT_CN, modulusBits, lifetime, NULL, GNUTLS_KEY_KEY_CERT_SIGN, 1);
+            if (ret < 0) {
+                g_warning("Error: CA cert, Failed to create certificate. %s", gnutls_strerror(ret) );
+                return ret;
+            }
 
-        // self sign certificate
-        ret = gnutls_x509_crt_sign2 (ca_crt, ca_crt, ca_privkey, GNUTLS_DIG_SHA1, 0);
-        if (ret < 0) {
-            g_warning("Error: CA cert, gnutls_x509_crt_sign2 failed. %s", gnutls_strerror(ret) );
-            return ret;
-        }
+            // self sign certificate
+            ret = gnutls_x509_crt_sign2 (ca_crt, ca_crt, ca_privkey, GNUTLS_DIG_SHA1, 0);
+            if (ret < 0) {
+                g_warning("Error: CA cert, gnutls_x509_crt_sign2 failed. %s", gnutls_strerror(ret) );
+                return ret;
+            }
 
-        ret = export_certificate_to_file(&ca_crt, &ca_privkey, tmp_certfile, tmp_privkeyfile, 0);
+            ret = export_certificate_to_file(&ca_crt, &ca_privkey, tmp_certfile, tmp_privkeyfile, 0);
+        }
     }
 
     // create the client certificate
@@ -509,8 +524,6 @@ static int create_new_certificate(gnutls_x509_crt_t *crt, gnutls_x509_privkey_t 
     }
 
     ret = export_certificate_to_file(crt, key, certfile, privkeyfile, 1);
-
-    // now we should put whole certificate chain to crt
 
     return ret;
 }
@@ -545,7 +558,7 @@ int init_x509_certificate_credentials(gnutls_certificate_credentials_t *x509_cre
     strcpy(tmpDir,directory);
     if (directory[dirlen-1] != '/')
     {
-        strcat(tmpDir, "/"); 
+        strcat(tmpDir, "/");
         dirlen = strlen(tmpDir);
     }
 
@@ -572,7 +585,7 @@ int init_x509_certificate_credentials(gnutls_certificate_credentials_t *x509_cre
         strcpy(tmp_crlfile, tmpDir);
         strcat(tmp_crlfile,CRLFile);
 
-        ret = gnutls_certificate_set_x509_crl_file (*x509_cred, tmp_crlfile, GNUTLS_X509_FMT_PEM); // black list    
+        ret = gnutls_certificate_set_x509_crl_file (*x509_cred, tmp_crlfile, GNUTLS_X509_FMT_PEM); // black list
         if (ret < 0) {
             g_warning("Error: gnutls_certificate_set_x509_crl_file failed. (%s)", gnutls_strerror (ret));
             return ret;
