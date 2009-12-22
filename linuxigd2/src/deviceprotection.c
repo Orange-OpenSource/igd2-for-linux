@@ -479,12 +479,7 @@ static int getIdentifierOfCP(struct Upnp_Action_Request *ca_event, char **identi
 
     if (ca_event->SSLSession == NULL)
     {
-        // TODO remove this from comments. This is PLUGFEST mod
-        //return 1;
-        *idLen = strlen("TOTALLY9-FAKE-4c67-b98a-a7460d220f67");
-        *identifier = (char *)malloc(*idLen + 1);
-        strcpy(*identifier, "TOTALLY9-FAKE-4c67-b98a-a7460d220f67");
-        return 0;
+        return 1;
     }
 
     // 1. get certificate of client
