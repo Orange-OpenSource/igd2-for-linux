@@ -65,100 +65,6 @@ globals g_vars;
  * @param descDocFile Full path to file which is modifed
  * @return 0 on success, something else on error
  */
-static int updateHttpsDescDoc(const char *descDocFile, const char *IP, int port)
-{
-    int ret;
-    int listLen, i;
-    char *tmp = NULL;
-    char newValue[150];
-    IXML_NodeList *nodeList = NULL;
-    IXML_Node *tmpNode = NULL;
-
-    IXML_Document *descDoc = ixmlLoadDocument(descDocFile);
-    if (descDoc == NULL)
-        return -1; 
-
-    // modify all secureSCPDURL's
-    nodeList = ixmlDocument_getElementsByTagName( descDoc, "dp:secureSCPDURL" );
-    if (nodeList)
-    {
-        listLen = ixmlNodeList_length(nodeList);
-
-        for (i = 0; i < listLen; i++)
-        {
-            if ( ( tmpNode = ixmlNodeList_item( nodeList, i ) ) )
-            {
-                tmp = GetTextValueOfNode(tmpNode);
-                if (tmp)
-                {
-                    // change IP and port values to new values
-                    // https://127.0.0.1:443/gateEthlcfgSCPD.xml
-                    snprintf(newValue, 150, "https://%s:%d%s", IP, port, strstr(tmp+8, "/"));
-                    AddChildNode(descDoc, tmpNode->parentNode, "dp:secureSCPDURL", newValue);
-                    RemoveNode(tmpNode);
-                    free(tmp);
-                }
-            }
-        }
-    }
-    ixmlNodeList_free( nodeList );
-
-    // modify all secureControlURL's
-    nodeList = ixmlDocument_getElementsByTagName( descDoc, "dp:secureControlURL" );
-    if (nodeList)
-    {
-        listLen = ixmlNodeList_length(nodeList);
-
-        for (i = 0; i < listLen; i++)
-        {
-            if ( ( tmpNode = ixmlNodeList_item( nodeList, i ) ) )
-            {
-                tmp = GetTextValueOfNode(tmpNode);
-                if (tmp)
-                {
-                    // change IP and port values to new values
-                    // https://127.0.0.1:443/gateEthlcfgSCPD.xml
-                    snprintf(newValue, 150, "https://%s:%d%s", IP, port, strstr(tmp+8, "/"));
-                    AddChildNode(descDoc, tmpNode->parentNode, "dp:secureControlURL", newValue);
-                    RemoveNode(tmpNode);
-                    free(tmp);
-                }
-            }
-        }
-    }
-    ixmlNodeList_free( nodeList );
-
-    // modify all secureEventSubURL's
-    nodeList = ixmlDocument_getElementsByTagName( descDoc, "dp:secureEventSubURL" );
-    if (nodeList)
-    {
-        listLen = ixmlNodeList_length(nodeList);
-
-        for (i = 0; i < listLen; i++)
-        {
-            if ( ( tmpNode = ixmlNodeList_item( nodeList, i ) ) )
-            {
-                tmp = GetTextValueOfNode(tmpNode);
-                if (tmp)
-                {
-                    // change IP and port values to new values
-                    // https://127.0.0.1:443/gateEthlcfgSCPD.xml
-                    snprintf(newValue, 150, "https://%s:%d%s", IP, port, strstr(tmp+8, "/"));
-                    AddChildNode(descDoc, tmpNode->parentNode, "dp:secureEventSubURL", newValue);
-                    RemoveNode(tmpNode);
-                    free(tmp);
-                }
-            }
-        }
-    }
-    ixmlNodeList_free( nodeList );
-
-    ret = writeDocumentToFile(descDoc, descDocFile);
-    ixmlDocument_free(descDoc);
-
-    return ret;
-}
-
 static int updateDescDocUuid(const char *descDocFile)
 {
     int ret;
@@ -401,17 +307,6 @@ int main (int argc, char** argv)
 
     if (!non_secure)  // if HTTPS server is started and secure service served
     {
-        // Modify description document on the fly so that secure URL's have right IP and port
-        char descDocFile[sizeof(g_vars.xmlPath)+1+sizeof(g_vars.descDocName)+1];
-        sprintf(descDocFile, "%s/%s", g_vars.xmlPath, g_vars.descDocName);
-        if ( (ret = updateHttpsDescDoc(descDocFile, intIpAddress, g_vars.httpsListenport) ) != 0)
-        {
-            syslog (LOG_ERR, "Error Updating https URL's to Description document %s. IP %s port %d",descDocFile,intIpAddress,g_vars.httpsListenport);
-            UpnpFinish();
-            exit(1);
-        }
-        trace(2, "Description Document Updated Successfully.");
-
         trace(2, "Starting HTTPS server, this may take few seconds...");
         // start https server
         if ( (ret = UpnpStartHttpsServer(g_vars.httpsListenport, g_vars.certPath, NULL, NULL, NULL, NULL, "LinuxIGD 2.0") ) != UPNP_E_SUCCESS)
@@ -423,7 +318,9 @@ int main (int argc, char** argv)
         }
         trace(2, "UPnP HTTPS Server Started Successfully.");
 
-        // Modify description document on the fly again so that uuid is correct and created from certificate
+        // Modify description document on the fly so that the uuid is correct and created from certificate
+        char descDocFile[sizeof(g_vars.xmlPath)+1+sizeof(g_vars.descDocName)+1];
+        sprintf(descDocFile, "%s/%s", g_vars.xmlPath, g_vars.descDocName);
         if ( (ret = updateDescDocUuid(descDocFile) ) != 0)
         {
             syslog (LOG_ERR, "Error Updating UDN to Description document");

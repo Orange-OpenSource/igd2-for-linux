@@ -22,17 +22,17 @@
     </iconList>
     <serviceList>
         <service xmlns:dp="urn:schemas-upnp-org:gw:DeviceProtection"
-			     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-				 xsi:schemaLocation="urn:schemas-upnp-org:gw:DeviceProtection
-				 http://www.upnp.org/schemas/gw/DeviceProtection.xsd">
+                 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                 xsi:schemaLocation="urn:schemas-upnp-org:gw:DeviceProtection
+                 http://www.upnp.org/schemas/gw/DeviceProtection.xsd">
             <serviceType>urn:schemas-upnp-org:service:DeviceProtection:1</serviceType>
             <serviceId>urn:upnp-org:serviceId:DeviceProtection1</serviceId>
             <controlURL>/upnp/control/DeviceProtection1</controlURL>
             <eventSubURL>/upnp/control/DeviceProtection1</eventSubURL>
             <SCPDURL>/deviceprotectionSCPD.xml</SCPDURL>
-            <dp:secureSCPDURL>https://127.0.0.1:443/deviceprotectionSCPD.xml</dp:secureSCPDURL> 
-            <dp:secureControlURL>https://127.0.0.1:443/upnp/control/DeviceProtection1</dp:secureControlURL> 
-            <dp:secureEventSubURL>https://127.0.0.1:443/upnp/control/DeviceProtection1</dp:secureEventSubURL>           
+            <dp:secureSCPDURL>/deviceprotectionSCPD.xml</dp:secureSCPDURL> 
+            <dp:secureControlURL>/upnp/control/DeviceProtection1</dp:secureControlURL>
+            <dp:secureEventSubURL>/upnp/control/DeviceProtection1</dp:secureEventSubURL>
         </service>
     </serviceList>
     <deviceList>
@@ -49,18 +49,18 @@
         <UDN>uuid:75802409-bccb-40e7-8e6c-fa095ecce13f</UDN>
         <UPC>Linux IGD</UPC>
         <serviceList>
-        <service xmlns:dp="urn:schemas-upnp-org:gw:DeviceProtection"
-			     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-				 xsi:schemaLocation="urn:schemas-upnp-org:gw:DeviceProtection
-				 http://www.upnp.org/schemas/gw/DeviceProtection.xsd">
+          <service xmlns:dp="urn:schemas-upnp-org:gw:DeviceProtection"
+                 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                 xsi:schemaLocation="urn:schemas-upnp-org:gw:DeviceProtection
+                 http://www.upnp.org/schemas/gw/DeviceProtection.xsd">
             <serviceType>urn:schemas-upnp-org:service:WANCommonInterfaceConfig:1</serviceType>
             <serviceId>urn:upnp-org:serviceId:WANCommonIFC1</serviceId>
             <controlURL>/upnp/control/WANCommonIFC1</controlURL>
             <eventSubURL>/upnp/control/WANCommonIFC1</eventSubURL>
             <SCPDURL>/gateicfgSCPD.xml</SCPDURL>
-            <dp:secureSCPDURL>https://127.0.0.1:443/gateicfgSCPD.xml</dp:secureSCPDURL> 
-            <dp:secureControlURL>https://127.0.0.1:443/upnp/control/WANCommonIFC1</dp:secureControlURL> 
-            <dp:secureEventSubURL>https://127.0.0.1:443/upnp/control/WANCommonIFC1</dp:secureEventSubURL>             
+            <dp:secureSCPDURL>/gateicfgSCPD.xml</dp:secureSCPDURL> 
+            <dp:secureControlURL>/upnp/control/WANCommonIFC1</dp:secureControlURL>
+            <dp:secureEventSubURL>/upnp/control/WANCommonIFC1</dp:secureEventSubURL>
           </service>
         </serviceList>
         <deviceList>
@@ -77,45 +77,45 @@
             <UDN>uuid:75802409-bccb-40e7-8e6c-fa095ecce140</UDN>
             <UPC>Linux IGD</UPC>
             <serviceList>
-	          <service xmlns:dp="urn:schemas-upnp-org:gw:DeviceProtection"
-				       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-					   xsi:schemaLocation="urn:schemas-upnp-org:gw:DeviceProtection
-					   http://www.upnp.org/schemas/gw/DeviceProtection.xsd">
+              <service xmlns:dp="urn:schemas-upnp-org:gw:DeviceProtection"
+                       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                       xsi:schemaLocation="urn:schemas-upnp-org:gw:DeviceProtection
+                       http://www.upnp.org/schemas/gw/DeviceProtection.xsd">
                 <serviceType>urn:schemas-upnp-org:service:WANIPConnection:2</serviceType>
                 <serviceId>urn:upnp-org:serviceId:WANIPConn1</serviceId>
                 <controlURL>/upnp/control/WANIPConn1</controlURL>
                 <eventSubURL>/upnp/control/WANIPConn1</eventSubURL>
                 <SCPDURL>/gateconnSCPD.xml</SCPDURL>
-                <dp:secureSCPDURL>https://127.0.0.1:443/gateconnSCPD.xml</dp:secureSCPDURL> 
-                <dp:secureControlURL>https://127.0.0.1:443/upnp/control/WANIPConn1</dp:secureControlURL> 
-                <dp:secureEventSubURL>https://127.0.0.1:443/upnp/control/WANIPConn1</dp:secureEventSubURL>                  
+                <dp:secureSCPDURL>/gateconnSCPD.xml</dp:secureSCPDURL>
+                <dp:secureControlURL>/upnp/control/WANIPConn1</dp:secureControlURL>
+                <dp:secureEventSubURL>/upnp/control/WANIPConn1</dp:secureEventSubURL>
               </service>
-	          <service xmlns:dp="urn:schemas-upnp-org:gw:DeviceProtection"
-				       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-					   xsi:schemaLocation="urn:schemas-upnp-org:gw:DeviceProtection
-					   http://www.upnp.org/schemas/gw/DeviceProtection.xsd">
+              <service xmlns:dp="urn:schemas-upnp-org:gw:DeviceProtection"
+                         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                         xsi:schemaLocation="urn:schemas-upnp-org:gw:DeviceProtection
+                         http://www.upnp.org/schemas/gw/DeviceProtection.xsd">
                   <serviceType>urn:schemas-upnp-org:service:WANEthernetLinkConfig:1</serviceType>
                   <serviceId>urn:upnp-org:serviceId:WANEthLinkC1</serviceId>
                   <controlURL>/upnp/control/WANEthLinkC1</controlURL>
                   <eventSubURL>/upnp/control/WANEthLinkC1</eventSubURL>
                   <SCPDURL>/gateEthlcfgSCPD.xml</SCPDURL>
-                  <dp:secureSCPDURL>https://127.0.0.1:443/gateEthlcfgSCPD.xml</dp:secureSCPDURL> 
-                  <dp:secureControlURL>https://127.0.0.1:443/upnp/control/WANEthLinkC1</dp:secureControlURL>
-                  <dp:secureEventSubURL>https://127.0.0.1:443/upnp/control/WANEthLinkC1</dp:secureEventSubURL>                    
+                  <dp:secureSCPDURL>/gateEthlcfgSCPD.xml</dp:secureSCPDURL> 
+                  <dp:secureControlURL>/upnp/control/WANEthLinkC1</dp:secureControlURL>
+                  <dp:secureEventSubURL>/upnp/control/WANEthLinkC1</dp:secureEventSubURL>
               </service>
-	          <service xmlns:dp="urn:schemas-upnp-org:gw:DeviceProtection"
-				       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-					   xsi:schemaLocation="urn:schemas-upnp-org:gw:DeviceProtection
-					   http://www.upnp.org/schemas/gw/DeviceProtection.xsd">
+              <service xmlns:dp="urn:schemas-upnp-org:gw:DeviceProtection"
+                       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                       xsi:schemaLocation="urn:schemas-upnp-org:gw:DeviceProtection
+                       http://www.upnp.org/schemas/gw/DeviceProtection.xsd">
                   <serviceType>urn:schemas-upnp-org:service:LANHostConfigManagement:1</serviceType>
                   <serviceId>urn:upnp-org:serviceId:LANHostConfig1</serviceId>
                   <controlURL>/upnp/control/LANHostConfig1</controlURL>
                   <eventSubURL>/upnp/control/LANHostConfig1</eventSubURL>
                   <SCPDURL>/lanhostconfigSCPD.xml</SCPDURL>
-                  <dp:secureSCPDURL>https://127.0.0.1:443/lanhostconfigSCPD.xml</dp:secureSCPDURL> 
-                  <dp:secureControlURL>https://127.0.0.1:443/upnp/control/LANHostConfig1</dp:secureControlURL> 
-                  <dp:secureEventSubURL>https://127.0.0.1:443/upnp/control/LANHostConfig1</dp:secureEventSubURL>                    
-              </service>             
+                  <dp:secureSCPDURL>/lanhostconfigSCPD.xml</dp:secureSCPDURL>
+                  <dp:secureControlURL>/upnp/control/LANHostConfig1</dp:secureControlURL>
+                  <dp:secureEventSubURL>/upnp/control/LANHostConfig1</dp:secureEventSubURL>
+              </service>
             </serviceList>
           </device>
         </deviceList>
