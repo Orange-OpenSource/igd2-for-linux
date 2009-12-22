@@ -176,7 +176,8 @@ struct  UpnpNonblockParam
 extern virtualDirList *pVirtualDirList;
 extern struct UpnpVirtualDirCallbacks virtualDirCallback;
 
-extern gnutls_x509_crt_t client_crt;
+extern unsigned int client_crt_size;
+extern gnutls_x509_crt_t client_crt[];
 extern gnutls_x509_privkey_t client_privkey;
 
 typedef enum { WEB_SERVER_DISABLED, WEB_SERVER_ENABLED } WebServerState;

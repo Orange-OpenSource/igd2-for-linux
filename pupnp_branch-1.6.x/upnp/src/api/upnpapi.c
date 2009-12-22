@@ -89,7 +89,8 @@
     #include <gnutls/x509.h>
     // creadentials for ssl clients
     gnutls_certificate_credentials_t xcred;
-    gnutls_x509_crt_t client_crt;
+    unsigned int client_crt_size = MAX_CRT;
+    gnutls_x509_crt_t client_crt[MAX_CRT];
     gnutls_x509_privkey_t client_privkey;
 #endif
 
@@ -381,11 +382,16 @@ int UpnpStartHttpsServer( IN unsigned short port,
                           IN const char *devName ) 
 {
     if ( HttpsServerInit ) return UPNP_E_INIT;
-    
-    int retVal;
+
+    int retVal = 0;
     HttpsServerInit = 1;
 
-    if( ( retVal = StartHttpsServer(port, directory, CertFile, PrivKeyFile, TrustFile, CRLFile, devName) ) <= 0 ) {
+    if (!directory)
+        retVal = StartHttpsServer(port, UPNP_X509_CERTSTORE, CertFile, PrivKeyFile, TrustFile, CRLFile, devName);
+    else
+        retVal = StartHttpsServer(port, directory, CertFile, PrivKeyFile, TrustFile, CRLFile, devName);
+
+    if( retVal <= 0 ) {
         UpnpPrintf( UPNP_CRITICAL, API, __FILE__, __LINE__,
             "Https server failed to start" );
         HttpsServerInit = 0;
@@ -394,7 +400,7 @@ int UpnpStartHttpsServer( IN unsigned short port,
     else if (retVal == port)
         return UPNP_E_SUCCESS;
     else 
-        return retVal;        
+        return retVal;
 }
  /***************** end of UpnpStartHttpsServer ******************/
 
@@ -1507,7 +1513,7 @@ UpnpUnRegisterClient( IN UpnpClient_Handle Hnd )
  * Function: UpnpInitClientSSL
  *
  * Parameters:
- *  IN const char *directory: Path to directory where files locate or where files are created
+ *  IN const char *dir: Path to directory where files locate or where files are created
  *  IN const char *CertFile: Selfsigned certificate file of client. If NULL, new certificate and private key is created
  *  IN const char *PrivKeyFile: Private key file of client. If NULL, new private key is created
  *  IN const char *TrustFile: File containing trusted certificates. May be NULL
@@ -1527,7 +1533,7 @@ UpnpUnRegisterClient( IN UpnpClient_Handle Hnd )
  *      
  ***************************************************************************/
 int
-UpnpInitClientSSL( IN const char *directory,
+UpnpInitClientSSL( IN const char *dir,
                    IN const char *CertFile,
                    IN const char *PrivKeyFile,
                    IN const char *TrustFile,
@@ -1535,50 +1541,54 @@ UpnpInitClientSSL( IN const char *directory,
                    IN const char *devName)
 {
     int retVal;
+    char *directory = NULL;
+
+    if (dir) directory = directory;
+    else directory = UPNP_X509_CERTSTORE;
 
     retVal = init_crypto_libraries();
     if (retVal != 0) {
         UpnpPrintf( UPNP_ALL, API, __FILE__, __LINE__,
             "UpnpRegisterClientSSLSession: Crypto library initialization failed\n");
-        return retVal;    
-    }  
-    
+        return retVal;
+    }
+
     if (CertFile && PrivKeyFile) {
         // put certificate and private key in global variables for use in tls handshake
-        retVal = load_x509_self_signed_certificate(&client_crt, &client_privkey, directory, CertFile, PrivKeyFile, devName, UPNP_X509_CERT_MODULUS_SIZE, UPNP_X509_CERT_LIFETIME);
+        retVal = load_x509_self_signed_certificate(client_crt, &client_crt_size, &client_privkey, directory, CertFile, PrivKeyFile, devName, UPNP_X509_CERT_MODULUS_SIZE, UPNP_X509_CERT_LIFETIME);
         if ( retVal != GNUTLS_E_SUCCESS ) {
             UpnpPrintf( UPNP_ALL, API, __FILE__, __LINE__,
                 "UpnpRegisterClientSSLSession: Certificate loading failed \n" );
-            return retVal;    
-        }        
+            return retVal;
+        }
         retVal = init_x509_certificate_credentials(&xcred, directory, CertFile, PrivKeyFile, TrustFile, CRLFile);
         if ( retVal != GNUTLS_E_SUCCESS ) {
             UpnpPrintf( UPNP_ALL, API, __FILE__, __LINE__,
                 "UpnpRegisterClientSSLSession: Certificate credentials creating failed \n" );
-            return retVal;    
-        }          
+            return retVal;
+        }
     }
     else {
         // create own private key and self signed certificate or use default file
-        retVal = load_x509_self_signed_certificate(&client_crt, &client_privkey, directory, UPNP_X509_CLIENT_CERT_FILE, UPNP_X509_CLIENT_PRIVKEY_FILE, devName, UPNP_X509_CERT_MODULUS_SIZE, UPNP_X509_CERT_LIFETIME);
+        retVal = load_x509_self_signed_certificate(client_crt, &client_crt_size,  &client_privkey, directory, UPNP_X509_CLIENT_CERT_FILE, UPNP_X509_CLIENT_PRIVKEY_FILE, devName, UPNP_X509_CERT_MODULUS_SIZE, UPNP_X509_CERT_LIFETIME);
         if ( retVal != GNUTLS_E_SUCCESS ) {
             UpnpPrintf( UPNP_ALL, API, __FILE__, __LINE__,
                 "UpnpRegisterClientSSLSession: Certificate loading failed \n" );
-            return retVal;    
-        }          
+            return retVal;
+        }
         retVal = init_x509_certificate_credentials(&xcred, directory, UPNP_X509_CLIENT_CERT_FILE, UPNP_X509_CLIENT_PRIVKEY_FILE, TrustFile, CRLFile);
         if ( retVal != GNUTLS_E_SUCCESS ) {
             UpnpPrintf( UPNP_ALL, API, __FILE__, __LINE__,
                 "UpnpRegisterClientSSLSession: Certificate credentials creating failed \n" );
-            return retVal;    
-        }   
-    }    
+            return retVal;
+        }
+    }
 
     // set callback function for returning client certificate. (in default case server says in 
     // certificate request that who has to be the signer of cert. Our client may not be on that list)
     gnutls_certificate_client_set_retrieve_function(xcred, (gnutls_certificate_client_retrieve_function *)clientCertCallback);
-    
-    return UPNP_E_SUCCESS;     
+
+    return UPNP_E_SUCCESS;
 }  /****************** End of UpnpInitClientSSL *********************/
 #endif // INCLUDE_CLIENT_APIS
 
@@ -1599,11 +1609,11 @@ UpnpInitClientSSL( IN const char *directory,
 int
 UpnpFinishClientSSL()
 {
-    gnutls_x509_crt_deinit(client_crt);
-    gnutls_x509_privkey_deinit(client_privkey);    
+    //gnutls_x509_crt_deinit(client_crt);
+    gnutls_x509_privkey_deinit(client_privkey);
     gnutls_certificate_free_credentials (xcred);
     gnutls_global_deinit ();
-    
+
     return UPNP_E_SUCCESS;
 }  /****************** End of UpnpFinishClientSSL *********************/
 #endif // INCLUDE_CLIENT_APIS

@@ -3,29 +3,52 @@
 
 #include <gnutls/gnutls.h>
 
+/* Maximum amount of certificates in one chain/file */
+#define MAX_CRT 6
+
+/* default default directory for certificate storing */
+#ifndef UPNP_X509_CERTSTORE
+#define UPNP_X509_CERTSTORE      "/etc/certstore/"
+#endif
+
+/* default file for CA certificate storing */
+#ifndef UPNP_X509_CA_CERT_FILE
+#define UPNP_X509_CA_CERT_FILE      "pupnpX509-CA-cert.pem"
+#endif
+
+/* default file for CA private key storing */
+#ifndef UPNP_X509_CA_PRIVKEY_FILE
+#define UPNP_X509_CA_PRIVKEY_FILE      "pupnpX509-CA-key.pem"
+#endif
+
 /* default file for client certificate storing */
 #ifndef UPNP_X509_CLIENT_CERT_FILE
-#define UPNP_X509_CLIENT_CERT_FILE      "libupnpX509.pem"
+#define UPNP_X509_CLIENT_CERT_FILE      "pupnpX509-client-cert.pem"
 #endif
 
 /* default file for client private key storing */
 #ifndef UPNP_X509_CLIENT_PRIVKEY_FILE
-#define UPNP_X509_CLIENT_PRIVKEY_FILE      "libupnpX509.pem"
+#define UPNP_X509_CLIENT_PRIVKEY_FILE      "pupnpX509-client-key.pem"
 #endif
 
 /* default file for server certificate storing */
 #ifndef UPNP_X509_SERVER_CERT_FILE
-#define UPNP_X509_SERVER_CERT_FILE      "libupnpX509server.pem"
+#define UPNP_X509_SERVER_CERT_FILE      "pupnpX509-server-cert.pem"
 #endif
 
 /* default file for server private key storing */
 #ifndef UPNP_X509_SERVER_PRIVKEY_FILE
-#define UPNP_X509_SERVER_PRIVKEY_FILE      "libupnpX509server.pem"
+#define UPNP_X509_SERVER_PRIVKEY_FILE      "pupnpX509-server-key.pem"
 #endif
 
 /* Used X.509 certificate version */
 #ifndef UPNP_X509_CERT_VERSION
 #define UPNP_X509_CERT_VERSION           3
+#endif
+
+/* Common name value used for CA certificate */
+#ifndef UPNP_CA_CERT_CN
+#define UPNP_CA_CERT_CN           "MyLocalCA"
 #endif
 
 /* default bit size of used modulus in created certificate (key size) */
@@ -125,7 +148,7 @@ int init_x509_certificate_credentials(gnutls_certificate_credentials_t *x509_cre
 *
 *   Note :
 ************************************************************************/
-int load_x509_self_signed_certificate(gnutls_x509_crt_t *crt, gnutls_x509_privkey_t *key, const char *directory, const char *certfile, const char *privkeyfile, const char *CN, const int modulusBits, const unsigned long lifetime);
+int load_x509_self_signed_certificate(gnutls_x509_crt_t *crt, unsigned int *crt_size, gnutls_x509_privkey_t *key, const char *directory, const char *certfile, const char *privkeyfile, const char *CN, const int modulusBits, const unsigned long lifetime);
 
 
 /************************************************************************

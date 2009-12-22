@@ -29,7 +29,8 @@
 static gnutls_certificate_credentials_t x509_cred;
 static gnutls_priority_t priority_cache;
 static gnutls_dh_params_t dh_params;
-static gnutls_x509_crt_t server_crt = NULL;
+static unsigned int server_crt_size = MAX_CRT;
+static gnutls_x509_crt_t server_crt[MAX_CRT];
 static gnutls_x509_privkey_t server_privkey= NULL;
 
 static int RUNNING = 0;
@@ -42,7 +43,6 @@ static int generate_dh_params (void);
 static void RunHttpsServer( SOCKET listen_sd );
 static int tcp_connect (void);
 static void tcp_close (int sd);
-static int shutdownClientCertCallback(gnutls_session_t session, const gnutls_datum_t* req_ca_dn, int nreqs, gnutls_pk_algorithm_t* pk_algos, int pk_algos_length, gnutls_retr_st* st);
 
  
 /************************************************************************
@@ -589,7 +589,7 @@ StartHttpsServer( IN unsigned short listen_port,
 
     if (CertFile && PrivKeyFile) {
         // put certificate and private key in global variables for use in tls handshake
-        retVal = load_x509_self_signed_certificate(&server_crt, &server_privkey, directory, CertFile, PrivKeyFile, cn, UPNP_X509_CERT_MODULUS_SIZE, UPNP_X509_CERT_LIFETIME);
+        retVal = load_x509_self_signed_certificate(server_crt, &server_crt_size, &server_privkey, directory, CertFile, PrivKeyFile, cn, UPNP_X509_CERT_MODULUS_SIZE, UPNP_X509_CERT_LIFETIME);
         if ( retVal != GNUTLS_E_SUCCESS ) {
             UpnpPrintf( UPNP_INFO, MSERV, __FILE__, __LINE__,
                 "StartHttpsServer: Certificate loading failed \n" );
@@ -604,7 +604,7 @@ StartHttpsServer( IN unsigned short listen_port,
     }
     else {
         // create own private key and self signed certificate or use default file
-        retVal = load_x509_self_signed_certificate(&server_crt, &server_privkey, directory, UPNP_X509_SERVER_CERT_FILE, UPNP_X509_SERVER_PRIVKEY_FILE, cn, UPNP_X509_CERT_MODULUS_SIZE, UPNP_X509_CERT_LIFETIME);
+        retVal = load_x509_self_signed_certificate(server_crt, &server_crt_size, &server_privkey, directory, UPNP_X509_SERVER_CERT_FILE, UPNP_X509_SERVER_PRIVKEY_FILE, cn, UPNP_X509_CERT_MODULUS_SIZE, UPNP_X509_CERT_LIFETIME);
         if ( retVal != GNUTLS_E_SUCCESS ) {
             UpnpPrintf( UPNP_INFO, MSERV, __FILE__, __LINE__,
                 "StartHttpsServer: Certificate loading failed \n" );
@@ -677,7 +677,7 @@ StopHttpsServer(void)
      * before we free all the certificates and stuff from the server */
     sleep(1);
 
-    gnutls_x509_crt_deinit(server_crt);
+    //gnutls_x509_crt_deinit(server_crt);
     gnutls_x509_privkey_deinit(server_privkey);
     gnutls_certificate_free_credentials (x509_cred);
     gnutls_priority_deinit (priority_cache);
@@ -765,8 +765,8 @@ export_server_cert (unsigned char *data, int *data_size)
     if (server_crt == NULL)
         return GNUTLS_E_X509_CERTIFICATE_ERROR;
 
-    // export certificate to data
-    ret = gnutls_x509_crt_export(server_crt, GNUTLS_X509_FMT_DER, data, (size_t *)data_size);
+    // export first certificate from the chain to data
+    ret = gnutls_x509_crt_export(server_crt[0], GNUTLS_X509_FMT_DER, data, (size_t *)data_size);
     if (ret < 0) {
         UpnpPrintf( UPNP_INFO, MSERV, __FILE__, __LINE__,
             "Error: gnutls_x509_crt_export failed. %s", gnutls_strerror(ret) );

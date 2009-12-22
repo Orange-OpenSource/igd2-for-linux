@@ -38,6 +38,10 @@
 GCRY_THREAD_OPTION_PTHREAD_IMPL;
 
 
+// Local Certificate Authority certificate its and private key
+static gnutls_x509_crt_t ca_crt = NULL;
+static gnutls_x509_privkey_t ca_privkey = NULL;
+
 /************************************************************************
 *   Function :  initialize_gcrypt
 *
@@ -132,8 +136,8 @@ int clientCertCallback(gnutls_session_t session, const gnutls_datum_t* req_ca_dn
     type = gnutls_certificate_type_get(session);
     if (type == GNUTLS_CRT_X509) {
         st->type = type;
-        st->ncerts = 1;
-        st->cert.x509 = &client_crt;  // these two are globals defined in upnpapi
+        st->ncerts = client_crt_size;
+        st->cert.x509 = client_crt;  // these two are globals defined in upnpapi
         st->key.x509 = client_privkey;//
         st->deinit_all = 0;
     }
@@ -147,7 +151,7 @@ int clientCertCallback(gnutls_session_t session, const gnutls_datum_t* req_ca_dn
 
 /************************************************************************
 *   Function :  read_binary_file
-*
+*g_warning(
 *   Parameters :
 *       IN const char* filename ;    Name of the file to read
 *       OUT size_t length       ;    Length of read data 
@@ -251,6 +255,7 @@ static int read_pem_data_file(const char *filename, gnutls_datum_t *pem_data)
 *       IN const gnutls_x509_privkey_t *key ;  Pointer to gnutls_x509_privkey_t where private key is created
 *       IN const char *certfile        ;  Name of file where certificate is exported in PEM format
 *       IN const char *privkeyfile     ;  Name of file where private key is exported in PEM format
+        IN const int append_CA    ;  Is CA certificate appended to the end of the certificate file
 *
 *   Description :   Export certificate and private key into file(s). Filenames may be same.
 *
@@ -259,18 +264,26 @@ static int read_pem_data_file(const char *filename, gnutls_datum_t *pem_data)
 *
 *   Note :
 ************************************************************************/
-static int export_certificate_to_file(const gnutls_x509_crt_t *crt, const gnutls_x509_privkey_t *key, const char *certfile, const char *privkeyfile)
+static int export_certificate_to_file(const gnutls_x509_crt_t *crt, const gnutls_x509_privkey_t *key, const char *certfile, const char *privkeyfile, int append_CA)
 {
     unsigned char buffer[10 * 1024];
     size_t buffer_size = sizeof (buffer);
+    size_t orig_size = buffer_size;
     FILE *fp;
     int ret;
+
+    // certificate and privatekey files must be different files
+    if (strcmp(certfile, privkeyfile) == 0) {
+        UpnpPrintf( UPNP_CRITICAL, X509, __FILE__, __LINE__,
+            "Error: Certificate and privatekey cannot be saved in the same file!\n");
+        return -1;
+    }
 
     fp = fopen(privkeyfile, "w");
     if (fp == NULL) {
         UpnpPrintf( UPNP_CRITICAL, X509, __FILE__, __LINE__,
             "Failed to open file %s \n", privkeyfile );
-        return UPNP_E_FILE_NOT_FOUND;  
+        return UPNP_E_FILE_NOT_FOUND;
     }
 
     // export private key and certificate
@@ -282,31 +295,160 @@ static int export_certificate_to_file(const gnutls_x509_crt_t *crt, const gnutls
         return ret;
     }
     fprintf(fp, "%s", buffer);
+    fclose(fp);
 
-    // if certificate and privatekey files are different files, open second file. Else continue with old file
-    if (strcmp(certfile, privkeyfile) != 0) {
-        fclose(fp);
-        fp = fopen(certfile, "w");
-        if (fp == NULL) {
-            UpnpPrintf( UPNP_CRITICAL, X509, __FILE__, __LINE__,
-                "Failed to open file %s \n", privkeyfile );
-            return UPNP_E_FILE_NOT_FOUND;
-        }
+    // export cert(s)
+    fp = fopen(certfile, "w");
+    if (fp == NULL) {
+        UpnpPrintf( UPNP_CRITICAL, X509, __FILE__, __LINE__,
+             "Error: Failed to open file %s \n", privkeyfile );
+        return UPNP_E_FILE_NOT_FOUND;
     }
 
     ret = gnutls_x509_crt_export(*crt, GNUTLS_X509_FMT_PEM, buffer, &buffer_size);
     if (ret < 0) {
         UpnpPrintf( UPNP_CRITICAL, X509, __FILE__, __LINE__,
-            "gnutls_x509_crt_export failed. %s \n", gnutls_strerror(ret) );
+             "Error: gnutls_x509_crt_export failed. %s\n", gnutls_strerror(ret) );
         return ret;
     }
     fprintf(fp, "%s", buffer);
 
+    // Is CA certificate appended?
+    if (append_CA)
+    {
+        *buffer = '\0';
+        buffer_size = orig_size;
+        ret = gnutls_x509_crt_export(ca_crt, GNUTLS_X509_FMT_PEM, buffer, &buffer_size);
+        if (ret < 0) {
+            UpnpPrintf( UPNP_CRITICAL, X509, __FILE__, __LINE__,
+                "Error: gnutls_x509_crt_export failed. %s\n", gnutls_strerror(ret) );
+            return ret;
+        }
+        fprintf(fp, "%s", buffer);
+    }
     fclose(fp);
 
     return 0;
 }
 
+/************************************************************************
+*   Function :  create_certificate
+*
+*   Parameters :
+*       OUT gnutls_x509_crt_t *crt     ;  Pointer to gnutls_x509_crt_t where certificate is created
+*       OUT gnutls_x509_privkey_t *key ;  Pointer to gnutls_x509_privkey_t where private key is created
+*       IN char *CN                    ;  Common Name velue in certificate
+*       IN int modulusBits             ;  Size of modulus in certificate
+*       IN unsigned long lifetime      ;  How many seconds until certificate will expire. Counted from now.
+*
+*   Description :   Creates the certificate and private key
+*
+*   Return : int ;
+*       UPNP or gnutls error code.
+*
+*   Note :
+************************************************************************/
+static int create_certificate(gnutls_x509_crt_t *crt, gnutls_x509_privkey_t *key, const char *CN, const int modulusBits, const unsigned long lifetime, const void *purpose, unsigned int key_usage, unsigned int is_ca)
+{
+    unsigned char buffer[10 * 1024];
+    int ret, serial;
+
+    // create private key
+    ret = gnutls_x509_privkey_generate (*key, GNUTLS_PK_RSA, modulusBits, 0);
+    if (ret < 0) {
+        UpnpPrintf( UPNP_CRITICAL, X509, __FILE__, __LINE__,
+             "Error: gnutls_x509_privkey_generate failed. %s", gnutls_strerror(ret) );
+        return ret;
+    }
+
+    // set common name
+    ret = gnutls_x509_crt_set_dn_by_oid (*crt, GNUTLS_OID_X520_COMMON_NAME, 0, CN, strlen(CN));
+    if (ret < 0) {
+        UpnpPrintf( UPNP_CRITICAL, X509, __FILE__, __LINE__,
+             "Error: gnutls_x509_crt_set_dn_by_oid failed. %s", gnutls_strerror(ret) );
+        return ret;
+    }
+
+    // set private key for cert
+    ret = gnutls_x509_crt_set_key (*crt, *key);
+    if (ret < 0) {
+        UpnpPrintf( UPNP_CRITICAL, X509, __FILE__, __LINE__,
+             "Error: gnutls_x509_crt_set_key failed. %s", gnutls_strerror(ret) );
+        return ret;
+    }
+
+    ret = gnutls_x509_crt_set_activation_time (*crt, time (NULL));
+    if (ret < 0) {
+        UpnpPrintf( UPNP_CRITICAL, X509, __FILE__, __LINE__,
+             "Error: gnutls_x509_crt_set_activation_time. %s", gnutls_strerror(ret) );
+        return ret;
+    }
+
+// this tries to solve Year 2038 problem with "too big" unix timestamps http://en.wikipedia.org/wiki/Year_2038_problem
+#ifdef UPNP_X509_CERT_ULTIMATE_EXPIRE_DATE
+    ret = gnutls_x509_crt_set_expiration_time (*crt, UPNP_X509_CERT_ULTIMATE_EXPIRE_DATE);
+#else
+    ret = gnutls_x509_crt_set_expiration_time (*crt, time (NULL) + lifetime);
+#endif
+    if (ret < 0) {
+        UpnpPrintf( UPNP_CRITICAL, X509, __FILE__, __LINE__,
+             "Error: gnutls_x509_crt_set_expiration_time failed. %s", gnutls_strerror(ret) );
+        return ret;
+    }
+
+    //serial
+    serial = time (NULL);
+    buffer[4] = serial & 0xff;
+    buffer[3] = (serial >> 8) & 0xff;
+    buffer[2] = (serial >> 16) & 0xff;
+    buffer[1] = (serial >> 24) & 0xff;
+    buffer[0] = 0;
+
+    ret = gnutls_x509_crt_set_serial (*crt, buffer, 5);
+    if (ret < 0) {
+        UpnpPrintf( UPNP_CRITICAL, X509, __FILE__, __LINE__,
+             "Error: gnutls_x509_crt_set_serial failed. %s", gnutls_strerror(ret) );
+        return ret;
+    }
+
+    if (purpose)
+    {
+        ret = gnutls_x509_crt_set_key_purpose_oid (*crt, purpose, 0);
+        if (ret < 0) {
+            UpnpPrintf( UPNP_CRITICAL, X509, __FILE__, __LINE__,
+                "Error: gnutls_x509_crt_set_key_purpose_oid failed. %s", gnutls_strerror(ret) );
+            return ret;
+        }
+    }
+
+    ret = gnutls_x509_crt_set_key_usage (*crt, key_usage);
+    if (ret < 0) {
+        UpnpPrintf( UPNP_CRITICAL, X509, __FILE__, __LINE__,
+             "Error: gnutls_x509_crt_set_key_usage failed. %s", gnutls_strerror(ret) );
+        return ret;
+    }
+
+    if (is_ca)
+    {
+        // if ceritficate is used as CA
+        ret = gnutls_x509_crt_set_ca_status (*crt, is_ca);
+        if (ret < 0) {
+            UpnpPrintf( UPNP_CRITICAL, X509, __FILE__, __LINE__,
+                "Error: gnutls_x509_crt_set_ca_status failed. %s", gnutls_strerror(ret) );
+            return ret;
+        }
+    }
+
+    // set version
+    ret = gnutls_x509_crt_set_version(*crt, UPNP_X509_CERT_VERSION);
+    if (ret < 0) {
+        UpnpPrintf( UPNP_CRITICAL, X509, __FILE__, __LINE__,
+             "Error: gnutls_x509_crt_set_version failed. %s", gnutls_strerror(ret) );
+        return ret;
+    }
+
+    return 0;
+}
 
 /************************************************************************
 *   Function :  create_new_certificate
@@ -331,8 +473,7 @@ static int export_certificate_to_file(const gnutls_x509_crt_t *crt, const gnutls
 ************************************************************************/
 static int create_new_certificate(gnutls_x509_crt_t *crt, gnutls_x509_privkey_t *key, const char *directory, const char *certfile, const char *privkeyfile, const char *CN, const int modulusBits, const unsigned long lifetime)
 {
-    unsigned char buffer[10 * 1024];
-    int ret, serial;
+    int ret;
 
     // create dir if doesn't exist yet
     ret = mkdir(directory, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
@@ -342,80 +483,101 @@ static int create_new_certificate(gnutls_x509_crt_t *crt, gnutls_x509_privkey_t 
         return UPNP_E_FILE_NOT_FOUND;
     }
 
-    ret = gnutls_x509_privkey_generate (*key, GNUTLS_PK_RSA, modulusBits, 0);
-    if (ret < 0) {
-        UpnpPrintf( UPNP_CRITICAL, X509, __FILE__, __LINE__,
-            "gnutls_x509_privkey_generate failed. %s \n", gnutls_strerror(ret) );
-        return ret;
+    // first we create CA certificate and key if those doesn't exist yet
+    if (ca_crt == NULL || ca_privkey == NULL)
+    {
+        int dirlen = strlen(directory);
+
+        // add trailing '/' if directory doesn't have it yet
+        char tmpDir[dirlen+1];
+        strcpy(tmpDir,directory);
+        if (directory[dirlen-1] != '/')
+        {
+            strcat(tmpDir, "/");
+            dirlen = strlen(tmpDir);
+        }
+
+        char tmp_certfile[dirlen+strlen(UPNP_X509_CA_CERT_FILE)];
+        char tmp_privkeyfile[dirlen+strlen(UPNP_X509_CA_PRIVKEY_FILE)];
+
+        strcpy(tmp_certfile, tmpDir);
+        strcat(tmp_certfile,UPNP_X509_CA_CERT_FILE);
+
+        strcpy(tmp_privkeyfile, tmpDir);
+        strcat(tmp_privkeyfile,UPNP_X509_CA_PRIVKEY_FILE);
+
+        // init private key
+        ret = gnutls_x509_privkey_init (&ca_privkey);
+        if (ret < 0) {
+            UpnpPrintf( UPNP_CRITICAL, X509, __FILE__, __LINE__,
+                "Error: gnutls_x509_privkey_init failed. %s", gnutls_strerror(ret) );
+            return ret;
+        }
+
+        //init certificate
+        ret = gnutls_x509_crt_init (&ca_crt);
+        if (ret < 0) {
+            UpnpPrintf( UPNP_CRITICAL, X509, __FILE__, __LINE__,
+                "Error: gnutls_x509_crt_init failed. %s", gnutls_strerror(ret) );
+            return ret;
+        }
+        int createNewCA = 1;
+        gnutls_datum_t pem_data = {NULL, 0};
+        //  import CA private key from file
+        ret = read_pem_data_file(tmp_privkeyfile, &pem_data);
+        if (ret == 0) {
+            ret = gnutls_x509_privkey_import(ca_privkey, &pem_data, GNUTLS_X509_FMT_PEM);
+            if (ret == GNUTLS_E_SUCCESS ) {
+                // import CA certificate from file
+                ret = read_pem_data_file(tmp_certfile, &pem_data);
+                if (ret == 0) {
+                    ret = gnutls_x509_crt_import(ca_crt, &pem_data, GNUTLS_X509_FMT_PEM);
+                    if (ret == GNUTLS_E_SUCCESS) {
+                        createNewCA = 0; // no need to create new CA certificate and key
+                    }
+                }
+            }
+        }
+
+        if (createNewCA)
+        {
+            // create ca certificate
+            ret = create_certificate(&ca_crt, &ca_privkey, UPNP_CA_CERT_CN, modulusBits, lifetime, NULL, GNUTLS_KEY_KEY_CERT_SIGN, 1);
+            if (ret < 0) {
+                UpnpPrintf( UPNP_CRITICAL, X509, __FILE__, __LINE__,
+                    "Error: CA cert, Failed to create certificate. %s", gnutls_strerror(ret) );
+                return ret;
+            }
+
+            // self sign certificate
+            ret = gnutls_x509_crt_sign2 (ca_crt, ca_crt, ca_privkey, GNUTLS_DIG_SHA1, 0);
+            if (ret < 0) {
+                UpnpPrintf( UPNP_CRITICAL, X509, __FILE__, __LINE__,
+                    "Error: CA cert, gnutls_x509_crt_sign2 failed. %s", gnutls_strerror(ret) );
+                return ret;
+            }
+
+            ret = export_certificate_to_file(&ca_crt, &ca_privkey, tmp_certfile, tmp_privkeyfile, 0);
+        }
     }
 
-    // set common name
-    ret = gnutls_x509_crt_set_dn_by_oid (*crt, GNUTLS_OID_X520_COMMON_NAME, 0, CN, strlen(CN));
+    // create the client certificate
+    ret = create_certificate(crt, key, CN, modulusBits, lifetime, GNUTLS_KP_TLS_WWW_CLIENT, GNUTLS_KEY_DIGITAL_SIGNATURE, 0);
     if (ret < 0) {
         UpnpPrintf( UPNP_CRITICAL, X509, __FILE__, __LINE__,
-            "gnutls_x509_crt_set_dn_by_oid failed. %s \n", gnutls_strerror(ret) );
-        return ret;
-    }
-
-    // set private key for cert
-    ret = gnutls_x509_crt_set_key (*crt, *key);
-    if (ret < 0) {
-        UpnpPrintf( UPNP_CRITICAL, X509, __FILE__, __LINE__,
-            "gnutls_x509_crt_set_key failed. %s \n", gnutls_strerror(ret) );
-        return ret;
-    }
-
-    ret = gnutls_x509_crt_set_activation_time (*crt, time (NULL));
-    if (ret < 0) {
-        UpnpPrintf( UPNP_CRITICAL, X509, __FILE__, __LINE__,
-            "gnutls_x509_crt_set_activation_time. %s \n", gnutls_strerror(ret) );
-        return ret;
-    }
-
-// this tries to solve Year 2038 problem with "too big" unix timestamps http://en.wikipedia.org/wiki/Year_2038_problem
-#ifdef UPNP_X509_CERT_ULTIMATE_EXPIRE_DATE
-    ret = gnutls_x509_crt_set_expiration_time (*crt, UPNP_X509_CERT_ULTIMATE_EXPIRE_DATE);
-#else
-    ret = gnutls_x509_crt_set_expiration_time (*crt, time (NULL) + lifetime);
-#endif
-    if (ret < 0) {
-        UpnpPrintf( UPNP_CRITICAL, X509, __FILE__, __LINE__,
-            "gnutls_x509_crt_set_expiration_time failed. %s \n", gnutls_strerror(ret) );
-        return ret;
-    }
-
-    //serial
-    serial = time (NULL);
-    buffer[4] = serial & 0xff;
-    buffer[3] = (serial >> 8) & 0xff;
-    buffer[2] = (serial >> 16) & 0xff;
-    buffer[1] = (serial >> 24) & 0xff;
-    buffer[0] = 0;
-
-    ret = gnutls_x509_crt_set_serial (*crt, buffer, 5);
-    if (ret < 0) {
-        UpnpPrintf( UPNP_CRITICAL, X509, __FILE__, __LINE__,
-            "gnutls_x509_crt_set_serial failed. %s \n", gnutls_strerror(ret) );
+                "Error: Failed to create certificate. %s", gnutls_strerror(ret) );
         return ret;
     }
 
     // sign certificate
-    ret = gnutls_x509_crt_sign2 (*crt, *crt, *key, GNUTLS_DIG_SHA256, 0);
+    ret = gnutls_x509_crt_sign2 (*crt, ca_crt, ca_privkey, GNUTLS_DIG_SHA256, 0);
     if (ret < 0) {
         UpnpPrintf( UPNP_CRITICAL, X509, __FILE__, __LINE__,
-            "gnutls_x509_crt_sign2 failed. %s \n", gnutls_strerror(ret) );
+                "Error: gnutls_x509_crt_sign2 failed. %s", gnutls_strerror(ret) );
         return ret;
     }
 
-    // set version
-    ret = gnutls_x509_crt_set_version(*crt, UPNP_X509_CERT_VERSION);
-    if (ret < 0) {
-        UpnpPrintf( UPNP_CRITICAL, X509, __FILE__, __LINE__,
-            "gnutls_x509_crt_set_version failed. %s \n", gnutls_strerror(ret) );
-        return ret;
-    }
-
-    ret = export_certificate_to_file(crt, key, certfile, privkeyfile);
+    ret = export_certificate_to_file(crt, key, certfile, privkeyfile, 1);
 
     return ret;
 }
@@ -514,7 +676,8 @@ int init_x509_certificate_credentials(gnutls_certificate_credentials_t *x509_cre
 *   Function :  load_x509_self_signed_certificate
 *
 *   Parameters :
-*       OUT gnutls_x509_crt_t *crt     ;  Pointer to gnutls_x509_crt_t where certificate is created
+*       OUT gnutls_x509_crt_t *crt     ;  Pointer to gnutls_x509_crt_t table where certificate(s) is created
+        INOUT unsigned int *crt_size   ;  IN: how many certificates crt can have at maximum. OUT: How many certificates crt has.
 *       OUT gnutls_x509_privkey_t *key ;  Pointer to gnutls_x509_privkey_t where private key is created
 *       IN const char *directory       ;  Path to directory where files locate or where files are created.
 *       IN const char *certfile        ;  Name of file where certificate is exported in PEM format
@@ -532,8 +695,9 @@ int init_x509_certificate_credentials(gnutls_certificate_credentials_t *x509_cre
 *
 *   Note :
 ************************************************************************/
-int load_x509_self_signed_certificate(gnutls_x509_crt_t *crt, gnutls_x509_privkey_t *key, const char *directory, const char *certfile, const char *privkeyfile, const char *CN, const int modulusBits, const unsigned long lifetime)
+int load_x509_self_signed_certificate(gnutls_x509_crt_t *crt, unsigned int *crt_size, gnutls_x509_privkey_t *key, const char *directory, const char *certfile, const char *privkeyfile, const char *CN, const int modulusBits, const unsigned long lifetime)
 {
+    int cert_ok = 0;
     int ret = 0;
     gnutls_datum_t pem_data = {NULL, 0};
     int dirlen = strlen(directory);
@@ -543,7 +707,7 @@ int load_x509_self_signed_certificate(gnutls_x509_crt_t *crt, gnutls_x509_privke
     strcpy(tmpDir,directory);
     if (directory[dirlen-1] != '/')
     {
-        strcat(tmpDir, "/"); 
+        strcat(tmpDir, "/");
         dirlen = strlen(tmpDir);
     }
 
@@ -556,6 +720,16 @@ int load_x509_self_signed_certificate(gnutls_x509_crt_t *crt, gnutls_x509_privke
     strcpy(tmp_privkeyfile, tmpDir);
     strcat(tmp_privkeyfile,privkeyfile);
 
+    // create temporary certificate.
+    gnutls_x509_crt_t tmp_crt;
+    //init certificate
+    ret = gnutls_x509_crt_init (&tmp_crt);
+    if (ret < 0) {
+        UpnpPrintf( UPNP_CRITICAL, X509, __FILE__, __LINE__,
+                "Error: gnutls_x509_crt_init failed. %s", gnutls_strerror(ret) );
+        return ret;
+    }
+
     // init private key
     ret = gnutls_x509_privkey_init (key);
     if (ret < 0) {
@@ -564,52 +738,71 @@ int load_x509_self_signed_certificate(gnutls_x509_crt_t *crt, gnutls_x509_privke
         return ret;
     }
 
-    //init certificate
-    ret = gnutls_x509_crt_init (crt);
-    if (ret < 0) {
-        UpnpPrintf( UPNP_CRITICAL, X509, __FILE__, __LINE__,
-            "gnutls_x509_crt_init failed. %s \n", gnutls_strerror(ret) );
-        return ret;
-    }
-
     // import private key from file
     ret = read_pem_data_file(tmp_privkeyfile, &pem_data);
     if (ret == 0) {
         ret = gnutls_x509_privkey_import(*key, &pem_data, GNUTLS_X509_FMT_PEM);
-        if (pem_data.data) free(pem_data.data); //release privkey, it's not needed anymore
         if (ret < 0) {
             UpnpPrintf( UPNP_CRITICAL, X509, __FILE__, __LINE__,
                 "gnutls_x509_privkey_import failed. %s \n", gnutls_strerror(ret) );
+            if (pem_data.data) free(pem_data.data); //release privkey, it's not needed anymore
             return ret;
         }
 
         // import certificate from file
         ret = read_pem_data_file(tmp_certfile, &pem_data);
         if (ret == 0) {
-            ret = gnutls_x509_crt_import(*crt, &pem_data, GNUTLS_X509_FMT_PEM);
+            //ret = gnutls_x509_crt_import(*crt, &pem_data, GNUTLS_X509_FMT_PEM);
+            gnutls_x509_crt_list_import (crt, crt_size, &pem_data,
+                     GNUTLS_X509_FMT_PEM,
+                     GNUTLS_X509_CRT_LIST_IMPORT_FAIL_IF_EXCEED);
             if (ret < 0) {
                 UpnpPrintf( UPNP_CRITICAL, X509, __FILE__, __LINE__,
-                    "gnutls_x509_crt_import failed. %s \n", gnutls_strerror(ret) );
-                if (pem_data.data) free(pem_data.data); 
+                    "Error: gnutls_x509_crt_list_import failed. %s", gnutls_strerror(ret) );
+                if (pem_data.data) free(pem_data.data);
                 return ret;
             }
+            /* this validation was done when there was only one certificate not whole chain. 
+            Now we should check validity of the certificate chain?
             ret = validate_x509_certificate(crt, NULL, CN);
             if (ret < 0) {
                 UpnpPrintf( UPNP_CRITICAL, X509, __FILE__, __LINE__,
-                    "X.509 certificate validation failed. %s \n", gnutls_strerror(ret) );
+                    "Error: X.509 certificate validation failed. %s", gnutls_strerror(ret) );
                 if (pem_data.data) free(pem_data.data); 
                 return ret;
             }
+            */
+            cert_ok = 1;
         }
         else {
-            ret = create_new_certificate(crt, key, tmpDir, tmp_certfile, tmp_privkeyfile, CN, modulusBits, lifetime);
+            ret = create_new_certificate(&tmp_crt, key, tmpDir, tmp_certfile, tmp_privkeyfile, CN, modulusBits, lifetime);
         }
     }
     else {
-        ret = create_new_certificate(crt, key, tmpDir, tmp_certfile, tmp_privkeyfile, CN, modulusBits, lifetime);
+        ret = create_new_certificate(&tmp_crt, key, tmpDir, tmp_certfile, tmp_privkeyfile, CN, modulusBits, lifetime);
     }
 
-    if (pem_data.data) free(pem_data.data); 
+    if (!cert_ok)
+    {
+        // do the importing again so that we get the whole chain from the file
+        // TODO improve this so that we dont need this import here
+        ret = read_pem_data_file(tmp_certfile, &pem_data);
+        if (ret == 0) {
+            //ret = gnutls_x509_crt_import(*crt, &pem_data, GNUTLS_X509_FMT_PEM);
+            gnutls_x509_crt_list_import (crt, crt_size, &pem_data,
+                    GNUTLS_X509_FMT_PEM,
+                    GNUTLS_X509_CRT_LIST_IMPORT_FAIL_IF_EXCEED);
+            if (ret < 0) {
+                UpnpPrintf( UPNP_CRITICAL, X509, __FILE__, __LINE__,
+                    "Error: gnutls_x509_crt_list_import failed. %s", gnutls_strerror(ret) );
+                if (pem_data.data) free(pem_data.data);
+                return ret;
+            }
+        }
+    }
+
+    gnutls_x509_crt_deinit(tmp_crt);
+    if (pem_data.data) free(pem_data.data);
     return ret;
 }
 
