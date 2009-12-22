@@ -589,7 +589,7 @@ StartHttpsServer( IN unsigned short listen_port,
 
     if (CertFile && PrivKeyFile) {
         // put certificate and private key in global variables for use in tls handshake
-        retVal = load_x509_self_signed_certificate(server_crt, &server_crt_size, &server_privkey, directory, CertFile, PrivKeyFile, cn, UPNP_X509_CERT_MODULUS_SIZE, UPNP_X509_CERT_LIFETIME);
+        retVal = load_x509_self_signed_certificate(server_crt, &server_crt_size, &server_privkey, directory, CertFile, PrivKeyFile, cn, UPNP_X509_CERT_MODULUS_SIZE, UPNP_X509_CERT_LIFETIME, 0);
         if ( retVal != GNUTLS_E_SUCCESS ) {
             UpnpPrintf( UPNP_INFO, MSERV, __FILE__, __LINE__,
                 "StartHttpsServer: Certificate loading failed \n" );
@@ -604,7 +604,7 @@ StartHttpsServer( IN unsigned short listen_port,
     }
     else {
         // create own private key and self signed certificate or use default file
-        retVal = load_x509_self_signed_certificate(server_crt, &server_crt_size, &server_privkey, directory, UPNP_X509_SERVER_CERT_FILE, UPNP_X509_SERVER_PRIVKEY_FILE, cn, UPNP_X509_CERT_MODULUS_SIZE, UPNP_X509_CERT_LIFETIME);
+        retVal = load_x509_self_signed_certificate(server_crt, &server_crt_size, &server_privkey, directory, UPNP_X509_SERVER_CERT_FILE, UPNP_X509_SERVER_PRIVKEY_FILE, cn, UPNP_X509_CERT_MODULUS_SIZE, UPNP_X509_CERT_LIFETIME, 0);
         if ( retVal != GNUTLS_E_SUCCESS ) {
             UpnpPrintf( UPNP_INFO, MSERV, __FILE__, __LINE__,
                 "StartHttpsServer: Certificate loading failed \n" );

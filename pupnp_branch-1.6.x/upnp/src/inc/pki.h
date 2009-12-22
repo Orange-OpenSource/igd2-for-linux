@@ -138,6 +138,7 @@ int init_x509_certificate_credentials(gnutls_certificate_credentials_t *x509_cre
 *       IN char *CN                    ;  Common Name velue in certificate
 *       IN int modulusBits             ;  Size of modulus in certificate
 *       IN unsigned long lifetime      ;  How many seconds until certificate will expire. Counted from now.
+*       IN int is_client               ;  Is created certificate client certificate. Affects to purpose of certificate.
 * 
 *   Description :   Create self signed certificate. For this private key is also created.
 *           If certfile already contains certificate and privkeyfile contains privatekey,
@@ -148,7 +149,7 @@ int init_x509_certificate_credentials(gnutls_certificate_credentials_t *x509_cre
 *
 *   Note :
 ************************************************************************/
-int load_x509_self_signed_certificate(gnutls_x509_crt_t *crt, unsigned int *crt_size, gnutls_x509_privkey_t *key, const char *directory, const char *certfile, const char *privkeyfile, const char *CN, const int modulusBits, const unsigned long lifetime);
+int load_x509_self_signed_certificate(gnutls_x509_crt_t *crt, unsigned int *crt_size, gnutls_x509_privkey_t *key, const char *directory, const char *certfile, const char *privkeyfile, const char *CN, const int modulusBits, const unsigned long lifetime, int is_client);
 
 
 /************************************************************************

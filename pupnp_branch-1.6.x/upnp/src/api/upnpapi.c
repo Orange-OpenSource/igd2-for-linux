@@ -1555,7 +1555,7 @@ UpnpInitClientSSL( IN const char *dir,
 
     if (CertFile && PrivKeyFile) {
         // put certificate and private key in global variables for use in tls handshake
-        retVal = load_x509_self_signed_certificate(client_crt, &client_crt_size, &client_privkey, directory, CertFile, PrivKeyFile, devName, UPNP_X509_CERT_MODULUS_SIZE, UPNP_X509_CERT_LIFETIME);
+        retVal = load_x509_self_signed_certificate(client_crt, &client_crt_size, &client_privkey, directory, CertFile, PrivKeyFile, devName, UPNP_X509_CERT_MODULUS_SIZE, UPNP_X509_CERT_LIFETIME, 1);
         if ( retVal != GNUTLS_E_SUCCESS ) {
             UpnpPrintf( UPNP_ALL, API, __FILE__, __LINE__,
                 "UpnpRegisterClientSSLSession: Certificate loading failed \n" );
@@ -1570,7 +1570,7 @@ UpnpInitClientSSL( IN const char *dir,
     }
     else {
         // create own private key and self signed certificate or use default file
-        retVal = load_x509_self_signed_certificate(client_crt, &client_crt_size,  &client_privkey, directory, UPNP_X509_CLIENT_CERT_FILE, UPNP_X509_CLIENT_PRIVKEY_FILE, devName, UPNP_X509_CERT_MODULUS_SIZE, UPNP_X509_CERT_LIFETIME);
+        retVal = load_x509_self_signed_certificate(client_crt, &client_crt_size,  &client_privkey, directory, UPNP_X509_CLIENT_CERT_FILE, UPNP_X509_CLIENT_PRIVKEY_FILE, devName, UPNP_X509_CERT_MODULUS_SIZE, UPNP_X509_CERT_LIFETIME, 1);
         if ( retVal != GNUTLS_E_SUCCESS ) {
             UpnpPrintf( UPNP_ALL, API, __FILE__, __LINE__,
                 "UpnpRegisterClientSSLSession: Certificate loading failed \n" );
