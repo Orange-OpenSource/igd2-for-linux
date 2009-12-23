@@ -483,7 +483,7 @@ static int getIdentifierOfCP(struct Upnp_Action_Request *ca_event, char **identi
     }
 
     // 1. get certificate of client
-    ret = UpnpGetClientCert(ca_event->SSLSession, cert, &cert_size, CN);
+    ret = UpnpGetPeerClientCert(ca_event->SSLSession, cert, &cert_size, CN);
     if (ret != UPNP_E_SUCCESS)
         return ret;
 
