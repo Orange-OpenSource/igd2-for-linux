@@ -91,7 +91,7 @@
     gnutls_certificate_credentials_t xcred;
     unsigned int client_crt_size = MAX_CRT;
     gnutls_x509_crt_t client_crt[MAX_CRT];
-    gnutls_x509_privkey_t client_privkey;
+    gnutls_x509_privkey_t client_privkey = NULL;
 #endif
 
 //
@@ -455,9 +455,39 @@ void UpnpTerminateSSLSession(gnutls_session_t session, int sock)
 }
  /***************** end of UpnpTerminateSSLSession ******************/
 
+/************************************************************************
+ * Function: UpnpGetClientCert
+ *
+ * Parameters:
+ *  unsigned char *data - Certificate is returned in DER format here
+ *  int *data_size - Pointer to integer which represents length of certificate
+ *
+ * Description:
+ *  Get X.509 certificate that own client is using.
+ *
+ * Return: int
+ *      0 on success, gnutls error else. 
+ ************************************************************************/
+int UpnpGetClientCert (unsigned char *data, int *data_size)
+{
+    int ret;
+
+    if (client_privkey == NULL)  // privkey must exist if cert exist
+        return GNUTLS_E_X509_CERTIFICATE_ERROR;
+
+    // export first certificate from the chain to data
+    ret = gnutls_x509_crt_export(client_crt[0], GNUTLS_X509_FMT_DER, data, (size_t *)data_size);
+    if (ret < 0) {
+        UpnpPrintf( UPNP_INFO, MSERV, __FILE__, __LINE__,
+            "Error: gnutls_x509_crt_export failed. %s", gnutls_strerror(ret) );
+        return ret;
+    }
+
+    return UPNP_E_SUCCESS;
+}
 
 /****************************************************************************
- * Function: UpnpGetClientCert
+ * Function: UpnpGetPeerClientCert
  *
  * Export client certificate of given ssl-session to given parameter data. 
  * When calling this data must have enough memory allocated and data_size 
@@ -473,12 +503,12 @@ void UpnpTerminateSSLSession(gnutls_session_t session, int sock)
  *  UPNP_E_SUCCESS on success, nonzero on failure. 
  *  upnps or gnutls error code if starting fails.
  *****************************************************************************/
-int UpnpGetClientCert(gnutls_session_t session, unsigned char *data, int *data_size, char **CN)
+int UpnpGetPeerClientCert(gnutls_session_t session, unsigned char *data, int *data_size, char **CN)
 {
     return get_peer_certificate(session, data, data_size, CN); 
 }
 #endif
- /***************** end of UpnpGetClientCert ******************/
+ /***************** end of UpnpGetPeerClientCert ******************/
 
 
 #ifdef DEBUG

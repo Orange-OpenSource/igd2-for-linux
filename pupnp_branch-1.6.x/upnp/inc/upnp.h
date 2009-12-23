@@ -1110,6 +1110,20 @@ EXPORT_SPEC void UpnpTerminateSSLSession(
     /*! [in] Socket which is closed. */
     int sock);
 
+/*!
+ * \brief Get certificate that own client is using.
+ *
+ * This function fetches X.509 certificate that own client is using in DER format.
+ *
+ * \return An integer representing one of the following:
+ *     \li \c UPNP_E_SUCCESS: The operation completed successfully.
+ *     \li gnutls error code if fails to get certificate 
+ */
+EXPORT_SPEC int UpnpGetClientCert( 
+    /*! [out] Certificate is returned in DER format here */
+    unsigned char *cert,
+    /*! [out] Pointer to integer which represents length of certificate */
+    int *cert_len);
 
  /*!
  * \brief Get client certificate used in ssl-session
@@ -1123,7 +1137,7 @@ EXPORT_SPEC void UpnpTerminateSSLSession(
  *     \li \c UPNP_E_SUCCESS: The operation completed successfully.
  *     \li gnutls error code if fails to get certificate 
  */
-EXPORT_SPEC int UpnpGetClientCert(
+EXPORT_SPEC int UpnpGetPeerClientCert(
     /*! [in] Used (gnutls) ssl session */
     gnutls_session_t session, 
     /*! [out] Certificate is returned here. Reserve enough space for this */
