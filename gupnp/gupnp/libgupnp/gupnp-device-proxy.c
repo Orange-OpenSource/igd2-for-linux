@@ -48,6 +48,9 @@ struct _GUPnPDeviceProxyPrivate {
 
         GUPnPSSLClient *ssl_client; // this is used for SSL connections
         GString *username;          // stores username which is logged in for this deviceproxy
+
+        unsigned char *cp_uuid;
+        unsigned char *device_uuid;
 };
 
 struct _GUPnPDeviceProxyWps {
@@ -375,8 +378,6 @@ wps_got_response (GUPnPServiceProxy       *proxy,
                   GUPnPServiceProxyAction *action,
                   gpointer                 user_data)
 {
-        g_warning("Oh noes, a response!");
-
         GUPnPDeviceProxyWps *wps = user_data;
         char *out_message;
         GError *error = NULL;
@@ -432,10 +433,12 @@ wps_got_response (GUPnPServiceProxy       *proxy,
 
         wpsu_bin_to_base64(wps->wpsu_registrar_send_msg_len, wps->wpsu_registrar_send_msg, &b64len, base64msg, maxb64len);
 
+        WPSuRegistrarOutput *sm_output;
+
         switch (status)
         {
         case WPSU_SM_R_SUCCESS:
-                g_warning("DeviceProtection introduction last message received!\n");
+                g_warning("DeviceProtection introduction last message received!");
                 gupnp_service_proxy_begin_action(wps->device_prot_service,
                                                  "SendSetupMessage",
                                                  wps_got_response_null,
@@ -447,12 +450,19 @@ wps_got_response (GUPnPServiceProxy       *proxy,
                                                  G_TYPE_STRING,
                                                  base64msg,
                                                  NULL);
+                sm_output = wpsu_get_registrar_sm_output( wps->wpsu_rsm, &err );
+                // save device uuid
+                wps->proxy->priv->root_proxy->priv->device_uuid = malloc( GUPNP_DP_UUID_LEN );
+                memcpy( wps->proxy->priv->root_proxy->priv->device_uuid,
+                        sm_output->EnrolleeInfo.Uuid,
+                        GUPNP_DP_UUID_LEN);
+
                 wps->done = TRUE;
                 wps->callback(wps->proxy, wps, wps->device_name, &wps->error, wps->user_data);
                 break;
 
         case WPSU_SM_R_SUCCESSINFO:
-                g_warning("DeviceProtection introduction last message received M2D!\n");
+                g_warning("DeviceProtection introduction last message received M2D!");
                 g_warning("Message: %s", base64msg);
                 // Send last ack, TODO: change callback, we don't want to process the response
                 gupnp_service_proxy_begin_action(wps->device_prot_service,
@@ -567,7 +577,7 @@ static int createUUIDR(unsigned char **uuid, size_t *uuid_len)
     }
 
     // create hash from certificate
-    ret = wpsu_sha256(cert, cert_size, hash);
+    ret = calculate_sha1(cert, cert_size, hash);
     if (ret < 0)
     {
         g_warning("Failed to create hash from client certificate");
