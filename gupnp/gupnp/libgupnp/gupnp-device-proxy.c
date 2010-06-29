@@ -662,6 +662,11 @@ gupnp_device_proxy_begin_wps (GUPnPDeviceProxy           *proxy,
                 return wps;
         }
 
+        // save our uuid
+        proxy->priv->root_proxy->priv->cp_uuid = (unsigned char *)malloc( GUPNP_DP_UUID_LEN );
+        memcpy( proxy->priv->root_proxy->priv->cp_uuid, wps->uuid, GUPNP_DP_UUID_LEN );
+        print_uuid( proxy->priv->root_proxy->priv->cp_uuid, GUPNP_DP_UUID_LEN );
+
         error = wpsu_registrar_input_add_device_info (wps->wpsu_input,
                                                        wps->pin->str, //device_pin
                                                        NULL,
