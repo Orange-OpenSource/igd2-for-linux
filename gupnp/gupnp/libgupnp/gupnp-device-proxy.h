@@ -32,7 +32,7 @@ G_BEGIN_DECLS
 #define GUPNP_DP_STORED_BYTES  16
 #define GUPNP_DP_NONCE_BYTES   16
 #define GUPNP_DP_AUTH_BYTES    16
-
+#define GUPNP_DP_UUID_LEN      16
 
 GType
 gupnp_device_proxy_get_type (void) G_GNUC_CONST;
