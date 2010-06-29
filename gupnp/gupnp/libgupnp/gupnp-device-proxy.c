@@ -1062,123 +1062,140 @@ login_response (GUPnPServiceProxy       *proxy,
 
 // this is called when library receives response for GetUserLoginChallenge-action
 static void
-login_challenge_response (GUPnPServiceProxy       *proxy,
+login_challenge_response( GUPnPServiceProxy       *proxy,
                           GUPnPServiceProxyAction *action,
-                          gpointer                 user_data)
+                          gpointer                 user_data )
 {
-        GUPnPDeviceProxyLogin *logindata = user_data;
-        char *salt;
-        char *challenge;
-        gchar* nameUPPER;
-        GError *error = NULL;
-        int err;
+    GUPnPDeviceProxyLogin *logindata = user_data;
+    char *salt;
+    char *challenge;
+    gchar* nameUPPER;
+    GError *error = NULL;
+    int err;
 
-        if (!gupnp_service_proxy_end_action (proxy,
-                                             action,
-                                            &error,
-                                             "Salt",
-                                             G_TYPE_STRING,
-                                             &salt,
-                                             "Challenge",
-                                             G_TYPE_STRING,
-                                             &challenge,
-                                             NULL))
+    if ( logindata->proxy->priv->device_uuid == NULL ||
+         logindata->proxy->priv->cp_uuid == NULL )
+    {
+        logindata->error = g_error_new( GUPNP_SERVER_ERROR,
+                                        GUPNP_SERVER_ERROR_OTHER,
+                                        "UUID unknown, run WPS setup before user login." );
+        g_warning( "Error: %s", logindata->error->message );
+        logindata->callback( logindata->proxy, logindata, &logindata->error, logindata->user_data );
+        return;
+    }
+
+    if ( !gupnp_service_proxy_end_action( proxy,
+                                          action,
+                                          &error,
+                                          "Salt",
+                                          G_TYPE_STRING,
+                                          &salt,
+                                          "Challenge",
+                                          G_TYPE_STRING,
+                                          &challenge,
+                                          NULL ) )
+    {
+        logindata->error = error;
+        g_warning( "Error: %s", logindata->error->message );
+        logindata->callback( logindata->proxy, logindata, &logindata->error, logindata->user_data );
+        return;
+    }
+
+    if ( logindata->error != NULL || salt == NULL || challenge == NULL )
+    {
+        g_warning( "Error: %s", logindata->error->message );
+        logindata->callback( logindata->proxy, logindata, &logindata->error, logindata->user_data );
+        return;
+    }
+    else
+    {
+        // create STORED. Needed values are salt, username (in uppercase) and password
+        // salt from base64 to binary
+        int b64_msg_len = strlen( salt );
+        unsigned char *bin_salt = ( unsigned char * ) g_malloc( b64_msg_len );
+        int bin_salt_len;
+        wpsu_base64_to_bin( b64_msg_len, ( const unsigned char * ) salt, &bin_salt_len, bin_salt, b64_msg_len );
+
+        // username to utf8 uppercase
+        nameUPPER = g_utf8_strup( logindata->username->str, logindata->username->len );
+
+        if ( !nameUPPER )
         {
-                logindata->error = error;
-                g_warning("Error: %s", logindata->error->message);
-                logindata->callback(logindata->proxy, logindata, &logindata->error, logindata->user_data);
-                return;
+            logindata->error = g_error_new( GUPNP_SERVER_ERROR,
+                                            GUPNP_SERVER_ERROR_OTHER,
+                                            "Failed to convert username to uppercase" );
+            g_warning( "%s", logindata->error->message );
+            logindata->callback( logindata->proxy, logindata, &logindata->error, logindata->user_data );
+            return;
         }
 
-        if (logindata->error != NULL || salt == NULL || challenge == NULL)
+        // concatenate NAME and binary salt
+        glong name_len = g_utf8_strlen( nameUPPER, -1 );
+
+        glong namesalt_len = name_len + bin_salt_len;  // should it matter if salt_len is greater than 16. It shouldn't happen, but...
+
+        unsigned char namesalt[namesalt_len];
+
+        memcpy( namesalt, nameUPPER, name_len );
+
+        memcpy( namesalt + name_len, bin_salt, bin_salt_len );
+
+
+        // create STORED
+        unsigned char bin_stored[GUPNP_DP_STORED_BYTES];
+
+        err = wpsu_pbkdf2( logindata->password->str, logindata->password->len, namesalt,
+                           namesalt_len, GUPNP_DP_PRF_ROUNDS, GUPNP_DP_STORED_BYTES, bin_stored );
+
+        if ( err != 0 )
         {
-                g_warning("Error: %s", logindata->error->message);
-                logindata->callback(logindata->proxy, logindata, &logindata->error, logindata->user_data);
-                return;
+            logindata->error = g_error_new( GUPNP_SERVER_ERROR,
+                                            GUPNP_SERVER_ERROR_OTHER,
+                                            "Failed to create STORED" );
+            g_warning( "%s", logindata->error->message );
+            logindata->callback( logindata->proxy, logindata, &logindata->error, logindata->user_data );
+            return;
         }
-        else
+
+
+        // create Authenticator
+        char *b64_authenticator = NULL;
+
+        int auth_len = 0;
+        err = createAuthenticator( bin_stored, GUPNP_DP_STORED_BYTES, challenge,
+                                   logindata->proxy->priv->cp_uuid,
+                                   logindata->proxy->priv->device_uuid,
+                                   &b64_authenticator, &auth_len );
+
+        if ( err != 0 )
         {
-                // create STORED. Needed values are salt, username (in uppercase) and password
-                // salt from base64 to binary
-                int b64_msg_len = strlen(salt);
-                unsigned char *bin_salt=(unsigned char *)g_malloc(b64_msg_len);
-                int bin_salt_len;
-                wpsu_base64_to_bin (b64_msg_len, (const unsigned char *)salt, &bin_salt_len, bin_salt, b64_msg_len);
-
-                // username to utf8 uppercase
-                nameUPPER = g_utf8_strup(logindata->username->str, logindata->username->len);
-                if (!nameUPPER)
-                {
-                    logindata->error = g_error_new(GUPNP_SERVER_ERROR,
-                                                   GUPNP_SERVER_ERROR_OTHER,
-                                                   "Failed to convert username to uppercase");
-                    g_warning("%s", logindata->error->message);
-                    logindata->callback(logindata->proxy, logindata, &logindata->error, logindata->user_data);
-                    return;
-                }
-
-                // concatenate NAME and binary salt
-                glong name_len = g_utf8_strlen(nameUPPER, -1);
-                glong namesalt_len = name_len + bin_salt_len;  // should it matter if salt_len is greater than 16. It shouldn't happen, but...
-                unsigned char namesalt[namesalt_len];
-
-                memcpy(namesalt, nameUPPER, name_len);
-                memcpy(namesalt+name_len, bin_salt, bin_salt_len);
-
-
-                // create STORED
-                unsigned char bin_stored[GUPNP_DP_STORED_BYTES];
-                err = wpsu_pbkdf2(logindata->password->str, logindata->password->len, namesalt,
-                                namesalt_len, GUPNP_DP_PRF_ROUNDS, GUPNP_DP_STORED_BYTES, bin_stored);
-
-                if (err != 0)
-                {
-                    logindata->error = g_error_new(GUPNP_SERVER_ERROR,
-                                                   GUPNP_SERVER_ERROR_OTHER,
-                                                   "Failed to create STORED");
-                    g_warning("%s", logindata->error->message);
-                    logindata->callback(logindata->proxy, logindata, &logindata->error, logindata->user_data);
-                    return;
-                }
-
-
-                // create Authenticator
-                char *b64_authenticator = NULL;
-                int auth_len = 0;
-                err = createAuthenticator(bin_stored, GUPNP_DP_STORED_BYTES, challenge, &b64_authenticator, &auth_len);
-
-                if (err != 0)
-                {
-                    logindata->error = g_error_new(GUPNP_SERVER_ERROR,
-                                                   GUPNP_SERVER_ERROR_OTHER,
-                                                   "Failed to create Authenticator");
-                    g_warning("%s", logindata->error->message);
-                    logindata->callback(logindata->proxy, logindata, &logindata->error, logindata->user_data);
-                    return;
-                }
-
-                // send UserLogin
-                gupnp_service_proxy_begin_action(logindata->device_prot_service,
-                                                 "UserLogin",
-                                                 login_response,
-                                                 logindata,
-                                                 "ProtocolType",
-                                                 G_TYPE_STRING,
-                                                 "PKCS5",
-                                                 "Challenge",
-                                                 G_TYPE_STRING,
-                                                 challenge,
-                                                 "Authenticator",
-                                                 G_TYPE_STRING,
-                                                 b64_authenticator,
-                                                 NULL);
-
-                g_free(b64_authenticator);
+            logindata->error = g_error_new( GUPNP_SERVER_ERROR,
+                                            GUPNP_SERVER_ERROR_OTHER,
+                                            "Failed to create Authenticator" );
+            g_warning( "%s", logindata->error->message );
+            logindata->callback( logindata->proxy, logindata, &logindata->error, logindata->user_data );
+            return;
         }
+
+        // send UserLogin
+        gupnp_service_proxy_begin_action( logindata->device_prot_service,
+                                          "UserLogin",
+                                          login_response,
+                                          logindata,
+                                          "ProtocolType",
+                                          G_TYPE_STRING,
+                                          "PKCS5",
+                                          "Challenge",
+                                          G_TYPE_STRING,
+                                          challenge,
+                                          "Authenticator",
+                                          G_TYPE_STRING,
+                                          b64_authenticator,
+                                          NULL );
+
+        g_free( b64_authenticator );
+    }
 }
-
-
-
 
 // Begin login-process by calling this
 GUPnPDeviceProxyLogin *
