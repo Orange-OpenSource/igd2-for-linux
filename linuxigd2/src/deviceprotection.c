@@ -30,6 +30,7 @@
 #include <wpsutil/cryptoutil.h>
 #include <upnp/upnptools.h>
 #include <upnp/upnp.h>
+#include <gcrypt.h>
 
 static void message_received(struct Upnp_Action_Request *ca_event, int error, unsigned char *data, int len, int *status);
 static int getSaltAndStoredForName(const char *nameUPPER, unsigned char **b64_salt, int *salt_len, unsigned char **b64_stored, int *stored_len);
@@ -38,7 +39,7 @@ static int getValuesFromPasswdFile(const char *nameUPPER, unsigned char **b64_sa
 static int putValuesToPasswdFile(const char *name, const unsigned char *b64_salt, const unsigned char *b64_stored);
 static int updateValuesToPasswdFile(const char *nameUPPER, const unsigned char *b64_salt, const unsigned char *b64_stored, int delete_values);
 static int getIdentifierOfCP(struct Upnp_Action_Request *ca_event, char **identifier, int *idLen, char **CN);
-static int createAuthenticator(const char *b64_stored, const char *b64_challenge, char **b64_authenticator, int *auth_len);
+static int createAuthenticator(const char *b64_stored, const char *b64_challenge, char **b64_authenticator, const unsigned char *cp_uuid, int *auth_len);
 static int startWPS();
 static void stopWPS();
 
@@ -48,6 +49,7 @@ static unsigned char* Enrollee_send_msg;
 static int Enrollee_send_msg_len;
 static WPSuStationInput *wpsu_input;
 static int gStopWPSJobId = -1;
+static unsigned char *device_uuid;
 
 // identifer of control point which is executing introduction process
 static unsigned char prev_CP_id[40];
@@ -58,7 +60,7 @@ static IXML_Document *ACLDoc = NULL;
 // flag telling if WPS introduction process is going on
 static int gWpsIntroductionRunning = 0;
 
-#define PSEUDO_RANDOM_UUID_TYPE 0x4
+#define PSEUDO_RANDOM_UUID_TYPE 0x5
 typedef struct {
     uint32_t  time_low;
     uint16_t  time_mid;
@@ -160,7 +162,6 @@ int InitDP()
     {
         // create the UUID
         int cert_size = 10000;
-        unsigned char *uuid = NULL;
         size_t uuid_size;
         unsigned char cert[cert_size];
         unsigned char hash[cert_size];
@@ -182,8 +183,8 @@ int InitDP()
         }
 
         // create uuid from certificate
-        createUuidFromData(NULL, &uuid, &uuid_size, hash, 16);
-        if (uuid == NULL)
+        createUuidFromData(NULL, &device_uuid, &uuid_size, hash, 16);
+        if (device_uuid == NULL)
         {
             trace(1, "Failed to create uuid from server certificate");
             return -2;
@@ -203,7 +204,7 @@ int InitDP()
                                             0,
                                             MAC,
                                             WPSU_MAC_LEN,
-                                            uuid,
+                                            device_uuid,
                                             uuid_size,
                                             NULL,
                                             0,
@@ -211,7 +212,6 @@ int InitDP()
                                             0,
                                             WPSU_CONF_METHOD_LABEL,
                                             WPSU_RFBAND_2_4GHZ);
-        free(uuid);
     }
     else return UPNP_E_FILE_NOT_FOUND;
 
@@ -229,6 +229,8 @@ int InitDP()
 void FreeDP()
 {
     wpsu_enrollee_station_input_free(wpsu_input);
+
+    free(device_uuid);
 
     // Save possible changes done in DeviceProtection XML's 
     DP_finishDocuments();
@@ -456,11 +458,40 @@ void createUuidFromData(char **uuid_str, unsigned char **uuid_bin, size_t *uuid_
     free(uuid);
 }
 
+/**
+ * Hash data with SHA-1
+ *
+ * @param data Data which is hashed
+ * @param data_len Length of data
+ * @param hash Pointer to hashed data. Return value.
+ * @return Length of hash or error code
+ */
+int calculate_sha1( const unsigned char *data, size_t data_len, unsigned char *hash )
+{
+    unsigned char *tmp_hash;
+    int hash_len = 0;
+    gcry_md_hd_t ctx;
+
+    gcry_md_open( &ctx, GCRY_MD_SHA1, 0 );
+    gcry_md_write( ctx, ( void * )data, data_len );
+    gcry_md_final( ctx );
+
+    tmp_hash = gcry_md_read( ctx, GCRY_MD_SHA1 );
+    hash_len = gcry_md_get_algo_dlen( GCRY_MD_SHA1 );
+    memcpy(( void * )hash, ( void * )tmp_hash, hash_len );
+
+    gcry_md_close( ctx );
+
+    if ( tmp_hash == NULL )
+        return -1;
+
+    return hash_len;
+}
 
 /**
  * Get identity identifier of Control point based on certificate of Control Point.
  * Identifier is created like this:
- *  1. create sha-256 hash from CP certificate
+ *  1. create sha-1 hash from CP certificate
  *  2. create uuid string from 16 first bytes of previously created hash
  * 
  * 
@@ -488,7 +519,7 @@ static int getIdentifierOfCP(struct Upnp_Action_Request *ca_event, char **identi
         return ret;
 
     // 2. create hash from certificate
-    ret = wpsu_sha256(cert, cert_size, hash);
+    ret = calculate_sha1(cert, cert_size, hash);
     if (ret < 0)
         return ret;
 
@@ -498,6 +529,45 @@ static int getIdentifierOfCP(struct Upnp_Action_Request *ca_event, char **identi
     return 0;
 }
 
+/**
+ * Get identity identifier of Control point based on certificate of Control Point.
+ * Identifier is created like this:
+ *  1. create sha-1 hash from CP certificate
+ *  2. create uuid string from 16 first bytes of previously created hash
+ *
+ *
+ * @param ca_event Upnp event struct.
+ * @param uuid Pointer to char* where uuid is created. Caller should use free() for this.
+ * @return 0 if succeeded to create identifier. Something else if error
+ */
+static int get_cp_uuid(struct Upnp_Action_Request *ca_event, unsigned char **uuid)
+{
+    int ret;
+    int cert_size = 1000;
+    size_t uuid_size;
+    char **CN = NULL;
+    unsigned char cert[cert_size];
+    unsigned char hash[cert_size];
+
+    if (ca_event->SSLSession == NULL)
+    {
+        return 1;
+    }
+
+    // 1. get certificate of client
+    ret = UpnpGetPeerClientCert(ca_event->SSLSession, cert, &cert_size, CN);
+    if (ret != UPNP_E_SUCCESS)
+        return ret;
+
+    // 2. create hash from certificate
+    ret = calculate_sha1(cert, cert_size, hash);
+    if (ret < 0)
+        return ret;
+
+    createUuidFromData(NULL, uuid, &uuid_size, hash, 16);
+
+    return 0;
+}
 
 /**
  * Get identity associated with SSL session used for sending given action.
@@ -1021,68 +1091,51 @@ static int createUserLoginChallengeResponse(struct Upnp_Action_Request *ca_event
         int outlen;
         wpsu_base64_to_bin(b64_stored_len, b64_stored, &outlen, bin_stored, DP_STORED_BYTES);
 
+        // Create CHALLENGE = random 128-bit value
+        unsigned char *challenge = wpsu_createNonce(DP_NONCE_BYTES);
 
-        // Create NONCE
-        unsigned char *nonce = wpsu_createNonce(DP_NONCE_BYTES);
-        unsigned char storednonce[DP_STORED_BYTES+DP_NONCE_BYTES];
-        memcpy(storednonce, bin_stored, DP_STORED_BYTES);
-        memcpy(storednonce+DP_STORED_BYTES, nonce, DP_NONCE_BYTES);
+        int maxb64len = 2 * DP_NONCE_BYTES;
+        int b64len = 0;
 
-        free(nonce);
+        unsigned char *b64_challenge = (unsigned char *)malloc(maxb64len);
+        wpsu_bin_to_base64(DP_NONCE_BYTES, challenge, &b64len, b64_challenge, maxb64len);
 
-        // Create CHALLENGE = SHA-256(STORED || nonce)
-        unsigned char challenge[DP_STORED_BYTES+DP_NONCE_BYTES];
-        if ( wpsu_sha256(storednonce, DP_STORED_BYTES+DP_NONCE_BYTES, challenge) < 0 )
+        IXML_Document *ActionResult = NULL;
+        ActionResult = UpnpMakeActionResponse(ca_event->ActionName, DP_SERVICE_TYPE,
+                                    2,
+                                    "Salt", b64_salt,
+                                    "Challenge", b64_challenge);
+
+        if (ActionResult)
         {
-            trace(1, "Error creating CHALLENGE value for %s",ca_event->ActionName);
-            result = 501;
-            addErrorData(ca_event, result, "Action Failed");
+            ca_event->ActionResult = ActionResult;
+            ca_event->ErrCode = UPNP_E_SUCCESS;
         }
         else
         {
-            // CHALLENGE to base64
-            int maxb64len = 2*(DP_STORED_BYTES+DP_NONCE_BYTES);
-            int b64len = 0;
-
-            unsigned char *b64_challenge = (unsigned char *)malloc(maxb64len);
-            wpsu_bin_to_base64(DP_STORED_BYTES+DP_NONCE_BYTES, challenge, &b64len, b64_challenge, maxb64len);
-
-            IXML_Document *ActionResult = NULL;
-            ActionResult = UpnpMakeActionResponse(ca_event->ActionName, DP_SERVICE_TYPE,
-                                        2,
-                                        "Salt", b64_salt,
-                                        "Challenge", b64_challenge);
-
-            if (ActionResult)
-            {
-                ca_event->ActionResult = ActionResult;
-                ca_event->ErrCode = UPNP_E_SUCCESS;
-            }
-            else
-            {
-                trace(1, "Error parsing Response to %s",ca_event->ActionName);
-                result = 501;
-                addErrorData(ca_event, result, "Action Failed");
-            }
-
-            // insert user login values to SIR document
-            char *identifier = NULL; 
-            result = getIdentifierOfCP(ca_event, &identifier, &b64len, NULL);
-            if (result == 0 )
-            {
-                trace(3,"Session with id '%s' is being updated in SIR. Add name '%s' and challenge '%s'",identifier,nameUPPER,(char *)b64_challenge);
-                result = SIR_updateSession(SIRDoc, identifier, NULL, NULL, NULL, NULL, nameUPPER, (char *)b64_challenge);
-                if (result == 0)
-                    trace_ixml(3, "Contents of SIR:",SIRDoc);
-                else 
-                    trace(2, "Failed to update session in SIR");
-            } 
-            else
-                trace(1, "Failure on inserting UserLoginChallenge values to SIR. Ignoring...");
-
-            free(identifier);
-            free(b64_challenge);
+            trace(1, "Error parsing Response to %s",ca_event->ActionName);
+            result = 501;
+            addErrorData(ca_event, result, "Action Failed");
         }
+
+        // insert user login values to SIR document
+        char *identifier = NULL;
+        result = getIdentifierOfCP(ca_event, &identifier, &b64len, NULL);
+        if (result == 0 )
+        {
+            trace(3,"Session with id '%s' is being updated in SIR. Add name '%s' and challenge '%s'",identifier,nameUPPER,(char *)b64_challenge);
+            result = SIR_updateSession(SIRDoc, identifier, NULL, NULL, NULL, NULL, nameUPPER, (char *)b64_challenge);
+            if (result == 0)
+                trace_ixml(3, "Contents of SIR:",SIRDoc);
+            else
+                trace(2, "Failed to update session in SIR");
+        }
+        else
+            trace(1, "Failure on inserting UserLoginChallenge values to SIR. Ignoring...");
+
+        free(challenge);
+        free(identifier);
+        free(b64_challenge);
         free(bin_stored);
     }
 
@@ -1102,7 +1155,11 @@ static int createUserLoginChallengeResponse(struct Upnp_Action_Request *ca_event
  * @param auth_len Pointer to integer which is set to contain length of created authenticator
  * @return 0 if succeeded to create authenticato. Something else if error
  */
-static int createAuthenticator(const char *b64_stored, const char *b64_challenge, char **b64_authenticator, int *auth_len)
+static int createAuthenticator(const char          *b64_stored,
+                               const char          *b64_challenge,
+                               char               **b64_authenticator,
+                               const unsigned char *cp_uuid,
+                               int                 *auth_len)
 {
     // stored and challenge from base64 to binary
     int b64msglen = strlen(b64_stored);
@@ -1124,39 +1181,25 @@ static int createAuthenticator(const char *b64_stored, const char *b64_challenge
     int bin_challenge_len;
     wpsu_base64_to_bin(b64msglen, (const unsigned char *)b64_challenge, &bin_challenge_len, bin_challenge, b64msglen); 
 
-    // concatenate stored || challenge
-    int bin_concat_len = bin_stored_len + bin_challenge_len;
-    unsigned char *bin_concat = (unsigned char *)malloc(bin_concat_len);
-    if (bin_concat == NULL) 
-    {
-        free(bin_stored);
-        free(bin_challenge);
-        return -1;
-    }
-    memcpy(bin_concat, bin_stored, bin_stored_len);
-    memcpy(bin_concat + bin_stored_len, bin_challenge, bin_challenge_len);
+    // create ( Challenge || DeviceID || ControlPointID )
+    int cdc_len = bin_challenge_len + 2*(DP_UUID_LEN);
+    unsigned char *cdc = (unsigned char *) malloc ( cdc_len );
+    memcpy( cdc, bin_challenge, bin_challenge_len );
+    memcpy( cdc + bin_challenge_len, device_uuid, DP_UUID_LEN );
+    memcpy( cdc + bin_challenge_len + DP_UUID_LEN, cp_uuid, DP_UUID_LEN );
 
+    unsigned char hmac_result[WPSU_HASH_LEN];
+    hmac_sha256( bin_stored, bin_stored_len, cdc, cdc_len, hmac_result );
     // release useless stuff
-    free(bin_stored);
-    free(bin_challenge);
-
-    // crete hash from concatenation
-    unsigned char hash[2*bin_concat_len];
-    int hashlen = wpsu_sha256(bin_concat, bin_concat_len, hash);
-    if (hashlen < 0)
-    {
-        free(bin_concat);
-        *b64_authenticator = NULL;
-        return hashlen;
-    }
+    free( bin_challenge );
+    free( cdc );
 
     // encode 16 first bytes of created hash as base64 authenticator
     int maxb64len = 2*DP_AUTH_BYTES;
     *auth_len = 0;
     *b64_authenticator = (char *)malloc(maxb64len);
-    wpsu_bin_to_base64(DP_AUTH_BYTES, hash, auth_len, (unsigned char *)*b64_authenticator, maxb64len);
+    wpsu_bin_to_base64(DP_AUTH_BYTES, hmac_result, auth_len, (unsigned char *)*b64_authenticator, maxb64len);
 
-    free(bin_concat);
     return 0;
 }
 
@@ -1407,6 +1450,27 @@ int GetUserLoginChallenge(struct Upnp_Action_Request *ca_event)
     return ca_event->ErrCode;
 }
 
+void print_uuid( unsigned char *data )
+{
+    char tmp[120], uuid_str[120];
+    int i;
+    size_t uuid_size = sizeof( my_uuid_t );
+    my_uuid_t *uuid = malloc( uuid_size );
+
+    memcpy( uuid, data, uuid_size );
+
+    snprintf( uuid_str, 37, "%8.8x-%4.4x-%4.4x-%2.2x%2.2x-", uuid->time_low, uuid->time_mid,
+               uuid->time_hi_and_version, uuid->clock_seq_hi_and_reserved, uuid->clock_seq_low );
+
+    for ( i = 0; i < 6; i++ )
+    {
+        snprintf( tmp, 3, "%2.2x", uuid->node[i] );
+        strcat( uuid_str, tmp );
+    }
+
+    printf("UUID: %s", uuid_str);
+}
+
 /**
  * DeviceProtection:1 Action: UserLogin.
  *
@@ -1516,7 +1580,17 @@ int UserLogin(struct Upnp_Action_Request *ca_event)
                 // create authenticator
                 int auth_len = 0;
                 char *b64_authenticator = NULL;
-                result = createAuthenticator((char *)b64_stored, loginChallenge, &b64_authenticator, &auth_len);
+                unsigned char *cp_uuid = NULL;
+                if ( get_cp_uuid( ca_event, &cp_uuid ) != 0)
+                {
+                    // TODO: correct this
+                    trace(2, "UserLogin: unable to get UUID",ca_event->ActionName,loginName);
+                    result = 600;
+                    addErrorData(ca_event, result, "Argument Value Invalid");
+                    return;
+                }
+                print_uuid( cp_uuid );
+                result = createAuthenticator((char *)b64_stored, loginChallenge, &b64_authenticator, cp_uuid, &auth_len);
 
                 // do the authenticators match?
                 if (result != 0)
