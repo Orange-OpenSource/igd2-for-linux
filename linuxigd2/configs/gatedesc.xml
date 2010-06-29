@@ -30,9 +30,6 @@
             <controlURL>/upnp/control/DeviceProtection1</controlURL>
             <eventSubURL>/upnp/control/DeviceProtection1</eventSubURL>
             <SCPDURL>/deviceprotectionSCPD.xml</SCPDURL>
-            <dp:secureSCPDURL>/deviceprotectionSCPD.xml</dp:secureSCPDURL> 
-            <dp:secureControlURL>/upnp/control/DeviceProtection1</dp:secureControlURL>
-            <dp:secureEventSubURL>/upnp/control/DeviceProtection1</dp:secureEventSubURL>
         </service>
     </serviceList>
     <deviceList>
@@ -58,9 +55,6 @@
             <controlURL>/upnp/control/WANCommonIFC1</controlURL>
             <eventSubURL>/upnp/control/WANCommonIFC1</eventSubURL>
             <SCPDURL>/gateicfgSCPD.xml</SCPDURL>
-            <dp:secureSCPDURL>/gateicfgSCPD.xml</dp:secureSCPDURL> 
-            <dp:secureControlURL>/upnp/control/WANCommonIFC1</dp:secureControlURL>
-            <dp:secureEventSubURL>/upnp/control/WANCommonIFC1</dp:secureEventSubURL>
           </service>
         </serviceList>
         <deviceList>
@@ -86,9 +80,6 @@
                 <controlURL>/upnp/control/WANIPConn1</controlURL>
                 <eventSubURL>/upnp/control/WANIPConn1</eventSubURL>
                 <SCPDURL>/gateconnSCPD.xml</SCPDURL>
-                <dp:secureSCPDURL>/gateconnSCPD.xml</dp:secureSCPDURL>
-                <dp:secureControlURL>/upnp/control/WANIPConn1</dp:secureControlURL>
-                <dp:secureEventSubURL>/upnp/control/WANIPConn1</dp:secureEventSubURL>
               </service>
               <service xmlns:dp="urn:schemas-upnp-org:gw:DeviceProtection"
                          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -99,9 +90,6 @@
                   <controlURL>/upnp/control/WANEthLinkC1</controlURL>
                   <eventSubURL>/upnp/control/WANEthLinkC1</eventSubURL>
                   <SCPDURL>/gateEthlcfgSCPD.xml</SCPDURL>
-                  <dp:secureSCPDURL>/gateEthlcfgSCPD.xml</dp:secureSCPDURL> 
-                  <dp:secureControlURL>/upnp/control/WANEthLinkC1</dp:secureControlURL>
-                  <dp:secureEventSubURL>/upnp/control/WANEthLinkC1</dp:secureEventSubURL>
               </service>
               <service xmlns:dp="urn:schemas-upnp-org:gw:DeviceProtection"
                        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -112,9 +100,6 @@
                   <controlURL>/upnp/control/LANHostConfig1</controlURL>
                   <eventSubURL>/upnp/control/LANHostConfig1</eventSubURL>
                   <SCPDURL>/lanhostconfigSCPD.xml</SCPDURL>
-                  <dp:secureSCPDURL>/lanhostconfigSCPD.xml</dp:secureSCPDURL>
-                  <dp:secureControlURL>/upnp/control/LANHostConfig1</dp:secureControlURL>
-                  <dp:secureEventSubURL>/upnp/control/LANHostConfig1</dp:secureEventSubURL>
               </service>
             </serviceList>
           </device>
