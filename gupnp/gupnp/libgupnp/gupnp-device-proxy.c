@@ -984,54 +984,55 @@ gupnp_device_proxy_get_username (GUPnPDeviceProxy *proxy)
  * @param auth_len Pointer to integer which is set to contain length of created authenticator
  * @return 0 if succeeded to create authenticato. Something else if error
  */
-static int createAuthenticator(const unsigned char *bin_stored, int bin_stored_len, const char *b64_challenge, char **b64_authenticator, int *auth_len)
+static int createAuthenticator( const unsigned char *bin_stored,
+                                int                  bin_stored_len,
+                                const char          *b64_challenge,
+                                const unsigned char *cp_uuid,
+                                const unsigned char *device_uuid,
+                                char               **b64_authenticator,
+                                int                 *auth_len )
 {
-    if (bin_stored == NULL)
+    if ( bin_stored == NULL )
     {
         return -1;
     }
+
     // challenge from base64 to binary
-    int b64msglen = strlen(b64_challenge);
-    unsigned char *bin_challenge = (unsigned char *)malloc(b64msglen);
-    if (bin_challenge == NULL)
+    int b64msglen = strlen( b64_challenge );
+
+    unsigned char *bin_challenge = ( unsigned char * ) malloc( b64msglen );
+
+    if ( bin_challenge == NULL )
     {
         return -1;
     }
+
     int bin_challenge_len;
-    wpsu_base64_to_bin(b64msglen, (const unsigned char *)b64_challenge, &bin_challenge_len, bin_challenge, b64msglen);
 
+    wpsu_base64_to_bin( b64msglen, ( const unsigned char * ) b64_challenge, &bin_challenge_len, bin_challenge, b64msglen );
 
-    // concatenate stored || challenge
-    int bin_concat_len = bin_stored_len + bin_challenge_len;
-    unsigned char *bin_concat = (unsigned char *)malloc(bin_concat_len);
-    if (bin_concat == NULL)
-    {
-        if (bin_challenge) free(bin_challenge);
-        return -1;
-    }
-    memcpy(bin_concat, bin_stored, bin_stored_len);
-    memcpy(bin_concat + bin_stored_len, bin_challenge, bin_challenge_len);
+    // create ( Challenge || DeviceID || ControlPointID )
+    int cdc_len = bin_challenge_len + 2*(GUPNP_DP_UUID_LEN);
+    unsigned char *cdc = (unsigned char *) malloc ( cdc_len );
+    memcpy( cdc, bin_challenge, bin_challenge_len );
+    memcpy( cdc + bin_challenge_len, device_uuid, GUPNP_DP_UUID_LEN );
+    memcpy( cdc + bin_challenge_len + GUPNP_DP_UUID_LEN, cp_uuid, GUPNP_DP_UUID_LEN );
 
+    unsigned char hmac_result[WPSU_HASH_LEN];
+    hmac_sha256( bin_stored, bin_stored_len, cdc, cdc_len, hmac_result );
     // release useless stuff
-    if (bin_challenge) free(bin_challenge);
-
-    // crete hash from concatenation
-    unsigned char hash[2*bin_concat_len];
-    int hashlen = wpsu_sha256(bin_concat, bin_concat_len, hash);
-    if (hashlen < 0)
-    {
-        if (bin_concat) free(bin_concat);
-        *b64_authenticator = NULL;
-        return hashlen;
-    }
+    free( bin_challenge );
+    free( cdc );
 
     // encode required amount of first bytes of created hash as base64 authenticator
-    int maxb64len = 2*GUPNP_DP_AUTH_BYTES;
-    *auth_len = 0;
-    *b64_authenticator = (char *)malloc(maxb64len);
-    wpsu_bin_to_base64(GUPNP_DP_AUTH_BYTES, hash, auth_len, (unsigned char *)*b64_authenticator, maxb64len);
+    int maxb64len = 2 * GUPNP_DP_AUTH_BYTES;
 
-    if (bin_concat) free(bin_concat);
+    *auth_len = 0;
+
+    *b64_authenticator = ( char * ) malloc( maxb64len );
+
+    wpsu_bin_to_base64( GUPNP_DP_AUTH_BYTES, hmac_result, auth_len, ( unsigned char * ) *b64_authenticator, maxb64len );
+
     return 0;
 }
 
