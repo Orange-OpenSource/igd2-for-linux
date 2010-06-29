@@ -253,7 +253,7 @@
         <actionList>
             <action>
                 <name>SendSetupMessage</name>
-                <requireSSL>1</requireSSL>
+                <requireSSL>0</requireSSL>
                 <roleList>Public Basic Admin</roleList>
             </action>
             <action>
@@ -268,18 +268,21 @@
             </action>
             <action>
                 <name>GetRolesForAction</name>
-                <requireSSL>0</requireSSL>
+                <requireSSL>1</requireSSL>
                 <roleList>Public Basic Admin</roleList>
+                <restrictedRoleList>Public</restrictedRoleList>
             </action>
             <action>
                 <name>GetUserLoginChallenge</name>
-                <requireSSL>1</requireSSL>
+                <requireSSL>0</requireSSL>
                 <roleList>Public Basic Admin</roleList>
+                <restrictedRoleList>Public</restrictedRoleList>
             </action>
             <action>
                 <name>UserLogin</name>
-                <requireSSL>1</requireSSL>
+                <requireSSL>0</requireSSL>
                 <roleList>Public Basic Admin</roleList>
+                <restrictedRoleList>Public</restrictedRoleList>
             </action>
             <action>
                 <name>UserLogout</name>
@@ -290,31 +293,32 @@
                 <name>GetACLData</name>
                 <requireSSL>0</requireSSL>
                 <roleList>Public Basic Admin</roleList>
+                <restrictedRoleList>Public</restrictedRoleList>
             </action>
             <action>
                 <name>AddRolesForIdentity</name>
-                <requireSSL>1</requireSSL>
+                <requireSSL>0</requireSSL>
                 <roleList>Admin</roleList>
             </action>
             <action>
                 <name>RemoveRolesForIdentity</name>
-                <requireSSL>1</requireSSL>
+                <requireSSL>0</requireSSL>
                 <roleList>Admin</roleList>
             </action>
             <action>
                 <name>SetUserLoginPassword</name>
-                <requireSSL>1</requireSSL>
+                <requireSSL>0</requireSSL>
                 <restrictedRoleList>Basic</restrictedRoleList>
-                <roleList>Admin</roleList>
+                <roleList>Basic Admin</roleList>
             </action>
             <action>
                 <name>AddIdentityList</name>
-                <requireSSL>1</requireSSL>
+                <requireSSL>0</requireSSL>
                 <roleList>Basic Admin</roleList>
             </action>
             <action>
                 <name>RemoveIdentity</name>
-                <requireSSL>1</requireSSL>
+                <requireSSL>0</requireSSL>
                 <roleList>Admin</roleList>
             </action>
         </actionList>
