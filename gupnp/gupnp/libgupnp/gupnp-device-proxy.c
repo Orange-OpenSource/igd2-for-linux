@@ -439,17 +439,17 @@ wps_got_response (GUPnPServiceProxy       *proxy,
         {
         case WPSU_SM_R_SUCCESS:
                 g_warning("DeviceProtection introduction last message received!");
-                gupnp_service_proxy_begin_action(wps->device_prot_service,
-                                                 "SendSetupMessage",
-                                                 wps_got_response_null,
-                                                 wps,
-                                                 "ProtocolType",
-                                                 G_TYPE_STRING,
-                                                 "WPS",
-                                                 "InMessage",
-                                                 G_TYPE_STRING,
-                                                 base64msg,
-                                                 NULL);
+//                 gupnp_service_proxy_begin_action(wps->device_prot_service,
+//                                                  "SendSetupMessage",
+//                                                  wps_got_response_null,
+//                                                  wps,
+//                                                  "ProtocolType",
+//                                                  G_TYPE_STRING,
+//                                                  "WPS",
+//                                                  "InMessage",
+//                                                  G_TYPE_STRING,
+//                                                  base64msg,
+//                                                  NULL);
                 sm_output = wpsu_get_registrar_sm_output( wps->wpsu_rsm, &err );
                 // save device uuid
                 wps->proxy->priv->root_proxy->priv->device_uuid = malloc( GUPNP_DP_UUID_LEN );
