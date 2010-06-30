@@ -1330,6 +1330,24 @@ int SendSetupMessage(struct Upnp_Action_Request *ca_event)
         stopWPS();
     }
 
+    // Send last ACK if success
+    if (sm_status == WPSU_SM_E_SUCCESS)
+    {
+        // response (next message) to base64
+        int maxb64len = 2*Enrollee_send_msg_len;
+        int b64len = 0;
+        unsigned char *pB64Msg = (unsigned char *)malloc(maxb64len);
+        wpsu_bin_to_base64(Enrollee_send_msg_len,Enrollee_send_msg, &b64len, pB64Msg,maxb64len);
+
+        trace(3,"Send last ack in WPS\n");
+
+        ca_event->ErrCode = UPNP_E_SUCCESS;
+        snprintf(resultStr, RESULT_LEN, "<u:%sResponse xmlns:u=\"%s\">\n<OutMessage>%s</OutMessage>\n</u:%sResponse>",
+                 ca_event->ActionName, DP_SERVICE_TYPE, pB64Msg, ca_event->ActionName);
+        ca_event->ActionResult = ixmlParseBuffer(resultStr);
+        free(pB64Msg);
+    }
+
     free(CP_id);
     free(inmessage);
     free(protocoltype);

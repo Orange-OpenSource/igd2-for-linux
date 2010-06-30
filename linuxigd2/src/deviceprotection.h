@@ -30,6 +30,7 @@
 #define DP_STORED_BYTES  16
 #define DP_NONCE_BYTES   16
 #define DP_AUTH_BYTES    16
+#define DP_UUID_LEN      16
 
 #define DP_MAX_LOGIN_ATTEMPTS 5
 
