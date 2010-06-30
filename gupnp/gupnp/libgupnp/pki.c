@@ -947,3 +947,59 @@ void createUuidFromData(char **uuid_str, unsigned char **uuid_bin, size_t *uuid_
 
     free(uuid);
 }
+
+/**
+ * Hash data with SHA-1
+ *
+ * @param data Data which is hashed
+ * @param data_len Length of data
+ * @param hash Pointer to hashed data. Return value.
+ * @return Length of hash or error code
+ */
+int calculate_sha1( const unsigned char *data, size_t data_len, unsigned char *hash )
+{
+    unsigned char *tmp_hash;
+    int hash_len = 0;
+    gcry_md_hd_t ctx;
+
+    gcry_md_open( &ctx, GCRY_MD_SHA1, 0 );
+    gcry_md_write( ctx, ( void * )data, data_len );
+    gcry_md_final( ctx );
+
+    tmp_hash = gcry_md_read( ctx, GCRY_MD_SHA1 );
+    hash_len = gcry_md_get_algo_dlen( GCRY_MD_SHA1 );
+    memcpy(( void * )hash, ( void * )tmp_hash, hash_len );
+
+    gcry_md_close( ctx );
+
+    if ( tmp_hash == NULL )
+        return -1;
+
+    return hash_len;
+}
+
+void print_uuid( unsigned char *data, size_t data_len )
+{
+    if ( data_len == 0 )
+    {
+        g_warning("print_uuid zero data len");
+        return;
+    }
+    char tmp[120], uuid_str[120];
+    int i;
+    size_t uuid_size = sizeof( my_uuid_t );
+    my_uuid_t *uuid = malloc( uuid_size );
+
+    memcpy( uuid, data, uuid_size );
+
+    snprintf( uuid_str, 37, "%8.8x-%4.4x-%4.4x-%2.2x%2.2x-", uuid->time_low, uuid->time_mid,
+               uuid->time_hi_and_version, uuid->clock_seq_hi_and_reserved, uuid->clock_seq_low );
+
+    for ( i = 0; i < 6; i++ )
+    {
+        snprintf( tmp, 3, "%2.2x", uuid->node[i] );
+        strcat( uuid_str, tmp );
+    }
+
+    g_debug("UUID: %s", uuid_str);
+}
