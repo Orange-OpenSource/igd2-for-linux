@@ -59,7 +59,7 @@ static void wpa_supplicant_fd_workaround(void)
 //modified from main() (in wpa_supplicant/main.c)
 int wpa_supplicant_iface_init(void)
 {
-	int c, i;
+	int i;
 	struct wpa_interface *ifaces, *iface;
 	int iface_count, exitcode = -1;
 	struct wpa_params params;
