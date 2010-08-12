@@ -487,7 +487,7 @@ int eloop_register_signal_reconfig(eloop_signal_handler handler,
 #endif /* CONFIG_NATIVE_WINDOWS */
 }
 
-
+unsigned int eloop_counter = 0; //##008
 void eloop_run(void)
 {
 	fd_set *rfds, *wfds, *efds;
@@ -520,6 +520,7 @@ void eloop_run(void)
 		eloop_sock_table_set_fds(&eloop.readers, rfds);
 		eloop_sock_table_set_fds(&eloop.writers, wfds);
 		eloop_sock_table_set_fds(&eloop.exceptions, efds);
+		eloop_counter++;
 		res = select(eloop.max_sock + 1, rfds, wfds, efds,
 			     timeout ? &_tv : NULL);
 		if (res < 0 && errno != EINTR && errno != 0) {
@@ -558,6 +559,61 @@ out:
 	os_free(efds);
 }
 
+int eloop_running_start(void)
+{
+	int res = -1;
+	struct os_time tv, now;
+
+	if (!eloop.terminate &&
+	    (!dl_list_empty(&eloop.timeout) || eloop.readers.count > 0 ||
+	     eloop.writers.count > 0 || eloop.exceptions.count > 0)) {
+		struct eloop_timeout *timeout;
+		timeout = dl_list_first(&eloop.timeout, struct eloop_timeout,
+					list);
+		if (timeout) {
+			os_get_time(&now);
+			if (os_time_before(&now, &timeout->time))
+				os_time_sub(&timeout->time, &now, &tv);
+			else
+				tv.sec = tv.usec = 0;
+			res = tv.sec;
+			//neglegt tv.usec on purpose here
+		}
+	}
+	return res;
+}
+
+
+int eloop_running_step(const u8 *data,
+		       size_t data_len)
+{
+	struct eloop_timeout *timeout;
+	struct os_time now;
+
+	/* check if some registered timeouts have occurred */
+	timeout = dl_list_first(&eloop.timeout, struct eloop_timeout,
+				list);
+	if (timeout) {
+		os_get_time(&now);
+		if (!os_time_before(&now, &timeout->time)) {
+			void *eloop_data = timeout->eloop_data;
+			void *user_data = timeout->user_data;
+			eloop_timeout_handler handler =
+				timeout->handler;
+			eloop_remove_timeout(timeout);
+			handler(eloop_data, user_data);
+		}
+	}
+
+	if (data != NULL) {
+		//##006 hack: send directly
+//		wpa_driver_test_eapol((struct wpa_driver_test_data *)drv,
+//				      data, data_len);
+	}
+
+	return eloop_running_start();
+	//##007 TODO: handle terminate
+}
 
 void eloop_terminate(void)
 {
