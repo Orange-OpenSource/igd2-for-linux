@@ -17,6 +17,8 @@
  * 
  */
 
+#define WPA_SUPP_IN_USE //##003
+
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -25,9 +27,15 @@
 #include "gatedevice.h"
 #include "globals.h"
 #include "util.h"
+#ifndef WPA_SUPP_IN_USE	
 #include <wpsutil/enrollee_state_machine.h>
+#endif //WPA_SUPP_IN_USE	
 #include <wpsutil/base64mem.h>
 #include <wpsutil/cryptoutil.h>
+#ifdef WPA_SUPP_IN_USE
+//void hmac_sha256(const u8 *key, size_t key_len, const u8 *data, size_t data_len, u8 *mac); //##005 header for this?
+#include "wpa_supplicant_iface.h"
+#endif //WPA_SUPP_IN_USE	
 #include <upnp/upnptools.h>
 #include <upnp/upnp.h>
 #include <gcrypt.h>
@@ -43,11 +51,15 @@ static int createAuthenticator(const char *b64_stored, const char *b64_challenge
 static int startWPS();
 static void stopWPS();
 
+#ifdef WPA_SUPP_IN_USE
+static void* enrollee_state_machine;
+#else //WPA_SUPP_IN_USE	
 // WPS state machine related stuff
 static WPSuEnrolleeSM* esm;
+static WPSuStationInput *wpsu_input;
+#endif //WPA_SUPP_IN_USE
 static unsigned char* Enrollee_send_msg;
 static int Enrollee_send_msg_len;
-static WPSuStationInput *wpsu_input;
 static int gStopWPSJobId = -1;
 static unsigned char *device_uuid;
 
@@ -175,7 +187,7 @@ int InitDP()
         }
 
         // create hash from certificate
-        ret = wpsu_sha256(cert, cert_size, hash);
+        ret = wpsu_sha256(cert, cert_size, hash); //##004 replace this too
         if (ret < 0)
         {
             trace(1, "Failed to create hash from server certificate");
@@ -190,7 +202,35 @@ int InitDP()
             return -2;
         }
 
-        wpsu_input = (WPSuStationInput *)malloc(sizeof(WPSuStationInput));
+#ifdef WPA_SUPP_IN_USE
+	{
+		wpa_supplicant_wps_enrollee_info enrollee_info =
+			{
+				.devicePIN = g_vars.pinCode,
+				.manufacturer = GetFirstDocumentItem(descDoc, "manufacturer"),
+				.modelName = GetFirstDocumentItem(descDoc, "modelName"), 
+				.modelNumber = GetFirstDocumentItem(descDoc, "modelNumber"),
+				.serialNumber = GetFirstDocumentItem(descDoc, "serialNumber"),
+				.deviceName = GetFirstDocumentItem(descDoc, "friendlyName"),
+				.primaryDeviceType = NULL,
+				.primaryDeviceType_len = 0,
+				.macAddress = MAC,
+				.macAddress_len = WPSU_MAC_LEN,
+				.uuid = device_uuid,
+				.uuid_len = uuid_size,
+				.OSVersion = NULL,
+				.OSVersion_len = 0,
+				.pubKey = NULL,
+				.pubKey_len = 0,
+				.configMethods = 0, //##003 not needed
+				.RFBands = 0 //##003 not needed
+			};
+		
+		ret = wpa_supplicant_iface_init( &enrollee_info );
+	}
+#else //WPA_SUPP_IN_USE	
+
+	wpsu_input = (WPSuStationInput *)malloc(sizeof(WPSuStationInput));
         memset(wpsu_input, 0, sizeof(*(wpsu_input)));
 
         ret = wpsu_enrollee_station_input_add_device_info(wpsu_input, 
@@ -212,6 +252,7 @@ int InitDP()
                                             0,
                                             WPSU_CONF_METHOD_LABEL,
                                             WPSU_RFBAND_2_4GHZ);
+#endif //WPA_SUPP_IN_USE	
     }
     else return UPNP_E_FILE_NOT_FOUND;
 
@@ -228,7 +269,11 @@ int InitDP()
  */
 void FreeDP()
 {
+#ifdef WPA_SUPP_IN_USE
+    wpa_supplicant_iface_delete();
+#else //WPA_SUPP_IN_USE	
     wpsu_enrollee_station_input_free(wpsu_input);
+#endif //WPA_SUPP_IN_USE	
 
     free(device_uuid);
 
@@ -677,12 +722,21 @@ static int startWPS()
     }
 
     // create enrollee state machine
+#ifdef WPA_SUPP_IN_USE	
+    err = wpa_supplicant_create_enrollee_state_machine(&enrollee_state_machine);
+    if (err != 0)
+    {
+        trace(1, "Failed to create WPS enrollee! Error: %d",err);
+        return err;
+    }
+#else //WPA_SUPP_IN_USE	
     esm = wpsu_create_enrollee_sm_station(wpsu_input, &err);
     if (err != WPSU_E_SUCCESS)
     {
         trace(1, "Failed to create WPS enrollee! Error: %d",err);
         return err;
     }
+#endif //WPA_SUPP_IN_USE	
 
     gWpsIntroductionRunning = 1;
 
@@ -709,6 +763,9 @@ static void stopWPS()
         gStopWPSJobId = -1;
     }
 
+#ifdef WPA_SUPP_IN_USE	
+    error = wpa_supplicant_stop_enrollee_state_machine(enrollee_state_machine);
+#else //WPA_SUPP_IN_USE	
     /*WPSuStationOutput *smOutput;
     smOutput = wpsu_get_enrollee_sm_station_output(esm, &error);
 
@@ -717,6 +774,7 @@ static void stopWPS()
     printf("Uuid: %s\n",smOutput->RegistrarInfo.Uuid);*/
 
     wpsu_cleanup_enrollee_sm(esm, &error);
+#endif //WPA_SUPP_IN_USE	
 
     gWpsIntroductionRunning = 0;
 
@@ -753,7 +811,16 @@ static void message_received(struct Upnp_Action_Request *ca_event, int error, un
         return;
     }
 
+#ifdef WPA_SUPP_IN_USE
+    error = wpa_supplicant_update_enrollee_state_machine(enrollee_state_machine,
+							 data,
+							 len,
+							 &Enrollee_send_msg,
+							 &Enrollee_send_msg_len,
+							 status);
+#else //WPA_SUPP_IN_USE	
     wpsu_update_enrollee_sm(esm, data, len, &Enrollee_send_msg, &Enrollee_send_msg_len, status, &error);
+#endif //WPA_SUPP_IN_USE	
 
     switch (*status)
     {
@@ -1006,7 +1073,7 @@ static int getSaltAndStoredForName(const char *nameUPPER, unsigned char **b64_sa
             unsigned char namesalt[namesalt_len];
 
             // create SALT
-            unsigned char *salt = wpsu_createRandomValue(DP_SALT_BYTES);
+            unsigned char *salt = wpsu_createRandomValue(DP_SALT_BYTES); //##004 replace this too
 
             memcpy(namesalt, nameUPPER, name_len);
             memcpy(namesalt+name_len, salt, DP_SALT_BYTES);
@@ -1032,13 +1099,13 @@ static int getSaltAndStoredForName(const char *nameUPPER, unsigned char **b64_sa
              */
             unsigned char bin_stored[DP_STORED_BYTES];
             ret = wpsu_pbkdf2(g_vars.adminPassword, strlen(g_vars.adminPassword), namesalt,
-                            namesalt_len, DP_PRF_ROUNDS, DP_STORED_BYTES, bin_stored);
+                            namesalt_len, DP_PRF_ROUNDS, DP_STORED_BYTES, bin_stored);  //##004 replace this too
 
             if (ret != 0) return ret;
 
             // SALT and STORED to base 64
-            wpsu_bin_to_base64(DP_SALT_BYTES, salt, salt_len, *b64_salt, maxb64len);
-            wpsu_bin_to_base64(DP_STORED_BYTES, bin_stored, stored_len, *b64_stored, maxb64len);
+            wpsu_bin_to_base64(DP_SALT_BYTES, salt, salt_len, *b64_salt, maxb64len); //##004 replace this too
+            wpsu_bin_to_base64(DP_STORED_BYTES, bin_stored, stored_len, *b64_stored, maxb64len); //##004 replace this too
 
             // write values to password file
             ret = putValuesToPasswdFile(nameUPPER, *b64_salt, *b64_stored);
@@ -1089,16 +1156,16 @@ static int createUserLoginChallengeResponse(struct Upnp_Action_Request *ca_event
         // stored to binary format
         unsigned char *bin_stored = (unsigned char *)malloc(b64_stored_len);
         int outlen;
-        wpsu_base64_to_bin(b64_stored_len, b64_stored, &outlen, bin_stored, DP_STORED_BYTES);
+        wpsu_base64_to_bin(b64_stored_len, b64_stored, &outlen, bin_stored, DP_STORED_BYTES); //##004 replace this too
 
         // Create CHALLENGE = random 128-bit value
-        unsigned char *challenge = wpsu_createNonce(DP_NONCE_BYTES);
+        unsigned char *challenge = wpsu_createNonce(DP_NONCE_BYTES); //##004 replace this too
 
         int maxb64len = 2 * DP_NONCE_BYTES;
         int b64len = 0;
 
         unsigned char *b64_challenge = (unsigned char *)malloc(maxb64len);
-        wpsu_bin_to_base64(DP_NONCE_BYTES, challenge, &b64len, b64_challenge, maxb64len);
+        wpsu_bin_to_base64(DP_NONCE_BYTES, challenge, &b64len, b64_challenge, maxb64len); //##004 replace this too
 
         IXML_Document *ActionResult = NULL;
         ActionResult = UpnpMakeActionResponse(ca_event->ActionName, DP_SERVICE_TYPE,
@@ -1169,7 +1236,7 @@ static int createAuthenticator(const char          *b64_stored,
         return -1;
     }
     int bin_stored_len;
-    wpsu_base64_to_bin(b64msglen, (const unsigned char *)b64_stored, &bin_stored_len, bin_stored, b64msglen);    
+    wpsu_base64_to_bin(b64msglen, (const unsigned char *)b64_stored, &bin_stored_len, bin_stored, b64msglen); //##004 replace this too
 
     b64msglen = strlen(b64_challenge);
     unsigned char *bin_challenge = (unsigned char *)malloc(b64msglen);
@@ -1179,7 +1246,7 @@ static int createAuthenticator(const char          *b64_stored,
         return -1;
     }
     int bin_challenge_len;
-    wpsu_base64_to_bin(b64msglen, (const unsigned char *)b64_challenge, &bin_challenge_len, bin_challenge, b64msglen); 
+    wpsu_base64_to_bin(b64msglen, (const unsigned char *)b64_challenge, &bin_challenge_len, bin_challenge, b64msglen); //##004 replace this too
 
     // create ( Challenge || DeviceID || ControlPointID )
     int cdc_len = bin_challenge_len + 2*(DP_UUID_LEN);
@@ -1189,7 +1256,7 @@ static int createAuthenticator(const char          *b64_stored,
     memcpy( cdc + bin_challenge_len + DP_UUID_LEN, cp_uuid, DP_UUID_LEN );
 
     unsigned char hmac_result[WPSU_HASH_LEN];
-    hmac_sha256( bin_stored, bin_stored_len, cdc, cdc_len, hmac_result );
+    hmac_sha256( bin_stored, bin_stored_len, cdc, cdc_len, hmac_result ); //##004 replace this too
     // release useless stuff
     free( bin_challenge );
     free( cdc );
@@ -1198,7 +1265,7 @@ static int createAuthenticator(const char          *b64_stored,
     int maxb64len = 2*DP_AUTH_BYTES;
     *auth_len = 0;
     *b64_authenticator = (char *)malloc(maxb64len);
-    wpsu_bin_to_base64(DP_AUTH_BYTES, hmac_result, auth_len, (unsigned char *)*b64_authenticator, maxb64len);
+    wpsu_bin_to_base64(DP_AUTH_BYTES, hmac_result, auth_len, (unsigned char *)*b64_authenticator, maxb64len); //##004 replace this too
 
     return 0;
 }
@@ -1258,8 +1325,15 @@ int SendSetupMessage(struct Upnp_Action_Request *ca_event)
             trace(2,"Begin DeviceProtection pairwise introduction process. IP %s\n",IP_addr);
             startWPS();
             // start the state machine and create M1
+#ifdef WPA_SUPP_IN_USE
+	    result = wpa_supplicant_start_enrollee_state_machine(enrollee_state_machine,
+								 &Enrollee_send_msg,
+								 &Enrollee_send_msg_len);
+            if (result != 0)
+#else //WPA_SUPP_IN_USE	
             wpsu_start_enrollee_sm(esm, &Enrollee_send_msg, &Enrollee_send_msg_len, &result);
             if (result != WPSU_E_SUCCESS)
+#endif //WPA_SUPP_IN_USE	
             {
                 trace(1, "Failed to start WPS state machine. Returned %d\n",result);
                 result = 704;
@@ -1279,7 +1353,7 @@ int SendSetupMessage(struct Upnp_Action_Request *ca_event)
             unsigned char *pBinMsg=(unsigned char *)malloc(b64msglen);
             int outlen;
 
-            wpsu_base64_to_bin(b64msglen,(const unsigned char *)inmessage,&outlen,pBinMsg,b64msglen);
+            wpsu_base64_to_bin(b64msglen,(const unsigned char *)inmessage,&outlen,pBinMsg,b64msglen); //##004 replace this too
 
             // update state machine
             message_received(ca_event, 0, pBinMsg, outlen, &sm_status);
@@ -1313,7 +1387,7 @@ int SendSetupMessage(struct Upnp_Action_Request *ca_event)
         int maxb64len = 2*Enrollee_send_msg_len;
         int b64len = 0;
         unsigned char *pB64Msg = (unsigned char *)malloc(maxb64len);
-        wpsu_bin_to_base64(Enrollee_send_msg_len,Enrollee_send_msg, &b64len, pB64Msg,maxb64len);
+        wpsu_bin_to_base64(Enrollee_send_msg_len,Enrollee_send_msg, &b64len, pB64Msg,maxb64len); //##004 replace this too
 
         trace(3,"Send response for SendSetupMessage request\n");
 
@@ -1337,7 +1411,7 @@ int SendSetupMessage(struct Upnp_Action_Request *ca_event)
         int maxb64len = 2*Enrollee_send_msg_len;
         int b64len = 0;
         unsigned char *pB64Msg = (unsigned char *)malloc(maxb64len);
-        wpsu_bin_to_base64(Enrollee_send_msg_len,Enrollee_send_msg, &b64len, pB64Msg,maxb64len);
+        wpsu_bin_to_base64(Enrollee_send_msg_len,Enrollee_send_msg, &b64len, pB64Msg,maxb64len); //##004 replace this too
 
         trace(3,"Send last ack in WPS\n");
 
