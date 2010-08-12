@@ -1,3 +1,4 @@
+//##008 update this text
 /*
  * WPA Supplicant / main() function for UNIX like OSes and MinGW
  * Copyright (c) 2003-2007, Jouni Malinen <j@w1.fi>
@@ -20,8 +21,13 @@
 #include "common.h"
 #include "wpa_supplicant_i.h"
 #include "driver_i.h"
+#include "ctrl_iface.h"
 
 extern struct wpa_driver_ops *wpa_drivers[];
+
+int eloop_running_start(void);
+int eloop_running_step(const u8 *data,
+		       size_t data_len);
 
 static void license(void)
 {
@@ -36,34 +42,16 @@ static void license(void)
 #endif /* CONFIG_NO_STDOUT_DEBUG */
 }
 
-
-static void wpa_supplicant_fd_workaround(void)
-{
-#ifdef __linux__
-	int s, i;
-	/* When started from pcmcia-cs scripts, wpa_supplicant might start with
-	 * fd 0, 1, and 2 closed. This will cause some issues because many
-	 * places in wpa_supplicant are still printing out to stdout. As a
-	 * workaround, make sure that fd's 0, 1, and 2 are not used for other
-	 * sockets. */
-	for (i = 0; i < 3; i++) {
-		s = open("/dev/null", O_RDWR);
-		if (s > 2) {
-			close(s);
-			break;
-		}
-	}
-#endif /* __linux__ */
-}
+struct wpa_interface *ifaces;
+struct wpa_global *global;
 
 //modified from main() (in wpa_supplicant/main.c)
 int wpa_supplicant_iface_init(void)
 {
 	int i;
-	struct wpa_interface *ifaces, *iface;
+	struct wpa_interface *iface;
 	int iface_count, exitcode = -1;
 	struct wpa_params params;
-	struct wpa_global *global;
 
 	if (os_program_init())
 		return -1;
@@ -76,8 +64,6 @@ int wpa_supplicant_iface_init(void)
 		return -1;
 	iface_count = 1;
 
-	wpa_supplicant_fd_workaround(); //##002 not needed??
-
 	//##002 hardcoded args for now
 	iface->driver = "test";
 	iface->ifname = "joo1";
@@ -88,8 +74,12 @@ int wpa_supplicant_iface_init(void)
 	global = wpa_supplicant_init(&params);
 	if (global == NULL) {
 		wpa_printf(MSG_ERROR, "Failed to initialize wpa_supplicant");
-		exitcode = -1;
-		goto out;
+		os_free(ifaces);
+		os_free(params.pid_file);
+
+		os_program_deinit();
+
+		return -1;
 	}
 
 	for (i = 0; exitcode == 0 && i < iface_count; i++) {
@@ -107,15 +97,54 @@ int wpa_supplicant_iface_init(void)
 	}
 
 	if (exitcode == 0)
-		exitcode = wpa_supplicant_run(global);
+		exitcode = eloop_running_start();
+//##005		exitcode = wpa_supplicant_run(global);
 
+	return exitcode;
+}
+
+int wpa_supplicant_iface_delete(void)
+{
 	wpa_supplicant_deinit(global);
 
-out:
 	os_free(ifaces);
-	os_free(params.pid_file);
+//##1 needed?	os_free(params.pid_file);
 
 	os_program_deinit();
 
-	return exitcode;
+	return 0;
+}
+
+int wpa_supplicant_create_enrollee_state_machine(void **esm)
+{
+	esm = NULL;
+	return 0;
+}
+
+int wpa_supplicant_start_enrollee_state_machine(void *esm,
+						unsigned char** next_message,
+						int* next_message_len)
+{
+	//generate cli command: "wpa_supplicant wps_pin any 1111"
+	size_t resp_len;
+	wpa_supplicant_ctrl_iface_process(NULL, "wps_pin any 1111", &resp_len);
+
+	return 0;
+}
+
+int wpa_supplicant_stop_enrollee_state_machine(void *esm)
+{
+	return 0;
+}
+
+//status values directly from wpsutil ##003
+typedef enum {WPSU_SM_E_PROCESS,WPSU_SM_E_SUCCESS,WPSU_SM_E_SUCCESSINFO,WPSU_SM_E_FAILURE,WPSU_SM_E_FAILUREEXIT} wpsu_enrollee_sm_status;
+int wpa_supplicant_update_enrollee_state_machine(void* esm,
+						 unsigned char* received_message,
+						 int received_message_len,
+						 unsigned char** next_message,
+						 int* next_message_len,
+						 int* ready)
+{
+	return 0;
 }
