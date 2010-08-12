@@ -1209,7 +1209,7 @@ ifndef CONFIG_AP
 OBJS_t += ../src/utils/ip_addr.o
 endif
 OBJS_t2 := $(OBJS) $(OBJS_l2) preauth_test.o
-OBJS_libwpa := $(OBJS) wpa_supplicant_iface.o
+OBJS_libwpa := $(OBJS) $(OBJS_l2) $(OBJS_d) ../src/drivers/drivers.o wpa_supplicant_iface.o
 OBJS += $(CONFIG_MAIN).o
 
 ifdef CONFIG_PRIVSEP
@@ -1280,7 +1280,7 @@ wpa_priv: $(BCHECK) $(OBJS_priv)
 wpa_supplicant: .config $(BCHECK) $(OBJS) $(EXTRA_progs)
 	$(LDO) $(LDFLAGS) -o wpa_supplicant $(OBJS) $(LIBS) $(EXTRALIBS)
 
-libwpa_supplicant: .config $(BCHECK) $(OBJS) $(EXTRA_progs)
+libwpa_supplicant.so: .config $(BCHECK) $(OBJS_libwpa)
 	$(LDO) -shared $(LDFLAGS) -o libwpa_supplicant.so $(OBJS_libwpa) $(LIBS) $(EXTRALIBS)
 
 eapol_test: .config $(OBJS_t)
