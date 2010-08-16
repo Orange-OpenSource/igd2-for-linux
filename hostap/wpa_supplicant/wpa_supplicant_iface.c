@@ -45,6 +45,20 @@ static void license(void)
 struct wpa_interface *ifaces;
 struct wpa_global *global;
 
+const u8 *sendto_data = NULL;
+size_t sendto_data_len = 0;
+
+void test_driver_set_sendto( int (*sendto_cb)(const u8 *data, size_t) );
+
+static int wpa_supplicant_iface_sendto_cb(const u8 *data, size_t data_len)
+{
+	wpa_printf(MSG_DEBUG, "XXXX sendto cb");
+	sendto_data = data + 18;
+	sendto_data_len = data_len - 18;
+	return 0;
+}
+
+
 //modified from main() (in wpa_supplicant/main.c)
 int wpa_supplicant_iface_init(void)
 {
@@ -52,6 +66,8 @@ int wpa_supplicant_iface_init(void)
 	struct wpa_interface *iface;
 	int iface_count, exitcode = -1;
 	struct wpa_params params;
+
+	test_driver_set_sendto(wpa_supplicant_iface_sendto_cb);
 
 	if (os_program_init())
 		return -1;
@@ -68,7 +84,7 @@ int wpa_supplicant_iface_init(void)
 	iface->driver = "test";
 	iface->ifname = "joo1";
 	params.wpa_debug_level = 1; //"-dd" = 1 (more debugging), "-d" = 2
-	iface->confname = "wpa_supplicant.conf.003";
+	iface->confname = "wpa_supplicant.conf.004";
 
 	exitcode = 0;
 	global = wpa_supplicant_init(&params);
@@ -96,9 +112,26 @@ int wpa_supplicant_iface_init(void)
 			exitcode = -1;
 	}
 
-	if (exitcode == 0)
-		exitcode = eloop_running_start();
-//##005		exitcode = wpa_supplicant_run(global);
+	if (exitcode == 0) {
+//##019		if (eloop_running_start() == 0) {
+		eloop_running_start();
+		{
+			{
+				//##020 run eloop some rounds to get the state machines to correct states
+				// TODO handle this with timer
+				int ii = 0;
+				while (ii < 5) {
+					usleep(500000);
+					eloop_running_step(NULL, 0);
+					wpa_printf(MSG_DEBUG, "XXXX first steps %d", ii);
+					ii++;
+				}
+			}
+//			while (eloop_running_step(NULL, 0) == 0) {
+//				wpa_printf(MSG_DEBUG, "XXXX timer timeout");
+//			}
+		}
+	}
 
 	return exitcode;
 }
@@ -127,8 +160,29 @@ int wpa_supplicant_start_enrollee_state_machine(void *esm,
 {
 	//generate cli command: "wpa_supplicant wps_pin any 1111"
 	size_t resp_len;
-	wpa_supplicant_ctrl_iface_process(NULL, "wps_pin any 1111", &resp_len);
-
+	char *cli_req = strdup("WPS_PIN any 1111"); //##011 release mem
+	wpa_supplicant_ctrl_iface_process((struct wpa_supplicant *)global->ifaces,
+					  cli_req, &resp_len);
+	{
+		//##020 run eloop some rounds to get the state machines to correct states
+		// TODO handle this with timer
+		int ii = 0;
+		while (ii < 10) {
+			usleep(500000);
+			//sleep(1);
+			eloop_running_step(NULL, 0);
+			wpa_printf(MSG_DEBUG, "XXXX second steps %d", ii);
+			ii++;
+		}
+	}
+	if (sendto_data != NULL) {
+		wpa_printf(MSG_DEBUG, "XXXX data available, len:%d", sendto_data_len);
+		*next_message = (unsigned char*)sendto_data;
+		*next_message_len = sendto_data_len;
+		sendto_data = NULL;
+		sendto_data_len = 0;
+	}
+	//##25 TODO: handle error case here
 	return 0;
 }
 

@@ -523,6 +523,7 @@ void eloop_run(void)
 		eloop_counter++;
 		res = select(eloop.max_sock + 1, rfds, wfds, efds,
 			     timeout ? &_tv : NULL);
+		wpa_printf(MSG_DEBUG, "XXXX select");
 		if (res < 0 && errno != EINTR && errno != 0) {
 			perror("select");
 			goto out;
@@ -535,6 +536,7 @@ void eloop_run(void)
 		if (timeout) {
 			os_get_time(&now);
 			if (!os_time_before(&now, &timeout->time)) {
+				wpa_printf(MSG_DEBUG, "XXXX timeout%08x", (int)timeout->handler);
 				void *eloop_data = timeout->eloop_data;
 				void *user_data = timeout->user_data;
 				eloop_timeout_handler handler =
@@ -576,8 +578,11 @@ int eloop_running_start(void)
 				os_time_sub(&timeout->time, &now, &tv);
 			else
 				tv.sec = tv.usec = 0;
+			wpa_printf(MSG_DEBUG, "XXXX sec:%d usec:%d", (int)tv.sec, (int)tv.usec);
 			res = tv.sec;
-			//neglegt tv.usec on purpose here
+			if (tv.sec == 0 && tv.usec != 0) {
+				res = 1; // round to full sec
+			}
 		}
 	}
 	return res;
@@ -607,6 +612,7 @@ int eloop_running_step(const u8 *data,
 
 	if (data != NULL) {
 		//##006 hack: send directly
+		wpa_printf(MSG_DEBUG, "XXXX sending not impl.");
 //		wpa_driver_test_eapol((struct wpa_driver_test_data *)drv,
 //				      data, data_len);
 	}

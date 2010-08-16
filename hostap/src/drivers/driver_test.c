@@ -182,13 +182,22 @@ int xxx_test_handle_req(struct wpa_driver_test_data *drv, const u8 *data, size_t
 		test_msg_id = 2;
 		wpa_printf(MSG_DEBUG, "xxx msg2 req");
 		return 0;
-	} else if (msg3_len == data_len) {
-		test_msg_id = 3;
-		wpa_printf(MSG_DEBUG, "xxx msg3 req");
-		return 0;
+//	} else if (msg3_len == data_len) {
+//		test_msg_id = 3;
+//		wpa_printf(MSG_DEBUG, "xxx msg3 req");
+//		return 0;
 	}
 	return -1;
 }
+
+//##021
+int (*xxx_sendto)(const u8 *data, size_t data_len) = NULL;
+
+void test_driver_set_sendto( int (*sendto_cb)(const u8 *data, size_t) )
+{
+	xxx_sendto = sendto_cb;
+}
+
 
 static void test_driver_free_bss(struct test_driver_bss *bss)
 {
@@ -2431,6 +2440,13 @@ static int wpa_driver_test_send_eapol(void *priv, const u8 *dest, u16 proto,
 
 	//##001
 	if (xxx_test_handle_req(drv, data, data_len) == 0) {
+		os_free(msg);
+		return 0;
+	}
+
+	//##021
+	if (xxx_sendto != NULL) {
+		(*xxx_sendto)(data, data_len);
 		os_free(msg);
 		return 0;
 	}
