@@ -125,12 +125,14 @@ static void wpa_driver_test_eapol(struct wpa_driver_test_data *drv,
 
 //##001
 int test_msg_id = 0;
+struct wpa_driver_test_data *send_resp_drv = NULL; //##028
 //##001
 void xxx_test_send_resp(struct wpa_driver_test_data *drv)
 {
 	const u8 msg1_resp[] = {0x02, 0x00, 0x00, 0x05, 0x01, 0x67, 0x00, 0x05, 0x01};
 	const int msg1_resp_len = 9;
 
+	send_resp_drv = drv; //##028 store for later usage
 	const u8 msg2_resp[] = {0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, //??
 				0x02, 0x00, 0x00, 0x00, 0x00, 0x01, //addr
 				0xbb, 0xbb, //??
@@ -188,6 +190,38 @@ int xxx_test_handle_req(struct wpa_driver_test_data *drv, const u8 *data, size_t
 //		return 0;
 	}
 	return -1;
+}
+
+//##026
+void wpa_driver_test_eapol_send(void *drv, const u8 *data, size_t data_len)
+{
+	const u8 msg_header[] = {0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, //??
+				 0x02, 0x00, 0x00, 0x00, 0x00, 0x01, //addr
+				 0xbb, 0xbb, //??
+				 0x02, 0x00, 0x00, 0x00,   //struct ieee802_1x_hdr
+				 0x01, 0x2b, 0x00, 0x00,   //eap_hdr handled in eap_sm_parseEapReq()
+				 0xfe, 0x00, 0x37, 0x2a, 0x00, 0x00, 0x00, 0x01, 0x04, 0x00};  //??, handled in eap_sm_parseEapReq()
+
+	u8 *whole_msg;
+	size_t whole_msg_len;
+//	struct ieee802_1x_hdr *hdr;
+
+	whole_msg_len = 32 + data_len;
+	whole_msg = os_malloc(whole_msg_len);
+	memcpy(whole_msg, msg_header, 32);
+	memcpy(&whole_msg[32], data, data_len);
+	//##027 release *data memory??
+
+//	hdr = (struct ieee802_1x_hdr *)&whole_msg[14];
+//	hdr->length = 0x01;//host_to_be16(data_len);
+	whole_msg[16] = whole_msg[20] = (data_len + 14) / 256; //##029
+	whole_msg[17] = whole_msg[21] = (data_len + 14) % 256; //##029
+
+	wpa_driver_test_eapol(
+		send_resp_drv, //##028
+//		(struct wpa_driver_test_data*)drv,
+		(struct sockaddr *) NULL, 0,
+		whole_msg, whole_msg_len);
 }
 
 //##021
