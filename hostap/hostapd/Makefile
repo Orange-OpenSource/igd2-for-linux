@@ -783,6 +783,11 @@ nt_password_hash: $(NOBJS)
 hlr_auc_gw: $(HOBJS)
 	$(CC) $(LDFLAGS) -o hlr_auc_gw $(HOBJS) $(LIBS_h)
 
+OBJS_libha := $(OBJS) hostapd_iface.o
+
+libhostapd.so: $(BCHECK) $(OBJS_libha)
+	$(CC) -shared $(LDFLAGS) -o libhostapd.so $(OBJS_libha) $(LIBS)
+
 clean:
 	$(MAKE) -C ../src clean
 	rm -f core *~ *.o hostapd hostapd_cli nt_password_hash hlr_auc_gw
