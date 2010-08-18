@@ -29,7 +29,6 @@
 #include "util.h"
 #ifndef WPA_SUPP_IN_USE	
 #include <wpsutil/enrollee_state_machine.h>
-void xxx_wpa_hexdump(const char *title, const unsigned char *buf, size_t len); //##031
 #endif //WPA_SUPP_IN_USE	
 #include <wpsutil/base64mem.h>
 #include <wpsutil/cryptoutil.h>
@@ -1392,7 +1391,12 @@ int SendSetupMessage(struct Upnp_Action_Request *ca_event)
 
         trace(3,"Send response for SendSetupMessage request\n");
 
-        ca_event->ErrCode = UPNP_E_SUCCESS;
+		//Handle invalid PIN case correctly
+		if (sm_status == WPSU_SM_E_FAILURE)
+			ca_event->ErrCode = 704;
+		else
+			ca_event->ErrCode = UPNP_E_SUCCESS;
+	
         snprintf(resultStr, RESULT_LEN, "<u:%sResponse xmlns:u=\"%s\">\n<OutMessage>%s</OutMessage>\n</u:%sResponse>",
                  ca_event->ActionName, DP_SERVICE_TYPE, pB64Msg, ca_event->ActionName);
         ca_event->ActionResult = ixmlParseBuffer(resultStr);
@@ -1412,8 +1416,6 @@ int SendSetupMessage(struct Upnp_Action_Request *ca_event)
         int maxb64len = 2*Enrollee_send_msg_len;
         int b64len = 0;
         unsigned char *pB64Msg = (unsigned char *)malloc(maxb64len);
-
-	xxx_wpa_hexdump("YYYY ", Enrollee_send_msg, Enrollee_send_msg_len); //##030
 
         wpsu_bin_to_base64(Enrollee_send_msg_len,Enrollee_send_msg, &b64len, pB64Msg,maxb64len); //##004 replace this too
 
