@@ -27,15 +27,15 @@
 #include "gatedevice.h"
 #include "globals.h"
 #include "util.h"
-#ifndef WPA_SUPP_IN_USE	
+#ifndef WPA_SUPP_IN_USE 
 #include <wpsutil/enrollee_state_machine.h>
-#endif //WPA_SUPP_IN_USE	
+#endif //WPA_SUPP_IN_USE        
 #include <wpsutil/base64mem.h>
 #include <wpsutil/cryptoutil.h>
 #ifdef WPA_SUPP_IN_USE
 //void hmac_sha256(const u8 *key, size_t key_len, const u8 *data, size_t data_len, u8 *mac); //##005 header for this?
 #include "wpa_supplicant_iface.h"
-#endif //WPA_SUPP_IN_USE	
+#endif //WPA_SUPP_IN_USE        
 #include <upnp/upnptools.h>
 #include <upnp/upnp.h>
 #include <gcrypt.h>
@@ -53,7 +53,7 @@ static void stopWPS();
 
 #ifdef WPA_SUPP_IN_USE
 static void* enrollee_state_machine;
-#else //WPA_SUPP_IN_USE	
+#else //WPA_SUPP_IN_USE 
 // WPS state machine related stuff
 static WPSuEnrolleeSM* esm;
 static WPSuStationInput *wpsu_input;
@@ -203,34 +203,34 @@ int InitDP()
         }
 
 #ifdef WPA_SUPP_IN_USE
-	{
-		wpa_supplicant_wps_enrollee_info enrollee_info =
-			{
-				.devicePIN = g_vars.pinCode,
-				.manufacturer = GetFirstDocumentItem(descDoc, "manufacturer"),
-				.modelName = GetFirstDocumentItem(descDoc, "modelName"), 
-				.modelNumber = GetFirstDocumentItem(descDoc, "modelNumber"),
-				.serialNumber = GetFirstDocumentItem(descDoc, "serialNumber"),
-				.deviceName = GetFirstDocumentItem(descDoc, "friendlyName"),
-				.primaryDeviceType = NULL,
-				.primaryDeviceType_len = 0,
-				.macAddress = MAC,
-				.macAddress_len = WPSU_MAC_LEN,
-				.uuid = device_uuid,
-				.uuid_len = uuid_size,
-				.OSVersion = NULL,
-				.OSVersion_len = 0,
-				.pubKey = NULL,
-				.pubKey_len = 0,
-				.configMethods = 0, //##003 not needed
-				.RFBands = 0 //##003 not needed
-			};
-		
-		ret = wpa_supplicant_iface_init( &enrollee_info );
-	}
-#else //WPA_SUPP_IN_USE	
+        {
+                wpa_supplicant_wps_enrollee_info enrollee_info =
+                        {
+                                .devicePIN = g_vars.pinCode,
+                                .manufacturer = GetFirstDocumentItem(descDoc, "manufacturer"),
+                                .modelName = GetFirstDocumentItem(descDoc, "modelName"), 
+                                .modelNumber = GetFirstDocumentItem(descDoc, "modelNumber"),
+                                .serialNumber = GetFirstDocumentItem(descDoc, "serialNumber"),
+                                .deviceName = GetFirstDocumentItem(descDoc, "friendlyName"),
+                                .primaryDeviceType = NULL,
+                                .primaryDeviceType_len = 0,
+                                .macAddress = MAC,
+                                .macAddress_len = WPSU_MAC_LEN,
+                                .uuid = device_uuid,
+                                .uuid_len = uuid_size,
+                                .OSVersion = NULL,
+                                .OSVersion_len = 0,
+                                .pubKey = NULL,
+                                .pubKey_len = 0,
+                                .configMethods = 0, //##003 not needed
+                                .RFBands = 0 //##003 not needed
+                        };
+                
+                ret = wpa_supplicant_iface_init( &enrollee_info );
+        }
+#else //WPA_SUPP_IN_USE 
 
-	wpsu_input = (WPSuStationInput *)malloc(sizeof(WPSuStationInput));
+        wpsu_input = (WPSuStationInput *)malloc(sizeof(WPSuStationInput));
         memset(wpsu_input, 0, sizeof(*(wpsu_input)));
 
         ret = wpsu_enrollee_station_input_add_device_info(wpsu_input, 
@@ -252,7 +252,7 @@ int InitDP()
                                             0,
                                             WPSU_CONF_METHOD_LABEL,
                                             WPSU_RFBAND_2_4GHZ);
-#endif //WPA_SUPP_IN_USE	
+#endif //WPA_SUPP_IN_USE        
     }
     else return UPNP_E_FILE_NOT_FOUND;
 
@@ -271,9 +271,9 @@ void FreeDP()
 {
 #ifdef WPA_SUPP_IN_USE
     wpa_supplicant_iface_delete();
-#else //WPA_SUPP_IN_USE	
+#else //WPA_SUPP_IN_USE 
     wpsu_enrollee_station_input_free(wpsu_input);
-#endif //WPA_SUPP_IN_USE	
+#endif //WPA_SUPP_IN_USE        
 
     free(device_uuid);
 
@@ -722,21 +722,21 @@ static int startWPS()
     }
 
     // create enrollee state machine
-#ifdef WPA_SUPP_IN_USE	
+#ifdef WPA_SUPP_IN_USE  
     err = wpa_supplicant_create_enrollee_state_machine(&enrollee_state_machine);
     if (err != 0)
     {
         trace(1, "Failed to create WPS enrollee! Error: %d",err);
         return err;
     }
-#else //WPA_SUPP_IN_USE	
+#else //WPA_SUPP_IN_USE 
     esm = wpsu_create_enrollee_sm_station(wpsu_input, &err);
     if (err != WPSU_E_SUCCESS)
     {
         trace(1, "Failed to create WPS enrollee! Error: %d",err);
         return err;
     }
-#endif //WPA_SUPP_IN_USE	
+#endif //WPA_SUPP_IN_USE        
 
     gWpsIntroductionRunning = 1;
 
@@ -763,9 +763,9 @@ static void stopWPS()
         gStopWPSJobId = -1;
     }
 
-#ifdef WPA_SUPP_IN_USE	
+#ifdef WPA_SUPP_IN_USE  
     error = wpa_supplicant_stop_enrollee_state_machine(enrollee_state_machine);
-#else //WPA_SUPP_IN_USE	
+#else //WPA_SUPP_IN_USE 
     /*WPSuStationOutput *smOutput;
     smOutput = wpsu_get_enrollee_sm_station_output(esm, &error);
 
@@ -774,7 +774,7 @@ static void stopWPS()
     printf("Uuid: %s\n",smOutput->RegistrarInfo.Uuid);*/
 
     wpsu_cleanup_enrollee_sm(esm, &error);
-#endif //WPA_SUPP_IN_USE	
+#endif //WPA_SUPP_IN_USE        
 
     gWpsIntroductionRunning = 0;
 
@@ -813,14 +813,14 @@ static void message_received(struct Upnp_Action_Request *ca_event, int error, un
 
 #ifdef WPA_SUPP_IN_USE
     error = wpa_supplicant_update_enrollee_state_machine(enrollee_state_machine,
-							 data,
-							 len,
-							 &Enrollee_send_msg,
-							 &Enrollee_send_msg_len,
-							 status);
-#else //WPA_SUPP_IN_USE	
+                                                         data,
+                                                         len,
+                                                         &Enrollee_send_msg,
+                                                         &Enrollee_send_msg_len,
+                                                         status);
+#else //WPA_SUPP_IN_USE 
     wpsu_update_enrollee_sm(esm, data, len, &Enrollee_send_msg, &Enrollee_send_msg_len, status, &error);
-#endif //WPA_SUPP_IN_USE	
+#endif //WPA_SUPP_IN_USE        
 
     switch (*status)
     {
@@ -1326,14 +1326,14 @@ int SendSetupMessage(struct Upnp_Action_Request *ca_event)
             startWPS();
             // start the state machine and create M1
 #ifdef WPA_SUPP_IN_USE
-	    result = wpa_supplicant_start_enrollee_state_machine(enrollee_state_machine,
-								 &Enrollee_send_msg,
-								 &Enrollee_send_msg_len);
+            result = wpa_supplicant_start_enrollee_state_machine(enrollee_state_machine,
+                                                                 &Enrollee_send_msg,
+                                                                 &Enrollee_send_msg_len);
             if (result != 0)
-#else //WPA_SUPP_IN_USE	
+#else //WPA_SUPP_IN_USE 
             wpsu_start_enrollee_sm(esm, &Enrollee_send_msg, &Enrollee_send_msg_len, &result);
             if (result != WPSU_E_SUCCESS)
-#endif //WPA_SUPP_IN_USE	
+#endif //WPA_SUPP_IN_USE        
             {
                 trace(1, "Failed to start WPS state machine. Returned %d\n",result);
                 result = 704;
@@ -1391,12 +1391,12 @@ int SendSetupMessage(struct Upnp_Action_Request *ca_event)
 
         trace(3,"Send response for SendSetupMessage request\n");
 
-		//Handle invalid PIN case correctly
-		if (sm_status == WPSU_SM_E_FAILURE)
-			ca_event->ErrCode = 704;
-		else
-			ca_event->ErrCode = UPNP_E_SUCCESS;
-	
+                //Handle invalid PIN case correctly
+        if (sm_status == WPSU_SM_E_FAILURE)
+                ca_event->ErrCode = 704;
+        else
+                ca_event->ErrCode = UPNP_E_SUCCESS;
+        
         snprintf(resultStr, RESULT_LEN, "<u:%sResponse xmlns:u=\"%s\">\n<OutMessage>%s</OutMessage>\n</u:%sResponse>",
                  ca_event->ActionName, DP_SERVICE_TYPE, pB64Msg, ca_event->ActionName);
         ca_event->ActionResult = ixmlParseBuffer(resultStr);
