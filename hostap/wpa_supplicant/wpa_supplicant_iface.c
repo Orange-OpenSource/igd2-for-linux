@@ -22,12 +22,14 @@
 #include "wpa_supplicant_i.h"
 #include "driver_i.h"
 #include "ctrl_iface.h"
+#include "base64.h"
 
 extern struct wpa_driver_ops *wpa_drivers[];
 
 int eloop_running_start(void);
 int eloop_running_step(const u8 *data,
 		       size_t data_len);
+void wpa_driver_test_eapol_send(void *drv, const u8 *data, size_t data_len);
 
 static void license(void)
 {
@@ -52,9 +54,10 @@ void test_driver_set_sendto( int (*sendto_cb)(const u8 *data, size_t) );
 
 static int wpa_supplicant_iface_sendto_cb(const u8 *data, size_t data_len)
 {
-	wpa_printf(MSG_DEBUG, "XXXX sendto cb");
-	sendto_data = data + 18;
-	sendto_data_len = data_len - 18;
+	wpa_printf(MSG_DEBUG, "XXXX sendto cb, check the data structure in code");
+	sendto_data_len = data_len - 18;  //##024 check this
+	sendto_data = malloc(sendto_data_len); //##034 who will release this memory?
+	memcpy(sendto_data, data + 18, sendto_data_len);
 	return 0;
 }
 
@@ -160,7 +163,8 @@ int wpa_supplicant_start_enrollee_state_machine(void *esm,
 {
 	//generate cli command: "wpa_supplicant wps_pin any 1111"
 	size_t resp_len;
-	char *cli_req = strdup("WPS_PIN any 1111"); //##011 release mem
+//	char *cli_req = strdup("WPS_PIN any 1111"); //##011 release mem
+	char *cli_req = strdup("WPS_PIN any 49226874"); //##037 release mem
 	wpa_supplicant_ctrl_iface_process((struct wpa_supplicant *)global->ifaces,
 					  cli_req, &resp_len);
 	{
@@ -169,16 +173,15 @@ int wpa_supplicant_start_enrollee_state_machine(void *esm,
 		int ii = 0;
 		while (ii < 10) {
 			usleep(500000);
-			//sleep(1);
 			eloop_running_step(NULL, 0);
 			wpa_printf(MSG_DEBUG, "XXXX second steps %d", ii);
 			ii++;
 		}
 	}
 	if (sendto_data != NULL) {
-		wpa_printf(MSG_DEBUG, "XXXX data available, len:%d", sendto_data_len);
-		*next_message = (unsigned char*)sendto_data;
+		wpa_printf(MSG_DEBUG, "XXXX data available in start, len:%d", sendto_data_len);
 		*next_message_len = sendto_data_len;
+		*next_message = sendto_data; //##034 who will release this memory?
 		sendto_data = NULL;
 		sendto_data_len = 0;
 	}
@@ -200,5 +203,57 @@ int wpa_supplicant_update_enrollee_state_machine(void* esm,
 						 int* next_message_len,
 						 int* ready)
 {
+	wpa_driver_test_eapol_send(((struct wpa_supplicant *)global->ifaces)->drv_priv,
+				   received_message, received_message_len);
+	{
+		//##020 run eloop some rounds to get the state machines to correct states
+		// TODO handle this with timer
+		int ii = 0;
+		while (ii < 3) {
+			usleep(300000);
+			eloop_running_step(NULL, 0);
+			wpa_printf(MSG_DEBUG, "XXXX M2 steps %d", ii);
+			ii++;
+		}
+	}
+	if (sendto_data != NULL) {
+		wpa_printf(MSG_DEBUG, "XXXX data available in update, len:%d", sendto_data_len);
+		wpa_hexdump(MSG_MSGDUMP, "YYYY ", sendto_data, sendto_data_len); //##030
+		*next_message_len = sendto_data_len;
+		*next_message = sendto_data; //##034 who will release this memory?
+		sendto_data = NULL;
+		sendto_data_len = 0;
+	}
+	//##25 TODO: handle error case here
 	return 0;
+}
+
+inline unsigned char *wpa_supplicant_base64_encode(const unsigned char *src,
+						   size_t len,
+						   size_t *out_len)
+{
+#ifdef WPA_TRACE
+	unsigned char *wpa_trace_alloc = base64_encode(src, len, out_len);
+	unsigned char *correct_alloc = malloc(*out_len);
+	memcpy(correct_alloc, wpa_trace_alloc, *out_len);
+	os_free(wpa_trace_alloc);
+	return correct_alloc;
+#else /* WPA_TRACE */
+	return base64_encode(src, len, out_len);
+#endif /* WPA_TRACE */
+}
+
+inline unsigned char *wpa_supplicant_base64_decode(const unsigned char *src,
+						   size_t len,
+						   size_t *out_len)
+{
+#ifdef WPA_TRACE
+	unsigned char *wpa_trace_alloc = base64_decode(src, len, out_len);
+	unsigned char *correct_alloc = malloc(*out_len);
+	memcpy(correct_alloc, wpa_trace_alloc, *out_len);
+	os_free(wpa_trace_alloc);
+	return correct_alloc;
+#else /* WPA_TRACE */
+	return base64_decode(src, len, out_len);
+#endif /* WPA_TRACE */
 }
