@@ -704,11 +704,11 @@ static int wps_process_creds(struct wps_data *wps, const u8 *cred[],
 	if (wps->wps->ap)
 		return 0;
 
-	if (num_cred == 0) {
-		wpa_printf(MSG_DEBUG, "WPS: No Credential attributes "
-			   "received");
-		return -1;
-	}
+//#040	if (num_cred == 0) {
+//#040		wpa_printf(MSG_DEBUG, "WPS: No Credential attributes "
+//#040			   "received");
+//#040		return -1;
+//#040	}
 
 	for (i = 0; i < num_cred; i++) {
 		if (wps_process_cred_e(wps, cred[i], cred_len[i]))
