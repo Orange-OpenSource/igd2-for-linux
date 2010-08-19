@@ -34,22 +34,9 @@ int eloop_running_step(const u8 *data,
 void wpa_driver_test_eapol_inject(void *drv, const u8 *data, size_t data_len);
 void test_driver_set_send_eapol_cb( int (*send_eapol_cb)(void *drv, const u8 *data, size_t) );
 
-void send_to_wpa_driver(void *drv, const u8 *data, size_t data_len);
-int xxx_test_handle_req(void *drv, const u8 *data, size_t data_len);
-void xxx_test_send_resp(void *drv);
-
-static void license(void)
-{
-#ifndef CONFIG_NO_STDOUT_DEBUG
-	printf("%s\n\n%s%s%s%s%s\n",
-	       wpa_supplicant_version,
-	       wpa_supplicant_full_license1,
-	       wpa_supplicant_full_license2,
-	       wpa_supplicant_full_license3,
-	       wpa_supplicant_full_license4,
-	       wpa_supplicant_full_license5);
-#endif /* CONFIG_NO_STDOUT_DEBUG */
-}
+static void send_to_wpa_driver(void *drv, const u8 *data, size_t data_len);
+static int handle_eapol_req_immediately(void *drv, const u8 *data, size_t data_len);
+static void generate_and_inject_eapol_resp(void *drv);
 
 struct wpa_interface *ifaces;
 struct wpa_global *global;
@@ -58,17 +45,20 @@ struct wpa_global *global;
 u8 *send_eapol_data = NULL;
 size_t send_eapol_data_len = 0;
 
-//##001
-int test_msg_id = 0;
-void *send_resp_drv = NULL; //##028
+// When this var is not 0, req is being handled internally in this module.
+int internally_handled_msg_id = 0;
+
+// driver handle for response message sending
+void *send_resp_drv = NULL;
 
 static int wpa_supplicant_iface_send_eapol_cb(void *drv, const u8 *data, size_t data_len)
 {
-	//##001
-	if (xxx_test_handle_req(drv, data, data_len) == 0) {
+	// First check if we must handle this message internally in this module
+	if (handle_eapol_req_immediately(drv, data, data_len) == 0) {
 		return 0;
 	}
 
+	// Save the message to be delivered out of interface
 	wpa_printf(MSG_DEBUG, "XXXX send_eapol_cb, check the data structure in code");
 	send_eapol_data_len = data_len - 18;  //##024 check this
 	send_eapol_data = malloc(send_eapol_data_len); //##034 who will release this memory?
@@ -102,6 +92,7 @@ int wpa_supplicant_iface_init(void)
 	iface->driver = "test";
 	iface->ifname = "joo1";
 	params.wpa_debug_level = 1; //"-dd" = 1 (more debugging), "-d" = 2
+	params.wpa_debug_timestamp++;
 	iface->confname = "wpa_supplicant.conf.004";
 
 	exitcode = 0;
@@ -109,7 +100,6 @@ int wpa_supplicant_iface_init(void)
 	if (global == NULL) {
 		wpa_printf(MSG_ERROR, "Failed to initialize wpa_supplicant");
 		os_free(ifaces);
-		os_free(params.pid_file);
 
 		os_program_deinit();
 
@@ -134,17 +124,7 @@ int wpa_supplicant_iface_init(void)
 //##019		if (eloop_running_start() == 0) {
 		eloop_running_start();
 		{
-			{
-				//##020 run eloop some rounds to get the state machines to correct states
-				// TODO handle this with timer
-				int ii = 0;
-				while (ii < 5) {
-					usleep(500000);
-					eloop_running_step(NULL, 0);
-					wpa_printf(MSG_DEBUG, "XXXX first steps %d", ii);
-					ii++;
-				}
-			}
+			eloop_running_step(NULL, 0);
 //			while (eloop_running_step(NULL, 0) == 0) {
 //				wpa_printf(MSG_DEBUG, "XXXX timer timeout");
 //			}
@@ -159,7 +139,6 @@ int wpa_supplicant_iface_delete(void)
 	wpa_supplicant_deinit(global);
 
 	os_free(ifaces);
-//##1 needed?	os_free(params.pid_file);
 
 	os_program_deinit();
 
@@ -176,9 +155,8 @@ int wpa_supplicant_start_enrollee_state_machine(void *esm,
 						unsigned char** next_message,
 						int* next_message_len)
 {
-	//generate cli command: "wpa_supplicant wps_pin any 1111"
+	// Generate cli command: "wpa_supplicant WPS_PIN any 1111"
 	size_t resp_len;
-//	char *cli_req = strdup("WPS_PIN any 1111"); //##011 release mem
 	char *cli_req = strdup("WPS_PIN any 49226874"); //##037 release mem
 	wpa_supplicant_ctrl_iface_process((struct wpa_supplicant *)global->ifaces,
 					  cli_req, &resp_len);
@@ -187,15 +165,15 @@ int wpa_supplicant_start_enrollee_state_machine(void *esm,
 		// TODO handle this with timer
 		int ii = 0;
 		while (ii < 10) {
-			usleep(500000);
+			usleep(200000);
 			eloop_running_step(NULL, 0);
-			xxx_test_send_resp(send_resp_drv);
-			wpa_printf(MSG_DEBUG, "XXXX second steps %d", ii);
+			generate_and_inject_eapol_resp(send_resp_drv);
+			wpa_printf(MSG_DEBUG, "stepping eloop %d", ii);
 			ii++;
 		}
 	}
 	if (send_eapol_data != NULL) {
-		wpa_printf(MSG_DEBUG, "XXXX data available in start, len:%d", send_eapol_data_len);
+		wpa_printf(MSG_DEBUG, "start enrollee sm, out msg available, len:%d", send_eapol_data_len);
 		*next_message_len = send_eapol_data_len;
 		*next_message = send_eapol_data; //##034 who will release this memory?
 		send_eapol_data = NULL;
@@ -219,22 +197,12 @@ int wpa_supplicant_update_enrollee_state_machine(void* esm,
 						 int* next_message_len,
 						 int* ready)
 {
-        send_to_wpa_driver(((struct wpa_supplicant *)global->ifaces)->drv_priv, //##041 replace with send_resp_drv?
-			   received_message, received_message_len);
-	{
-		//##020 run eloop some rounds to get the state machines to correct states
-		// TODO handle this with timer
-		int ii = 0;
-		while (ii < 3) {
-			usleep(300000);
-			eloop_running_step(NULL, 0);
-			wpa_printf(MSG_DEBUG, "XXXX next steps %d", ii);
-			ii++;
-		}
-	}
+        send_to_wpa_driver(send_resp_drv, received_message, received_message_len);
+	wpa_printf(MSG_DEBUG, "wpa_supplicant_update_enrollee_state_machine");
+	eloop_running_step(NULL, 0);
 	if (send_eapol_data != NULL) {
-		wpa_printf(MSG_DEBUG, "XXXX data available in update, len:%d", send_eapol_data_len);
-		wpa_hexdump(MSG_MSGDUMP, "YYYY ", send_eapol_data, send_eapol_data_len); //##030
+		wpa_printf(MSG_DEBUG, "update enrollee sm, out msg available, len:%d", send_eapol_data_len);
+		wpa_hexdump(MSG_MSGDUMP, "data: ", send_eapol_data, send_eapol_data_len);
 		*next_message_len = send_eapol_data_len;
 		*next_message = send_eapol_data; //##034 who will release this memory?
 		send_eapol_data = NULL;
@@ -275,8 +243,7 @@ inline unsigned char *wpa_supplicant_base64_decode(const unsigned char *src,
 }
 
 
-//##026
-void send_to_wpa_driver(void *drv, const u8 *data, size_t data_len)
+static void send_to_wpa_driver(void *drv, const u8 *data, size_t data_len)
 {
 	const u8 msg_header[] = {0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, //??
 				 0x02, 0x00, 0x00, 0x00, 0x00, 0x01, //addr
@@ -289,7 +256,6 @@ void send_to_wpa_driver(void *drv, const u8 *data, size_t data_len)
 	size_t whole_msg_len;
 //	struct ieee802_1x_hdr *hdr;
 
-	wpa_printf(MSG_DEBUG, "wpa_driver_test_eapol_send drv:%08x", (unsigned)drv);
 	whole_msg_len = 32 + data_len;
 	whole_msg = os_malloc(whole_msg_len);
 	memcpy(whole_msg, msg_header, 32);
@@ -301,36 +267,32 @@ void send_to_wpa_driver(void *drv, const u8 *data, size_t data_len)
 	whole_msg[16] = whole_msg[20] = (data_len + 14) / 256; //##029
 	whole_msg[17] = whole_msg[21] = (data_len + 14) % 256; //##029
 
-	wpa_driver_test_eapol_inject(
-		send_resp_drv, //##028
-		whole_msg, whole_msg_len);
+	wpa_driver_test_eapol_inject(drv, whole_msg, whole_msg_len);
 }
 
-void xxx_test_send_resp(void *drv)
+static void generate_and_inject_eapol_resp(void *drv)
 {
 	const u8 msg1_resp[] = {0x02, 0x00, 0x00, 0x05, 0x01, 0x67, 0x00, 0x05, 0x01};
 	const int msg1_resp_len = 9;
 
-	wpa_printf(MSG_DEBUG, "xxx_test_send_resp drv:%08x", (unsigned)drv);
 	const u8 msg2_resp[] = {0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, //??
 				0x02, 0x00, 0x00, 0x00, 0x00, 0x01, //addr
 				0xbb, 0xbb, //??
 				0x02, 0x00, 0x00, 0x0e, 0x01, 0x68, 0x00, 0x0e, 0xfe, 0x00, 0x37, 0x2a, 0x00, 0x00, 0x00, 0x01, 0x01, 0x00};
 	const int msg2_resp_len = 14 + 18;
 
-	if (test_msg_id == 1) {
-		test_msg_id = 0;
-		wpa_printf(MSG_DEBUG, "xxx response to msg1");
+	if (internally_handled_msg_id == 1) {
+		internally_handled_msg_id = 0;
+		wpa_printf(MSG_DEBUG, "generate_and_inject_eapol_resp, response to msg1");
 		wpa_driver_test_eapol_inject(drv, msg1_resp, msg1_resp_len);
-	} else if (test_msg_id == 2) {
-		test_msg_id = 0;
-		wpa_printf(MSG_DEBUG, "xxx response to msg2");
+	} else if (internally_handled_msg_id == 2) {
+		internally_handled_msg_id = 0;
+		wpa_printf(MSG_DEBUG, "generate_and_inject_eapol_resp, response to msg2");
 		wpa_driver_test_eapol_inject(drv, msg2_resp, msg2_resp_len);
 	}
 }
 
-//##001
-int xxx_test_handle_req(void *drv, const u8 *data, size_t data_len)
+static int handle_eapol_req_immediately(void *drv, const u8 *data, size_t data_len)
 {
 	const u8 msg1[] = {0x01, 0x01, 0x00, 0x00};
 	const int msg1_len = 4;
@@ -338,16 +300,15 @@ int xxx_test_handle_req(void *drv, const u8 *data, size_t data_len)
 	const u8 msg2[] = {0x01, 0x00, 0x00, 0x22, 0x02, 0x67, 0x00, 0x22, 0x01, 0x57, 0x46, 0x41, 0x2d, 0x53, 0x69, 0x6d, 0x70, 0x6c, 0x65, 0x43, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x2d, 0x45, 0x6e, 0x72, 0x6f, 0x6c, 0x6c, 0x65, 0x65, 0x2d, 0x31, 0x2d, 0x30};
 	const int msg2_len = 38;
 
-	wpa_printf(MSG_DEBUG, "xxx_test_handle_req drv:%08x", (unsigned)drv);
-	send_resp_drv = drv; //##028 store for later usage
+	send_resp_drv = drv; // store for later usage
 	if (msg1_len == data_len &&
 	    memcmp(msg1, data, data_len) == 0) {
-		test_msg_id = 1;
+		internally_handled_msg_id = 1;
 		wpa_printf(MSG_DEBUG, "xxx msg1 req");
 		return 0;
 	} else if (msg2_len == data_len &&
 		   memcmp(msg2, data, data_len) == 0) {
-		test_msg_id = 2;
+		internally_handled_msg_id = 2;
 		wpa_printf(MSG_DEBUG, "xxx msg2 req");
 		return 0;
 	}
