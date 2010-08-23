@@ -40,6 +40,15 @@
 static void wpas_wps_timeout(void *eloop_ctx, void *timeout_ctx);
 static void wpas_clear_wps(struct wpa_supplicant *wpa_s);
 
+//##050 temporary hack to find out WPS state
+//status values directly from wpsutil
+typedef enum {WPSU_SM_E_PROCESS,WPSU_SM_E_SUCCESS,WPSU_SM_E_SUCCESSINFO,WPSU_SM_E_FAILURE,WPSU_SM_E_FAILUREEXIT} wpsu_enrollee_sm_status;
+int xxx_wps_status = WPSU_SM_E_SUCCESS; //##050
+
+int wpas_wps_status_get(void)
+{
+	return xxx_wps_status;
+}
 
 int wpas_wps_eapol_cb(struct wpa_supplicant *wpa_s)
 {
@@ -395,6 +404,8 @@ static void wpa_supplicant_wps_event_success(struct wpa_supplicant *wpa_s)
 	wpa_msg(wpa_s, MSG_INFO, WPS_EVENT_SUCCESS);
 	wpa_s->wps_success = 1;
 	wpas_notify_wps_event_success(wpa_s);
+
+	xxx_wps_status = WPSU_SM_E_SUCCESS; //##050
 }
 
 
@@ -699,6 +710,8 @@ int wpas_wps_start_pin(struct wpa_supplicant *wpa_s, const u8 *bssid,
 	eloop_register_timeout(WPS_PBC_WALK_TIME, 0, wpas_wps_timeout,
 			       wpa_s, NULL);
 	wpas_wps_reassoc(wpa_s, ssid);
+
+	xxx_wps_status = WPSU_SM_E_PROCESS; //##050
 	return rpin;
 }
 

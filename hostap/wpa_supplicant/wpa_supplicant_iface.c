@@ -34,6 +34,9 @@ int eloop_running_step(const u8 *data,
 void wpa_driver_test_eapol_inject(void *drv, const u8 *data, size_t data_len);
 void test_driver_set_send_eapol_cb( int (*send_eapol_cb)(void *drv, const u8 *data, size_t) );
 
+//in wps_supplicant.c
+int wpas_wps_status_get(void);
+
 static void send_to_wpa_driver(void *drv, const u8 *data, size_t data_len);
 static int handle_eapol_req_immediately(void *drv, const u8 *data, size_t data_len);
 static void generate_and_inject_eapol_resp(void *drv);
@@ -212,6 +215,7 @@ int wpa_supplicant_update_enrollee_state_machine(void* esm,
 	//TODO struct eapol_sm *sm = ((struct wpa_supplicant *)global->ifaces)->eapol; //##041
 	//TODO struct eap_sm *sm2 = sm->eap;
 	//TODO then check eap state from sm somehow
+	*ready = wpas_wps_status_get();
 	return 0;
 }
 
