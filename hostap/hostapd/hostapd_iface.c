@@ -27,6 +27,7 @@
 #include "eap_server/tncs.h"
 #include "ap/hostapd.h"
 #include "ap/ap_config.h"
+#include "wps/wps.h"
 #include "config_file.h"
 #include "eap_register.h"
 #include "dump_state.h"
@@ -37,12 +38,24 @@ extern int wpa_debug_level;
 extern int wpa_debug_show_keys;
 extern int wpa_debug_timestamp;
 
+//in eloop.c
 int eloop_running_start(void);
 int eloop_running_step(const u8 *data,
 		       size_t data_len);
-void wpa_driver_test_eapol_send(void *drv, const u8 *data, size_t data_len);
+void *eloop_drv_get(void);
 
-int wpa_supplicant_iface_delete(void);
+//in driver_test.c
+void wpa_driver_test_eapol_inject(void *drv, const u8 *data, size_t data_len);
+void wpa_driver_test_assoc_inject(void *drv, char *data);
+void test_driver_set_send_eapol_cb( int (*send_eapol_cb)(void *drv, const u8 *data, size_t) );
+
+
+int hostapd_iface_delete(void);
+
+static void send_to_test_driver(void *drv, const u8 *data, size_t data_len);
+static void associate_sta(void);
+static void eapol_start_from_sta();
+static void eapol_nnnn_from_sta();
 
 struct hapd_interfaces {
 	size_t count;
@@ -449,7 +462,7 @@ int hostapd_iface_init(void)
 						     "hostapd.conf.003",
 						     debug);
 	if (!interfaces.iface[0]) {
-		wpa_supplicant_iface_delete();
+		hostapd_iface_delete();
 		return -1;
 	}
 
@@ -475,7 +488,7 @@ int hostapd_iface_init(void)
 	return 0;
 }
 
-int wpa_supplicant_iface_delete(void)
+int hostapd_iface_delete(void)
 {
 	/* Deinitialize all interfaces */
 	hostapd_interface_deinit_free(interfaces.iface[0]);
@@ -487,4 +500,194 @@ int wpa_supplicant_iface_delete(void)
 	os_program_deinit();
 
 	return 0;
+}
+
+
+int hostapd_create_registrar_state_machine(void **rsm)
+{
+	rsm = NULL;
+	return 0;
+}
+
+int hostapd_start_registrar_state_machine(void *rsm,
+					  unsigned char* received_message,
+					  int received_message_len)
+{
+	wpa_printf(MSG_DEBUG, "hostapd_start_registrar_state_machine");
+
+#define NO_TIMEOUT   0
+#define ANY_ENROLLEE 0
+	const char *pin_code = "49226874";
+
+/* if ( wps_registrar_add_pin(hapd->wps->registrar, ANY_ENROLLEE,
+      (const u8 *) pin_code, os_strlen(pin_code),
+      NO_TIMEOUT)) != 0 ) */
+	if ( wps_registrar_add_pin(interfaces.iface[0]->bss[0]->wps->registrar, ANY_ENROLLEE,
+				   (const u8 *) pin_code, os_strlen(pin_code),
+				   NO_TIMEOUT) != 0 ) {
+	}
+
+#if 0
+	// Generate cli command: "wpa_supplicant WPS_PIN any 1111"
+	size_t resp_len;
+	char *cli_req = strdup("WPS_PIN any 49226874"); //##037 release mem
+	wpa_supplicant_ctrl_iface_process((struct wpa_supplicant *)global->ifaces,
+					  cli_req, &resp_len);
+#endif
+        associate_sta();
+	{
+		//##020 run eloop some rounds to get the state machines to correct states
+		// TODO handle this with timer
+		int ii = 0;
+		while (ii < 3) {
+			usleep(200000);
+			eloop_running_step(NULL, 0);
+			wpa_printf(MSG_DEBUG, "stepping eloop %d", ii);
+			ii++;
+		}
+	}
+        eapol_start_from_sta();
+	{
+		//##020 run eloop some rounds to get the state machines to correct states
+		// TODO handle this with timer
+		int ii = 0;
+		while (ii < 3) {
+			usleep(200000);
+			eloop_running_step(NULL, 0);
+			wpa_printf(MSG_DEBUG, "stepping eloop %d", ii);
+			ii++;
+		}
+	}
+        eapol_nnnn_from_sta();
+	{
+		//##020 run eloop some rounds to get the state machines to correct states
+		// TODO handle this with timer
+		int ii = 0;
+		while (ii < 3) {
+			usleep(200000);
+			eloop_running_step(NULL, 0);
+			wpa_printf(MSG_DEBUG, "stepping eloop %d", ii);
+			ii++;
+		}
+	}
+
+	//((struct wpa_supplicant *)global->ifaces)->drv_priv,
+        //send_to_test_driver(send_resp_drv, received_message, received_message_len);
+        send_to_test_driver(eloop_drv_get(), received_message, received_message_len);
+	{
+		//##020 run eloop some rounds to get the state machines to correct states
+		// TODO handle this with timer
+		int ii = 0;
+		while (ii < 10) {
+			usleep(200000);
+			eloop_running_step(NULL, 0);
+			wpa_printf(MSG_DEBUG, "stepping eloop %d", ii);
+			ii++;
+		}
+	}
+#if 0
+	if (send_eapol_data != NULL) {
+		wpa_printf(MSG_DEBUG, "start enrollee sm, out msg available, len:%d", send_eapol_data_len);
+		*next_message_len = send_eapol_data_len;
+		*next_message = send_eapol_data; //##034 who will release this memory?
+		send_eapol_data = NULL;
+		send_eapol_data_len = 0;
+	}
+	//##25 TODO: handle error case here
+#endif
+	return 0;
+}
+
+int hostapd_stop_registrar_state_machine(void *rsm)
+{
+	return 0;
+}
+
+//status values directly from wpsutil ##003
+typedef enum {WPSU_SM_E_PROCESS,WPSU_SM_E_SUCCESS,WPSU_SM_E_SUCCESSINFO,WPSU_SM_E_FAILURE,WPSU_SM_E_FAILUREEXIT} wpsu_enrollee_sm_status;
+int hostapd_update_registrar_state_machine(void* rsm,
+						 unsigned char* received_message,
+						 int received_message_len,
+						 unsigned char** next_message,
+						 int* next_message_len,
+						 int* ready)
+{
+#if 0
+        send_to_test_driver(send_resp_drv, received_message, received_message_len);
+	wpa_printf(MSG_DEBUG, "hostapd_update_registrar_state_machine");
+	eloop_running_step(NULL, 0);
+	if (send_eapol_data != NULL) {
+		wpa_printf(MSG_DEBUG, "update enrollee sm, out msg available, len:%d", send_eapol_data_len);
+		wpa_hexdump(MSG_MSGDUMP, "data: ", send_eapol_data, send_eapol_data_len);
+		*next_message_len = send_eapol_data_len;
+		*next_message = send_eapol_data; //##034 who will release this memory?
+		send_eapol_data = NULL;
+		send_eapol_data_len = 0;
+	}
+	//##25 TODO: handle error case here
+	//TODO struct eapol_sm *sm = ((struct wpa_supplicant *)global->ifaces)->eapol; //##041
+	//TODO struct eap_sm *sm2 = sm->eap;
+	//TODO then check eap state from sm somehow
+#endif
+	return 0;
+}
+
+static void send_to_test_driver(void *drv, const u8 *data, size_t data_len)
+{
+	const u8 msg_header[] = {0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, //??
+				 0x02, 0x00, 0x00, 0x00, 0x00, 0x01, //addr
+				 0xbb, 0xbb, //??
+				 0x02, 0x00, 0x00, 0x00,   //struct ieee802_1x_hdr
+				 0x02, 0x68, 0x01, 0x84,   //eap_hdr handled in eap_sm_parseEapReq()
+				 0xfe, 0x00, 0x37, 0x2a, 0x00, 0x00, 0x00, 0x01, 0x04, 0x00};  //??, handled in eap_sm_parseEapReq()
+
+	u8 *whole_msg;
+	size_t whole_msg_len;
+//	struct ieee802_1x_hdr *hdr;
+
+	whole_msg_len = 32 + data_len;
+	whole_msg = os_malloc(whole_msg_len);
+	memcpy(whole_msg, msg_header, 32);
+	memcpy(&whole_msg[32], data, data_len);
+	//##027 release *data memory??
+
+//	hdr = (struct ieee802_1x_hdr *)&whole_msg[14];
+//	hdr->length = 0x01;//host_to_be16(data_len);
+	whole_msg[16] = whole_msg[20] = (data_len + 14) / 256; //##029
+	whole_msg[17] = whole_msg[21] = (data_len + 14) % 256; //##029
+
+	wpa_driver_test_eapol_inject(drv, whole_msg, whole_msg_len);
+}
+
+static void associate_sta(void)
+{
+//	char *assoc_msg = "02:00:9a:f2:d6:0e 74657374 dd0e0050f204104a000110103a000101";
+	char *assoc_msg = "02:00:00:00:00:01 74657374 dd0e0050f204104a000110103a000101";
+	wpa_driver_test_assoc_inject(eloop_drv_get(), assoc_msg);
+}
+
+static void eapol_start_from_sta()
+{
+	u8 msg[] = {0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, //??
+		    0x02, 0x00, 0x00, 0x00, 0x00, 0x01, //addr
+		    0xbb, 0xbb, //??
+		    0x01, 0x01, 0x00, 0x00}; //EAPOL start
+	size_t msg_len = 14 + 4;
+
+	wpa_driver_test_eapol_inject(eloop_drv_get(), msg, msg_len);
+}
+
+static void eapol_nnnn_from_sta()
+{
+	u8 msg[] = {0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, //??
+		    0x02, 0x00, 0x00, 0x00, 0x00, 0x01, //addr
+		    0xbb, 0xbb, //??
+		    0x01, 0x00, 0x00, 0x22, 0x02, 0x67, 0x00, 0x22,
+		    0x01, 0x57, 0x46, 0x41, 0x2d, 0x53, 0x69, 0x6d,
+		    0x70, 0x6c, 0x65, 0x43, 0x6f, 0x6e, 0x66, 0x69,
+		    0x67, 0x2d, 0x45, 0x6e, 0x72, 0x6f, 0x6c, 0x6c,
+		    0x65, 0x65, 0x2d, 0x31, 0x2d, 0x30};
+	size_t msg_len = 14 + 38;
+
+	wpa_driver_test_eapol_inject(eloop_drv_get(), msg, msg_len);
 }

@@ -523,7 +523,7 @@ void eloop_run(void)
 		eloop_counter++;
 		res = select(eloop.max_sock + 1, rfds, wfds, efds,
 			     timeout ? &_tv : NULL);
-		wpa_printf(MSG_DEBUG, "XXXX select");
+//		wpa_printf(MSG_DEBUG, "XXXX select");
 		if (res < 0 && errno != EINTR && errno != 0) {
 			perror("select");
 			goto out;
@@ -536,7 +536,7 @@ void eloop_run(void)
 		if (timeout) {
 			os_get_time(&now);
 			if (!os_time_before(&now, &timeout->time)) {
-				wpa_printf(MSG_DEBUG, "XXXX timeout%08x", (int)timeout->handler);
+//				wpa_printf(MSG_DEBUG, "XXXX timeout%08x", (int)timeout->handler);
 				void *eloop_data = timeout->eloop_data;
 				void *user_data = timeout->user_data;
 				eloop_timeout_handler handler =
@@ -619,6 +619,11 @@ int eloop_running_step(const u8 *data,
 
 	return eloop_running_start();
 	//##007 TODO: handle terminate
+}
+
+void *eloop_drv_get(void)
+{
+	return eloop.readers.table[0].eloop_data;
 }
 
 void eloop_terminate(void)

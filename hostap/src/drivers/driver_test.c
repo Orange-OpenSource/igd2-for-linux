@@ -2725,6 +2725,18 @@ void wpa_driver_test_eapol_inject(void *drv, const u8 *data, size_t data_len)
 			      data, data_len);
 }
 
+void wpa_driver_test_assoc_inject(void *drv, char *data)
+{
+	struct sockaddr_un from;
+	socklen_t fromlen = sizeof(from);
+
+	from.sun_family = AF_UNIX;
+	strcpy(from.sun_path, "dummy_path");
+
+	test_driver_assoc((struct wpa_driver_test_data*)drv,
+			  &from, fromlen, data);
+}
+
 const struct wpa_driver_ops wpa_driver_test_ops = {
 	"test",
 	"wpa_supplicant test driver",
