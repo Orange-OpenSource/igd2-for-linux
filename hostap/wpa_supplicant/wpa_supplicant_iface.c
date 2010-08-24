@@ -229,11 +229,10 @@ unsigned char *wpa_supplicant_base64_encode(const unsigned char *src,
         unsigned char *correct_alloc = malloc(*out_len + 1);
         memcpy(correct_alloc, wpa_trace_alloc, *out_len);
 
-        // Have to add trailing NUL to the encoded block
-        correct_alloc[*out_len] = '\0';
         os_free(wpa_trace_alloc);
 
         (*out_len) --; //exclude trailing 0x0a from the length
+        correct_alloc[*out_len] = '\0'; // overwrite 0x0a with a NUL
         return correct_alloc;
 }
 
