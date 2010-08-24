@@ -504,25 +504,25 @@ void createUuidFromData(char **uuid_str, unsigned char **uuid_bin, size_t *uuid_
 }
 
 /**
- * Hash data with SHA-1
+ * Hash data with SHA-256
  *
  * @param data Data which is hashed
  * @param data_len Length of data
  * @param hash Pointer to hashed data. Return value.
  * @return Length of hash or error code
  */
-int calculate_sha1( const unsigned char *data, size_t data_len, unsigned char *hash )
+int calculate_sha256( const unsigned char *data, size_t data_len, unsigned char *hash )
 {
     unsigned char *tmp_hash;
     int hash_len = 0;
     gcry_md_hd_t ctx;
 
-    gcry_md_open( &ctx, GCRY_MD_SHA1, 0 );
+    gcry_md_open( &ctx, GCRY_MD_SHA256, 0 );
     gcry_md_write( ctx, ( void * )data, data_len );
     gcry_md_final( ctx );
 
-    tmp_hash = gcry_md_read( ctx, GCRY_MD_SHA1 );
-    hash_len = gcry_md_get_algo_dlen( GCRY_MD_SHA1 );
+    tmp_hash = gcry_md_read( ctx, GCRY_MD_SHA256 );
+    hash_len = gcry_md_get_algo_dlen( GCRY_MD_SHA256 );
     memcpy(( void * )hash, ( void * )tmp_hash, hash_len );
 
     gcry_md_close( ctx );
@@ -564,7 +564,7 @@ static int getIdentifierOfCP(struct Upnp_Action_Request *ca_event, char **identi
         return ret;
 
     // 2. create hash from certificate
-    ret = calculate_sha1(cert, cert_size, hash);
+    ret = calculate_sha256(cert, cert_size, hash);
     if (ret < 0)
         return ret;
 
@@ -605,7 +605,7 @@ static int get_cp_uuid(struct Upnp_Action_Request *ca_event, unsigned char **uui
         return ret;
 
     // 2. create hash from certificate
-    ret = calculate_sha1(cert, cert_size, hash);
+    ret = calculate_sha256(cert, cert_size, hash);
     if (ret < 0)
         return ret;
 
