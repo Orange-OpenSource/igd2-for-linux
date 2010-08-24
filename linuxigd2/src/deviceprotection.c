@@ -373,12 +373,15 @@ int checkCPPrivileges(struct Upnp_Action_Request *ca_event, const char *targetRo
     free(name);
 
     if (rolelist)
+    {
         // Let's add new entry to SIR. RoleList value is either value fetched from ACL for this CP or Public.
         // Identity value is not inserted to SIR now.
         // If return value is -1, session was there already. If 0 CP was new and it was 
         // succesfully added to SIR.
         // Every action is checked through checkCPPrivileges, so that is why every session is found from SIR
+        trace(1, "ZZZZ cp rolelist: '%s'\n", rolelist);
         ret = SIR_addSession(SIRDoc, identifier, 0, NULL, rolelist, NULL, NULL, NULL);
+    }
     else
         ret = SIR_addSession(SIRDoc, identifier, 0, NULL, "Public", NULL, NULL, NULL);
     if (ret == 0)
@@ -414,6 +417,7 @@ int checkCPPrivileges(struct Upnp_Action_Request *ca_event, const char *targetRo
     // check if targetRole is found from roles of this session
     if (roles)
     {
+        trace(1, "ZZZZ session roles: '%s'\n", roles);
         // loop through all roles from targetRoles. If any of those match, then exit OK
         char *tmp = NULL;
         char *role = NULL;
@@ -1451,7 +1455,10 @@ int SendSetupMessage(struct Upnp_Action_Request *ca_event)
 
                 //Handle invalid PIN case correctly
         if (sm_status == WPSU_SM_E_FAILURE)
+        {
+                trace(1, "return error 704\n");
                 ca_event->ErrCode = 704;
+        }
         else
                 ca_event->ErrCode = UPNP_E_SUCCESS;
         
