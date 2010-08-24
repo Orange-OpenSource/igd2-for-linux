@@ -396,6 +396,8 @@ static void wpa_supplicant_wps_event_fail(struct wpa_supplicant *wpa_s,
 	wpa_msg(wpa_s, MSG_INFO, WPS_EVENT_FAIL "msg=%d", fail->msg);
 	wpas_clear_wps(wpa_s);
 	wpas_notify_wps_event_fail(wpa_s, fail);
+
+	xxx_wps_status = WPSU_SM_E_FAILURE; //##050
 }
 
 
