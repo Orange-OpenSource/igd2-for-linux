@@ -23,6 +23,7 @@
 #include "driver_i.h"
 #include "ctrl_iface.h"
 #include "base64.h"
+#include "crypto/sha256.h"
 
 extern struct wpa_driver_ops *wpa_drivers[];
 
@@ -96,7 +97,7 @@ int wpa_supplicant_iface_init(void)
 	iface->ifname = "joo1";
 	params.wpa_debug_level = 1; //"-dd" = 1 (more debugging), "-d" = 2
 	params.wpa_debug_timestamp++;
-	iface->confname = "wpa_supplicant.conf.004";
+	iface->confname = "wpa_supplicant.conf";
 
 	exitcode = 0;
 	global = wpa_supplicant_init(&params);
@@ -323,4 +324,12 @@ static int handle_eapol_req_immediately(void *drv, const u8 *data, size_t data_l
 		return 0;
 	}
 	return -1;
+}
+
+//Just a wrapper to hide the internal crypto method
+void wpa_supplicant_hmac_sha256(const unsigned char *key, size_t key_len,
+				const unsigned char *data, size_t data_len,
+				unsigned char *mac)
+{
+	hmac_sha256(key, key_len, data, data_len, mac);
 }
