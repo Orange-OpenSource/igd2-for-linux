@@ -27,14 +27,13 @@
 #include "gatedevice.h"
 #include "globals.h"
 #include "util.h"
-#ifndef WPA_SUPP_IN_USE 
+#ifdef WPA_SUPP_IN_USE
+#include "wpa_supplicant_iface.h"
+#include "crypt.h"
+#else //WPA_SUPP_IN_USE        
 #include <wpsutil/enrollee_state_machine.h>
-#endif //WPA_SUPP_IN_USE        
 #include <wpsutil/base64mem.h>
 #include <wpsutil/cryptoutil.h>
-#ifdef WPA_SUPP_IN_USE
-//void hmac_sha256(const u8 *key, size_t key_len, const u8 *data, size_t data_len, u8 *mac); //##005 header for this?
-#include "wpa_supplicant_iface.h"
 #endif //WPA_SUPP_IN_USE        
 #include <upnp/upnptools.h>
 #include <upnp/upnp.h>
@@ -187,7 +186,11 @@ int InitDP()
         }
 
         // create hash from certificate
-        ret = wpsu_sha256(cert, cert_size, hash); //##004 replace this too
+#ifdef WPA_SUPP_IN_USE	
+        ret = crypt_calculate_sha256(cert, cert_size, hash);
+#else //WPA_SUPP_IN_USE	
+        ret = wpsu_sha256(cert, cert_size, hash);
+#endif //WPA_SUPP_IN_USE	
         if (ret < 0)
         {
             trace(1, "Failed to create hash from server certificate");
@@ -508,36 +511,6 @@ void createUuidFromData(char **uuid_str, unsigned char **uuid_bin, size_t *uuid_
 }
 
 /**
- * Hash data with SHA-256
- *
- * @param data Data which is hashed
- * @param data_len Length of data
- * @param hash Pointer to hashed data. Return value.
- * @return Length of hash or error code
- */
-int calculate_sha256( const unsigned char *data, size_t data_len, unsigned char *hash )
-{
-    unsigned char *tmp_hash;
-    int hash_len = 0;
-    gcry_md_hd_t ctx;
-
-    gcry_md_open( &ctx, GCRY_MD_SHA256, 0 );
-    gcry_md_write( ctx, ( void * )data, data_len );
-    gcry_md_final( ctx );
-
-    tmp_hash = gcry_md_read( ctx, GCRY_MD_SHA256 );
-    hash_len = gcry_md_get_algo_dlen( GCRY_MD_SHA256 );
-    memcpy(( void * )hash, ( void * )tmp_hash, hash_len );
-
-    gcry_md_close( ctx );
-
-    if ( tmp_hash == NULL )
-        return -1;
-
-    return hash_len;
-}
-
-/**
  * Get identity identifier of Control point based on certificate of Control Point.
  * Identifier is created like this:
  *  1. create sha-1 hash from CP certificate
@@ -568,7 +541,7 @@ static int getIdentifierOfCP(struct Upnp_Action_Request *ca_event, char **identi
         return ret;
 
     // 2. create hash from certificate
-    ret = calculate_sha256(cert, cert_size, hash);
+    ret = crypt_calculate_sha256(cert, cert_size, hash);
     if (ret < 0)
         return ret;
 
@@ -609,7 +582,7 @@ static int get_cp_uuid(struct Upnp_Action_Request *ca_event, unsigned char **uui
         return ret;
 
     // 2. create hash from certificate
-    ret = calculate_sha256(cert, cert_size, hash);
+    ret = crypt_calculate_sha256(cert, cert_size, hash);
     if (ret < 0)
         return ret;
 
@@ -1077,7 +1050,11 @@ static int getSaltAndStoredForName(const char *nameUPPER, unsigned char **b64_sa
             unsigned char namesalt[namesalt_len];
 
             // create SALT
-            unsigned char *salt = wpsu_createRandomValue(DP_SALT_BYTES); //##004 replace this too
+#ifdef WPA_SUPP_IN_USE	
+            unsigned char *salt = crypt_create_random_value(DP_SALT_BYTES);
+#else //WPA_SUPP_IN_USE	
+            unsigned char *salt = wpsu_createRandomValue(DP_SALT_BYTES);
+#endif //WPA_SUPP_IN_USE	
 
             memcpy(namesalt, nameUPPER, name_len);
             memcpy(namesalt+name_len, salt, DP_SALT_BYTES);
@@ -1102,8 +1079,13 @@ static int getSaltAndStoredForName(const char *nameUPPER, unsigned char **b64_sa
                        the first block. (block size should be defined to 160bits => DP_STORED_BYTES = 8)
              */
             unsigned char bin_stored[DP_STORED_BYTES];
+#ifdef WPA_SUPP_IN_USE	
+            ret = crypt_pbkdf2(g_vars.adminPassword, strlen(g_vars.adminPassword), namesalt,
+                               namesalt_len, DP_PRF_ROUNDS, DP_STORED_BYTES, bin_stored);
+#else //WPA_SUPP_IN_USE	
             ret = wpsu_pbkdf2(g_vars.adminPassword, strlen(g_vars.adminPassword), namesalt,
-                            namesalt_len, DP_PRF_ROUNDS, DP_STORED_BYTES, bin_stored);  //##004 replace this too
+                            namesalt_len, DP_PRF_ROUNDS, DP_STORED_BYTES, bin_stored);
+#endif //WPA_SUPP_IN_USE	
 
             if (ret != 0) return ret;
 
@@ -1174,7 +1156,11 @@ static int createUserLoginChallengeResponse(struct Upnp_Action_Request *ca_event
 #endif //WPA_SUPP_IN_USE	
 
         // Create CHALLENGE = random 128-bit value
-        unsigned char *challenge = wpsu_createNonce(DP_NONCE_BYTES); //##004 replace this too
+#ifdef WPA_SUPP_IN_USE	
+        unsigned char *challenge = crypt_create_nonce(DP_NONCE_BYTES);
+#else //WPA_SUPP_IN_USE	
+        unsigned char *challenge = wpsu_createNonce(DP_NONCE_BYTES);
+#endif //WPA_SUPP_IN_USE	
 
 	int b64len = 0;
 #ifdef WPA_SUPP_IN_USE
@@ -1300,7 +1286,11 @@ static int createAuthenticator(const char          *b64_stored,
     memcpy( cdc + bin_challenge_len + DP_UUID_LEN, cp_uuid, DP_UUID_LEN );
 
     unsigned char hmac_result[WPSU_HASH_LEN];
-    hmac_sha256( bin_stored, bin_stored_len, cdc, cdc_len, hmac_result ); //##004 replace this too
+#ifdef WPA_SUPP_IN_USE
+    wpa_supplicant_hmac_sha256( bin_stored, bin_stored_len, cdc, cdc_len, hmac_result );
+#else //WPA_SUPP_IN_USE	
+    hmac_sha256( bin_stored, bin_stored_len, cdc, cdc_len, hmac_result );
+#endif //WPA_SUPP_IN_USE	
     // release useless stuff
     free( bin_challenge );
     free( cdc );

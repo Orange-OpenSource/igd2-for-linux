@@ -37,9 +37,9 @@
 #include "util.h"
 #include "pmlist.h"
 #include "lanhostconfig.h"
-#include "deviceprotection.h" 
+#include "deviceprotection.h"
+#include "crypt.h"
 #include <locale.h>
-#include <wpsutil/cryptoutil.h>
 #include <gcrypt.h>
 #include <errno.h> 
 #include <pthread.h>
@@ -91,7 +91,7 @@ static int updateDescDocUuid(const char *descDocFile)
     }
 
     // create hash from certificate
-    ret = wpsu_sha256(cert, cert_size, hash);
+    ret = crypt_calculate_sha256(cert, cert_size, hash);
     if (ret < 0)
     {
         ixmlDocument_free(descDoc);
