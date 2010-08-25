@@ -42,7 +42,7 @@ static void send_to_wpa_driver(void *drv, const u8 *data, size_t data_len);
 static int handle_eapol_req_immediately(void *drv, const u8 *data, size_t data_len);
 static void generate_and_inject_eapol_resp(void *drv);
 
-struct wpa_interface *ifaces;
+struct wpa_interface *g_iface;
 struct wpa_global *global;
 
 //##040 combine to struct
@@ -74,9 +74,7 @@ static int wpa_supplicant_iface_send_eapol_cb(void *drv, const u8 *data, size_t 
 //modified from main() (in wpa_supplicant/main.c)
 int wpa_supplicant_iface_init(void)
 {
-	int i;
-	struct wpa_interface *iface;
-	int iface_count, exitcode = -1;
+	int exitcode = -1;
 	struct wpa_params params;
 
 	test_driver_set_send_eapol_cb(wpa_supplicant_iface_send_eapol_cb);
@@ -87,42 +85,30 @@ int wpa_supplicant_iface_init(void)
 	os_memset(&params, 0, sizeof(params));
 	params.wpa_debug_level = MSG_INFO;
 
-	iface = ifaces = os_zalloc(sizeof(struct wpa_interface));
-	if (ifaces == NULL)
+	g_iface = os_zalloc(sizeof(struct wpa_interface));
+	if (g_iface == NULL)
 		return -1;
-	iface_count = 1;
 
 	//##002 hardcoded args for now
-	iface->driver = "test";
-	iface->ifname = "joo1";
+	g_iface->driver = "test";
+	g_iface->ifname = "joo1";
 	params.wpa_debug_level = 1; //"-dd" = 1 (more debugging), "-d" = 2
 	params.wpa_debug_timestamp++;
-	iface->confname = "wpa_supplicant.conf";
+	g_iface->confname = "wpa_supplicant.conf";
 
 	exitcode = 0;
 	global = wpa_supplicant_init(&params);
 	if (global == NULL) {
 		wpa_printf(MSG_ERROR, "Failed to initialize wpa_supplicant");
-		os_free(ifaces);
+		os_free(g_iface);
 
 		os_program_deinit();
 
 		return -1;
 	}
 
-	for (i = 0; exitcode == 0 && i < iface_count; i++) {
-		if ((ifaces[i].confname == NULL &&
-		     ifaces[i].ctrl_interface == NULL) ||
-		    ifaces[i].ifname == NULL) {
-			if (iface_count == 1 && (params.ctrl_interface ||
-						 params.dbus_ctrl_interface))
-				break;
-			exitcode = -1;
-			break;
-		}
-		if (wpa_supplicant_add_iface(global, &ifaces[i]) == NULL)
-			exitcode = -1;
-	}
+	if (wpa_supplicant_add_iface(global, g_iface) == NULL)
+		exitcode = -1;
 
 	if (exitcode == 0) {
 //##019		if (eloop_running_start() == 0) {
@@ -142,7 +128,7 @@ int wpa_supplicant_iface_delete(void)
 {
 	wpa_supplicant_deinit(global);
 
-	os_free(ifaces);
+	os_free(g_iface);
 
 	os_program_deinit();
 
