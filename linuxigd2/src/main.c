@@ -127,6 +127,11 @@ static int updateDescDocUuid(const char *descDocFile)
     return ret;
 }
 
+void trace_gnutls(int level, const char* str)
+{
+	printf("%d: %s", level, str);
+}
+
 int main (int argc, char** argv)
 {
     char descDocUrl[7+15+1+5+1+sizeof(g_vars.descDocName)+1]; // http://ipaddr:port/docName<null>
@@ -170,6 +175,10 @@ int main (int argc, char** argv)
         non_secure = 1;
         arg++;
     }
+
+    // uncomment the following lines, if you want gnutls traces
+//    gnutls_global_set_log_level(9);
+//    gnutls_global_set_log_function(trace_gnutls);
 
     // Save interface names for later use
     strncpy(g_vars.extInterfaceName, argv[arg++], IFNAMSIZ);
