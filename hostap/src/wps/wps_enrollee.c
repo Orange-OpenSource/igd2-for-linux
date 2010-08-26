@@ -1,3 +1,4 @@
+//TODO: update header text
 /*
  * Wi-Fi Protected Setup - Enrollee
  * Copyright (c) 2008, Jouni Malinen <j@w1.fi>
@@ -704,11 +705,14 @@ static int wps_process_creds(struct wps_data *wps, const u8 *cred[],
 	if (wps->wps->ap)
 		return 0;
 
-//#040	if (num_cred == 0) {
-//#040		wpa_printf(MSG_DEBUG, "WPS: No Credential attributes "
-//#040			   "received");
-//#040		return -1;
-//#040	}
+// Credentials are not mandatory in UPnP DeviceProtection WPS,
+// so this is commented out for now
+//TODO: use this code, when building normal wpa_supplicant.
+//	if (num_cred == 0) {
+//		wpa_printf(MSG_DEBUG, "WPS: No Credential attributes "
+//			   "received");
+//		return -1;
+//	}
 
 	for (i = 0; i < num_cred; i++) {
 		if (wps_process_cred_e(wps, cred[i], cred_len[i]))

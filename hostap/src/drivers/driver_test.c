@@ -1,3 +1,4 @@
+//TODO: update header text
 /*
  * Testing driver interface for a simulated network driver
  * Copyright (c) 2004-2010, Jouni Malinen <j@w1.fi>
@@ -2299,6 +2300,7 @@ static const u8 * wpa_driver_test_get_mac_addr(void *priv)
 	wpa_printf(MSG_DEBUG, "%s", __func__);
 	return drv->own_addr;
 }
+
 
 static int wpa_driver_test_send_eapol(void *priv, const u8 *dest, u16 proto,
 				      const u8 *data, size_t data_len)

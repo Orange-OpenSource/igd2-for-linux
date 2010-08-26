@@ -1,3 +1,4 @@
+//TODO: update header text
 /*
  * Event loop based on select() loop
  * Copyright (c) 2002-2009, Jouni Malinen <j@w1.fi>
@@ -487,7 +488,7 @@ int eloop_register_signal_reconfig(eloop_signal_handler handler,
 #endif /* CONFIG_NATIVE_WINDOWS */
 }
 
-unsigned int eloop_counter = 0; //##008
+
 void eloop_run(void)
 {
 	fd_set *rfds, *wfds, *efds;
@@ -520,10 +521,8 @@ void eloop_run(void)
 		eloop_sock_table_set_fds(&eloop.readers, rfds);
 		eloop_sock_table_set_fds(&eloop.writers, wfds);
 		eloop_sock_table_set_fds(&eloop.exceptions, efds);
-		eloop_counter++;
 		res = select(eloop.max_sock + 1, rfds, wfds, efds,
 			     timeout ? &_tv : NULL);
-//		wpa_printf(MSG_DEBUG, "XXXX select");
 		if (res < 0 && errno != EINTR && errno != 0) {
 			perror("select");
 			goto out;
@@ -536,7 +535,6 @@ void eloop_run(void)
 		if (timeout) {
 			os_get_time(&now);
 			if (!os_time_before(&now, &timeout->time)) {
-//				wpa_printf(MSG_DEBUG, "XXXX timeout%08x", (int)timeout->handler);
 				void *eloop_data = timeout->eloop_data;
 				void *user_data = timeout->user_data;
 				eloop_timeout_handler handler =
@@ -561,7 +559,14 @@ out:
 	os_free(efds);
 }
 
-int eloop_running_start(void)
+/**
+ * eloop_running_part1 - eloop_run() replacement to be used in a situation,
+ * where mainloop is somewhere else.
+ *
+ * This is to be used with eloop_running_part2().
+ * The functionality of this method is the same as in eloop_run() before select().
+ */
+int eloop_running_part1(void)
 {
 	int res = -1;
 	struct os_time tv, now;
@@ -589,8 +594,15 @@ int eloop_running_start(void)
 }
 
 
-int eloop_running_step(const u8 *data,
-		       size_t data_len)
+/**
+ * eloop_running_part2 - eloop_run() replacement to be used in a situation,
+ * where mainloop is somewhere else.
+ *
+ * This is to be used with eloop_running_part1().
+ * The functionality of this method is the same as in eloop_run() after select().
+ */
+int eloop_running_part2(const u8 *data,
+			size_t data_len)
 {
 	struct eloop_timeout *timeout;
 	struct os_time now;
@@ -611,16 +623,18 @@ int eloop_running_step(const u8 *data,
 	}
 
 	if (data != NULL) {
-		//##006 hack: send directly
-		wpa_printf(MSG_DEBUG, "XXXX sending not impl.");
-//		wpa_driver_test_eapol((struct wpa_driver_test_data *)drv,
+		wpa_printf(MSG_DEBUG, "NOTE! sending not impl.");
+//		wpa_driver_test_eapol((struct wpa_driver_test_data *)eloop_drv_get(),
 //				      data, data_len);
 	}
 
-	return eloop_running_start();
-	//##007 TODO: handle terminate
+	return eloop_running_part1();
+	//TODO: handle terminate
 }
 
+/**
+ * eloop_drv_get - Get handle to driver data
+ */
 void *eloop_drv_get(void)
 {
 	return eloop.readers.table[0].eloop_data;

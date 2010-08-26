@@ -1,3 +1,4 @@
+//TODO: update header text
 /*
  * WPA Supplicant
  * Copyright (c) 2003-2010, Jouni Malinen <j@w1.fi>
@@ -115,6 +116,8 @@ const char *wpa_supplicant_full_license5 =
 "\n";
 #endif /* CONFIG_NO_STDOUT_DEBUG */
 
+/* This can be used to set configuration values from library interface */
+/* TODO: eliminate global var */
 static struct wpa_config *g_config = NULL;
 
 extern int wpa_debug_level;
