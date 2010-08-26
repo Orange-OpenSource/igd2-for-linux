@@ -12,10 +12,8 @@ extern "C" {
 /**
  * wpa_supplicant_iface configuration data
  *
- * This data structure is presents the per-interface (radio) configuration
- * data. In many cases, there is only one struct wpa_config instance, but if
- * more than one network interface is being controlled, one instance is used
- * for each.
+ * This data structure is a subset of internal wpa_config structure,
+ * plus device_pin
  */
 typedef struct {
 	char *device_pin;
@@ -25,7 +23,7 @@ typedef struct {
 	char *model_name;
 	char *model_number;
 	char *serial_number;
-        char *device_type;
+	char *device_type;
 	char *config_methods;
 } wpa_supplicant_wps_enrollee_config;
 
