@@ -1,13 +1,10 @@
+//TODO: insert header text, this is a new file
 #ifndef WPA_SUPPLICANT_IFACE_H
 #define WPA_SUPPLICANT_IFACE_H
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-//values directly from wpsutil ##003
-#define WPSU_MAC_LEN               6
-#define WPSU_HASH_LEN              32 // if SHA1 is used then 20
 
 /**
  * wpa_supplicant_iface configuration data
@@ -37,8 +34,12 @@ int wpa_supplicant_start_enrollee_state_machine(void *esm,
                                                 int* next_message_len);
 int wpa_supplicant_stop_enrollee_state_machine(void *esm);
 
-//status values directly from wpsutil ##003
-typedef enum {WPSU_SM_E_PROCESS,WPSU_SM_E_SUCCESS,WPSU_SM_E_SUCCESSINFO,WPSU_SM_E_FAILURE,WPSU_SM_E_FAILUREEXIT} wpsu_enrollee_sm_status; 
+//status values for 'int *ready' output parameter
+typedef enum {WPASUPP_SM_E_PROCESS,
+	      WPASUPP_SM_E_SUCCESS,
+	      WPASUPP_SM_E_SUCCESSINFO,
+	      WPASUPP_SM_E_FAILURE,
+	      WPASUPP_SM_E_FAILUREEXIT} wpsu_enrollee_sm_status;
 int wpa_supplicant_update_enrollee_state_machine(void* esm,
                                                  unsigned char* received_message,
                                                  int received_message_len,

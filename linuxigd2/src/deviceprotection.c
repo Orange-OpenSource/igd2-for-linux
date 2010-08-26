@@ -71,6 +71,9 @@ static IXML_Document *ACLDoc = NULL;
 // flag telling if WPS introduction process is going on
 static int gWpsIntroductionRunning = 0;
 
+#define MAC_LEN               6
+#define HASH_LEN              32
+
 #define PSEUDO_RANDOM_UUID_TYPE 0x5
 typedef struct {
     uint32_t  time_low;
@@ -161,9 +164,9 @@ int InitDP()
 
     int ret = 0;
     char descDocFile[sizeof(g_vars.xmlPath)+sizeof(g_vars.descDocName)+2];
-    unsigned char MAC[WPSU_MAC_LEN];
-    memset(MAC, 0x00, WPSU_MAC_LEN);
-    GetMACAddressStr(MAC, WPSU_MAC_LEN, g_vars.intInterfaceName);
+    unsigned char MAC[MAC_LEN];
+    memset(MAC, 0x00, MAC_LEN);
+    GetMACAddressStr(MAC, MAC_LEN, g_vars.intInterfaceName);
 
     // manufacturer and device info is read from device description XML
     sprintf(descDocFile, "%s/%s", g_vars.xmlPath, g_vars.descDocName);
@@ -237,7 +240,7 @@ int InitDP()
                                             NULL,
                                             0,
                                             MAC,
-                                            WPSU_MAC_LEN,
+                                            MAC_LEN,
                                             device_uuid,
                                             uuid_size,
                                             NULL,
@@ -792,7 +795,7 @@ static void message_received(struct Upnp_Action_Request *ca_event, int error, un
 
     switch (*status)
     {
-        case WPSU_SM_E_SUCCESS:
+        case WPASUPP_SM_E_SUCCESS:
         {
             trace(3,"DeviceProtection introduction last message received!\n");
             // Add CP certificate hash into ACL
@@ -821,24 +824,24 @@ static void message_received(struct Upnp_Action_Request *ca_event, int error, un
             trace_ixml(3, "Contents of ACL:",ACLDoc);
             break;
         }
-        case WPSU_SM_E_SUCCESSINFO:
+        case WPASUPP_SM_E_SUCCESSINFO:
         {
             trace(3,"DeviceProtection introduction last message received M2D!\n");
             break;
         }
 
-        case WPSU_SM_E_FAILURE:
+        case WPASUPP_SM_E_FAILURE:
         {
             trace(3,"DeviceProtection introduction error in state machine (Peer gave wrong PIN?). Gracefully terminating and sending of NACK...\n");
             break;
         }
 
-        case WPSU_SM_E_FAILUREEXIT:
+        case WPASUPP_SM_E_FAILUREEXIT:
         {
             trace(3,"Received NACK from peer. Terminating state machine...\n");
             break;
         }
-        case WPSU_SM_E_PROCESS:
+        case WPASUPP_SM_E_PROCESS:
         {
             trace(3, "Continuing DeviceProtection introduction...\n");
             break;
@@ -1276,7 +1279,7 @@ static int createAuthenticator(const char          *b64_stored,
     memcpy( cdc + bin_challenge_len, device_uuid, DP_UUID_LEN );
     memcpy( cdc + bin_challenge_len + DP_UUID_LEN, cp_uuid, DP_UUID_LEN );
 
-    unsigned char hmac_result[WPSU_HASH_LEN];
+    unsigned char hmac_result[HASH_LEN];
 #ifdef WPA_SUPP_IN_USE
     wpa_supplicant_hmac_sha256( bin_stored, bin_stored_len, cdc, cdc_len, hmac_result );
 #else //WPA_SUPP_IN_USE	
@@ -1435,7 +1438,7 @@ int SendSetupMessage(struct Upnp_Action_Request *ca_event)
         trace(3,"Send response for SendSetupMessage request\n");
 
                 //Handle invalid PIN case correctly
-        if (sm_status == WPSU_SM_E_FAILURE)
+        if (sm_status == WPASUPP_SM_E_FAILURE)
         {
                 trace(1, "return error 704\n");
                 ca_event->ErrCode = 704;
@@ -1450,13 +1453,13 @@ int SendSetupMessage(struct Upnp_Action_Request *ca_event)
     }
 
     // Any else state means that WPS is either ready or in error state and it must be terminated
-    if (sm_status != WPSU_SM_E_PROCESS)
+    if (sm_status != WPASUPP_SM_E_PROCESS)
     {
         stopWPS();
     }
 
     // Send last ACK if success
-    if (sm_status == WPSU_SM_E_SUCCESS)
+    if (sm_status == WPASUPP_SM_E_SUCCESS)
     {
         // response (next message) to base64
 #ifdef WPA_SUPP_IN_USE
