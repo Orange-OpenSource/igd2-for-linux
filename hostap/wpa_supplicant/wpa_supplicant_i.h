@@ -499,6 +499,7 @@ void wpa_supplicant_rx_eapol(void *ctx, const u8 *src_addr,
 			     const u8 *buf, size_t len);
 enum wpa_key_mgmt key_mgmt2driver(int key_mgmt);
 enum wpa_cipher cipher_suite2driver(int cipher);
+void wpa_supplicant_set_config(void *config);
 
 /* events.c */
 void wpa_supplicant_mark_disassoc(struct wpa_supplicant *wpa_s);

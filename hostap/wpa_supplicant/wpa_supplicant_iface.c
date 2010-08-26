@@ -24,6 +24,8 @@
 #include "ctrl_iface.h"
 #include "base64.h"
 #include "crypto/sha256.h"
+#include "wpa_supplicant_iface.h"
+#include "config.h"
 
 extern struct wpa_driver_ops *wpa_drivers[];
 
@@ -72,7 +74,7 @@ static int wpa_supplicant_iface_send_eapol_cb(void *drv, const u8 *data, size_t 
 
 
 //modified from main() (in wpa_supplicant/main.c)
-int wpa_supplicant_iface_init(void)
+int wpa_supplicant_iface_init(wpa_supplicant_wps_enrollee_config *config_in)
 {
 	int exitcode = -1;
 	struct wpa_params params;
@@ -97,6 +99,41 @@ int wpa_supplicant_iface_init(void)
 	g_iface->confname = "wpa_supplicant.conf";
 
 	exitcode = 0;
+
+	struct wpa_config *conf1 = os_zalloc(sizeof(struct wpa_config));
+	conf1->ssid = NULL;
+	conf1->pssid = NULL;
+	conf1->num_prio = 0;
+	conf1->eapol_version = 0;
+	conf1->ap_scan = 0;
+	conf1->ctrl_interface = NULL;
+	conf1->ctrl_interface_group = NULL;
+	conf1->fast_reauth = 0;
+	conf1->opensc_engine_path = NULL;
+	conf1->pkcs11_engine_path = NULL;
+	conf1->pkcs11_module_path = NULL;
+	conf1->driver_param = NULL;
+	conf1->dot11RSNAConfigPMKLifetime = 0;
+	conf1->dot11RSNAConfigPMKReauthThreshold = 0;
+	conf1->dot11RSNAConfigSATimeout = 0;
+	conf1->update_config = 0;
+	conf1->blobs = NULL;
+	memcpy(conf1->uuid, config_in->uuid, sizeof(conf1->uuid));
+	conf1->device_name = strdup(config_in->device_name);
+	conf1->manufacturer = strdup(config_in->manufacturer);
+	conf1->model_name = strdup(config_in->model_name);
+	conf1->model_number = strdup(config_in->model_number);
+	conf1->serial_number = strdup(config_in->serial_number);
+        conf1->device_type = strdup(config_in->device_type);
+	conf1->config_methods = strdup(config_in->config_methods);
+	//u8 os_version[4];
+	//char country[2];
+	conf1->wps_cred_processing = 0;
+	conf1->bss_max_count = 200;
+	conf1->filter_ssids = 0;
+
+	wpa_supplicant_set_config(conf1);
+
 	global = wpa_supplicant_init(&params);
 	if (global == NULL) {
 		wpa_printf(MSG_ERROR, "Failed to initialize wpa_supplicant");
@@ -178,8 +215,6 @@ int wpa_supplicant_stop_enrollee_state_machine(void *esm)
 	return 0;
 }
 
-//status values directly from wpsutil ##003
-typedef enum {WPSU_SM_E_PROCESS,WPSU_SM_E_SUCCESS,WPSU_SM_E_SUCCESSINFO,WPSU_SM_E_FAILURE,WPSU_SM_E_FAILUREEXIT} wpsu_enrollee_sm_status;
 int wpa_supplicant_update_enrollee_state_machine(void* esm,
 						 unsigned char* received_message,
 						 int received_message_len,

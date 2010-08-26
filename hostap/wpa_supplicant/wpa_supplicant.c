@@ -115,6 +115,8 @@ const char *wpa_supplicant_full_license5 =
 "\n";
 #endif /* CONFIG_NO_STDOUT_DEBUG */
 
+static struct wpa_config *g_config = NULL;
+
 extern int wpa_debug_level;
 extern int wpa_debug_show_keys;
 extern int wpa_debug_timestamp;
@@ -1921,9 +1923,14 @@ static int wpa_supplicant_init_iface(struct wpa_supplicant *wpa_s,
 			wpa_s->conf->driver_param =
 				os_strdup(iface->driver_param);
 		}
-	} else
-		wpa_s->conf = wpa_config_alloc_empty(iface->ctrl_interface,
-						     iface->driver_param);
+	} else {
+		if (g_config != NULL) {
+			wpa_s->conf = g_config;
+		} else {
+			wpa_s->conf = wpa_config_alloc_empty(iface->ctrl_interface,
+							     iface->driver_param);
+		}
+	}
 
 	if (wpa_s->conf == NULL) {
 		wpa_printf(MSG_ERROR, "\nNo configuration found.");
@@ -2408,4 +2415,9 @@ void wpa_supplicant_deinit(struct wpa_global *global)
 	os_free(global);
 	wpa_debug_close_syslog();
 	wpa_debug_close_file();
+}
+
+void wpa_supplicant_set_config(void *config)
+{
+	g_config = (struct wpa_config *)config;
 }
