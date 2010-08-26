@@ -48,7 +48,7 @@
 /* Make libgrypt (gnutls) thread save. This assumes that we are using pthred for threading.
  * Check http://www.gnu.org/software/gnutls/manual/gnutls.html#Multi_002dthreaded-applications and
  * http://www.gnupg.org/documentation/manuals/gcrypt/Initializing-the-library.html#Initializing-the-library
- * Also both libraries, pupnp and wpsutil, are able to do this initialization, but it probably is the best 
+ * Also pupnp library is able to do this initialization, but it probably is the best 
  * if the main application does the initialization, not the libraries.
  */
 GCRY_THREAD_OPTION_PTHREAD_IMPL;
@@ -278,7 +278,7 @@ int main (int argc, char** argv)
 
     openlog("upnpd", LOG_CONS | LOG_NDELAY | LOG_PID | (foreground ? LOG_PERROR : 0), LOG_LOCAL6);
 
-    // initialize libgcrypt library which is used by both pupnp (gnutls) and wpsutil
+    // initialize libgcrypt library which is used by both pupnp (gnutls) and crypt.c
     if (!gcry_control (GCRYCTL_INITIALIZATION_FINISHED_P))
     {
         trace(3, "Initializing libgcrypt library ... ");
