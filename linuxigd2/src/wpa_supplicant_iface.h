@@ -39,7 +39,7 @@ typedef enum {WPASUPP_SM_E_PROCESS,
 	      WPASUPP_SM_E_SUCCESS,
 	      WPASUPP_SM_E_SUCCESSINFO,
 	      WPASUPP_SM_E_FAILURE,
-	      WPASUPP_SM_E_FAILUREEXIT} wpsu_enrollee_sm_status;
+	      WPASUPP_SM_E_FAILUREEXIT} wpasupp_enrollee_sm_status;
 int wpa_supplicant_update_enrollee_state_machine(void* esm,
                                                  unsigned char* received_message,
                                                  int received_message_len,
