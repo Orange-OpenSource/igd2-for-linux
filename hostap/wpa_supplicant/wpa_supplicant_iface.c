@@ -46,6 +46,7 @@ static void generate_and_inject_eapol_resp(void *drv);
 
 struct wpa_interface *g_iface;
 struct wpa_global *global;
+char *g_pin_code = NULL;
 
 //##040 combine to struct
 u8 *send_eapol_data = NULL;
@@ -99,6 +100,8 @@ int wpa_supplicant_iface_init(wpa_supplicant_wps_enrollee_config *config_in)
 	g_iface->confname = NULL;
 
 	exitcode = 0;
+
+	g_pin_code = os_strdup(config_in->device_pin);
 
 	struct wpa_config *conf1 = os_zalloc(sizeof(struct wpa_config));
 	conf1->ssid = NULL;
@@ -166,6 +169,7 @@ int wpa_supplicant_iface_delete(void)
 	wpa_supplicant_deinit(global);
 
 	os_free(g_iface);
+	os_free(g_pin_code);
 
 	os_program_deinit();
 
@@ -184,7 +188,12 @@ int wpa_supplicant_start_enrollee_state_machine(void *esm,
 {
 	// Generate cli command: "wpa_supplicant WPS_PIN any 1111"
 	size_t resp_len;
-	char *cli_req = os_strdup("WPS_PIN any 49226874"); //##037 release mem
+	const char *cli_cmd = "WPS_PIN any ";
+	const int cli_req_max_len = 100;
+	char *cli_req = os_malloc(cli_req_max_len + 1);
+	strncpy(cli_req, cli_cmd, cli_req_max_len);
+	strncat(cli_req, g_pin_code, cli_req_max_len - strlen(cli_cmd));
+
 	wpa_supplicant_ctrl_iface_process((struct wpa_supplicant *)global->ifaces,
 					  cli_req, &resp_len);
 	os_free(cli_req);
