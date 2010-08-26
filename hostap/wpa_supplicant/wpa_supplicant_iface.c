@@ -96,7 +96,7 @@ int wpa_supplicant_iface_init(wpa_supplicant_wps_enrollee_config *config_in)
 	g_iface->ifname = "joo1";
 	params.wpa_debug_level = 1; //"-dd" = 1 (more debugging), "-d" = 2
 	params.wpa_debug_timestamp++;
-	g_iface->confname = "wpa_supplicant.conf";
+	g_iface->confname = NULL;
 
 	exitcode = 0;
 
@@ -104,11 +104,11 @@ int wpa_supplicant_iface_init(wpa_supplicant_wps_enrollee_config *config_in)
 	conf1->ssid = NULL;
 	conf1->pssid = NULL;
 	conf1->num_prio = 0;
-	conf1->eapol_version = 0;
+	conf1->eapol_version = 1;
 	conf1->ap_scan = 0;
 	conf1->ctrl_interface = NULL;
 	conf1->ctrl_interface_group = NULL;
-	conf1->fast_reauth = 0;
+	conf1->fast_reauth = 1;
 	conf1->opensc_engine_path = NULL;
 	conf1->pkcs11_engine_path = NULL;
 	conf1->pkcs11_module_path = NULL;
@@ -119,13 +119,13 @@ int wpa_supplicant_iface_init(wpa_supplicant_wps_enrollee_config *config_in)
 	conf1->update_config = 0;
 	conf1->blobs = NULL;
 	memcpy(conf1->uuid, config_in->uuid, sizeof(conf1->uuid));
-	conf1->device_name = strdup(config_in->device_name);
-	conf1->manufacturer = strdup(config_in->manufacturer);
-	conf1->model_name = strdup(config_in->model_name);
-	conf1->model_number = strdup(config_in->model_number);
-	conf1->serial_number = strdup(config_in->serial_number);
-        conf1->device_type = strdup(config_in->device_type);
-	conf1->config_methods = strdup(config_in->config_methods);
+	conf1->device_name = os_strdup(config_in->device_name);
+	conf1->manufacturer = os_strdup(config_in->manufacturer);
+	conf1->model_name = os_strdup(config_in->model_name);
+	conf1->model_number = os_strdup(config_in->model_number);
+	conf1->serial_number = os_strdup(config_in->serial_number);
+        conf1->device_type = os_strdup(config_in->device_type);
+	conf1->config_methods = os_strdup(config_in->config_methods);
 	//u8 os_version[4];
 	//char country[2];
 	conf1->wps_cred_processing = 0;
@@ -184,9 +184,10 @@ int wpa_supplicant_start_enrollee_state_machine(void *esm,
 {
 	// Generate cli command: "wpa_supplicant WPS_PIN any 1111"
 	size_t resp_len;
-	char *cli_req = strdup("WPS_PIN any 49226874"); //##037 release mem
+	char *cli_req = os_strdup("WPS_PIN any 49226874"); //##037 release mem
 	wpa_supplicant_ctrl_iface_process((struct wpa_supplicant *)global->ifaces,
 					  cli_req, &resp_len);
+	os_free(cli_req);
 	{
 		//##020 run eloop some rounds to get the state machines to correct states
 		// TODO handle this with timer
