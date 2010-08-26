@@ -207,29 +207,20 @@ int InitDP()
 
 #ifdef WPA_SUPP_IN_USE
         {
-                wpa_supplicant_wps_enrollee_info enrollee_info =
+                wpa_supplicant_wps_enrollee_config enrollee_config =
                         {
-                                .devicePIN = g_vars.pinCode,
+                                .device_pin = g_vars.pinCode,
+                                //.mac_address = MAC, //TODO: check if this is needed
+                                .device_name = GetFirstDocumentItem(descDoc, "friendlyName"),
                                 .manufacturer = GetFirstDocumentItem(descDoc, "manufacturer"),
-                                .modelName = GetFirstDocumentItem(descDoc, "modelName"), 
-                                .modelNumber = GetFirstDocumentItem(descDoc, "modelNumber"),
-                                .serialNumber = GetFirstDocumentItem(descDoc, "serialNumber"),
-                                .deviceName = GetFirstDocumentItem(descDoc, "friendlyName"),
-                                .primaryDeviceType = NULL,
-                                .primaryDeviceType_len = 0,
-                                .macAddress = MAC,
-                                .macAddress_len = WPSU_MAC_LEN,
-                                .uuid = device_uuid,
-                                .uuid_len = uuid_size,
-                                .OSVersion = NULL,
-                                .OSVersion_len = 0,
-                                .pubKey = NULL,
-                                .pubKey_len = 0,
-                                .configMethods = 0, //##003 not needed
-                                .RFBands = 0 //##003 not needed
+                                .model_name = GetFirstDocumentItem(descDoc, "modelName"), 
+                                .model_number = GetFirstDocumentItem(descDoc, "modelNumber"),
+                                .serial_number = GetFirstDocumentItem(descDoc, "serialNumber"),
+                                .device_type = "1-0050F204-1", //(Computer / PC)
+                                .config_methods = "label",
                         };
-                
-                ret = wpa_supplicant_iface_init( &enrollee_info );
+                memcpy(enrollee_config.uuid, device_uuid, uuid_size);
+                ret = wpa_supplicant_iface_init( &enrollee_config );
         }
 #else //WPA_SUPP_IN_USE 
 

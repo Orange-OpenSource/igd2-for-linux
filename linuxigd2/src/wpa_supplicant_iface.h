@@ -9,29 +9,26 @@ extern "C" {
 #define WPSU_MAC_LEN               6
 #define WPSU_HASH_LEN              32 // if SHA1 is used then 20
 
+/**
+ * wpa_supplicant_iface configuration data
+ *
+ * This data structure is a subset of internal wpa_config structure,
+ * plus device_pin
+ */
 typedef struct {
-  char *devicePIN;
-  char *manufacturer;
-  char *modelName; 
-  char *modelNumber;
-  char *serialNumber;
-  char *deviceName;
-  unsigned char *primaryDeviceType;
-  int primaryDeviceType_len;
-  unsigned char *macAddress;
-  int macAddress_len;
-  unsigned char *uuid;
-  int uuid_len;
-  unsigned char *OSVersion;
-  int OSVersion_len;
-  unsigned char *pubKey;
-  int pubKey_len;
-  int configMethods; //##003 not needed??
-  int RFBands; //##003 not needed??
-} wpa_supplicant_wps_enrollee_info;
+	char *device_pin;
+	unsigned char uuid[16];
+	char *device_name;
+	char *manufacturer;
+	char *model_name;
+	char *model_number;
+	char *serial_number;
+	char *device_type;
+	char *config_methods;
+} wpa_supplicant_wps_enrollee_config;
 
 
-int wpa_supplicant_iface_init(wpa_supplicant_wps_enrollee_info *info);
+int wpa_supplicant_iface_init(wpa_supplicant_wps_enrollee_config *config);
 int wpa_supplicant_iface_delete(void);
 
 int wpa_supplicant_create_enrollee_state_machine(void **esm);
