@@ -26,8 +26,8 @@
 #include "gatedevice.h"
 #include "globals.h"
 #include "util.h"
-#include "wpa_supplicant_iface.h"
 #include "crypt.h"
+#include <hostap/wpa_supplicant_iface.h>
 #include <upnp/upnptools.h>
 #include <upnp/upnp.h>
 #include <gcrypt.h>
