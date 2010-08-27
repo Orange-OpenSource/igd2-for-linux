@@ -69,7 +69,7 @@ int iptc_add_rule(const char *table,
                    const char *dnat_to,
                    const int append)
 {
-    iptc_handle_t handle;
+    struct iptc_handle *handle;
     struct ipt_entry *chain_entry = NULL;
     struct ipt_entry_match *entry_match = NULL;
     struct ipt_entry_target *entry_target = NULL;
@@ -155,16 +155,16 @@ int iptc_add_rule(const char *table,
         return 0;
     }
     if (append)
-        result = iptc_append_entry(labelit, chain_entry, &handle);
+        result = iptc_append_entry(labelit, chain_entry, handle);
     else
-        result = iptc_insert_entry(labelit, chain_entry, 0, &handle);
+        result = iptc_insert_entry(labelit, chain_entry, 0, handle);
 
     if (!result)
     {
         trace(1, "libiptc error: Can't add, %s", iptc_strerror(errno));
         return 0;
     }
-    result = iptc_commit(&handle);
+    result = iptc_commit(handle);
     if (!result)
     {
         trace(1, "libiptc error: Commit error, %s", iptc_strerror(errno));
@@ -208,7 +208,7 @@ int iptc_delete_rule(const char *table,
                       const char *target,
                       const char *dnat_to)
 {
-    iptc_handle_t handle;
+    struct iptc_handle *handle;
     const struct ipt_entry *e;
     ipt_chainlabel labelit;
     int i, result;
@@ -233,7 +233,7 @@ int iptc_delete_rule(const char *table,
     }
 
     /* check through rules to find match */
-    for (e = iptc_first_rule(chain, &handle), i=0; e; e = iptc_next_rule(e, &handle), i++)
+    for (e = iptc_first_rule(chain, handle), i=0; e; e = iptc_next_rule(e, handle), i++)
     {
         if (s_src != INADDR_NONE && e->ip.src.s_addr != s_src) continue;
         if (s_dest != INADDR_NONE && e->ip.dst.s_addr != s_dest) continue;
@@ -242,7 +242,7 @@ int iptc_delete_rule(const char *table,
         if (protocol && strcmp(protocol, "TCP") == 0 && e->ip.proto != IPPROTO_TCP) continue;
         if (protocol && strcmp(protocol, "UDP") == 0 && e->ip.proto != IPPROTO_UDP) continue;
         if ((srcports || destports) && IPT_MATCH_ITERATE(e, matchcmp, srcports, destports) == 0) continue;
-        if (target && strcmp(target, iptc_get_target(e, &handle)) != 0) continue;
+        if (target && strcmp(target, iptc_get_target(e, handle)) != 0) continue;
         if (dnat_to && strcmp(target, "DNAT") == 0)
         {
             struct ipt_entry_target *t;
@@ -268,13 +268,13 @@ int iptc_delete_rule(const char *table,
         break;
     }
     if (!e) return 0;
-    result = iptc_delete_num_entry(chain, i, &handle);
+    result = iptc_delete_num_entry(chain, i, handle);
     if (!result)
     {
         trace(1, "libiptc error: Delete error, %s", iptc_strerror(errno));
         return 0;
     }
-    result = iptc_commit(&handle);
+    result = iptc_commit(handle);
     if (!result)
     {
         trace(1, "libiptc error: Commit error, %s", iptc_strerror(errno));
