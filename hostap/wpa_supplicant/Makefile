@@ -6,10 +6,10 @@ ifndef CFLAGS
 CFLAGS = -MMD -O2 -Wall -g
 endif
 
-export DESTDIR ?= /usr/local/
-export LIBDIR ?= lib
-export BINDIR ?= sbin
-export INCDIR ?= include
+export PREFIX ?= /usr/local
+export LIBDIR ?= $(PREFIX)/lib
+export BINDIR ?= $(PREFIX)/sbin
+export INCDIR ?= $(PREFIX)/include
 
 CFLAGS += -I../src
 CFLAGS += -I../src/utils
