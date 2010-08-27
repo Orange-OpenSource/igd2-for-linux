@@ -21,7 +21,6 @@
 #ifndef _IPTC_H_
 #define _IPTC_H_
 
-#include <iptables.h>
 #include <libiptc/libiptc.h>
 
 /* Original LinuxIGD used ip_nat_multi_range struct found from linux/netfilter_ipv4/ip_nat.h

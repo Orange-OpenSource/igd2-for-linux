@@ -26,7 +26,7 @@ LIBS += -L$(LIBIPTC_PREFIX)/lib
 INCLUDES += -I$(LIBIPTC_PREFIX)/include
 endif
 
-LIBS += -liptc
+LIBS += -liptc -lip4tc -lip6tc 
 INCLUDES += -DHAVE_LIBIPTC
 FILES += iptc.o
 endif
