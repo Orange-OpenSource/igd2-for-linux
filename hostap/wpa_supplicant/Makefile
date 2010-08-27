@@ -6,13 +6,18 @@ ifndef CFLAGS
 CFLAGS = -MMD -O2 -Wall -g
 endif
 
-export LIBDIR ?= /usr/local/lib/
-export BINDIR ?= /usr/local/sbin/
+export DESTDIR ?= /usr/local/
+export LIBDIR ?= lib
+export BINDIR ?= sbin
+export INCDIR ?= include
 
 CFLAGS += -I../src
 CFLAGS += -I../src/utils
 
 ALL=wpa_supplicant wpa_passphrase wpa_cli
+
+DYN_LIB=libwpa_supplicant.so
+DYN_LIB_IFACE_HEADER=wpa_supplicant_iface.h
 
 all: verify_config $(ALL) dynamic_eap_methods
 
@@ -37,6 +42,16 @@ install: all
 	mkdir -p $(DESTDIR)$(BINDIR)
 	for i in $(ALL); do cp $$i $(DESTDIR)$(BINDIR)/$$i; done
 	$(MAKE) -C ../src install
+
+install_libwpa_supplicant: $(DYN_LIB)
+	if ls $< >/dev/null 2>&1; then \
+		install -d $(DESTDIR)$(LIBDIR) && \
+		cp $< $(DESTDIR)$(LIBDIR) \
+	; fi
+	if ls $(DYN_LIB_IFACE_HEADER) >/dev/null 2>&1; then \
+		install -d $(DESTDIR)$(INCDIR)/hostap && \
+		cp $(DYN_LIB_IFACE_HEADER) $(DESTDIR)$(INCDIR)/hostap \
+	; fi
 
 OBJS = config.o
 OBJS += notify.o
@@ -1280,8 +1295,8 @@ wpa_priv: $(BCHECK) $(OBJS_priv)
 wpa_supplicant: .config $(BCHECK) $(OBJS) $(EXTRA_progs)
 	$(LDO) $(LDFLAGS) -o wpa_supplicant $(OBJS) $(LIBS) $(EXTRALIBS)
 
-libwpa_supplicant.so: .config $(BCHECK) $(OBJS_libwpa)
-	$(LDO) -shared $(LDFLAGS) -o libwpa_supplicant.so $(OBJS_libwpa) $(LIBS) $(EXTRALIBS)
+$(DYN_LIB): .config $(BCHECK) $(OBJS_libwpa)
+	$(LDO) -shared $(LDFLAGS) -o $(DYN_LIB) $(OBJS_libwpa) $(LIBS) $(EXTRALIBS)
 
 eapol_test: .config $(OBJS_t)
 	$(LDO) $(LDFLAGS) -o eapol_test $(OBJS_t) $(LIBS)
