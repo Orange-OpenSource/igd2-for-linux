@@ -1,4 +1,3 @@
-//TODO: update header text
 /*
  * Wi-Fi Protected Setup - Enrollee
  * Copyright (c) 2008, Jouni Malinen <j@w1.fi>

@@ -1,4 +1,3 @@
-//TODO: update header text
 /*
  * Testing driver interface for a simulated network driver
  * Copyright (c) 2004-2010, Jouni Malinen <j@w1.fi>
@@ -11,6 +10,16 @@
  * license.
  *
  * See README and COPYING for more details.
+ */
+
+/* This file is part of Nokia Device Protection service
+ *
+ * Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+ *
+ * Contact:  Nokia Corporation: Mika.saaranen@nokia.com
+ *
+ * This file may be used under the terms of the GNU General Public License version 2.1,
+ * a copy of which is found in COPYING included in the packaging of this file.
  */
 
 /* Make sure we get winsock2.h for Windows build to get sockaddr_storage */

@@ -1,4 +1,3 @@
-//TODO: update header text
 /*
  * wpa_supplicant / WPS integration
  * Copyright (c) 2008-2010, Jouni Malinen <j@w1.fi>

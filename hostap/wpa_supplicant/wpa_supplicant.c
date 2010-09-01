@@ -1,4 +1,3 @@
-//TODO: update header text
 /*
  * WPA Supplicant
  * Copyright (c) 2003-2010, Jouni Malinen <j@w1.fi>
