@@ -18,7 +18,7 @@
  *
  * Contact:  Nokia Corporation: Mika.saaranen@nokia.com
  *
- * This file may be used under the terms of the GNU General Public License version 2.1,
+ * This file may be used under the terms of the GNU General Public License version 2,
  * a copy of which is found in COPYING included in the packaging of this file.
  */
 
