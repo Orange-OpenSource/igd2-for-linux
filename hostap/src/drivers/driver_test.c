@@ -222,6 +222,12 @@ static int test_driver_send_eapol(void *priv, const u8 *addr, const u8 *data,
 	msg.msg_iovlen = 3;
 	msg.msg_name = &cli->un;
 	msg.msg_namelen = cli->unlen;
+
+	if (test_driver_send_eapol_cb != NULL) {
+		(*test_driver_send_eapol_cb)(drv, data, data_len);
+		return 0;
+	}
+
 	return sendmsg(drv->test_socket, &msg, 0);
 }
 
