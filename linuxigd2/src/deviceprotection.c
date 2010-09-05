@@ -815,7 +815,7 @@ static int getValuesFromPasswdFile(const char *nameUPPER, unsigned char **b64_sa
         if (name != NULL)
         {
             // if names match
-            if ( caseInsesitive_strcmp(name,nameUPPER) == 0 )
+            if ( strcmp(name,nameUPPER) == 0 )
             {
                 fclose(stream);
 
@@ -915,7 +915,7 @@ static int updateValuesToPasswdFile(const char *nameUPPER, const unsigned char *
         if (name != NULL)
         {
             // if names match
-            if ( caseInsesitive_strcmp(name,nameUPPER) == 0 )
+            if ( strcmp(name,nameUPPER) == 0 )
             {
                 // if we want to remove user from passwd file, lets not add him to temp file
                 if (!delete_values)
@@ -965,7 +965,7 @@ static int getSaltAndStoredForName(const char *nameUPPER, unsigned char **b64_sa
 
     if (ret != 0)
     {
-        if (strcmp(nameUPPER,"ADMINISTRATOR") == 0)
+        if (caseInsesitive_strcmp(nameUPPER,"ADMINISTRATOR") == 0)
         {
             // create new salt and stored
             int name_len = strlen(nameUPPER);
@@ -1399,7 +1399,7 @@ int GetUserLoginChallenge(struct Upnp_Action_Request *ca_event)
         }
 
         // name to uppercase
-        nameUPPER = toUpperCase(name);
+        nameUPPER = strdup(name);
         if (nameUPPER == NULL)
         {
             trace(1, "Failed to convert name to upper case ");
@@ -1407,7 +1407,7 @@ int GetUserLoginChallenge(struct Upnp_Action_Request *ca_event)
             addErrorData(ca_event, result, "Action Failed");
         }
         // check if user exits in password file and also in ACL. "Administrator" is an exception and it doesn't have to be in those files.
-        if ((strcmp(nameUPPER, "ADMINISTRATOR") == 0) || 
+        if ((caseInsesitive_strcmp(nameUPPER, "ADMINISTRATOR") == 0) ||
             ((getValuesFromPasswdFile(nameUPPER, NULL,NULL,NULL,NULL,0) == 0) &&
             (ACL_getRolesOfUser(ACLDoc, nameUPPER) != NULL)))
         {
@@ -1546,9 +1546,6 @@ int UserLogin(struct Upnp_Action_Request *ca_event)
         {
             // update loginattempts value
             result = SIR_updateSession(SIRDoc, (char *)id, NULL, NULL, NULL, &loginattempts, NULL, NULL);
-
-            // name to uppercase
-            loginName = toUpperCase(loginName);
 
             // get stored from passwd file
             int maxb64len = 2*DP_STORED_BYTES;
@@ -2088,8 +2085,7 @@ int SetUserLoginPassword(struct Upnp_Action_Request *ca_event)
             free(salt);
             return ca_event->ErrCode;
         }
-        // change name to uppercase, because usernames are not case sensitive
-        nameUPPER = toUpperCase(name);
+        nameUPPER = strdup(name);
         if (nameUPPER == NULL)
         {
             trace(1, "%s: Failed to turn name '%s' to uppercase",ca_event->ActionName,name);
@@ -2100,7 +2096,6 @@ int SetUserLoginPassword(struct Upnp_Action_Request *ca_event)
         else
         {
             getIdentityOfSession(ca_event, &identity);
-            identity = toUpperCase(identity);
             if (identity == NULL)
             {
                 trace(1, "%s: Failed to turn identity '%s' to uppercase",ca_event->ActionName,identity);
