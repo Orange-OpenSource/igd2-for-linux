@@ -39,7 +39,7 @@ static int getValuesFromPasswdFile(const char *nameUPPER, unsigned char **b64_sa
 static int putValuesToPasswdFile(const char *name, const unsigned char *b64_salt, const unsigned char *b64_stored);
 static int updateValuesToPasswdFile(const char *nameUPPER, const unsigned char *b64_salt, const unsigned char *b64_stored, int delete_values);
 static int getIdentifierOfCP(struct Upnp_Action_Request *ca_event, char **identifier, int *idLen, char **CN);
-static int createAuthenticator(const char *b64_stored, const char *b64_challenge, char **b64_authenticator, const unsigned char *cp_uuid, int *auth_len);
+static int createAuthenticator(const char *b64_stored, const char *b64_challenge, unsigned char **bin_authenticator, const unsigned char *cp_uuid, int *auth_len);
 static int startWPS();
 static void stopWPS();
 
@@ -1115,13 +1115,13 @@ static int createUserLoginChallengeResponse(struct Upnp_Action_Request *ca_event
  * 
  * @param b64_stored Base64 encoded value of STORED.
  * @param b64_challenge Base64 encoded value of Challenge.
- * @param b64_authenticator Pointer to string where authenticator is created. User needs to use free() for this
+ * @param bin_authenticator Pointer to allocated memory block where authenticator is created. User needs to use free() for this
  * @param auth_len Pointer to integer which is set to contain length of created authenticator
  * @return 0 if succeeded to create authenticato. Something else if error
  */
 static int createAuthenticator(const char          *b64_stored,
                                const char          *b64_challenge,
-                               char               **b64_authenticator,
+                               unsigned char       **bin_authenticator,
                                const unsigned char *cp_uuid,
                                int                 *auth_len)
 {
@@ -1161,10 +1161,9 @@ static int createAuthenticator(const char          *b64_stored,
     free( bin_challenge );
     free( cdc );
 
-    // encode 16 first bytes of created hash as base64 authenticator
-    *auth_len = 0;
-    *b64_authenticator = (char *)wpa_supplicant_base64_encode(hmac_result, DP_AUTH_BYTES, (size_t*)auth_len);
-
+    *bin_authenticator = malloc(DP_AUTH_BYTES);
+    memcpy(*bin_authenticator, hmac_result, DP_AUTH_BYTES);
+    *auth_len = DP_AUTH_BYTES;
     return 0;
 }
 
@@ -1567,9 +1566,15 @@ int UserLogin(struct Upnp_Action_Request *ca_event)
             }
             else
             {
-                // create authenticator
-                int auth_len = 0;
-                char *b64_authenticator = NULL;
+                // first decode the received authenticator
+                int bin_auth_1_len;
+                unsigned char *bin_auth_1 = wpa_supplicant_base64_decode((unsigned char*)authenticator,
+                                                                         strlen(authenticator),
+                                                                         (size_t*)&bin_auth_1_len);
+                    
+                // create authenticator from the locally stored values
+                int bin_auth_2_len = 0;
+                unsigned char *bin_auth_2 = NULL;
                 unsigned char *cp_uuid = NULL;
                 if ( get_cp_uuid( ca_event, &cp_uuid ) != 0)
                 {
@@ -1580,7 +1585,7 @@ int UserLogin(struct Upnp_Action_Request *ca_event)
                     return;
                 }
                 print_uuid( cp_uuid );
-                result = createAuthenticator((char *)b64_stored, loginChallenge, &b64_authenticator, cp_uuid, &auth_len);
+                result = createAuthenticator((char *)b64_stored, loginChallenge, &bin_auth_2, cp_uuid, &bin_auth_2_len);
 
                 // do the authenticators match?
                 if (result != 0)
@@ -1589,10 +1594,10 @@ int UserLogin(struct Upnp_Action_Request *ca_event)
                     result = 501;
                     addErrorData(ca_event, result, "Action Failed");
                 }
-                else if ( strcmp(authenticator, b64_authenticator) != 0 )
+                else if ((bin_auth_1_len != bin_auth_2_len) ||
+                         (memcmp(bin_auth_1, bin_auth_2, bin_auth_1_len) != 0))
                 {
                     trace(1, "%s: Authenticator values do not match!",ca_event->ActionName);
-                    trace(3, "Received Authenticator was '%s' and local Authenticator was '%s'",authenticator, b64_authenticator);
                     result = 701;
                     addErrorData(ca_event, result, "Authentication Failure");
                 }
@@ -1631,7 +1636,8 @@ int UserLogin(struct Upnp_Action_Request *ca_event)
                     } 
                 }
 
-                free(b64_authenticator);
+                free(bin_auth_1);
+                free(bin_auth_2);
             }
             free(b64_salt);
             free(b64_stored);
