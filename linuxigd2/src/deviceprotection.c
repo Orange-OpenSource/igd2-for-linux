@@ -1999,11 +1999,13 @@ int GetRolesForAction(struct Upnp_Action_Request *ca_event)
         {
             trace(1, "%s: Invalid DeviceUDN '%s'",
                   ca_event->ActionName, deviceUDN);
+            trace(3, "compared to '%s', '%s', '%s'", gateUDN, wanUDN, wanConnectionUDN);
             result = 600;
             addErrorData(ca_event, result, "Argument Value Invalid");
         }
         else
         {
+            trace(3, "Get roles for S:'%s', A:'%s'", serviceId, actionName);
             roleList = getAccessLevel(serviceId, actionName, 1, NULL);
             if (roleList)
             {
@@ -2073,6 +2075,8 @@ int SetUserLoginPassword(struct Upnp_Action_Request *ca_event)
             && (stored = GetFirstDocumentItem(ca_event->ActionRequest, "Stored") )
             && (salt = GetFirstDocumentItem(ca_event->ActionRequest, "Salt") ))
     {
+        trace(3, "ProtocolType:'%s', Name:'%s', Stored:'%s', Salt:'%s'",
+              protocoltype, name, stored, salt);
         if (strcmp(protocoltype, "PKCS5") != 0)
         {
             trace(1, "Login protocol type must be 'PKCS5': Invalid ProtocolType=%s\n",protocoltype);
