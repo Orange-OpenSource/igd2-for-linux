@@ -1693,21 +1693,34 @@ static int ACL_addRolesToRoleList(IXML_Document *doc, IXML_Node *roleListNode, c
  */
 static int ACL_removeRolesFromRoleList(IXML_Document *doc, IXML_Node *roleListNode, const char *roles)
 {
+    #define ROLELIST_MAX_LEN 256 
     IXML_Node *textNode = NULL;
 
+    if (strlen(roles) >= ROLELIST_MAX_LEN)
+    {
+        trace(1, "too long rolelist");
+        return ACL_COMMON_ERROR;
+    }
+    
     // check validity of rolenames
     if (ACL_validateRoleNames(doc, roles) != ACL_SUCCESS) return ACL_ROLE_ERROR;
 
     // get current value of "RoleList"
     char *currentRoles = GetTextValueOfNode(roleListNode);
-    if (currentRoles == NULL) return ACL_COMMON_ERROR;
+    if (strlen(currentRoles) >= ROLELIST_MAX_LEN)
+    {
+        trace(1, "too long rolelist");
+        return ACL_COMMON_ERROR;
+    }
 
-    char newRoleList[strlen(currentRoles)];
-    strcpy(newRoleList,"");
+    char newRoleList[ROLELIST_MAX_LEN];
+    memset(newRoleList, 0, ROLELIST_MAX_LEN);
 
-    char rolelist[strlen(roles)];
+    char rolelist[ROLELIST_MAX_LEN];
+    memset(rolelist, 0, ROLELIST_MAX_LEN);
+
     // go through all roles in current roles
-    strcpy(rolelist,currentRoles);
+    strncpy(rolelist, currentRoles, ROLELIST_MAX_LEN);
     char *role = strtok(rolelist, " ");
     if (role)
     {
