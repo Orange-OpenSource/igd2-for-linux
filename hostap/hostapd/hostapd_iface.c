@@ -39,8 +39,8 @@ extern int wpa_debug_show_keys;
 extern int wpa_debug_timestamp;
 
 //in eloop.c
-int eloop_running_start(void);
-int eloop_running_step(const u8 *data,
+int eloop_running_part1(void);
+int eloop_running_part2(const u8 *data,
 		       size_t data_len);
 void *eloop_drv_get(void);
 
@@ -466,8 +466,8 @@ int hostapd_iface_init(void)
 		return -1;
 	}
 
-//##019	if (eloop_running_start() == 0) {
-	eloop_running_start();
+//##019	if (eloop_running_part1() == 0) {
+	eloop_running_part1();
 	{
 		{
 			//##020 run eloop some rounds to get the state machines to correct states
@@ -475,12 +475,12 @@ int hostapd_iface_init(void)
 			int ii = 0;
 			while (ii < 5) {
 				usleep(500000);
-				eloop_running_step(NULL, 0);
+				eloop_running_part2(NULL, 0);
 				wpa_printf(MSG_DEBUG, "XXXX first steps %d", ii);
 				ii++;
 			}
 		}
-//		while (eloop_running_step(NULL, 0) == 0) {
+//		while (eloop_running_part2(NULL, 0) == 0) {
 //			wpa_printf(MSG_DEBUG, "XXXX timer timeout");
 //		}
 	}
@@ -541,7 +541,7 @@ int hostapd_start_registrar_state_machine(void *rsm,
 		int ii = 0;
 		while (ii < 3) {
 			usleep(200000);
-			eloop_running_step(NULL, 0);
+			eloop_running_part2(NULL, 0);
 			wpa_printf(MSG_DEBUG, "stepping eloop %d", ii);
 			ii++;
 		}
@@ -553,7 +553,7 @@ int hostapd_start_registrar_state_machine(void *rsm,
 		int ii = 0;
 		while (ii < 3) {
 			usleep(200000);
-			eloop_running_step(NULL, 0);
+			eloop_running_part2(NULL, 0);
 			wpa_printf(MSG_DEBUG, "stepping eloop %d", ii);
 			ii++;
 		}
@@ -565,7 +565,7 @@ int hostapd_start_registrar_state_machine(void *rsm,
 		int ii = 0;
 		while (ii < 3) {
 			usleep(200000);
-			eloop_running_step(NULL, 0);
+			eloop_running_part2(NULL, 0);
 			wpa_printf(MSG_DEBUG, "stepping eloop %d", ii);
 			ii++;
 		}
@@ -580,7 +580,7 @@ int hostapd_start_registrar_state_machine(void *rsm,
 		int ii = 0;
 		while (ii < 10) {
 			usleep(200000);
-			eloop_running_step(NULL, 0);
+			eloop_running_part2(NULL, 0);
 			wpa_printf(MSG_DEBUG, "stepping eloop %d", ii);
 			ii++;
 		}
@@ -615,7 +615,7 @@ int hostapd_update_registrar_state_machine(void* rsm,
 #if 0
         send_to_test_driver(send_resp_drv, received_message, received_message_len);
 	wpa_printf(MSG_DEBUG, "hostapd_update_registrar_state_machine");
-	eloop_running_step(NULL, 0);
+	eloop_running_part2(NULL, 0);
 	if (send_eapol_data != NULL) {
 		wpa_printf(MSG_DEBUG, "update enrollee sm, out msg available, len:%d", send_eapol_data_len);
 		wpa_hexdump(MSG_MSGDUMP, "data: ", send_eapol_data, send_eapol_data_len);
