@@ -33,11 +33,11 @@
 #include <gcrypt.h>
 
 static void message_received(struct Upnp_Action_Request *ca_event, int error, unsigned char *data, int len, int *status);
-static int getSaltAndStoredForName(const char *nameUPPER, unsigned char **b64_salt, int *salt_len, unsigned char **b64_stored, int *stored_len);
-static int createUserLoginChallengeResponse(struct Upnp_Action_Request *ca_event, const char *nameUPPER);
-static int getValuesFromPasswdFile(const char *nameUPPER, unsigned char **b64_salt, int *salt_len, unsigned char **b64_stored, int *stored_len, int max_size);
+static int getSaltAndStoredForName(const char *user_name, unsigned char **b64_salt, int *salt_len, unsigned char **b64_stored, int *stored_len);
+static int createUserLoginChallengeResponse(struct Upnp_Action_Request *ca_event, const char *user_name);
+static int getValuesFromPasswdFile(const char *user_name, unsigned char **b64_salt, int *salt_len, unsigned char **b64_stored, int *stored_len, int max_size);
 static int putValuesToPasswdFile(const char *name, const unsigned char *b64_salt, const unsigned char *b64_stored);
-static int updateValuesToPasswdFile(const char *nameUPPER, const unsigned char *b64_salt, const unsigned char *b64_stored, int delete_values);
+static int updateValuesToPasswdFile(const char *user_name, const unsigned char *b64_salt, const unsigned char *b64_stored, int delete_values);
 static int getIdentifierOfCP(struct Upnp_Action_Request *ca_event, char **identifier, int *idLen, char **CN);
 static int createAuthenticator(const char *b64_stored, const char *b64_challenge, unsigned char **bin_authenticator, const unsigned char *cp_uuid, int *auth_len);
 static int startWPS();
@@ -57,6 +57,8 @@ static IXML_Document *ACLDoc = NULL;
 
 // flag telling if WPS introduction process is going on
 static int gWpsIntroductionRunning = 0;
+
+static const char *admin_name = "Administrator";
 
 #define MAC_LEN               6
 #define HASH_LEN              32
@@ -784,11 +786,11 @@ static void message_received(struct Upnp_Action_Request *ca_event, int error, un
 
 
 /**
- * Get salt and stored values of user with nameUpper as username.
+ * Get salt and stored values of user with user_name as username.
  * With getValuesFromPasswdFile(name, NULL, NULL, NULL, NULL, 0) it is possible to check 
  * if password file contains that specific username.
  * 
- * @param nameUPPER User name in upper case.
+ * @param user_name User name.
  * @param b64_salt Pointer to salt data read from file (base64 encoded)
  * @param salt_len Pointer to integer where length of salt is inserted
  * @oaram b64_stored Pointer to stored data read from file (base64 encoded)
@@ -796,7 +798,7 @@ static void message_received(struct Upnp_Action_Request *ca_event, int error, un
  * @param max_size Maximum space available for salt and stored. If they are longer than max_size, error is returned
  * @return -1 if fail, -2 if username is not found, -3 if salt or stored is too long, 0 on success
  */
-static int getValuesFromPasswdFile(const char *nameUPPER, unsigned char **b64_salt, int *salt_len, unsigned char **b64_stored, int *stored_len, int max_size)
+static int getValuesFromPasswdFile(const char *user_name, unsigned char **b64_salt, int *salt_len, unsigned char **b64_stored, int *stored_len, int max_size)
 {
     // file is formatted as this (every user in own row):
     // Username,base64(SALT),base64(STORED)
@@ -815,7 +817,7 @@ static int getValuesFromPasswdFile(const char *nameUPPER, unsigned char **b64_sa
         if (name != NULL)
         {
             // if names match
-            if ( strcmp(name,nameUPPER) == 0 )
+            if ( strcmp(name,user_name) == 0 )
             {
                 fclose(stream);
 
@@ -851,7 +853,7 @@ static int getValuesFromPasswdFile(const char *nameUPPER, unsigned char **b64_sa
 /**
  * Update username,salt,stored values in password file.
  * 
- * @param name User name in uppercase
+ * @param name User name
  * @param b64_salt Pointer to salt data read from file (base64 encoded)
  * @oaram b64_stored Pointer to stored data read from file (base64 encoded)
  * @return -1 if fail -2 if username already exist, 0 on success
@@ -874,13 +876,13 @@ static int putValuesToPasswdFile(const char *name, const unsigned char *b64_salt
  * Update username,salt,stored values in password file.
  * Username and values can also be removed totally from file by putting delete_values as 1.
  * 
- * @param name User name in uppercase
+ * @param name User name
  * @param b64_salt Pointer to salt data read from file (base64 encoded)
  * @oaram b64_stored Pointer to stored data read from file (base64 encoded)
  * @param delete_values Use 0 to update existing values, 1 to delete.
  * @return -1 if fail, -2 if username is not found, 0 on success
  */
-static int updateValuesToPasswdFile(const char *nameUPPER, const unsigned char *b64_salt, const unsigned char *b64_stored, int delete_values)
+static int updateValuesToPasswdFile(const char *user_name, const unsigned char *b64_salt, const unsigned char *b64_stored, int delete_values)
 {
     // file is formatted as this (every user in own row):
     // Username,base64(SALT),base64(STORED)
@@ -915,11 +917,11 @@ static int updateValuesToPasswdFile(const char *nameUPPER, const unsigned char *
         if (name != NULL)
         {
             // if names match
-            if ( strcmp(name,nameUPPER) == 0 )
+            if ( strcmp(name,user_name) == 0 )
             {
                 // if we want to remove user from passwd file, lets not add him to temp file
                 if (!delete_values)
-                    fprintf(out, "%s,%s,%s\n", nameUPPER, b64_salt, b64_stored);
+                    fprintf(out, "%s,%s,%s\n", user_name, b64_salt, b64_stored);
 
                 ret = 0;
             }
@@ -942,47 +944,47 @@ static int updateValuesToPasswdFile(const char *nameUPPER, const unsigned char *
 }
 
 /**
- * Get salt and stored values of user with nameUPPER as username.
- * Username "ADMINISTRATOR" is an special case: if it is not found form password file, totally
+ * Get salt and stored values of user with user_name as username.
+ * Username "Administrator" is an special case: if it is not found form password file, totally
  * new salt and stored values are creted for that username. Password used for creation 
  * of stored is stored in config file.
  *  
  * 
- * @param nameUPPER User name in upper case.
+ * @param user_name User name
  * @param b64_salt Pointer to salt data read from file or newly created (base64 encoded)
  * @param salt_len Pointer to integer where length of salt is inserted
  * @oaram b64_stored Pointer to stored data read from file or newly created (base64 encoded)
  * @param stored_len Pointer to integer where length of stored is inserted
  * @return 0 on success
  */
-static int getSaltAndStoredForName(const char *nameUPPER, unsigned char **b64_salt, int *salt_len, unsigned char **b64_stored, int *stored_len)
+static int getSaltAndStoredForName(const char *user_name, unsigned char **b64_salt, int *salt_len, unsigned char **b64_stored, int *stored_len)
 {
     int maxb64len = 2*DP_STORED_BYTES;
     *b64_salt = (unsigned char *)malloc(maxb64len);
     *b64_stored = (unsigned char *)malloc(maxb64len);
 
-    int ret = getValuesFromPasswdFile(nameUPPER, b64_salt, salt_len, b64_stored, stored_len, maxb64len);
+    int ret = getValuesFromPasswdFile(user_name, b64_salt, salt_len, b64_stored, stored_len, maxb64len);
 
     if (ret != 0)
     {
-        if (caseInsesitive_strcmp(nameUPPER,"ADMINISTRATOR") == 0)
+        if (strcmp(user_name, admin_name) == 0)
         {
             // create new salt and stored
-            int name_len = strlen(nameUPPER);
+            int name_len = strlen(user_name);
             int namesalt_len = name_len + DP_SALT_BYTES;
             unsigned char namesalt[namesalt_len];
 
             // create SALT
             unsigned char *salt = crypt_create_random_value(DP_SALT_BYTES);
 
-            memcpy(namesalt, nameUPPER, name_len);
+            memcpy(namesalt, user_name, name_len);
             memcpy(namesalt+name_len, salt, DP_SALT_BYTES);
 
             /* Create STORED = first 160 bits of the key T1, with T1 computed according to [PKCS#5] algorithm PBKDF2
 
                 T1 is defined as the exclusive-or sum of the first c iterates of PRF applied to the concatenation 
                 of the Password, Name, Salt, and four-octet block index (0x00000001) in big-endian format.  
-                For DeviceProtection, the value for c is 5,000.  Name MUST be converted to upper-case, and 
+                For DeviceProtection, the value for c is 5,000.
                 Password and Name MUST be encoded in UTF-8 format prior to invoking the PRF operation.  
                 T1 = U1 \xor U2 \xor … \xor Uc
                 where
@@ -1007,7 +1009,7 @@ static int getSaltAndStoredForName(const char *nameUPPER, unsigned char **b64_sa
             *b64_salt = wpa_supplicant_base64_encode(salt, DP_SALT_BYTES, (size_t *)salt_len);
             *b64_stored = wpa_supplicant_base64_encode(bin_stored, DP_STORED_BYTES, (size_t *)stored_len);
             // write values to password file
-            ret = putValuesToPasswdFile(nameUPPER, *b64_salt, *b64_stored);
+            ret = putValuesToPasswdFile(user_name, *b64_salt, *b64_stored);
         }
     }
 
@@ -1021,8 +1023,12 @@ static int getSaltAndStoredForName(const char *nameUPPER, unsigned char **b64_sa
  * When Algorithm is the default value for DeviceProtection:1, the Salt and Challenge are derived as follows: 
  *  Salt = 16-octet random value used to hash Password into the STORED authentication value for each Name in the database.
  *  
- *  STORED = first 160 bits of the key T1, with T1 computed according to [PKCS#5] algorithm PBKDF2, with PRF=SHA-256.  A separate value of STORED is kept in the Device’s password file for each specific Name. 
- *  T1 is defined as the exclusive-or sum of the first c iterates of PRF applied to the concatenation of the Password, Name, Salt, and four-octet block index (0x00000001) in big-endian format.  For DeviceProtection, the value for c is 5,000.  Name MUST be converted to upper-case, and Password and Name MUST be encoded in UTF-8 format prior to invoking the PRF operation.  
+ *  STORED = first 160 bits of the key T1, with T1 computed according to [PKCS#5] algorithm PBKDF2, with PRF=SHA-256.
+ *  A separate value of STORED is kept in the Device’s password file for each specific Name. 
+ *  T1 is defined as the exclusive-or sum of the first c iterates of PRF applied to the concatenation of
+ *  the Password, Name, Salt, and four-octet block index (0x00000001) in big-endian format.
+ *  For DeviceProtection, the value for c is 5,000. Password and Name MUST be encoded in UTF-8 format prior
+ *  to invoking the PRF operation.  
  *  T1 = U1 \xor U2 \xor … \xor Uc
  *  where
  *  U1 = PRF(Password, Name || Salt || 0x0 || 0x0 || 0x0 || 0x1)
@@ -1033,10 +1039,10 @@ static int getSaltAndStoredForName(const char *nameUPPER, unsigned char **b64_sa
  *  Challenge = SHA-256(STORED || nonce).  Nonce is a fresh, random 128-bit value generated by the Device for each GetUserLoginChallenge() call.
  * 
  * @param ca_event Upnp event struct.
- * @param nameUPPER Username in uppercase
+ * @param user_name User name
  * @return Upnp error code.
  */
-static int createUserLoginChallengeResponse(struct Upnp_Action_Request *ca_event, const char *nameUPPER)
+static int createUserLoginChallengeResponse(struct Upnp_Action_Request *ca_event, const char *user_name)
 {
     int result = 0;
     unsigned char *b64_salt = NULL;
@@ -1044,9 +1050,9 @@ static int createUserLoginChallengeResponse(struct Upnp_Action_Request *ca_event
     int b64_salt_len = 0;
     int b64_stored_len = 0;
 
-    if (getSaltAndStoredForName(nameUPPER, &b64_salt, &b64_salt_len, &b64_stored, &b64_stored_len) != 0)
+    if (getSaltAndStoredForName(user_name, &b64_salt, &b64_salt_len, &b64_stored, &b64_stored_len) != 0)
     {
-        trace(1, "Error creating/getting STORED value for user %s",nameUPPER);
+        trace(1, "Error creating/getting STORED value for user %s",user_name);
         result = 501;
         addErrorData(ca_event, result, "Action Failed");
     }
@@ -1087,8 +1093,8 @@ static int createUserLoginChallengeResponse(struct Upnp_Action_Request *ca_event
         result = getIdentifierOfCP(ca_event, &identifier, &b64len, NULL);
         if (result == 0 )
         {
-            trace(3,"Session with id '%s' is being updated in SIR. Add name '%s' and challenge '%s'",identifier,nameUPPER,(char *)b64_challenge);
-            result = SIR_updateSession(SIRDoc, identifier, NULL, NULL, NULL, NULL, nameUPPER, (char *)b64_challenge);
+            trace(3,"Session with id '%s' is being updated in SIR. Add name '%s' and challenge '%s'",identifier,user_name,(char *)b64_challenge);
+            result = SIR_updateSession(SIRDoc, identifier, NULL, NULL, NULL, NULL, user_name, (char *)b64_challenge);
             if (result == 0)
                 trace_ixml(3, "Contents of SIR:",SIRDoc);
             else
@@ -1398,7 +1404,6 @@ int GetUserLoginChallenge(struct Upnp_Action_Request *ca_event)
     int result = 0;
     char *protocoltype = NULL;
     char *name = NULL;
-    char *nameUPPER = NULL;
     int ret, len=0;
     char *identifier = NULL;
 
@@ -1429,28 +1434,21 @@ int GetUserLoginChallenge(struct Upnp_Action_Request *ca_event)
             return ca_event->ErrCode;
         }
 
-        // name to uppercase
-        nameUPPER = strdup(name);
-        if (nameUPPER == NULL)
-        {
-            trace(1, "Failed to convert name to upper case ");
-            result = 501;
-            addErrorData(ca_event, result, "Action Failed");
-        }
-        // check if user exits in password file and also in ACL. "Administrator" is an exception and it doesn't have to be in those files.
-        if ((caseInsesitive_strcmp(nameUPPER, "ADMINISTRATOR") == 0) ||
-            ((getValuesFromPasswdFile(nameUPPER, NULL,NULL,NULL,NULL,0) == 0) &&
-            (ACL_getRolesOfUser(ACLDoc, nameUPPER) != NULL)))
+        // check if user exits in password file and also in ACL.
+        // "Administrator" is an exception and it doesn't have to be in those files.
+        if ((caseInsesitive_strcmp(name, admin_name) == 0) ||
+            ((getValuesFromPasswdFile(name, NULL,NULL,NULL,NULL,0) == 0) &&
+            (ACL_getRolesOfUser(ACLDoc, name) != NULL)))
         {
             // parameters OK
             if (result == 0)
             {
-                createUserLoginChallengeResponse(ca_event, nameUPPER);
+                createUserLoginChallengeResponse(ca_event, name);
             }
         }
         else
         {
-            trace(1, "Unknown username %s",nameUPPER);
+            trace(1, "Unknown username %s",name);
             result = 600;
             addErrorData(ca_event, result, "Argument Value Invalid");
         }
@@ -1463,7 +1461,6 @@ int GetUserLoginChallenge(struct Upnp_Action_Request *ca_event)
     }
 
     free(name);
-    free(nameUPPER);
     free(protocoltype);
     free(identifier);
 
@@ -2098,7 +2095,6 @@ int SetUserLoginPassword(struct Upnp_Action_Request *ca_event)
     char *name = NULL;
     char *stored = NULL;
     char *salt = NULL;
-    char *nameUPPER = NULL;
     char *identity = NULL;
 
     if ( (protocoltype = GetFirstDocumentItem(ca_event->ActionRequest, "ProtocolType") )
@@ -2119,14 +2115,7 @@ int SetUserLoginPassword(struct Upnp_Action_Request *ca_event)
             free(salt);
             return ca_event->ErrCode;
         }
-	
-        nameUPPER = strdup(name);
-        if (nameUPPER == NULL)
-        {
-            trace(1, "%s: Failed to turn name '%s' to uppercase",ca_event->ActionName,name);
-            result = 501;
-            addErrorData(ca_event, result, "Action Failed");
-        }
+        
         // First try to update existing username/password pair
         else
         {
@@ -2140,14 +2129,14 @@ int SetUserLoginPassword(struct Upnp_Action_Request *ca_event)
             // check from SIR that username received as parameter is current identity of this session
             // or has "Admin" privileges
             // TODO: This might be better to do by getting managed roles from acceslevels. But spec might change so let this be now... 
-            else if ( (checkCPPrivileges(ca_event, "Admin") == 0) || (strcmp(identity, nameUPPER) == 0))
+            else if ( (checkCPPrivileges(ca_event, "Admin") == 0) || (strcmp(identity, name) == 0))
             {
-                result = updateValuesToPasswdFile(nameUPPER, (unsigned char *)salt, (unsigned char *)stored, 0); // if this returns 0, all is well
+                result = updateValuesToPasswdFile(name, (unsigned char *)salt, (unsigned char *)stored, 0); // if this returns 0, all is well
                 if (result == -2)
                 {
                     // So we are after all adding new username! (Because username was not found from passwd-file)
                     // lets Add new
-                    result = putValuesToPasswdFile(nameUPPER, (unsigned char *)salt, (unsigned char *)stored);
+                    result = putValuesToPasswdFile(name, (unsigned char *)salt, (unsigned char *)stored);
                     if (result == -2)
                     {
                         trace(1, "%s: Same username '%s' exists in passwd file already",ca_event->ActionName,name);
@@ -2162,12 +2151,12 @@ int SetUserLoginPassword(struct Upnp_Action_Request *ca_event)
 
                         // if failed to add new logindata to file but reason wasn't that same username 
                         // existed in passwd file already, try to remove added data
-                        updateValuesToPasswdFile(nameUPPER, (unsigned char *)salt, (unsigned char *)stored, 1);
+                        updateValuesToPasswdFile(name, (unsigned char *)salt, (unsigned char *)stored, 1);
                     }
                     else
                     {
                         // add user to ACL also
-                        result = ACL_addUser(ACLDoc, nameUPPER, "Public");  // if this return 0, all is well
+                        result = ACL_addUser(ACLDoc, name, "Public");  // if this return 0, all is well
                         // user might have ben added through AddIdentityList previously
                         if (result == ACL_USER_ERROR) 
                             result = ACL_SUCCESS;
@@ -2180,9 +2169,9 @@ int SetUserLoginPassword(struct Upnp_Action_Request *ca_event)
                             addErrorData(ca_event, result, "Action Failed");
 
                             // remove added username from passwdfile
-                            updateValuesToPasswdFile(nameUPPER, (unsigned char *)salt, (unsigned char *)stored, 1);
+                            updateValuesToPasswdFile(name, (unsigned char *)salt, (unsigned char *)stored, 1);
                             // try to remove username from ACL
-                            ACL_removeUser(ACLDoc, nameUPPER);
+                            ACL_removeUser(ACLDoc, name);
                         }
                     } // end of adding new
 
@@ -2223,7 +2212,6 @@ int SetUserLoginPassword(struct Upnp_Action_Request *ca_event)
     free(name);
     free(stored);
     free(salt);
-    free(nameUPPER);
     free(identity);
 
     trace_ixml(3, "Contents of ACL:",ACLDoc);
