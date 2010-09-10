@@ -1167,6 +1167,37 @@ static int createAuthenticator(const char          *b64_stored,
     return 0;
 }
 
+
+/**
+ * Validate input arguments for SetUserLoginPassword
+ *
+ * @param protocoltype,
+ * @param name,
+ * @param stored,
+ * @param salt, 
+ * @return 0 on success, -1 if operation fails.
+ */
+int validateArgsForSULP(const char *protocoltype, const char *name, const char *stored, const char *salt)
+{
+    if (strcmp(protocoltype, "PKCS5") != 0)
+    {
+        trace(1, "Login protocol type must be 'PKCS5': Invalid ProtocolType=%s\n",protocoltype);
+        return -1; 
+    }
+    if (strlen(stored) != DP_STORED_BYTES)
+    {
+        trace(1, "Invalid length for Stored\n");
+        return -1; 
+    }
+    if (strlen(salt) != DP_SALT_BYTES)
+    {
+        trace(1, "Invalid length for Salt\n");
+        return -1; 
+    }
+    return 0;   
+}
+
+
 //-----------------------------------------------------------------------------
 //
 //                      DeviceProtection:1 Service Actions
@@ -2077,9 +2108,8 @@ int SetUserLoginPassword(struct Upnp_Action_Request *ca_event)
     {
         trace(3, "ProtocolType:'%s', Name:'%s', Stored:'%s', Salt:'%s'",
               protocoltype, name, stored, salt);
-        if (strcmp(protocoltype, "PKCS5") != 0)
+        if (validateArgsForSULP(protocoltype, name, stored, salt) != 0)
         {
-            trace(1, "Login protocol type must be 'PKCS5': Invalid ProtocolType=%s\n",protocoltype);
             result = 600;
             addErrorData(ca_event, result, "Argument Value Invalid");
 
@@ -2089,6 +2119,7 @@ int SetUserLoginPassword(struct Upnp_Action_Request *ca_event)
             free(salt);
             return ca_event->ErrCode;
         }
+	
         nameUPPER = strdup(name);
         if (nameUPPER == NULL)
         {
