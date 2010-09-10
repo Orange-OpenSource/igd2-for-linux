@@ -1768,9 +1768,24 @@ int UserLogout(struct Upnp_Action_Request *ca_event)
  */
 int GetACLData(struct Upnp_Action_Request *ca_event)
 {
-    char *ACL = ixmlDocumenttoString(ACLDoc);
+    char *ACL;
     IXML_Document *ActionResult = NULL;
 
+    char *identifier = NULL;
+    int identifier_len;
+
+    // CP with same ID must be listed in ACL
+    getIdentifierOfCP(ca_event, &identifier, &identifier_len, NULL);
+    if (identifier && (ACL_getRolesOfCP(ACLDoc, identifier) == NULL))
+    {
+        trace(1, "%s: ID '%s' of control point is not listed in ACL",ca_event->ActionName,identifier);
+        addErrorData(ca_event, 606, "Action not authorized");
+        free(identifier);
+        return ca_event->ErrCode;
+    }
+    free(identifier);
+
+    ACL = ixmlDocumenttoString(ACLDoc);
     if (ACL)
     {
         ActionResult = UpnpMakeActionResponse(ca_event->ActionName, DP_SERVICE_TYPE,
