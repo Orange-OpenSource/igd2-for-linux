@@ -2015,6 +2015,20 @@ int GetRolesForAction(struct Upnp_Action_Request *ca_event)
     char *actionName = NULL;
     char *roleList = NULL;
     char *restrictedRoleList = NULL;
+    char *identifier = NULL;
+    int identifier_len;
+
+    // CP with same ID must be listed in ACL
+    getIdentifierOfCP(ca_event, &identifier, &identifier_len, NULL);
+    if (identifier && (ACL_getRolesOfCP(ACLDoc, identifier) == NULL))
+    {
+        trace(1, "%s: ID '%s' of control point is not listed in ACL",ca_event->ActionName,identifier);
+        result = 606;
+        addErrorData(ca_event, result, "Action not authorized");
+        free(identifier);
+        return ca_event->ErrCode;
+    }
+    free(identifier);
 
     if ( (deviceUDN = GetFirstDocumentItem(ca_event->ActionRequest, "DeviceUDN"))
         && (serviceId = GetFirstDocumentItem(ca_event->ActionRequest, "ServiceId"))
