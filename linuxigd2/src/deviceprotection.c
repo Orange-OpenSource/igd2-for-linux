@@ -2166,7 +2166,7 @@ int SetUserLoginPassword(struct Upnp_Action_Request *ca_event)
             getIdentityOfSession(ca_event, &identity);
             if (identity == NULL)
             {
-                trace(1, "%s: Failed to turn identity '%s' to uppercase",ca_event->ActionName,identity);
+                trace(1, "%s: Failed to get session identity",ca_event->ActionName);
                 result = 501;
                 addErrorData(ca_event, result, "Action Failed");
             }
