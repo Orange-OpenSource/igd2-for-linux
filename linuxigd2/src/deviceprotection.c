@@ -331,7 +331,7 @@ int checkCPPrivileges(struct Upnp_Action_Request *ca_event, const char *targetRo
         // If return value is -1, session was there already. If 0 CP was new and it was 
         // succesfully added to SIR.
         // Every action is checked through checkCPPrivileges, so that is why every session is found from SIR
-        trace(1, "ZZZZ cp rolelist: '%s'\n", rolelist);
+        trace(3, "checkCPPrivileges: roles from ACL\n");
         ret = SIR_addSession(SIRDoc, identifier, 0, NULL, rolelist, NULL, NULL, NULL);
     }
     else
@@ -369,7 +369,7 @@ int checkCPPrivileges(struct Upnp_Action_Request *ca_event, const char *targetRo
     // check if targetRole is found from roles of this session
     if (roles)
     {
-        trace(1, "ZZZZ session roles: '%s'\n", roles);
+        trace(2, "checkCPPrivileges: session roles:'%s', target roles:'%s'\n", roles, targetRoles);
         // loop through all roles from targetRoles. If any of those match, then exit OK
         char *tmp = NULL;
         char *role = NULL;
@@ -742,12 +742,21 @@ static void message_received(struct Upnp_Action_Request *ca_event, int error, un
             }
             else
             {
-                // Add CP to ACL with role Public 
-                ret = ACL_addCP(ACLDoc, CN, NULL, identifier, "Public", 1);
+                // Add CP to ACL with roles 'Public' and 'Basic'
+                const char* pub_bas="Public Basic";
+                ret = ACL_addCP(ACLDoc, CN, NULL, identifier, pub_bas, 1);
                 if (ret != ACL_SUCCESS && ret != ACL_USER_ERROR)
                     trace(1,"Failed to add new CP into ACL! Ignoring...");
                 else
+                {
                     writeDocumentToFile(ACLDoc, ACL_XML);
+                    // Update roles to SIR
+                    if (SIR_updateSession(SIRDoc, identifier, NULL, NULL, pub_bas,
+                                          NULL, NULL, NULL) != 0)
+                    {
+                        trace(1, "WARNING, SIR update failed!");
+                    }
+                }
             }
             free(identifier);
             free(CN);
