@@ -195,15 +195,15 @@ int InitDP()
             return -2;
         }
 
-		enrollee_config.device_pin = g_vars.pinCode;
-		//enrollee_config.mac_address = MAC; //TODO: check if this is needed
-		enrollee_config.device_name = GetFirstDocumentItem(descDoc, "friendlyName");
-		enrollee_config.manufacturer = GetFirstDocumentItem(descDoc, "manufacturer");
-		enrollee_config.model_name = GetFirstDocumentItem(descDoc, "modelName");
-		enrollee_config.model_number = GetFirstDocumentItem(descDoc, "modelNumber");
-		enrollee_config.serial_number = GetFirstDocumentItem(descDoc, "serialNumber");
-		enrollee_config.device_type = "1-0050F204-1"; //(Computer / PC)
-		enrollee_config.config_methods = "label";
+        enrollee_config.device_pin = g_vars.pinCode;
+        //enrollee_config.mac_address = MAC; //TODO: check if this is needed
+        enrollee_config.device_name = GetFirstDocumentItem(descDoc, "friendlyName");
+        enrollee_config.manufacturer = GetFirstDocumentItem(descDoc, "manufacturer");
+        enrollee_config.model_name = GetFirstDocumentItem(descDoc, "modelName");
+        enrollee_config.model_number = GetFirstDocumentItem(descDoc, "modelNumber");
+        enrollee_config.serial_number = GetFirstDocumentItem(descDoc, "serialNumber");
+        enrollee_config.device_type = "1-0050F204-1"; //(Computer / PC)
+        enrollee_config.config_methods = "label";
         memcpy(enrollee_config.uuid, device_uuid, uuid_size);
     }
     else return UPNP_E_FILE_NOT_FOUND;
