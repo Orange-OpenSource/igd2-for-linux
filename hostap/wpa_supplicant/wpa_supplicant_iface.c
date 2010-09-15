@@ -49,6 +49,7 @@ static void send_to_wpa_driver(void *drv, const u8 *data, size_t data_len);
 static int handle_eapol_req_immediately(void *drv, const u8 *data, size_t data_len);
 static void generate_and_inject_eapol_resp(void *drv);
 
+struct wpa_params params;
 struct wpa_interface *g_iface;
 struct wpa_global *global;
 char *g_pin_code = NULL;
@@ -83,7 +84,6 @@ static int wpa_supplicant_iface_send_eapol_cb(void *drv, const u8 *data, size_t 
 int wpa_supplicant_iface_init(wpa_supplicant_wps_enrollee_config *config_in)
 {
 	int exitcode = -1;
-	struct wpa_params params;
 
 	test_driver_set_send_eapol_cb(wpa_supplicant_iface_send_eapol_cb);
 
@@ -91,18 +91,10 @@ int wpa_supplicant_iface_init(wpa_supplicant_wps_enrollee_config *config_in)
 		return -1;
 
 	os_memset(&params, 0, sizeof(params));
-	params.wpa_debug_level = MSG_INFO;
-
-	g_iface = os_zalloc(sizeof(struct wpa_interface));
-	if (g_iface == NULL)
-		return -1;
-
 	//hardcoded args, see main()
-	g_iface->driver = "test";
-	g_iface->ifname = "test_if";
-	params.wpa_debug_level = 1; //"-dd" = 1 (more debugging), "-d" = 2
+	params.wpa_debug_level = MSG_EXCESSIVE;
 	params.wpa_debug_timestamp++;
-	g_iface->confname = NULL;
+	params.wpa_debug_show_keys++;
 
 	exitcode = 0;
 
@@ -142,13 +134,37 @@ int wpa_supplicant_iface_init(wpa_supplicant_wps_enrollee_config *config_in)
 
 	wpa_supplicant_set_config(conf1);
 
+	return exitcode;
+}
+
+int wpa_supplicant_iface_delete(void)
+{
+	os_free(g_pin_code);
+	g_pin_code = NULL;
+
+	os_program_deinit();
+
+	return 0;
+}
+
+int wpa_supplicant_create_enrollee_state_machine(void **esm)
+{
+	int exitcode = 0;
+
+	printf("create_enrollee_state_machine\n");
+	wpa_printf(MSG_DEBUG, "create_enrollee_state_machine");
+
+	g_iface = os_zalloc(sizeof(struct wpa_interface));
+	if (g_iface == NULL)
+		return -1;
+
+	g_iface->driver = "test";
+	g_iface->ifname = "test_if";
+	g_iface->confname = NULL;
+
 	global = wpa_supplicant_init(&params);
 	if (global == NULL) {
 		wpa_printf(MSG_ERROR, "Failed to initialize wpa_supplicant");
-		os_free(g_iface);
-
-		os_program_deinit();
-
 		return -1;
 	}
 
@@ -168,23 +184,6 @@ int wpa_supplicant_iface_init(wpa_supplicant_wps_enrollee_config *config_in)
 #endif
 	}
 
-	return exitcode;
-}
-
-int wpa_supplicant_iface_delete(void)
-{
-	wpa_supplicant_deinit(global);
-
-	os_free(g_iface);
-	os_free(g_pin_code);
-
-	os_program_deinit();
-
-	return 0;
-}
-
-int wpa_supplicant_create_enrollee_state_machine(void **esm)
-{
 	esm = NULL;
 	return 0;
 }
@@ -229,6 +228,13 @@ int wpa_supplicant_start_enrollee_state_machine(void *esm,
 
 int wpa_supplicant_stop_enrollee_state_machine(void *esm)
 {
+	wpa_supplicant_deinit(global);
+	global = NULL;
+
+	if (g_iface != NULL)
+		os_free(g_iface);
+	g_iface = NULL;
+
 	return 0;
 }
 
