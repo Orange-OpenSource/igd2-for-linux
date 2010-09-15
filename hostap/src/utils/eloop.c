@@ -140,8 +140,8 @@ int eloop_init(void)
 
 
 static int eloop_sock_table_add_sock(struct eloop_sock_table *table,
-                                     int sock, eloop_sock_handler handler,
-                                     void *eloop_data, void *user_data)
+				     int sock, eloop_sock_handler handler,
+				     void *eloop_data, void *user_data)
 {
 	struct eloop_sock *tmp;
 
@@ -172,7 +172,7 @@ static int eloop_sock_table_add_sock(struct eloop_sock_table *table,
 
 
 static void eloop_sock_table_remove_sock(struct eloop_sock_table *table,
-                                         int sock)
+					 int sock)
 {
 	int i;
 

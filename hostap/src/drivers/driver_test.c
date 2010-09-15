@@ -1216,7 +1216,7 @@ static void * test_driver_init(struct hostapd_data *hapd,
 	os_memcpy(params->own_addr, drv->own_addr, ETH_ALEN);
 
 #ifdef WPA_SUPPORT
-	params->test_socket = NULL; 	/* suppress test-socket as useless */
+	params->test_socket = NULL;	/* suppress test-socket as useless */
 	eloop_register_read_sock(drv->test_socket, test_driver_receive_unix, drv, NULL);
 	return( bss );
 #endif

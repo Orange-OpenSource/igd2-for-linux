@@ -46,7 +46,7 @@ extern int wpa_debug_timestamp;
 //in eloop.c
 int eloop_running_part1(void);
 int eloop_running_part2(const u8 *data,
-                        size_t data_len);
+			size_t data_len);
 void *eloop_drv_get(void);
 
 //in driver_test.c
@@ -110,61 +110,61 @@ void hostapd_printf(const char *fmt, ...)
 
 void hostapd_hexdump(const char *title, const unsigned char *buf, size_t len)
 {
-        size_t i;
+	size_t i;
 		char tbuff[40];
 		int	len2;
 
 		len2 = hostapd_debug_print_timestamp(tbuff);
-        printf("%s %s: hexdump(len=%lu):", tbuff, title, (unsigned long) len);
-        if (buf == NULL) {
-                printf(" [NULL]");
-        } else {
-                for (i = 0; i < len; i++)
-                        printf(" %02x", buf[i]);
-        }
-        printf("\n");
+	printf("%s %s: hexdump(len=%lu):", tbuff, title, (unsigned long) len);
+	if (buf == NULL) {
+		printf(" [NULL]");
+	} else {
+		for (i = 0; i < len; i++)
+			printf(" %02x", buf[i]);
+	}
+	printf("\n");
 }
 
 /*
 unsigned char *hostapd_base64_encode(const unsigned char *src,
-                                            size_t len,
-                                            size_t *out_len)
+					    size_t len,
+					    size_t *out_len)
 {
-        unsigned char *wpa_trace_alloc = base64_encode(src, len, out_len);
+	unsigned char *wpa_trace_alloc = base64_encode(src, len, out_len);
 
-        // Note! do not use os_malloc, because if WPA_TRACE is defined, os_free() is not the same as free()
-        unsigned char *correct_alloc = malloc(*out_len + 1);
-        memcpy(correct_alloc, wpa_trace_alloc, *out_len);
+	// Note! do not use os_malloc, because if WPA_TRACE is defined, os_free() is not the same as free()
+	unsigned char *correct_alloc = malloc(*out_len + 1);
+	memcpy(correct_alloc, wpa_trace_alloc, *out_len);
 
-        os_free(wpa_trace_alloc);
+	os_free(wpa_trace_alloc);
 
-        (*out_len) --; //exclude trailing 0x0a from the length
-        correct_alloc[*out_len] = '\0'; // overwrite 0x0a with a NUL
-        return correct_alloc;
+	(*out_len) --; //exclude trailing 0x0a from the length
+	correct_alloc[*out_len] = '\0'; // overwrite 0x0a with a NUL
+	return correct_alloc;
 }
 */
 /*
 unsigned char *hostapd_base64_decode(const unsigned char *src,
-                                            size_t len,
-                                            size_t *out_len)
+					    size_t len,
+					    size_t *out_len)
 {
-        unsigned char *wpa_trace_alloc = base64_decode(src, len, out_len);
+	unsigned char *wpa_trace_alloc = base64_decode(src, len, out_len);
 
-        // Note! do not use os_malloc, because if WPA_TRACE is defined, os_free() is not the same as free()
-        unsigned char *correct_alloc = malloc(*out_len + 1);
-        memcpy(correct_alloc, wpa_trace_alloc, *out_len);
+	// Note! do not use os_malloc, because if WPA_TRACE is defined, os_free() is not the same as free()
+	unsigned char *correct_alloc = malloc(*out_len + 1);
+	memcpy(correct_alloc, wpa_trace_alloc, *out_len);
 
-        // Have to add trailing NUL to the decoded block
-        correct_alloc[*out_len] = '\0';
-        os_free(wpa_trace_alloc);
-        return correct_alloc;
+	// Have to add trailing NUL to the decoded block
+	correct_alloc[*out_len] = '\0';
+	os_free(wpa_trace_alloc);
+	return correct_alloc;
 }
 */
 void hostapd_base64_decode(	int				b64_msg_len,
 							const unsigned char	*b64_msg,
-							int 			*out_len,
+							int			*out_len,
 							unsigned char	*bin_out_message,
-							int		 		max_b64_len )
+							int				max_b64_len )
 {
 	  unsigned char *wpa_trace_alloc = base64_decode(b64_msg, (size_t)b64_msg_len, (size_t *)out_len);
 
@@ -178,9 +178,9 @@ void hostapd_base64_decode(	int				b64_msg_len,
 
 void hostapd_base64_encode(	int				in_len,
 							const unsigned char	*in_ptr,
-							int 			*out_len,
+							int			*out_len,
 							unsigned char	*out_ptr,
-							int		 		max_out_len )
+							int				max_out_len )
 {
 	unsigned char	*wpa_trace_alloc;
 	size_t			out_len_internal;
@@ -463,7 +463,7 @@ static struct hostapd_iface *
 hostapd_interface_init(struct hapd_interfaces	*interfaces,
 				const char						*config_fname,
 				hostapd_wps_registrar_info		*info,
-				int 							debug)
+				int							debug)
 {
 	struct hostapd_iface *iface;
 	int k;
@@ -740,7 +740,7 @@ int hostapd_start_registrar_state_machine(void			*rsm,
 #if 0
     if (hostapd_ctrl_iface_wps_pin((struct hostapd_data *)interfaces.iface[0]->bss[0], (const char *)"any")) {
 		wpa_printf(MSG_DEBUG,"%s:failed to feed 'WPS_PIN'", __func__);
-	}                        
+	}
 #endif
 
     associate_sta();	/* inject Associate Station message to test-driver */
@@ -801,7 +801,7 @@ int hostapd_start_registrar_state_machine_org(void *rsm,
 	DEBUG(("%s:#1\n", __func__));
 /* if ( wps_registrar_add_pin(hapd->wps->registrar, ANY_ENROLLEE,
       (const u8 *) pin_code, os_strlen(pin_code),
-      NO_TIMEOUT)) != 0 ) */      
+      NO_TIMEOUT)) != 0 ) */
 	if ((error = wps_registrar_add_pin(interfaces.iface[0]->bss[0]->wps->registrar, ANY_ENROLLEE,
 				   (const u8 *) pin_code, os_strlen(pin_code),
 				   NO_TIMEOUT)) != 0 ) {
@@ -898,9 +898,9 @@ int hostapd_update_registrar_state_machine(void* rsm,
 	if (send_eapol_data != NULL) {
 		wpa_printf(MSG_DEBUG, "%s: out msg available, len:%d", __func__, send_eapol_data_len);
 		hostapd_hexdump(__func__, send_eapol_data, send_eapol_data_len);
-		*next_message_len 	= send_eapol_data_len;
-		*next_message 		= send_eapol_data; //##034 who will release this memory?
-		send_eapol_data 	= NULL;
+		*next_message_len	= send_eapol_data_len;
+		*next_message		= send_eapol_data; //##034 who will release this memory?
+		send_eapol_data		= NULL;
 		send_eapol_data_len	= 0;
 	}
 	else
