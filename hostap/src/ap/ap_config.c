@@ -41,14 +41,48 @@ static void hostapd_config_free_vlan(struct hostapd_bss_config *bss)
 	bss->vlan = NULL;
 }
 
+#define	TEST_SOCK				"/tmp/gupnp-wpa"				/* NNN */
+#define	DUMP_FILE				"/tmp/hostapd.dump"				/* NNN */
+#define	CTRL_INTERFACE_GROUP	0								/* NNN */
+#define	SSID					"test"							/* NNN */
+#define	DEVICE_NAME				"dev-name"						/* NNN */
+#define	MANUFACTURER			"some-company"					/* NNN */
+#define	INTERFACE				"gupnp-wpa"						/* NNN */
+#define	MODEL_NAME				"model-name"					/* NNN */
+#define	MODEL_NUMBER			"123"							/* NNN */
+#define	SERIAL_NUMBER			"12345"							/* NNN */
+#define	DEVICE_TYPE				"1-0050F204-1"					/* NNN */
+#define	OS_VERSION				"01020300"						/* NNN */
+#define	CONFIG_METHODS			"label display push_button keypad"	/* NNN */
+#define	AP_PIN					"12345670"						/* NNN */
 
 void hostapd_config_defaults_bss(struct hostapd_bss_config *bss)
 {
 	bss->logger_syslog_level = HOSTAPD_LEVEL_INFO;
 	bss->logger_stdout_level = HOSTAPD_LEVEL_INFO;
+
+	bss->model_name = os_strdup(MODEL_NAME);					/* NNN */
+	bss->model_number = os_strdup(MODEL_NUMBER);				/* NNN */
+	bss->serial_number = os_strdup(SERIAL_NUMBER);				/* NNN */
+	bss->device_name = os_strdup(DEVICE_NAME);					/* NNN */
+	bss->manufacturer = os_strdup(MANUFACTURER);				/* NNN */
+	bss->device_type = os_strdup(DEVICE_TYPE);					/* NNN */
+	hexstr2bin(OS_VERSION, bss->os_version, sizeof(OS_VERSION));/* NNN */
+	bss->config_methods = os_strdup(CONFIG_METHODS);			/* NNN */
+	bss->ap_pin = os_strdup(AP_PIN);							/* NNN */
+
 	bss->logger_syslog = (unsigned int) -1;
 	bss->logger_stdout = (unsigned int) -1;
-
+//	os_strlcpy(bss->iface,INTERFACE, sizeof(INTERFACE));			/* NNN */
+	bss->test_socket = os_strdup(TEST_SOCK);					/* NNN */
+	bss->dump_log_name = os_strdup(DUMP_FILE);					/* NNN */
+	bss->ctrl_interface_gid = CTRL_INTERFACE_GROUP;				/* NNN */
+	os_strlcpy(bss->ssid.ssid,SSID, sizeof(SSID));				/* NNN */
+	bss->ssid.ssid_len = os_strlen(bss->ssid.ssid);				/* NNN */
+	bss->ssid.ssid_set = 1;										/* NNN */
+	bss->macaddr_acl = 0; /* accept unless in deny list	*/		/* NNN */
+	bss->ignore_broadcast_ssid = 0;	/* disabled */				/* NNN */
+	bss->wmm_enabled = 1;	/* 1 = mandatory */					/* NNN */
 	bss->auth_algs = WPA_AUTH_ALG_OPEN | WPA_AUTH_ALG_SHARED;
 
 	bss->wep_rekeying_period = 300;
@@ -74,6 +108,13 @@ void hostapd_config_defaults_bss(struct hostapd_bss_config *bss)
 
 	bss->max_listen_interval = 65535;
 
+	bss->eapol_key_index_workaround = 0; 					/* NNN */
+	bss->eap_server = 1;	/* use internal EAP server */	/* NNN */
+#ifdef CONFIG_WPS											/* NNN */
+#define	WPS_STATE_CONFIGURED	2
+	bss->wps_state = WPS_STATE_CONFIGURED;					/* NNN */
+#endif
+
 #ifdef CONFIG_IEEE80211W
 	bss->assoc_sa_query_max_timeout = 1000;
 	bss->assoc_sa_query_retry_timeout = 201;
@@ -86,6 +127,11 @@ void hostapd_config_defaults_bss(struct hostapd_bss_config *bss)
 #endif /* EAP_SERVER_FAST */
 }
 
+//#define	DRIVER_NAME			"test"								/* NNN */
+//const char *driver_name = "test";								/* NNN */
+#define	IEE_80211_CHANNEL	60									/* NNN */
+#define	RTS_THRESHOLD		2347								/* NNN */
+#define	FRAGM_THRESHOLD		2346								/* NNN */
 
 struct hostapd_config * hostapd_config_defaults(void)
 {
@@ -124,9 +170,13 @@ struct hostapd_config * hostapd_config_defaults(void)
 	conf->num_bss = 1;
 	conf->bss = bss;
 
+//	conf->driver = driver_name;									/* NNN */
+	conf->hw_mode = HOSTAPD_MODE_IEEE80211A;					/* NNN */
+	conf->channel = IEE_80211_CHANNEL;
+
 	conf->beacon_int = 100;
-	conf->rts_threshold = -1; /* use driver default: 2347 */
-	conf->fragm_threshold = -1; /* user driver default: 2346 */
+	conf->rts_threshold = RTS_THRESHOLD;						/* NNN */
+	conf->fragm_threshold = FRAGM_THRESHOLD;					/* NNN */
 	conf->send_probe_response = 1;
 
 	for (i = 0; i < NUM_TX_QUEUES; i++)

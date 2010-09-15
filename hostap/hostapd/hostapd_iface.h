@@ -81,5 +81,4 @@ int hostapd_update_registrar_state_machine(void* rsm,
 						 int* ready);
 int hostapd_is_authentication_finished( void );
 unsigned char *hostapd_get_uuid_e_ptr( void );
-
 #endif

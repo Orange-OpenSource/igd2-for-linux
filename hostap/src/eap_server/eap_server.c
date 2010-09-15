@@ -30,6 +30,9 @@
 
 #define EAP_MAX_AUTH_ROUNDS 50
 
+#define WPA_SUPPORT	1
+#define WPA_NO_INTEGRITY_CHECK	1
+
 static void eap_user_free(struct eap_user *user);
 
 
@@ -158,14 +161,29 @@ SM_STATE(EAP, INITIALIZE)
 	sm->m = NULL;
 	sm->user_eap_method_index = 0;
 
+#ifdef WPA_SUPPORT
+	wpa_printf(MSG_DEBUG, "%s:", __func__ );
+#endif
 	if (sm->backend_auth) {
 		sm->currentMethod = EAP_TYPE_NONE;
 		/* parse rxResp, respId, respMethod */
 		eap_sm_parseEapResp(sm, sm->eap_if.eapRespData);
 		if (sm->rxResp) {
+#ifdef WPA_SUPPORT
+			wpa_printf(MSG_DEBUG,"%s:sm->currentId=%d <-- sm->respId=%d;", __func__, sm->currentId, sm->respId );
+#endif
 			sm->currentId = sm->respId;
 		}
+#ifdef WPA_SUPPORT
+		else
+		  wpa_printf(MSG_DEBUG, "%s:sm->rxResp ==0 --> sm->currentId not set !!", __func__ );
+#endif
 	}
+#ifdef WPA_SUPPORT
+	else
+		wpa_printf(MSG_DEBUG, "%s: no backend auth", __func__ );
+#endif
+
 	sm->num_rounds = 0;
 	sm->method_pending = METHOD_PENDING_NONE;
 
@@ -539,6 +557,9 @@ SM_STATE(EAP, AAA_RESPONSE)
 	SM_ENTRY(EAP, AAA_RESPONSE);
 
 	eap_copy_buf(&sm->eap_if.eapReqData, sm->eap_if.aaaEapReqData);
+#ifdef WPA_SUPPORT
+	wpa_printf( MSG_DEBUG,"%s:sm->currentId: old=%d , new=%d", __func__, sm->currentId, eap_sm_getId(sm->eap_if.eapReqData) );
+#endif
 	sm->currentId = eap_sm_getId(sm->eap_if.eapReqData);
 	sm->methodTimeout = sm->eap_if.aaaMethodTimeout;
 }
@@ -598,9 +619,71 @@ SM_STATE(EAP, SUCCESS2)
 	sm->start_reauth = TRUE;
 }
 
+#ifdef WPA_SUPPORT
+
+/* from src/eap_server/eap_i.h 
+struct eap_sm {
+	enum {
+		EAP_DISABLED, EAP_INITIALIZE, EAP_IDLE, EAP_RECEIVED,
+		EAP_INTEGRITY_CHECK, EAP_METHOD_RESPONSE, EAP_METHOD_REQUEST,
+		EAP_PROPOSE_METHOD, EAP_SELECT_ACTION, EAP_SEND_REQUEST,
+		EAP_DISCARD, EAP_NAK, EAP_RETRANSMIT, EAP_SUCCESS, EAP_FAILURE,
+		EAP_TIMEOUT_FAILURE, EAP_PICK_UP_METHOD,
+		EAP_INITIALIZE_PASSTHROUGH, EAP_IDLE2, EAP_RETRANSMIT2,
+		EAP_RECEIVED2, EAP_DISCARD2, EAP_SEND_REQUEST2,
+		EAP_AAA_REQUEST, EAP_AAA_RESPONSE, EAP_AAA_IDLE,
+		EAP_TIMEOUT_FAILURE2, EAP_FAILURE2, EAP_SUCCESS2
+	} EAP_state1;
+*/
+static const char * eap_sm_state_txt2(int state)
+{
+	switch (state) {
+	  case EAP_DISABLED: return "EAP_DISABLED";
+	  case EAP_INITIALIZE: return "EAP_INITIALIZE";
+	  case EAP_IDLE: return "EAP_IDLE";
+	  case EAP_RECEIVED: return "EAP_RECEIVED";
+	  case EAP_INTEGRITY_CHECK: return "EAP_INTEGRITY_CHECK";
+	  case EAP_METHOD_RESPONSE: return "EAP_METHOD_RESPONSE";
+	  case EAP_METHOD_REQUEST: 	return "EAP_METHOD_REQUEST";
+	  case EAP_PROPOSE_METHOD: 	return "EAP_PROPOSE_METHOD";
+	  case EAP_SELECT_ACTION: 	return "EAP_SELECT_ACTION";
+	  case EAP_SEND_REQUEST: 	return "EAP_SEND_REQUEST";
+	  case EAP_DISCARD: 		return "EAP_DISCARD";
+	  case EAP_NAK: 			return "EAP_NAK";
+	  case EAP_RETRANSMIT: 		return "EAP_RETRANSMIT";
+	  case EAP_SUCCESS: 		return "EAP_SUCCESS";
+	  case EAP_FAILURE: 		return "EAP_FAILURE";
+	  case EAP_TIMEOUT_FAILURE: return "EAP_TIMEOUT_FAILURE";
+	  case EAP_PICK_UP_METHOD:	return "EAP_PICK_UP_METHOD";
+	  case EAP_INITIALIZE_PASSTHROUGH: return "EAP_INITIALIZE_PASSTHROUGH";
+	  case EAP_IDLE2: 			return "EAP_IDLE2";
+	  case EAP_RETRANSMIT2: 	return "EAP_RETRANSMIT2";
+	  case EAP_RECEIVED2: 		return "EAP_RECEIVED2";
+	  case EAP_DISCARD2: 		return "EAP_DISCARD2";
+	  case EAP_SEND_REQUEST2: 	return "EAP_SEND_REQUEST2";
+	  case EAP_AAA_REQUEST: 	return "EAP_AAA_REQUEST";
+	  case EAP_AAA_RESPONSE: 	return "EAP_AAA_RESPONSE";
+	  case EAP_AAA_IDLE: 		return "EAP_AAA_IDLE";
+	  case EAP_TIMEOUT_FAILURE2: return "EAP_TIMEOUT_FAILURE2";
+	  case EAP_FAILURE2: 		return "EAP_FAILURE2";
+	  case EAP_SUCCESS2: 		return "EAP_SUCCESS2";
+	  default : return "UNKNOWN";
+	}
+}
+#endif
 
 SM_STEP(EAP)
 {
+#ifdef WPA_SUPPORT
+		  wpa_printf(MSG_DEBUG, "%s:EAP_state=%s,rxResp=%d respId=%d currentId=%d,respMethod=%d,currentMethod=%d\n",
+		   __func__,
+			eap_sm_state_txt2(sm->EAP_state),
+		   sm->rxResp,
+		   sm->respId,
+		   sm->currentId,
+		   sm->respMethod,
+		   sm->currentMethod );
+#endif
 	if (sm->eap_if.eapRestart && sm->eap_if.portEnabled)
 		SM_ENTER_GLOBAL(EAP, INITIALIZE);
 	else if (!sm->eap_if.portEnabled)
@@ -669,14 +752,22 @@ SM_STEP(EAP)
 			SM_ENTER(EAP, INTEGRITY_CHECK);
 		else {
 			wpa_printf(MSG_DEBUG, "EAP: RECEIVED->DISCARD: "
-				   "rxResp=%d respId=%d currentId=%d "
-				   "respMethod=%d currentMethod=%d",
-				   sm->rxResp, sm->respId, sm->currentId,
-				   sm->respMethod, sm->currentMethod);
-			SM_ENTER(EAP, DISCARD);
+				  "rxResp=%d respId=%d currentId=%d "
+				  "respMethod=%d currentMethod=%d",
+				  sm->rxResp, sm->respId, sm->currentId,
+				  sm->respMethod, sm->currentMethod);
+#ifdef WPA_NO_INTEGRITY_CHECK
+				  wpa_printf(MSG_DEBUG,"%s: TEST: forcefull INTEGRITY_CHECK instead of DISCARD", __func__);
+				  SM_ENTER(EAP, INTEGRITY_CHECK);
+#else
+				  SM_ENTER(EAP, DISCARD);
+#endif
 		}
 		break;
 	case EAP_DISCARD:
+#ifdef WPA_SUPPORT
+		wpa_printf( MSG_DEBUG,"%s: DISCARD --> IDLE", __func__ );
+#endif
 		SM_ENTER(EAP, IDLE);
 		break;
 	case EAP_SEND_REQUEST:
@@ -892,6 +983,9 @@ static void eap_sm_parseEapResp(struct eap_sm *sm, const struct wpabuf *resp)
 		return;
 	}
 
+#ifdef WPA_SUPPORT
+	printf("%s:setting respId from %d to %d\n", __func__, sm->respId, hdr->identifier );
+#endif
 	sm->respId = hdr->identifier;
 
 	if (hdr->code == EAP_CODE_RESPONSE)
@@ -974,10 +1068,21 @@ static int eap_sm_nextId(struct eap_sm *sm, int id)
 	if (id < 0) {
 		/* RFC 3748 Ch 4.1: recommended to initialize Identifier with a
 		 * random number */
+#ifdef WPA_SUPPORT
 		id = rand() & 0xff;
-		if (id != sm->lastId)
+#else
+		id = 103;
+#endif
+		if (id != sm->lastId) {
+#ifdef WPA_SUPPORT
+			wpa_printf(MSG_DEBUG, "%s: set currentId: randomize next 'currentId' to %d", __func__, id );
+#endif
 			return id;
+		}
 	}
+#ifdef WPA_SUPPORT
+	wpa_printf(MSG_DEBUG, "%s:  set currentId: next 'currentId' + 1 == %d", __func__, (id + 1) & 0xff );
+#endif
 	return (id + 1) & 0xff;
 }
 

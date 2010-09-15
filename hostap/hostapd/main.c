@@ -43,7 +43,7 @@ struct hapd_interfaces {
 };
 
 
-static int hostapd_for_each_interface(struct hapd_interfaces *interfaces,
+static int Hostapd_for_each_interface(struct hapd_interfaces *interfaces,
 				      int (*cb)(struct hostapd_iface *iface,
 						void *ctx), void *ctx)
 {
@@ -61,7 +61,7 @@ static int hostapd_for_each_interface(struct hapd_interfaces *interfaces,
 
 
 #ifndef CONFIG_NO_HOSTAPD_LOGGER
-static void hostapd_logger_cb(void *ctx, const u8 *addr, unsigned int module,
+static void Hostapd_logger_cb(void *ctx, const u8 *addr, unsigned int module,
 			      int level, const char *txt, size_t len)
 {
 	struct hostapd_data *hapd = ctx;
@@ -172,7 +172,7 @@ static void hostapd_logger_cb(void *ctx, const u8 *addr, unsigned int module,
  * data. The allocated data buffer will be freed by calling
  * hostapd_cleanup_iface().
  */
-static struct hostapd_iface * hostapd_init(const char *config_file)
+static struct hostapd_iface * Hostapd_init(const char *config_file)
 {
 	struct hostapd_iface *hapd_iface = NULL;
 	struct hostapd_config *conf = NULL;
@@ -190,7 +190,7 @@ static struct hostapd_iface * hostapd_init(const char *config_file)
 		goto fail;
 	hapd_iface->ctrl_iface_init = hostapd_ctrl_iface_init;
 	hapd_iface->ctrl_iface_deinit = hostapd_ctrl_iface_deinit;
-	hapd_iface->for_each_interface = hostapd_for_each_interface;
+	hapd_iface->for_each_interface = Hostapd_for_each_interface;
 
 	conf = hostapd_config_read(hapd_iface->config_fname);
 	if (conf == NULL)
@@ -226,7 +226,7 @@ fail:
 }
 
 
-static int hostapd_driver_init(struct hostapd_iface *iface)
+static int Hostapd_driver_init(struct hostapd_iface *iface)
 {
 	struct wpa_init_params params;
 	size_t i;
@@ -276,7 +276,7 @@ static int hostapd_driver_init(struct hostapd_iface *iface)
 }
 
 
-static void hostapd_interface_deinit_free(struct hostapd_iface *iface)
+static void Hostapd_interface_deinit_free(struct hostapd_iface *iface)
 {
 	const struct wpa_driver_ops *driver;
 	void *drv_priv;
@@ -292,14 +292,14 @@ static void hostapd_interface_deinit_free(struct hostapd_iface *iface)
 
 
 static struct hostapd_iface *
-hostapd_interface_init(struct hapd_interfaces *interfaces,
+Hostapd_interface_init(struct hapd_interfaces *interfaces,
 		       const char *config_fname, int debug)
 {
 	struct hostapd_iface *iface;
 	int k;
 
 	wpa_printf(MSG_ERROR, "Configuration file: %s", config_fname);
-	iface = hostapd_init(config_fname);
+	iface = Hostapd_init(config_fname);
 	if (!iface)
 		return NULL;
 	iface->interfaces = interfaces;
@@ -309,9 +309,9 @@ hostapd_interface_init(struct hapd_interfaces *interfaces,
 			iface->bss[0]->conf->logger_stdout_level--;
 	}
 
-	if (hostapd_driver_init(iface) ||
+	if (Hostapd_driver_init(iface) ||
 	    hostapd_setup_interface(iface)) {
-		hostapd_interface_deinit_free(iface);
+		Hostapd_interface_deinit_free(iface);
 		return NULL;
 	}
 
@@ -349,7 +349,7 @@ static void handle_reload(int sig, void *signal_ctx)
 	struct hapd_interfaces *interfaces = signal_ctx;
 	wpa_printf(MSG_DEBUG, "Signal %d received - reloading configuration",
 		   sig);
-	hostapd_for_each_interface(interfaces, handle_reload_iface, NULL);
+	Hostapd_for_each_interface(interfaces, handle_reload_iface, NULL);
 }
 
 
@@ -357,15 +357,15 @@ static void handle_dump_state(int sig, void *signal_ctx)
 {
 #ifdef HOSTAPD_DUMP_STATE
 	struct hapd_interfaces *interfaces = signal_ctx;
-	hostapd_for_each_interface(interfaces, handle_dump_state_iface, NULL);
+	Hostapd_for_each_interface(interfaces, handle_dump_state_iface, NULL);
 #endif /* HOSTAPD_DUMP_STATE */
 }
 #endif /* CONFIG_NATIVE_WINDOWS */
 
 
-static int hostapd_global_init(struct hapd_interfaces *interfaces)
+static int Hostapd_global_init(struct hapd_interfaces *interfaces)
 {
-	hostapd_logger_register_cb(hostapd_logger_cb);
+	hostapd_logger_register_cb(Hostapd_logger_cb);
 
 	if (eap_server_register_methods()) {
 		wpa_printf(MSG_ERROR, "Failed to register EAP methods");
@@ -391,7 +391,7 @@ static int hostapd_global_init(struct hapd_interfaces *interfaces)
 }
 
 
-static void hostapd_global_deinit(const char *pid_file)
+static void Hostapd_global_deinit(const char *pid_file)
 {
 #ifdef EAP_SERVER_TNC
 	tncs_global_deinit();
@@ -409,7 +409,7 @@ static void hostapd_global_deinit(const char *pid_file)
 }
 
 
-static int hostapd_global_run(struct hapd_interfaces *ifaces, int daemonize,
+static int Hostapd_global_run(struct hapd_interfaces *ifaces, int daemonize,
 			      const char *pid_file)
 {
 #ifdef EAP_SERVER_TNC
@@ -533,19 +533,19 @@ int main(int argc, char *argv[])
 		return -1;
 	}
 
-	if (hostapd_global_init(&interfaces))
+	if (Hostapd_global_init(&interfaces))
 		return -1;
 
 	/* Initialize interfaces */
 	for (i = 0; i < interfaces.count; i++) {
-		interfaces.iface[i] = hostapd_interface_init(&interfaces,
+		interfaces.iface[i] = Hostapd_interface_init(&interfaces,
 							     argv[optind + i],
 							     debug);
 		if (!interfaces.iface[i])
 			goto out;
 	}
 
-	if (hostapd_global_run(&interfaces, daemonize, pid_file))
+	if (Hostapd_global_run(&interfaces, daemonize, pid_file))
 		goto out;
 
 	ret = 0;
@@ -553,10 +553,10 @@ int main(int argc, char *argv[])
  out:
 	/* Deinitialize all interfaces */
 	for (i = 0; i < interfaces.count; i++)
-		hostapd_interface_deinit_free(interfaces.iface[i]);
+		Hostapd_interface_deinit_free(interfaces.iface[i]);
 	os_free(interfaces.iface);
 
-	hostapd_global_deinit(pid_file);
+	Hostapd_global_deinit(pid_file);
 	os_free(pid_file);
 
 	os_program_deinit();

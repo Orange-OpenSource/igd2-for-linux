@@ -1120,7 +1120,8 @@ static int hostapd_config_check(struct hostapd_config *conf)
 	return 0;
 }
 
-
+#define	NO_CONFIG_FILE		"no-file"	/* NNN */
+#define	TEST_DRIVER_NAME	"test"		/* NNN */
 /**
  * hostapd_config_read - Read and parse a configuration file
  * @fname: Configuration file name (including path, if needed)
@@ -1130,24 +1131,51 @@ struct hostapd_config * hostapd_config_read(const char *fname)
 {
 	struct hostapd_config *conf;
 	struct hostapd_bss_config *bss;
-	FILE *f;
+	FILE *f = NULL;
 	char buf[256], *pos;
 	int line = 0;
 	int errors = 0;
 	int pairwise;
 	size_t i;
 
-	f = fopen(fname, "r");
-	if (f == NULL) {
+	wpa_printf(MSG_DEBUG,"%s", __func__);
+	if ( os_strcmp(fname, NO_CONFIG_FILE))	/* if we really have conf-file */
+	{
+	  f = fopen(fname, "r");
+	  if (f == NULL) {
 		wpa_printf(MSG_ERROR, "Could not open configuration file '%s' "
-			   "for reading.", fname);
+							  "for reading.", fname);
 		return NULL;
+	  }
+	  conf = hostapd_config_defaults();
+	  if (conf == NULL) {
+		  fclose(f);
+		  return NULL;
+	  }
 	}
+	else	/* no conf-file assuming, defaults are enough for correct operation */
+	{
+	  int j;
+	  conf = hostapd_config_defaults();	/* return NULL, if memory allocation failed */
+	  
+	  os_strlcpy(conf->bss[0].iface, "wpa-iface", sizeof(conf->bss[0].iface));
 
-	conf = hostapd_config_defaults();
-	if (conf == NULL) {
-		fclose(f);
-		return NULL;
+				   /* set default driver based on configuration */
+	  conf->driver = NULL;
+	  for (j = 0; wpa_drivers[j]; j++) {
+		if (os_strcmp(TEST_DRIVER_NAME, wpa_drivers[j]->name) == 0)
+		{
+			conf->driver = wpa_drivers[j];
+			break;
+		}
+	  }
+
+	  if (conf->driver == NULL) {
+		  wpa_printf(MSG_ERROR, "No driver wrappers registered!");
+		  hostapd_config_free(conf);
+		  return NULL;
+	  }
+	  return( conf );
 	}
 
 	/* set default driver based on configuration */

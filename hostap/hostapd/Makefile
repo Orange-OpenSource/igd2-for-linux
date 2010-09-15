@@ -3,11 +3,14 @@ CC=gcc
 endif
 
 ifndef CFLAGS
-CFLAGS = -MMD -O2 -Wall -g
+#CFLAGS = -MMD -O2 -Wall -g
+CFLAGS = -MMD -Wall -g
 endif
 
 CFLAGS += -I../src
 CFLAGS += -I../src/utils
+CFLAGS += -I../..
+CFLAGS += -I../../wpsutil/inc/
 
 # Uncomment following line and set the path to your kernel tree include
 # directory if your C library does not include all header files.
@@ -31,6 +34,8 @@ ifdef CONFIG_NATIVE_WINDOWS
 CFLAGS += -DCONFIG_NATIVE_WINDOWS
 LIBS += -lws2_32
 endif
+
+LIBS += -lgcrypt
 
 OBJS += main.o
 OBJS += config_file.o
@@ -84,6 +89,8 @@ OBJS += ../src/common/wpa_common.o
 
 OBJS += ../src/eapol_auth/eapol_auth_sm.o
 
+# WPA iface API
+OBJS += ./hostapd_iface.o
 
 ifndef CONFIG_NO_DUMP_STATE
 # define HOSTAPD_DUMP_STATE to include SIGUSR1 handler for dumping state to
@@ -715,9 +722,11 @@ Q=
 E=true
 endif
 
+#%.o: %.c
+#	$(Q)$(CC) -c -o $@ $(CFLAGS) $<
+#	@$(E) "  CC " $<
 %.o: %.c
-	$(Q)$(CC) -c -o $@ $(CFLAGS) $<
-	@$(E) "  CC " $<
+	$(CC) -c -o $@ $(CFLAGS) $<
 
 verify_config:
 	@if [ ! -r .config ]; then \
@@ -783,7 +792,7 @@ nt_password_hash: $(NOBJS)
 hlr_auc_gw: $(HOBJS)
 	$(CC) $(LDFLAGS) -o hlr_auc_gw $(HOBJS) $(LIBS_h)
 
-OBJS_libha := $(OBJS) hostapd_iface.o
+OBJS_libha := $(OBJS)
 
 libhostapd.so: $(BCHECK) $(OBJS_libha)
 	$(CC) -shared $(LDFLAGS) -o libhostapd.so $(OBJS_libha) $(LIBS)

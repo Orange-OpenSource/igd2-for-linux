@@ -660,6 +660,7 @@ int hostapd_init_wps(struct hostapd_data *hapd,
 	hostapd_register_probereq_cb(hapd, hostapd_wps_probe_req_rx, hapd);
 
 	hapd->wps = wps;
+	wpa_printf(MSG_DEBUG,"%s:wps=0x%p wps->registrar=0x%p", __func__, wps, wps->registrar );	/* NNN */
 
 	return 0;
 }

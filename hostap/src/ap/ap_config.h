@@ -19,7 +19,7 @@
 #include "ip_addr.h"
 #include "common/wpa_common.h"
 
-#define MAX_STA_COUNT 2007
+#define MAX_STA_COUNT 255
 #define MAX_VLAN_ID 4094
 
 typedef u8 macaddr[ETH_ALEN];

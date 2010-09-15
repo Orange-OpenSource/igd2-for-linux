@@ -46,6 +46,7 @@
 #include "l2_packet/l2_packet.h"
 #include "driver.h"
 
+#define WPA_SUPPORT	1	/* NNN */
 
 struct test_client_socket {
 	struct test_client_socket *next;
@@ -812,6 +813,9 @@ static void test_driver_receive_unix(int sock, void *eloop_ctx, void *sock_ctx)
 	struct sockaddr_un from;
 	socklen_t fromlen = sizeof(from);
 
+#ifdef WPA_DRIVER
+	return;
+#endif
 	res = recvfrom(sock, buf, sizeof(buf) - 1, 0,
 		       (struct sockaddr *) &from, &fromlen);
 	if (res < 0) {
@@ -1211,6 +1215,11 @@ static void * test_driver_init(struct hostapd_data *hapd,
 	os_memcpy(bss->bssid, drv->own_addr, ETH_ALEN);
 	os_memcpy(params->own_addr, drv->own_addr, ETH_ALEN);
 
+#ifdef WPA_SUPPORT
+	params->test_socket = NULL; 	/* suppress test-socket as useless */
+	eloop_register_read_sock(drv->test_socket, test_driver_receive_unix, drv, NULL);
+	return( bss );
+#endif
 	if (params->test_socket) {
 		if (os_strlen(params->test_socket) >=
 		    sizeof(addr_un.sun_path)) {
@@ -1994,6 +2003,9 @@ static void wpa_driver_test_receive_unix(int sock, void *eloop_ctx,
 	socklen_t fromlen = sizeof(from);
 	const size_t buflen = 2000;
 
+#ifdef WPA_DRIVER
+	return;
+#endif
 	if (drv->ap) {
 		test_driver_receive_unix(sock, eloop_ctx, sock_ctx);
 		return;
@@ -2331,6 +2343,10 @@ static int wpa_driver_test_send_eapol(void *priv, const u8 *dest, u16 proto,
 	struct sockaddr_un addr_un;
 #endif /* DRIVER_TEST_UNIX */
 
+#ifdef WPA_SUPPORT
+	printf("%s", __func__ );
+	wpa_printf( MSG_DEBUG,"%s:", __func__ );
+#endif
 	wpa_hexdump(MSG_MSGDUMP, "test_send_eapol TX frame", data, data_len);
 
 	os_memset(&eth, 0, sizeof(eth));
