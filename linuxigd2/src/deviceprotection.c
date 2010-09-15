@@ -60,6 +60,8 @@ static int gWpsIntroductionRunning = 0;
 
 static const char *admin_name = "Administrator";
 
+static wpa_supplicant_wps_enrollee_config enrollee_config;
+
 #define MAC_LEN               6
 #define HASH_LEN              32
 
@@ -193,22 +195,16 @@ int InitDP()
             return -2;
         }
 
-        {
-                wpa_supplicant_wps_enrollee_config enrollee_config =
-                        {
-                                .device_pin = g_vars.pinCode,
-                                //.mac_address = MAC, //TODO: check if this is needed
-                                .device_name = GetFirstDocumentItem(descDoc, "friendlyName"),
-                                .manufacturer = GetFirstDocumentItem(descDoc, "manufacturer"),
-                                .model_name = GetFirstDocumentItem(descDoc, "modelName"), 
-                                .model_number = GetFirstDocumentItem(descDoc, "modelNumber"),
-                                .serial_number = GetFirstDocumentItem(descDoc, "serialNumber"),
-                                .device_type = "1-0050F204-1", //(Computer / PC)
-                                .config_methods = "label",
-                        };
-                memcpy(enrollee_config.uuid, device_uuid, uuid_size);
-                ret = wpa_supplicant_iface_init( &enrollee_config );
-        }
+		enrollee_config.device_pin = g_vars.pinCode;
+		//enrollee_config.mac_address = MAC; //TODO: check if this is needed
+		enrollee_config.device_name = GetFirstDocumentItem(descDoc, "friendlyName");
+		enrollee_config.manufacturer = GetFirstDocumentItem(descDoc, "manufacturer");
+		enrollee_config.model_name = GetFirstDocumentItem(descDoc, "modelName");
+		enrollee_config.model_number = GetFirstDocumentItem(descDoc, "modelNumber");
+		enrollee_config.serial_number = GetFirstDocumentItem(descDoc, "serialNumber");
+		enrollee_config.device_type = "1-0050F204-1"; //(Computer / PC)
+		enrollee_config.config_methods = "label";
+        memcpy(enrollee_config.uuid, device_uuid, uuid_size);
     }
     else return UPNP_E_FILE_NOT_FOUND;
 
@@ -225,8 +221,6 @@ int InitDP()
  */
 void FreeDP()
 {
-    wpa_supplicant_iface_delete();
-
     free(device_uuid);
 
     // Save possible changes done in DeviceProtection XML's 
@@ -647,6 +641,13 @@ static int startWPS()
         return err;
     }
 
+    err = wpa_supplicant_iface_init( &enrollee_config );
+    if (err != 0)
+    {
+        trace(1, "Failed to initialize WPS interface! Error: %d",err);
+        return err;
+    }
+    
     // create enrollee state machine
     err = wpa_supplicant_create_enrollee_state_machine(&enrollee_state_machine);
     if (err != 0)
@@ -681,6 +682,7 @@ static void stopWPS()
     }
 
     error = wpa_supplicant_stop_enrollee_state_machine(enrollee_state_machine);
+    wpa_supplicant_iface_delete();
 
     gWpsIntroductionRunning = 0;
 
