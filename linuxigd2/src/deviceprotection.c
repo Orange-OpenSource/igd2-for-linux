@@ -1633,7 +1633,7 @@ int UserLogin(struct Upnp_Action_Request *ca_event)
                     trace(2, "UserLogin: unable to get UUID",ca_event->ActionName,loginName);
                     result = 600;
                     addErrorData(ca_event, result, "Argument Value Invalid");
-                    return;
+                    return ca_event->ErrCode;
                 }
                 print_uuid( cp_uuid );
                 result = createAuthenticator((char *)b64_stored, loginChallenge, &bin_auth_2, cp_uuid, &bin_auth_2_len);

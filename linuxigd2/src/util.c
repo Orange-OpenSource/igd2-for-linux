@@ -468,6 +468,7 @@ int GetIpAddressStr(char *address, char *ifname)
 {
     struct ifreq ifr;
     struct sockaddr_in *saddr;
+    struct in_addr s_in_addr;
     int fd;
     int succeeded = 0;
 
@@ -479,7 +480,8 @@ int GetIpAddressStr(char *address, char *ifname)
         if (ioctl(fd, SIOCGIFADDR, &ifr) == 0)
         {
             saddr = (struct sockaddr_in *)&ifr.ifr_addr;
-            strcpy(address,inet_ntoa(saddr->sin_addr));
+            s_in_addr = saddr->sin_addr;
+            strcpy(address,inet_ntoa(s_in_addr));
             succeeded = 1;
         }
         else
@@ -1253,7 +1255,7 @@ IXML_Node *AddChildNode(IXML_Document *doc, IXML_Node *parent, const char *child
     return &tmpElement->n;
 }
 
-
+#if 0 //not used at the moment
 /**
  * Create new child node for parent node. Child node must also have one attribute
  *
@@ -1283,6 +1285,7 @@ static IXML_Node *AddChildNodeWithAttribute(IXML_Document *doc, IXML_Node *paren
 
     return &tmpElement->n;
 }
+#endif //not used at the moment
 
 
 /**
@@ -1349,6 +1352,7 @@ static IXML_Node *GetChildNodeWithName(IXML_Node *parent, const char *childNodeN
 }
 
 
+#if 0 //not used at the moment
 /**
  * Find childnode of parent with nodename and -value, attributename and -value.
  * Parent node, name of child node, name of child node's attribute and value of attribute must
@@ -1403,6 +1407,7 @@ static IXML_Node *GetChildNodeWithAttribute(IXML_Node *parent, const char *child
     ixmlNodeList_free( nodeList );
     return NULL;
 }
+#endif //not used at the moment
 
 //-----------------------------------------------------------------------------
 //
