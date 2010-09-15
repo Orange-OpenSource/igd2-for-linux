@@ -124,7 +124,7 @@ int wpa_supplicant_iface_init(wpa_supplicant_wps_enrollee_config *config_in)
 	conf1->model_name = os_strdup(config_in->model_name);
 	conf1->model_number = os_strdup(config_in->model_number);
 	conf1->serial_number = os_strdup(config_in->serial_number);
-        conf1->device_type = os_strdup(config_in->device_type);
+	conf1->device_type = os_strdup(config_in->device_type);
 	conf1->config_methods = os_strdup(config_in->config_methods);
 	//u8 os_version[4];
 	//char country[2];
@@ -245,7 +245,7 @@ int wpa_supplicant_update_enrollee_state_machine(void* esm,
 						 int* next_message_len,
 						 int* ready)
 {
-        send_to_wpa_driver(send_resp_drv, received_message, received_message_len);
+	send_to_wpa_driver(send_resp_drv, received_message, received_message_len);
 	wpa_printf(MSG_DEBUG, "wpa_supplicant_update_enrollee_state_machine");
 	eloop_running_part2(NULL, 0);
 	if (send_eapol_data != NULL) {
@@ -263,43 +263,43 @@ int wpa_supplicant_update_enrollee_state_machine(void* esm,
 }
 
 unsigned char *wpa_supplicant_base64_encode(const unsigned char *src,
-                                            size_t len,
-                                            size_t *out_len)
+					    size_t len,
+					    size_t *out_len)
 {
-        unsigned char *wpa_trace_alloc = base64_encode(src, len, out_len);
+	unsigned char *wpa_trace_alloc = base64_encode(src, len, out_len);
 
-        // Note! do not use os_malloc, because if WPA_TRACE is defined, os_free() is not the same as free()
-        unsigned char *correct_alloc = malloc(*out_len + 1);
-        memcpy(correct_alloc, wpa_trace_alloc, *out_len);
+	// Note! do not use os_malloc, because if WPA_TRACE is defined, os_free() is not the same as free()
+	unsigned char *correct_alloc = malloc(*out_len + 1);
+	memcpy(correct_alloc, wpa_trace_alloc, *out_len);
 
-        os_free(wpa_trace_alloc);
+	os_free(wpa_trace_alloc);
 
-        (*out_len) --; //exclude trailing 0x0a from the length
-        correct_alloc[*out_len] = '\0'; // overwrite 0x0a with a NUL
-        return correct_alloc;
+	(*out_len) --; //exclude trailing 0x0a from the length
+	correct_alloc[*out_len] = '\0'; // overwrite 0x0a with a NUL
+	return correct_alloc;
 }
 
 unsigned char *wpa_supplicant_base64_decode(const unsigned char *src,
-                                            size_t len,
-                                            size_t *out_len)
+					    size_t len,
+					    size_t *out_len)
 {
-        unsigned char *wpa_trace_alloc = base64_decode(src, len, out_len);
+	unsigned char *wpa_trace_alloc = base64_decode(src, len, out_len);
 
-        // Note! do not use os_malloc, because if WPA_TRACE is defined, os_free() is not the same as free()
-        unsigned char *correct_alloc = malloc(*out_len + 1);
-        memcpy(correct_alloc, wpa_trace_alloc, *out_len);
+	// Note! do not use os_malloc, because if WPA_TRACE is defined, os_free() is not the same as free()
+	unsigned char *correct_alloc = malloc(*out_len + 1);
+	memcpy(correct_alloc, wpa_trace_alloc, *out_len);
 
-        // Have to add trailing NUL to the decoded block
-        correct_alloc[*out_len] = '\0';
-        os_free(wpa_trace_alloc);
-        return correct_alloc;
+	// Have to add trailing NUL to the decoded block
+	correct_alloc[*out_len] = '\0';
+	os_free(wpa_trace_alloc);
+	return correct_alloc;
 }
 
 
 static void send_to_wpa_driver(void *drv, const u8 *data, size_t data_len)
 {
-        const u8 msg_header[] = {0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, //?? TODO: add comment
-                                 0x02, 0x00, 0x00, 0x00, 0x00, 0x01, //addr
+	const u8 msg_header[] = {0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, //?? TODO: add comment
+				 0x02, 0x00, 0x00, 0x00, 0x00, 0x01, //addr
 				 0xbb, 0xbb, //?? TODO: add comment
 				 0x02, 0x00, 0x00, 0x00,   //struct ieee802_1x_hdr
 				 0x01, 0x2b, 0x00, 0x00,   //eap_hdr handled in eap_sm_parseEapReq()
