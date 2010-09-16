@@ -685,15 +685,13 @@ int hostapd_iface_delete(void)
 }
 
 
-WPSuRegistrarSM* hostapd_create_registrar_state_machine(int *error)
+void hostapd_create_registrar_state_machine(int *error)
 {
 	hostapd_printf("%s", __func__);
 	*error = 0;
-	return NULL;	
 }
 
-int hostapd_start_registrar_state_machine(void			*rsm,
-										  const char	*pin_code )
+int hostapd_start_registrar_state_machine(const char	*pin_code )
 {
 	int error;
 	
@@ -753,7 +751,7 @@ int hostapd_start_registrar_state_machine(void			*rsm,
 }
 
 typedef enum {WPSU_SM_E_PROCESS,WPSU_SM_E_SUCCESS,WPSU_SM_E_SUCCESSINFO,WPSU_SM_E_FAILURE,WPSU_SM_E_FAILUREEXIT} wpsu_enrollee_sm_status;
-int hostapd_update_registrar_state_machine(void* rsm,
+int hostapd_update_registrar_state_machine(
 						 unsigned char* received_message,
 						 int received_message_len,
 						 unsigned char** next_message,

@@ -26,10 +26,8 @@
 extern "C" {
 #endif
 
-#include	"registrar_state_machine.h"
 
  typedef struct {
-  WPSuRegistrarInput *wpsu_input;
   char *devicePIN;
   char *manufacturer;
   char *modelName; 
@@ -46,8 +44,8 @@ extern "C" {
   int OSVersion_len;
   unsigned char *pubKey;
   int pubKey_len;
-  int configMethods; //##003 not needed??
-  int RFBands; //##003 not needed??
+  int configMethods;
+  int RFBands;
 } hostapd_wps_registrar_info;
 
 int hostapd_debug_print_timestamp(char * tbuff);
@@ -68,10 +66,9 @@ void hostapd_base64_decode(	int					b64_msg_len,
 							int		 			max_b64_len );
 int hostapd_iface_init(hostapd_wps_registrar_info *info);
 int hostapd_iface_delete(void);
-WPSuRegistrarSM* hostapd_create_registrar_state_machine(int *error);
-int hostapd_start_registrar_state_machine(void			*rsm,
-										  const char	*pin_code );
-int hostapd_update_registrar_state_machine(void* rsm,
+void hostapd_create_registrar_state_machine(int *error);
+int hostapd_start_registrar_state_machine(const char	*pin_code );
+int hostapd_update_registrar_state_machine(
 						 unsigned char* received_message,
 						 int received_message_len,
 						 unsigned char** next_message,
