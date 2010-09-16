@@ -42,12 +42,9 @@
 
 #define	DEBUG(args) (printf("DEBUG: "), printf args)
 
-#define	WPA_SUPPORT	1
-
-#ifdef WPA_SUPPORT
-#include	"../../hostap/hostapd/hostapd_iface.h"
+/* hostapd & WPA specifics */
+#include	<hostap/hostapd_iface.h>
 #include	"./libgupnp/crypt.h"
-#endif
 
 G_DEFINE_TYPE (GUPnPDeviceProxy,
                gupnp_device_proxy,
@@ -417,27 +414,14 @@ wps_got_response (GUPnPServiceProxy       *proxy,
 
         int b64_msg_len = strlen(out_message);
         unsigned char *binary_message=(unsigned char *)g_malloc(b64_msg_len);
-#ifdef WPA_SUPPORT
-		{
-			int outlen;
-			hostapd_base64_decode (b64_msg_len, (const unsigned char *)out_message, &outlen, binary_message, b64_msg_len);
-			hostapd_update_registrar_state_machine(wps->wpsu_rsm,
-							binary_message,
-							outlen,						
-							&wps->wpsu_registrar_send_msg,
-							&wps->wpsu_registrar_send_msg_len,
-						 	&err);
-		}
-#else /* WPA_SUPPORT */
-        int outlen;
-        wpsu_base64_to_bin (b64_msg_len, (const unsigned char *)out_message, &outlen, binary_message, b64_msg_len);
-
-        wpsu_update_registrar_sm(wps->wpsu_rsm,
-                                 binary_message, outlen,
-                                 &wps->wpsu_registrar_send_msg,
-                                 &wps->wpsu_registrar_send_msg_len,
-                                 &status, &err);
-#endif /* WPA_SUPPORT */
+		int outlen;
+		hostapd_base64_decode (b64_msg_len, (const unsigned char *)out_message, &outlen, binary_message, b64_msg_len);
+		hostapd_update_registrar_state_machine(wps->wpsu_rsm,
+						binary_message,
+						outlen,
+						&wps->wpsu_registrar_send_msg,
+						&wps->wpsu_registrar_send_msg_len,
+					 	&err);
         if (err != 0 || wps->wpsu_registrar_send_msg_len <= 0)
         {
                 wps->error = g_error_new(GUPNP_SERVER_ERROR,
@@ -453,78 +437,35 @@ wps_got_response (GUPnPServiceProxy       *proxy,
         int b64len;
         unsigned char *base64msg = (unsigned char *)g_malloc(maxb64len);
 
-#ifdef WPA_SUPPORT
 		hostapd_base64_encode(wps->wpsu_registrar_send_msg_len, wps->wpsu_registrar_send_msg, &b64len, base64msg, maxb64len);
-#else	/* WPA_SUPPORT */
-        wpsu_bin_to_base64(wps->wpsu_registrar_send_msg_len, wps->wpsu_registrar_send_msg, &b64len, base64msg, maxb64len);
-
-		WPSuRegistrarOutput *sm_output;
-#endif	/* WPA_SUPPORT */
-
-#ifdef WPA_SUPPORT	/* WPA_SUPPORT */
-		int hostapd_is_authentication_finished(void);
 
 		if ( hostapd_is_authentication_finished() ) 	/* M8 processed --> all done */
 		{
 		  status = WPSU_SM_R_SUCCESS;
-//		  status = WPSU_SM_R_PROCESS;
+#ifdef WPA_ADDITIONAL_DEBUG
 		  hostapd_printf("%s: TEST: authentication finished cause WSC_Done received", __func__ );
+#endif
 		}
 		else	/* continue .. */
 		  status = WPSU_SM_R_PROCESS;	// TODO: something else is needed to set "status" --> continue forever
-#endif	/* WPA_SUPPORT */
-        switch (status)
+
+		switch (status)
         {
         case WPSU_SM_R_SUCCESS:
                 g_warning("DeviceProtection introduction last message received!");
-#ifdef WPA_SUPPORT
-/*				hostapd_printf("%s: status=WPSU_SM_R_SUCCESS,on end, handle last message", __func__ );
-				gupnp_service_proxy_begin_action(wps->device_prot_service,
-												"SendSetupMessage",
-												wps_got_response,
-												wps,
-												"ProtocolType",
-												G_TYPE_STRING,
-												"WPS",
-												"InMessage",
-												G_TYPE_STRING,
-												base64msg,
-												NULL);
-				hostapd_printf("%s: gupnp_service_proxy_begin_action() done", __func__ ); */
-#else
-				gupnp_service_proxy_begin_action(wps->device_prot_service,
-												"SendSetupMessage",
-												wps_got_response_null,
-												wps,
-												"ProtocolType",
-												G_TYPE_STRING,
-												"WPS",
-												"InMessage",
-												G_TYPE_STRING,
-												base64msg,
-												NULL);
-#endif
 
-#ifdef WPA_SUPPORT 	/* TODO: UUID should be digged from somewhere ?? */
+				/* TODO: UUID should be digged from somewhere ?? */
                 wps->proxy->priv->root_proxy->priv->device_uuid = malloc( GUPNP_DP_UUID_LEN );
                 memcpy( wps->proxy->priv->root_proxy->priv->device_uuid, hostapd_get_uuid_e_ptr(), GUPNP_DP_UUID_LEN );
 				print_uuid( wps->proxy->priv->root_proxy->priv->cp_uuid, GUPNP_DP_UUID_LEN );
 				print_uuid( wps->proxy->priv->root_proxy->priv->device_uuid, GUPNP_DP_UUID_LEN );
-#else
-                sm_output = wpsu_get_registrar_sm_output( wps->wpsu_rsm, &err );
-                // save device uuid
-                wps->proxy->priv->root_proxy->priv->device_uuid = malloc( GUPNP_DP_UUID_LEN );
-                memcpy( wps->proxy->priv->root_proxy->priv->device_uuid,
-                        sm_output->EnrolleeInfo.Uuid,
-                        GUPNP_DP_UUID_LEN);
-#endif
 
                 wps->done = TRUE;
                 wps->callback(wps->proxy, wps, wps->device_name, &wps->error, wps->user_data);
                 break;
 
         case WPSU_SM_R_SUCCESSINFO:
-#ifdef WPA_SUPPORT
+#ifdef WPA_ADDITIONAL_DEBUG
 				hostapd_printf("%s: status=WPSU_SM_R_SUCCESSINFO", __func__ );
 #endif
 				g_warning("DeviceProtection introduction last message received M2D!");
@@ -542,21 +483,15 @@ wps_got_response (GUPnPServiceProxy       *proxy,
                                                  base64msg,
                                                  NULL);
 
-#ifdef WPA_SUPPORT
-//              wps->device_name = g_string_new(sm_output->EnrolleeInfo.DeviceName);
                 wps->device_name = g_string_new("Device-Name");	/* TODO: Where to get "DeviceName" ?? */
-#else
-				WPSuRegistrarOutput *sm_output;
-                sm_output = wpsu_get_registrar_sm_output(wps->wpsu_rsm, &err);
-                wps->device_name = g_string_new(sm_output->EnrolleeInfo.DeviceName);
-#endif
-                g_warning("Device name: %s", wps->device_name->str);
+
+				g_warning("Device name: %s", wps->device_name->str);
                 wps->callback(wps->proxy, wps, wps->device_name, &wps->error, wps->user_data);
 
                 break;
 
         case WPSU_SM_R_FAILURE:
-#ifdef WPA_SUPPORT
+#ifdef WPA_ADDITIONAL_DEBUG
 				hostapd_printf("%s: status=WPSU_SM_R_FAILURE", __func__ );
 #endif
 				wps->error = g_error_new(GUPNP_SERVER_ERROR,
@@ -579,7 +514,7 @@ wps_got_response (GUPnPServiceProxy       *proxy,
                 break;
 
         case WPSU_SM_R_FAILUREEXIT:
-#ifdef WPA_SUPPORT
+#ifdef WPA_ADDITIONAL_DEBUG
 				hostapd_printf("%s: status=WPSU_SM_R_FAILUREEXIT", __func__ );
 #endif
 				wps->error = g_error_new(GUPNP_SERVER_ERROR,
@@ -591,7 +526,7 @@ wps_got_response (GUPnPServiceProxy       *proxy,
                 break;
 
         default:
-#ifdef WPA_SUPPORT
+#ifdef WPA_ADDITIONAL_DEBUG
 				hostapd_printf("%s: status=%d, default", __func__, status );
 #endif
 				gupnp_service_proxy_begin_action(wps->device_prot_service,
@@ -745,7 +680,6 @@ gupnp_device_proxy_begin_wps (GUPnPDeviceProxy           *proxy,
         memcpy( proxy->priv->root_proxy->priv->cp_uuid, wps->uuid, GUPNP_DP_UUID_LEN );
         print_uuid( proxy->priv->root_proxy->priv->cp_uuid, GUPNP_DP_UUID_LEN );
 
-#ifdef WPA_SUPPORT	/* WPA in use */
 	hostapd_wps_registrar_info info;
 
 	info.wpsu_input = wps->wpsu_input;
@@ -815,69 +749,6 @@ gupnp_device_proxy_begin_wps (GUPnPDeviceProxy           *proxy,
                                         NULL);
 	hostapd_printf("%s:all done\n", __func__ );
 
-#else	/* WPSU in use */		
-        error = wpsu_registrar_input_add_device_info (wps->wpsu_input,
-                                                       wps->pin->str, //device_pin
-                                                       NULL,
-                                                       NULL,
-                                                       NULL,
-                                                       NULL,
-                                                       wps->client_name->str,
-                                                       NULL,
-                                                       0,
-                                                       NULL,
-                                                       0,
-                                                       wps->uuid,
-                                                       wps->uuid_len,
-                                                       NULL,
-                                                       0,
-                                                       NULL,
-                                                       0,
-                                                       WPSU_CONF_METHOD_LABEL,
-                                                       0);
-
-        if (error != WPSU_E_SUCCESS)
-        {
-                wps->error = g_error_new(GUPNP_SERVER_ERROR,
-                                         GUPNP_SERVER_ERROR_OTHER,
-                                         "Failed to create WPS input.");
-                g_warning("%s, %d", wps->error->message, error);
-                return wps;
-        }
-
-        wps->wpsu_rsm = wpsu_create_registrar_sm_enrollment(&error);
-        if (error != WPSU_E_SUCCESS)
-        {
-                wps->error = g_error_new(GUPNP_SERVER_ERROR,
-                                         GUPNP_SERVER_ERROR_OTHER,
-                                         "Failed to create registrat state machine.");
-                g_warning("%s", wps->error->message);
-                return wps;
-        }
-
-        wpsu_start_registrar_sm(wps->wpsu_rsm, wps->wpsu_input, &error);
-        if (error != WPSU_E_SUCCESS)
-        {
-                wps->error = g_error_new(GUPNP_SERVER_ERROR,
-                                         GUPNP_SERVER_ERROR_OTHER,
-                                         "Failed to start registrar state machine.");
-                g_warning("%s", wps->error->message);
-                return wps;
-        }
-
-
-        gupnp_service_proxy_begin_action(wps->device_prot_service,
-                                         "SendSetupMessage",
-                                         wps_got_response,
-                                         wps,
-                                         "ProtocolType",
-                                         G_TYPE_STRING,
-                                         "WPS",
-                                         "InMessage",
-                                         G_TYPE_STRING,
-                                         "",
-                                         NULL);
-#endif /* WPSU in use */
 
         return wps;
 }
@@ -888,7 +759,7 @@ gupnp_device_proxy_continue_wps (GUPnPDeviceProxyWps        *wps,
                                  GString                    *pin,
                                  gpointer                    user_data)
 {
-#ifdef WPA_SUPPORT
+#ifdef WPA_ADDITIONAL_DEBUG
 		hostapd_printf("%s:", __func__ );
 #endif
 		// TODO: wps messages m2..m8
@@ -946,21 +817,13 @@ gboolean
 gupnp_device_proxy_end_wps (GUPnPDeviceProxyWps *wps)
 {
         // TODO: end wps setup
-#ifndef WPA_SUPPORT
-        gint err;
-#endif
-
         gboolean done = wps->done;
         g_object_unref(wps->proxy);
         g_string_free(wps->client_name, TRUE);
         g_string_free(wps->pin, TRUE);
         //g_string_free(wps->device_name, TRUE);
 
-#ifndef WPA_SUPPORT
-		wpsu_registrar_input_free(wps->wpsu_input);
-        wpsu_cleanup_registrar_sm(wps->wpsu_rsm, &err);
-#endif
-//		g_free(wps);
+		//		g_free(wps);
 
         return done;
 }
@@ -1166,11 +1029,7 @@ static int createAuthenticator( const unsigned char *bin_stored,
 
     int bin_challenge_len;
 
-#ifdef WPA_SUPPORT
     hostapd_base64_decode( b64msglen, (const unsigned char *) b64_challenge, &bin_challenge_len, bin_challenge, b64msglen );
-#else
-    wpsu_base64_to_bin( b64msglen, (const unsigned char *) b64_challenge, &bin_challenge_len, bin_challenge, b64msglen );
-#endif
     // create ( Challenge || DeviceID || ControlPointID )
     int cdc_len = bin_challenge_len + 2*(GUPNP_DP_UUID_LEN);
     unsigned char *cdc = (unsigned char *) malloc ( cdc_len );
@@ -1191,11 +1050,7 @@ static int createAuthenticator( const unsigned char *bin_stored,
 
     *b64_authenticator = ( char * ) malloc( maxb64len );
 
-#ifdef WPA_SUPPORT
 	hostapd_base64_encode( GUPNP_DP_AUTH_BYTES, hmac_result, auth_len, ( unsigned char * ) *b64_authenticator, maxb64len);
-#else
-    wpsu_bin_to_base64( GUPNP_DP_AUTH_BYTES, hmac_result, auth_len, ( unsigned char * ) *b64_authenticator, maxb64len );
-#endif
 
     return 0;
 }
@@ -1283,11 +1138,7 @@ login_challenge_response( GUPnPServiceProxy       *proxy,
         int b64_msg_len = strlen( salt );
         unsigned char *bin_salt = ( unsigned char * ) g_malloc( b64_msg_len );
         int bin_salt_len;
-#ifdef WPA_SUPPORT
 		hostapd_base64_decode( b64_msg_len, ( const unsigned char * ) salt, &bin_salt_len, bin_salt, b64_msg_len );
-#else
-		wpsu_base64_to_bin( b64_msg_len, ( const unsigned char * ) salt, &bin_salt_len, bin_salt, b64_msg_len );
-#endif
 
         // username to utf8 uppercase
 #ifdef NO_UPPERCASE_USERNAME
@@ -1690,13 +1541,8 @@ gupnp_device_proxy_change_password (GUPnPDeviceProxy                       *prox
         }
         
         // SALT and STORED to base 64
-#ifdef WPA_SUPPORT
         hostapd_base64_encode(GUPNP_DP_SALT_BYTES, salt, &salt_len, b64_salt, maxb64len);
         hostapd_base64_encode(GUPNP_DP_STORED_BYTES, bin_stored, &stored_len, b64_stored, maxb64len);
-#else
-        wpsu_bin_to_base64(GUPNP_DP_SALT_BYTES, salt, &salt_len, b64_salt, maxb64len);                                                
-        wpsu_bin_to_base64(GUPNP_DP_STORED_BYTES, bin_stored, &stored_len, b64_stored, maxb64len);
-#endif
 
         // create GStrings from salt and stored
         passworddata->salt = g_string_new_len((char *)b64_salt, salt_len);

@@ -43,11 +43,7 @@
 #include "gvalue-util.h"
 #include "gupnp-ssl-client.h"
 
-#define	WPA_SUPPORT	1
-
-#ifdef WPA_SUPPORT
-#include "../../hostap/hostapd/hostapd_iface.h"
-#endif
+#include <hostap/hostapd_iface.h>
 
 G_DEFINE_TYPE (GUPnPServiceProxy,
                gupnp_service_proxy,
@@ -964,7 +960,7 @@ gupnp_service_proxy_end_action (GUPnPServiceProxy       *proxy,
         va_list var_args;
         gboolean ret;
 
-#ifdef WPA_SUPPORT
+#ifdef WPA_ADDITIONAL_DEBUG
 	  hostapd_printf("%s:start\n", __func__ );
 #endif
         va_start (var_args, error);
