@@ -7,6 +7,14 @@ ifndef CFLAGS
 CFLAGS = -MMD -Wall -g
 endif
 
+export PREFIX ?= /usr/local
+export LIBDIR ?= $(PREFIX)/lib
+export BINDIR ?= $(PREFIX)/sbin
+export INCDIR ?= $(PREFIX)/include
+
+DYN_LIB=libhostapd.so
+DYN_LIB_IFACE_HEADER=hostapd_iface.h
+
 CFLAGS += -I../src
 CFLAGS += -I../src/utils
 CFLAGS += -I../..
@@ -794,8 +802,18 @@ hlr_auc_gw: $(HOBJS)
 
 OBJS_libha := $(OBJS)
 
-libhostapd.so: $(BCHECK) $(OBJS_libha)
-	$(CC) -shared $(LDFLAGS) -o libhostapd.so $(OBJS_libha) $(LIBS)
+$(DYN_LIB): $(BCHECK) $(OBJS_libha)
+	$(CC) -shared $(LDFLAGS) -o $(DYN_LIB) $(OBJS_libha) $(LIBS)
+
+install_hostapd: $(DYN_LIB)
+	if ls $< >/dev/null 2>&1; then \
+		install -d $(DESTDIR)$(LIBDIR) && \
+		cp $< $(DESTDIR)$(LIBDIR) \
+	; fi
+	if ls $(DYN_LIB_IFACE_HEADER) >/dev/null 2>&1; then \
+		install -d $(DESTDIR)$(INCDIR)/hostap && \
+		cp $(DYN_LIB_IFACE_HEADER) $(DESTDIR)$(INCDIR)/hostap \
+	; fi
 
 clean:
 	$(MAKE) -C ../src clean
