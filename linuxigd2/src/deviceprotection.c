@@ -634,6 +634,8 @@ static int createStopWPSTimer(void)
 static int startWPS()
 {
     int err;
+    trace(2,"startWPS");
+
     // create timer which will end introduction after 60 seconds if it is still runnning
     if ((err = createStopWPSTimer()) != 0)
     {
@@ -671,7 +673,7 @@ static int startWPS()
 static void stopWPS()
 {
     int error;
-    trace(2,"Finished DeviceProtection pairwise introduction process\n");
+    trace(2,"stopWPS(), Finished DeviceProtection pairwise introduction process\n");
 
     // cancel possible StopWPS thread job
     if (gStopWPSJobId != -1)
@@ -1249,6 +1251,8 @@ int SendSetupMessage(struct Upnp_Action_Request *ca_event)
         if (strcmp(protocoltype, "WPS") != 0)
         {
             trace(1, "Introduction protocol type must be 'WPS': Invalid ProtocolType=%s\n",protocoltype);
+            if (gWpsIntroductionRunning)
+                stopWPS();
             result = 600;
             addErrorData(ca_event, result, "Argument Value Invalid");
 
