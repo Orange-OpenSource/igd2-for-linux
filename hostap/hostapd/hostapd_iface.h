@@ -20,6 +20,8 @@
 #ifndef HOSTAPD_IFACE_H
 #define HOSTAPD_IFACE_H
 
+#define	WPA_ADDITIONAL_DEBUG	1
+
 #ifdef __cplusplus
 extern "C" {
 #endif

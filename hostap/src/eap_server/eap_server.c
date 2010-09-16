@@ -30,7 +30,6 @@
 
 #define EAP_MAX_AUTH_ROUNDS 50
 
-#define WPA_SUPPORT	1
 #define WPA_NO_INTEGRITY_CHECK	1
 
 static void eap_user_free(struct eap_user *user);
@@ -161,7 +160,7 @@ SM_STATE(EAP, INITIALIZE)
 	sm->m = NULL;
 	sm->user_eap_method_index = 0;
 
-#ifdef WPA_SUPPORT
+#ifdef WPA_ADDITIONAL_DEBUG
 	wpa_printf(MSG_DEBUG, "%s:", __func__ );
 #endif
 	if (sm->backend_auth) {
@@ -169,17 +168,17 @@ SM_STATE(EAP, INITIALIZE)
 		/* parse rxResp, respId, respMethod */
 		eap_sm_parseEapResp(sm, sm->eap_if.eapRespData);
 		if (sm->rxResp) {
-#ifdef WPA_SUPPORT
+#ifdef WPA_ADDITIONAL_DEBUG
 			wpa_printf(MSG_DEBUG,"%s:sm->currentId=%d <-- sm->respId=%d;", __func__, sm->currentId, sm->respId );
 #endif
 			sm->currentId = sm->respId;
 		}
-#ifdef WPA_SUPPORT
+#ifdef WPA_ADDITIONAL_DEBUG
 		else
 		  wpa_printf(MSG_DEBUG, "%s:sm->rxResp ==0 --> sm->currentId not set !!", __func__ );
 #endif
 	}
-#ifdef WPA_SUPPORT
+#ifdef WPA_ADDITIONAL_DEBUG
 	else
 		wpa_printf(MSG_DEBUG, "%s: no backend auth", __func__ );
 #endif
@@ -557,7 +556,7 @@ SM_STATE(EAP, AAA_RESPONSE)
 	SM_ENTRY(EAP, AAA_RESPONSE);
 
 	eap_copy_buf(&sm->eap_if.eapReqData, sm->eap_if.aaaEapReqData);
-#ifdef WPA_SUPPORT
+#ifdef WPA_ADDITIONAL_DEBUG
 	wpa_printf( MSG_DEBUG,"%s:sm->currentId: old=%d , new=%d", __func__, sm->currentId, eap_sm_getId(sm->eap_if.eapReqData) );
 #endif
 	sm->currentId = eap_sm_getId(sm->eap_if.eapReqData);
@@ -619,7 +618,7 @@ SM_STATE(EAP, SUCCESS2)
 	sm->start_reauth = TRUE;
 }
 
-#ifdef WPA_SUPPORT
+#ifdef WPA_ADDITIONAL_DEBUG
 
 /* from src/eap_server/eap_i.h 
 struct eap_sm {
@@ -674,7 +673,7 @@ static const char * eap_sm_state_txt2(int state)
 
 SM_STEP(EAP)
 {
-#ifdef WPA_SUPPORT
+#ifdef WPA_ADDITIONAL_DEBUG
 		  wpa_printf(MSG_DEBUG, "%s:EAP_state=%s,rxResp=%d respId=%d currentId=%d,respMethod=%d,currentMethod=%d\n",
 		   __func__,
 			eap_sm_state_txt2(sm->EAP_state),
@@ -765,7 +764,7 @@ SM_STEP(EAP)
 		}
 		break;
 	case EAP_DISCARD:
-#ifdef WPA_SUPPORT
+#ifdef WPA_ADDITIONAL_DEBUG
 		wpa_printf( MSG_DEBUG,"%s: DISCARD --> IDLE", __func__ );
 #endif
 		SM_ENTER(EAP, IDLE);
@@ -983,8 +982,8 @@ static void eap_sm_parseEapResp(struct eap_sm *sm, const struct wpabuf *resp)
 		return;
 	}
 
-#ifdef WPA_SUPPORT
-	printf("%s:setting respId from %d to %d\n", __func__, sm->respId, hdr->identifier );
+#ifdef WPA_ADDITIONAL_DEBUG
+	wpa_printf(MSG_DEBUG, "%s:setting respId from %d to %d\n", __func__, sm->respId, hdr->identifier );
 #endif
 	sm->respId = hdr->identifier;
 
@@ -1068,19 +1067,21 @@ static int eap_sm_nextId(struct eap_sm *sm, int id)
 	if (id < 0) {
 		/* RFC 3748 Ch 4.1: recommended to initialize Identifier with a
 		 * random number */
-#ifdef WPA_SUPPORT
-		id = rand() & 0xff;
-#else
-		id = 103;
+#ifdef WPA_ADDITIONAL_DEBUG
+		wpa_printf(MSG_DEBUG, "%s:  initialize Identifier", __func__ );
 #endif
+
+		id = rand() & 0xff;
+//		id = 103;
+
 		if (id != sm->lastId) {
-#ifdef WPA_SUPPORT
+#ifdef WPA_ADDITIONAL_DEBUG
 			wpa_printf(MSG_DEBUG, "%s: set currentId: randomize next 'currentId' to %d", __func__, id );
 #endif
 			return id;
 		}
 	}
-#ifdef WPA_SUPPORT
+#ifdef WPA_ADDITIONAL_DEBUG
 	wpa_printf(MSG_DEBUG, "%s:  set currentId: next 'currentId' + 1 == %d", __func__, (id + 1) & 0xff );
 #endif
 	return (id + 1) & 0xff;

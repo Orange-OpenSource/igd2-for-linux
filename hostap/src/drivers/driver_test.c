@@ -46,7 +46,7 @@
 #include "l2_packet/l2_packet.h"
 #include "driver.h"
 
-#define WPA_SUPPORT	1	/* NNN */
+#include <hostap/hostapd_iface.h>
 
 struct test_client_socket {
 	struct test_client_socket *next;
@@ -1215,7 +1215,7 @@ static void * test_driver_init(struct hostapd_data *hapd,
 	os_memcpy(bss->bssid, drv->own_addr, ETH_ALEN);
 	os_memcpy(params->own_addr, drv->own_addr, ETH_ALEN);
 
-#ifdef WPA_SUPPORT
+#if 1	/* with this WPA-hack, we don't need test-socket */
 	params->test_socket = NULL;	/* suppress test-socket as useless */
 	eloop_register_read_sock(drv->test_socket, test_driver_receive_unix, drv, NULL);
 	return( bss );
@@ -2343,8 +2343,7 @@ static int wpa_driver_test_send_eapol(void *priv, const u8 *dest, u16 proto,
 	struct sockaddr_un addr_un;
 #endif /* DRIVER_TEST_UNIX */
 
-#ifdef WPA_SUPPORT
-	printf("%s", __func__ );
+#ifdef WPA_ADDITIONAL_DEBUG
 	wpa_printf( MSG_DEBUG,"%s:", __func__ );
 #endif
 	wpa_hexdump(MSG_MSGDUMP, "test_send_eapol TX frame", data, data_len);

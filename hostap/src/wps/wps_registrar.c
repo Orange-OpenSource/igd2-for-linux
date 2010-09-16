@@ -29,7 +29,7 @@
 
 #define WPS_WORKAROUNDS
 
-#define WPA_SUPPORT	1
+#include <hostap/hostapd_iface.h>
 
 struct wps_uuid_pin {
 	struct dl_list list;
@@ -43,6 +43,8 @@ struct wps_uuid_pin {
 	struct os_time expiration;
 };
 
+int	wps_handshaking_done = 0;
+unsigned char wps_uuid_e_buf[ WPS_UUID_LEN ];
 
 static void wps_free_pin(struct wps_uuid_pin *pin)
 {
@@ -1471,10 +1473,6 @@ static struct wpabuf * wps_build_m6(struct wps_data *wps)
 	return msg;
 }
 
-#ifdef WPA_SUPPORT
-int	wps_handshaking_done = 0;
-#endif
-
 static struct wpabuf * wps_build_m8(struct wps_data *wps)
 {
 	struct wpabuf *msg, *plain;
@@ -1683,10 +1681,6 @@ static int wps_process_registrar_nonce(struct wps_data *wps, const u8 *r_nonce)
 	return 0;
 }
 
-#ifdef WPA_SUPPORT
-  unsigned char wps_uuid_e_buf[ WPS_UUID_LEN ];
-#endif
-
 static int wps_process_uuid_e(struct wps_data *wps, const u8 *uuid_e)
 {
 	if (uuid_e == NULL) {
@@ -1695,9 +1689,9 @@ static int wps_process_uuid_e(struct wps_data *wps, const u8 *uuid_e)
 	}
 
 	os_memcpy(wps->uuid_e, uuid_e, WPS_UUID_LEN);
-#ifdef WPA_SUPPORT
-	os_memcpy(wps_uuid_e_buf, uuid_e, WPS_UUID_LEN);
-#endif
+
+	os_memcpy(wps_uuid_e_buf, uuid_e, WPS_UUID_LEN);	/* hack: copy to buff, where it can be retrieved later */
+
 	wpa_hexdump(MSG_DEBUG, "WPS: UUID-E", wps->uuid_e, WPS_UUID_LEN);
 
 	return 0;
@@ -2425,10 +2419,10 @@ static enum wps_process_res wps_process_wsc_msg(struct wps_data *wps,
 	default:
 		wpa_printf(MSG_DEBUG, "WPS: Unsupported Message Type %d",
 			   *attr.msg_type);
-#ifdef WPA_SUPPORT
+#ifdef WPA_ADDITIONAL_DEBUG
 		wpa_printf(MSG_DEBUG, "%s: ending WPS/WPA handshake. msg_type=%d", __func__, *attr.msg_type );
-		wps_handshaking_done = 1;
 #endif
+		wps_handshaking_done = 1;
 		return WPS_FAILURE;
 	}
 
@@ -2659,9 +2653,7 @@ static enum wps_process_res wps_process_wsc_done(struct wps_data *wps,
 	wps_device_store(wps->wps->registrar, &wps->peer_dev,
 			 wps->uuid_e);
 
-#ifdef WPA_SUPPORT
-	wps_handshaking_done = 1;
-#endif
+	wps_handshaking_done = 1;	/* say: "WPA handshaking is ready" */
 
 	if (wps->wps->wps_state == WPS_STATE_NOT_CONFIGURED && wps->new_psk &&
 	    wps->wps->ap && !wps->wps->registrar->disable_auto_conf) {
