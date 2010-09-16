@@ -26,9 +26,7 @@
 extern "C" {
 #endif
 
-
 #include	"registrar_state_machine.h"
-
 
  typedef struct {
   WPSuRegistrarInput *wpsu_input;
