@@ -915,7 +915,7 @@ void createUuidFromData(char **uuid_str, unsigned char **uuid_bin, size_t *uuid_
 
     /* put in the variant and version bits */
     uuid->time_hi_and_version &= 0x0FFF;
-    uuid->time_hi_and_version |= (PSEUDO_RANDOM_UUID_TYPE << 12);
+    uuid->time_hi_and_version |= (SHA1_HASH_UUID_TYPE << 12);
     uuid->clock_seq_hi_and_reserved &= 0x3F;
     uuid->clock_seq_hi_and_reserved |= 0x80;
 
@@ -968,6 +968,66 @@ int calculate_sha1( const unsigned char *data, size_t data_len, unsigned char *h
 
     tmp_hash = gcry_md_read( ctx, GCRY_MD_SHA1 );
     hash_len = gcry_md_get_algo_dlen( GCRY_MD_SHA1 );
+    memcpy(( void * )hash, ( void * )tmp_hash, hash_len );
+
+    gcry_md_close( ctx );
+
+    if ( tmp_hash == NULL )
+        return -1;
+
+    return hash_len;
+}
+
+/**
+ * Hash data with SHA-256
+ *
+ * @param data Data which is hashed
+ * @param data_len Length of data
+ * @param hash Pointer to hashed data. Return value.
+ * @return Length of hash or error code
+ */
+int calculate_sha256( const unsigned char *data, size_t data_len, unsigned char *hash )
+{
+    unsigned char *tmp_hash;
+    int hash_len = 0;
+    gcry_md_hd_t ctx;
+
+    gcry_md_open( &ctx, GCRY_MD_SHA256, 0 );
+    gcry_md_write( ctx, ( void * )data, data_len );
+    gcry_md_final( ctx );
+
+    tmp_hash = gcry_md_read( ctx, GCRY_MD_SHA256 );
+    hash_len = gcry_md_get_algo_dlen( GCRY_MD_SHA256 );
+    memcpy(( void * )hash, ( void * )tmp_hash, hash_len );
+
+    gcry_md_close( ctx );
+
+    if ( tmp_hash == NULL )
+        return -1;
+
+    return hash_len;
+}
+
+/**
+ * Hash data with truncated SHA-256 (i.e SHA-224)
+ *
+ * @param data Data which is hashed
+ * @param data_len Length of data
+ * @param hash Pointer to hashed data. Return value.
+ * @return Length of hash or error code
+ */
+int calculate_sha224( const unsigned char *data, size_t data_len, unsigned char *hash )
+{
+    unsigned char *tmp_hash;
+    int hash_len = 0;
+    gcry_md_hd_t ctx;
+
+    gcry_md_open( &ctx, GCRY_MD_SHA224, 0 );
+    gcry_md_write( ctx, ( void * )data, data_len );
+    gcry_md_final( ctx );
+
+    tmp_hash = gcry_md_read( ctx, GCRY_MD_SHA224 );
+    hash_len = gcry_md_get_algo_dlen( GCRY_MD_SHA224 );
     memcpy(( void * )hash, ( void * )tmp_hash, hash_len );
 
     gcry_md_close( ctx );

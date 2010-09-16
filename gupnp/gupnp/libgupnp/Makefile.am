@@ -19,7 +19,8 @@ libgupnpinc_HEADERS = gupnp-context.h			\
 		      gupnp-service-proxy.h		\
 	              gupnp-service-introspection.h	\
 	              gupnp-types.h			\
-		      gupnp.h			\
+		      gupnp.h				\
+		      crypt.h				\
 		      gupnp-ssl-client.h
 
 gupnp-marshal.c: gupnp-marshal.list
@@ -58,9 +59,10 @@ libgupnp_1_0_la_SOURCES = http-headers.c			\
 			  xml-util.c				\
 			  xml-util.h				\
 			  gena-protocol.h			\
-			  pki.c						\
-			  pki.h						\
-			  gupnp-ssl-client.c				\
+			  pki.c					\
+			  pki.h					\
+			  crypt.c				\
+			  gupnp-ssl-client.c			\
 			  $(BUILT_SOURCES)
 
 libgupnp_1_0_la_LIBADD = $(LIBGUPNP_LIBS)

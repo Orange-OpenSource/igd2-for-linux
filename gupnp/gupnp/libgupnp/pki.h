@@ -80,6 +80,8 @@
 
 
 #define PSEUDO_RANDOM_UUID_TYPE 0x4
+#define SHA1_HASH_UUID_TYPE		0x5
+
 typedef struct {
     uint32_t  time_low;
     uint16_t  time_mid;
@@ -213,5 +215,8 @@ int get_peer_certificate(gnutls_session_t session, unsigned char *data, int *dat
 void createUuidFromData(char **uuid_str, unsigned char **uuid_bin, size_t *uuid_bin_size, unsigned char *hash, int hashLen);
 
 int calculate_sha1( const unsigned char *data, size_t data_len, unsigned char *hash );
+int calculate_sha256( const unsigned char *data, size_t data_len, unsigned char *hash );
+int calculate_sha224( const unsigned char *data, size_t data_len, unsigned char *hash );
+
 void print_uuid( unsigned char *data, size_t data_len );
 #endif /*PKI_H_*/
