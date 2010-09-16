@@ -1505,7 +1505,7 @@ gupnp_device_proxy_change_password (GUPnPDeviceProxy                       *prox
         unsigned char namesalt[namesalt_len];
     
         // create SALT   
-        unsigned char *salt = wpsu_createRandomValue(GUPNP_DP_SALT_BYTES);
+        unsigned char *salt = crypt_create_random_value(GUPNP_DP_SALT_BYTES);
         
         memcpy(namesalt, nameUPPER, name_len);
         memcpy(namesalt+name_len, salt, GUPNP_DP_SALT_BYTES);
