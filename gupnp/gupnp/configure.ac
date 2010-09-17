@@ -20,7 +20,6 @@ PKG_CHECK_MODULES(LIBGUPNP, glib-2.0 >= 2.18 \
                             libxml-2.0 \
                             uuid
 			    libhostapd
-			    libwpsutil
                             gnutls)
 
 PKG_CHECK_MODULES(GTHREAD, gthread-2.0)
