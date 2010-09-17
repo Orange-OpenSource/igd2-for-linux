@@ -592,7 +592,7 @@ int eloop_running_part1(void)
 				os_time_sub(&timeout->time, &now, &tv);
 			else
 				tv.sec = tv.usec = 0;
-			wpa_printf(MSG_DEBUG, "XXXX sec:%d usec:%d", (int)tv.sec, (int)tv.usec);
+			wpa_printf(MSG_DEBUG, "next timeout sec:%d usec:%d", (int)tv.sec, (int)tv.usec);
 			res = tv.sec;
 			if (tv.sec == 0 && tv.usec != 0) {
 				res = 1; // round to full sec

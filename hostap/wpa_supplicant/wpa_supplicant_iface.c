@@ -72,7 +72,7 @@ static int wpa_supplicant_iface_send_eapol_cb(void *drv, const u8 *data, size_t 
 	}
 
 	// Save the message to be delivered out of interface
-	wpa_printf(MSG_DEBUG, "XXXX send_eapol_cb, check the data structure in code");
+	wpa_printf(MSG_DEBUG, "wpa_supplicant_iface_send_eapol_cb, check the data structure in code");
 	send_eapol_data_len = data_len - 18;  //TODO: check this
 	send_eapol_data = malloc(send_eapol_data_len); //TODO: who will release this memory?
 	memcpy(send_eapol_data, data + 18, send_eapol_data_len);
@@ -358,12 +358,12 @@ static int handle_eapol_req_immediately(void *drv, const u8 *data, size_t data_l
 	if (msg1_len == data_len &&
 	    memcmp(msg1, data, data_len) == 0) {
 		internally_handled_msg_id = 1;
-		wpa_printf(MSG_DEBUG, "xxx msg1 req");
+		wpa_printf(MSG_DEBUG, "handle_eapol_req_immediately msg1 req");
 		return 0;
 	} else if (msg2_len == data_len &&
 		   memcmp(msg2, data, data_len) == 0) {
 		internally_handled_msg_id = 2;
-		wpa_printf(MSG_DEBUG, "xxx msg2 req");
+		wpa_printf(MSG_DEBUG, "handle_eapol_req_immediately msg2 req");
 		return 0;
 	}
 	return -1;
