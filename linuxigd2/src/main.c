@@ -162,6 +162,13 @@ int main (int argc, char** argv)
         exit(0);
     }
 
+    const char *env_var_admin_pw = "IGD2_ADMIN_PW";
+    if (getenv(env_var_admin_pw) != NULL)
+    {
+        strncpy(g_vars.adminPassword, getenv(env_var_admin_pw), OPTION_LEN);
+        printf("NOTE! overriding admin password from ENV var\n");
+    }
+    
     // check for '-f' option
     if (strcmp(argv[arg], "-f") == 0)
     {
