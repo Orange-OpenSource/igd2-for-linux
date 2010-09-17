@@ -29,7 +29,7 @@
 
 #define WPS_WORKAROUNDS
 
-#include <hostap/hostapd_iface.h>
+#include "../../hostapd/hostapd_iface.h"
 
 struct wps_uuid_pin {
 	struct dl_list list;
