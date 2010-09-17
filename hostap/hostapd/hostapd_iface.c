@@ -436,7 +436,7 @@ static struct hostapd_iface *
 hostapd_interface_init(struct hapd_interfaces	*interfaces,
 				const char						*config_fname,
 				hostapd_wps_registrar_info		*info,
-				int							debug)
+				int								debug)
 {
 	struct hostapd_iface *iface;
 	int k;
