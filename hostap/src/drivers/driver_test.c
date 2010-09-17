@@ -46,7 +46,7 @@
 #include "l2_packet/l2_packet.h"
 #include "driver.h"
 
-#include <hostap/hostapd_iface.h>
+#include "../../hostapd/hostapd_iface.h"
 
 struct test_client_socket {
 	struct test_client_socket *next;
