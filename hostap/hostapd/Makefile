@@ -20,7 +20,6 @@ DYN_LIB_IFACE_PKGFILE ?= libhostapd.pc
 CFLAGS += -I../src
 CFLAGS += -I../src/utils
 CFLAGS += -I../..
-CFLAGS += -I../../wpsutil/inc/
 
 # Uncomment following line and set the path to your kernel tree include
 # directory if your C library does not include all header files.

@@ -3,7 +3,7 @@ exec_prefix=${prefix}
 libdir=${exec_prefix}/lib
 includedir=${prefix}/include
 
-Name: libwpsutil
+Name: libhostapd
 Description: HostAP for WPA
 Version: 0.1.0
 Libs: -L${libdir} -lhostapd
