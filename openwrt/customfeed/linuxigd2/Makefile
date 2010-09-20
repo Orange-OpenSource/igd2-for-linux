@@ -9,7 +9,7 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=linuxigd2
-PKG_VERSION:=1.0
+PKG_VERSION:=1.1
 PKG_RELEASE:=1
 
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.gz
@@ -18,7 +18,7 @@ PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.gz
 
 PKG_BUILD_DIR:=$(BUILD_DIR)/$(PKG_NAME)-$(PKG_VERSION)
 
-PKG_BUILD_DEPENDS:=iptables libupnp libwpsutil
+PKG_BUILD_DEPENDS:=iptables libupnp hostaplibs
 
 include $(INCLUDE_DIR)/package.mk
 
@@ -26,7 +26,7 @@ define Package/linuxigd2
   SECTION:=net
   CATEGORY:=Network
   TITLE:=UPnP daemon
-  DEPENDS:=+libupnp +libwpsutil +libpthread +dhcp-relay 
+  DEPENDS:=+libupnp +hostaplibs +libpthread +dhcp-relay 
   #URL:=http://linux-igd.sourceforge.net/
 endef
 
