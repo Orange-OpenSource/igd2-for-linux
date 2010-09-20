@@ -71,6 +71,9 @@ gupnp_device_proxy_get_type (void) G_GNUC_CONST;
 #define GUPNP_DEVICE_WPS_METHOD_PIN             0x01
 #define GUPNP_DEVICE_WPS_METHOD_PUSHBUTTON      0x02
 
+#define WPA_HASH_LEN	32 // if SHA1 is used then 20
+#define WPA_E_SUCCESS	0
+
 typedef struct _GUPnPDeviceProxyPrivate GUPnPDeviceProxyPrivate;
 
 /**
