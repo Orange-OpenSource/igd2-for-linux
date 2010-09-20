@@ -35,7 +35,7 @@ define Package/linuxigd2/description
 	specification (IGDv2) and allows UPnP aware clients, such 
 	as MSN Messenger, Azureus or Miranda to work properly from
 	behind a NAT firewall. 
-	
+
 	Please edit /etc/upnpd.conf before using upnpd!
 endef
 
@@ -63,6 +63,7 @@ define Package/linuxigd2/install
 	$(INSTALL_DATA) $(PKG_BUILD_DIR)/configs/*.xml $(1)/etc/linuxigd/
 	$(INSTALL_DIR) $(1)/etc
 	$(INSTALL_DATA) $(PKG_BUILD_DIR)/configs/upnpd.conf $(1)/etc/
+	$(INSTALL_DATA) $(PKG_BUILD_DIR)/configs/upnpd_ACL.xml $(1)/etc/
 	$(INSTALL_DIR) $(1)/etc/init.d
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/configs/upnpd.init $(1)/etc/init.d/upnpd
 endef
