@@ -841,3 +841,11 @@ static void eapol_nnnn_from_sta()
 	hostapd_hexdump( __func__, msg, msg_len);
 	wpa_driver_test_eapol_inject(eloop_drv_get(), msg, msg_len);
 }
+
+//Just a wrapper to hide the internal crypto method
+void hostapd_hmac_sha256(const unsigned char *key, size_t key_len,
+				const unsigned char *data, size_t data_len,
+				unsigned char *mac)
+{
+	hmac_sha256(key, key_len, data, data_len, mac);
+}
