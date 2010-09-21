@@ -236,5 +236,5 @@ int calculate_sha1( const unsigned char *data, size_t data_len, unsigned char *h
 int calculate_sha256( const unsigned char *data, size_t data_len, unsigned char *hash );
 int calculate_sha224( const unsigned char *data, size_t data_len, unsigned char *hash );
 
-void print_uuid( unsigned char *data, size_t data_len );
+void print_uuid( const char *title, unsigned char *data, size_t data_len );
 #endif /*PKI_H_*/

@@ -741,9 +741,10 @@ static int create_msg_string( GUPnPServiceProxyAction *action, char *path, char 
     *full_message = malloc(fullLength);
     memset(*full_message, '\0', fullLength);
     snprintf(*full_message,fullLength,"%s\r\n%s",headers,buf->data);
-    
-    //g_warning ("FULL MESSAGE:\n%s",*full_message);    
-    
+
+    if ( g_getenv("GUPNP_SOAP"))
+	  g_warning ("FULL MESSAGE:\n%s",*full_message);
+
     return 0;
 }
 

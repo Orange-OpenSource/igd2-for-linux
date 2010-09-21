@@ -462,8 +462,8 @@ wps_got_response (GUPnPServiceProxy       *proxy,
 				/* TODO: UUID should be digged from somewhere ?? */
                 wps->proxy->priv->root_proxy->priv->device_uuid = malloc( GUPNP_DP_UUID_LEN );
                 memcpy( wps->proxy->priv->root_proxy->priv->device_uuid, hostapd_get_uuid_e_ptr(), GUPNP_DP_UUID_LEN );
-				print_uuid( wps->proxy->priv->root_proxy->priv->cp_uuid, GUPNP_DP_UUID_LEN );
-				print_uuid( wps->proxy->priv->root_proxy->priv->device_uuid, GUPNP_DP_UUID_LEN );
+				print_uuid( "UUID-R: ", wps->proxy->priv->root_proxy->priv->cp_uuid, GUPNP_DP_UUID_LEN );
+				print_uuid( "UUID-E: ", wps->proxy->priv->root_proxy->priv->device_uuid, GUPNP_DP_UUID_LEN );
 
                 wps->done = TRUE;
                 wps->callback(wps->proxy, wps, wps->device_name, &wps->error, wps->user_data);
@@ -679,7 +679,7 @@ gupnp_device_proxy_begin_wps (GUPnPDeviceProxy           *proxy,
         // save our uuid
         proxy->priv->root_proxy->priv->cp_uuid = (unsigned char *)malloc( GUPNP_DP_UUID_LEN );
         memcpy( proxy->priv->root_proxy->priv->cp_uuid, wps->uuid, GUPNP_DP_UUID_LEN );
-        print_uuid( proxy->priv->root_proxy->priv->cp_uuid, GUPNP_DP_UUID_LEN );
+        print_uuid(  "UUID-R: ", proxy->priv->root_proxy->priv->cp_uuid, GUPNP_DP_UUID_LEN );
 
 	hostapd_wps_registrar_info info;
 

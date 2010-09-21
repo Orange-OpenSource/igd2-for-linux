@@ -1038,7 +1038,7 @@ int calculate_sha224( const unsigned char *data, size_t data_len, unsigned char 
     return hash_len;
 }
 
-void print_uuid( unsigned char *data, size_t data_len )
+void print_uuid( const char * title, unsigned char *data, size_t data_len )
 {
     if ( data_len == 0 )
     {
@@ -1061,5 +1061,5 @@ void print_uuid( unsigned char *data, size_t data_len )
         strcat( uuid_str, tmp );
     }
 
-    g_debug("UUID: %s", uuid_str);
+    g_debug("%s%s", title, uuid_str);
 }
