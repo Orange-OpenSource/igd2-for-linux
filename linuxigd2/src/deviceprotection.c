@@ -1203,15 +1203,43 @@ int validateArgsForSULP(const char *protocoltype, const char *name, const char *
         trace(1, "Login protocol type must be 'PKCS5': Invalid ProtocolType=%s\n",protocoltype);
         return -1; 
     }
-    if (strlen(stored) != DP_STORED_BYTES)
+    if (strlen(stored) < DP_STORED_BYTES)
     {
         trace(1, "Invalid length for Stored\n");
-        return -1; 
+        return -1;
     }
-    if (strlen(salt) != DP_SALT_BYTES)
+    if (strlen(salt) < DP_SALT_BYTES)
     {
         trace(1, "Invalid length for Salt\n");
+        return -1;
+    }
+    return 0;   
+}
+
+/**
+ * Validate input arguments for UserLogin
+ *
+ * @param protocoltype,
+ * @param challenge,
+ * @param authenticator,
+ * @return 0 on success, -1 if operation fails.
+ */
+int validateArgsForUL(const char *protocoltype, const char *challenge, const char *authenticator)
+{
+    if (strcmp(protocoltype, "PKCS5") != 0)
+    {
+        trace(1, "Login protocol type must be 'PKCS5': Invalid ProtocolType=%s\n",protocoltype);
         return -1; 
+    }
+    if (strlen(challenge) < DP_NONCE_BYTES)
+    {
+        trace(1, "Invalid length for Challenge\n");
+        return -1;
+    }
+    if (strlen(authenticator) < DP_AUTH_BYTES)
+    {
+        trace(1, "Invalid length for Authenticator\n");
+        return -1;
     }
     return 0;   
 }
@@ -1542,9 +1570,8 @@ int UserLogin(struct Upnp_Action_Request *ca_event)
             &&( challenge = GetFirstDocumentItem(ca_event->ActionRequest, "Challenge") )
             && ( authenticator = GetFirstDocumentItem(ca_event->ActionRequest, "Authenticator") ))
     {
-        if (strcmp(protocoltype, "PKCS5") != 0)
+        if (validateArgsForUL(protocoltype, challenge, authenticator) != 0)
         {
-            trace(1, "Login protocol type must be 'PKCS5': Invalid ProtocolType=%s\n",protocoltype);
             result = 600;
             addErrorData(ca_event, result, "Argument Value Invalid");
 
