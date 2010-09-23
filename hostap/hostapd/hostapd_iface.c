@@ -31,12 +31,14 @@
 #include "eap_server/tncs.h"
 #include "ap/hostapd.h"
 #include "ap/ap_config.h"
+#include "ap/wps_hostapd.h"
 #include "wps/wps.h"
 #include "config_file.h"
 #include "eap_register.h"
 #include "dump_state.h"
 #include "ctrl_iface.h"
 #include "base64.h"
+#include "crypto/sha256.h"
 
 #include "hostapd_iface.h"
 
@@ -82,6 +84,9 @@ void *send_resp_drv = NULL;
 //##040 combine to struct
 u8 *send_eapol_data = NULL;
 size_t send_eapol_data_len = 0;
+
+/* WPS Configuration Mode */
+int use_push_button_mode = 0;
 
 
 int hostapd_debug_print_timestamp(char * tbuff)
@@ -149,19 +154,35 @@ void hostapd_base64_decode(	int					b64_msg_len,
 	  bin_out_message[*out_len] = '\0';
 }
 
+#define	CTRL_STRIPPER	1	/* strip way ctr-chars */
 void hostapd_base64_encode(	int					in_len,
 							const unsigned char	*in_ptr,
 							int					*out_len,
 							unsigned char		*out_ptr,
 							int					max_out_len )
 {
-	unsigned char	*wpa_trace_alloc;
+	unsigned char	*wpa_trace_alloc, *src_ptr, *dst_ptr;
 	size_t			out_len_internal;
+	int				i;
 	
 	wpa_trace_alloc = base64_encode(in_ptr, in_len, &out_len_internal);
 
 	// Note! do not use os_malloc, because if WPA_TRACE is defined, os_free() is not the same as free()
-    memcpy( out_ptr, wpa_trace_alloc, (out_len_internal >= max_out_len) ? max_out_len : out_len_internal);
+    if (out_len_internal >= max_out_len)
+	  out_len_internal = max_out_len;
+#ifdef CTRL_STRIPPER
+	for ( i = 0, src_ptr = wpa_trace_alloc, dst_ptr = out_ptr; i < out_len_internal; i ++ )
+	{
+	  if ( *src_ptr == '\n' || *src_ptr == '\r' )
+	  {
+		src_ptr ++;
+		out_len_internal --;
+	  }
+	  *out_ptr ++ = *src_ptr ++;
+	}
+#else
+    memcpy( out_ptr, wpa_trace_alloc, out_len_internal );
+#endif
 	os_free(wpa_trace_alloc);
 
 //    out_len_internal --; //exclude trailing 0x0a from the length
@@ -701,11 +722,22 @@ int hostapd_start_registrar_state_machine(const char	*pin_code )
 //	const char *pin_code = "49226874";
 //	const char *pin_code = "any";
 
-	hostapd_printf("%s: pin='%s', length=%d", __func__, pin_code, strlen(pin_code) );
-	if ((error = wps_registrar_add_pin(interfaces.iface[0]->bss[0]->wps->registrar, ANY_ENROLLEE,
-				   (const u8 *) pin_code, strlen(pin_code),
-				   NO_TIMEOUT)) != 0 ) {
-		wpa_printf(MSG_ERROR, "wps_registrar_add_pin() failed,error=%d", error);
+	switch( use_push_button_mode )
+	{
+	  case 0 :
+		hostapd_printf("%s:PIN-config mode: pin='%s', length=%d", __func__, pin_code, strlen(pin_code) );
+		if ((error = wps_registrar_add_pin(interfaces.iface[0]->bss[0]->wps->registrar, ANY_ENROLLEE,
+					(const u8 *) pin_code, strlen(pin_code),
+					NO_TIMEOUT)) != 0 ) {
+		  wpa_printf(MSG_ERROR, "wps_registrar_add_pin() failed,error=%d", error);
+		}
+		break;
+	  case 1 :
+		hostapd_printf("%s:Push-Button config mode: %s", __func__, (hostapd_wps_button_pushed(interfaces.iface[0]->bss[0]) ? "FAILED" : "SUCCESS"));
+		break;
+	  default :
+		hostapd_printf("%s:invalid configuration mode", __func__ );
+		break;
 	}
 
     associate_sta();	/* inject Associate Station message to test-driver */
@@ -840,6 +872,17 @@ static void eapol_nnnn_from_sta()
 
 	hostapd_hexdump( __func__, msg, msg_len);
 	wpa_driver_test_eapol_inject(eloop_drv_get(), msg, msg_len);
+}
+
+void hostapd_push_button_configuration()
+{
+/*	char * strptr;
+	int status;
+	
+  status = hostapd_wps_button_pushed(interfaces.iface[0]->bss[0]);
+  strptr = status ? "FAILED" : "SUCCESS";
+  hostapd_printf("%s: %s", __func__, strptr ); */
+  use_push_button_mode = 1;
 }
 
 //Just a wrapper to hide the internal crypto method
