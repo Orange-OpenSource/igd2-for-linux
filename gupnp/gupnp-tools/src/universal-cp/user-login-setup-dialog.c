@@ -26,7 +26,6 @@
 #include "statusbar.h"
 #include "main.h"
 
-
 static GtkWidget *user_login_setup_dialog;
 static GtkWidget *uls_dialog_username_entry;
 static GtkWidget *uls_dialog_password_entry;
@@ -305,8 +304,16 @@ uls_dialog_change_password_clicked (GladeXML *glade_xml)
 void
 init_user_login_dialog_fields (void)
 {
+  if (g_getenv("GUPNP_PREFILL"))		// TEST
+  {
+        gtk_entry_set_text (GTK_ENTRY(uls_dialog_username_entry), "Administrator");
+        gtk_entry_set_text (GTK_ENTRY(uls_dialog_password_entry), "admin password");
+  }
+  else
+  {
         gtk_entry_set_text (GTK_ENTRY(uls_dialog_username_entry), "");
         gtk_entry_set_text (GTK_ENTRY(uls_dialog_password_entry), "");
+  }
 }
 
 void

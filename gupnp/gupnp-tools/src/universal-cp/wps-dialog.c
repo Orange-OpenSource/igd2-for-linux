@@ -27,6 +27,8 @@
 #include "icons.h"
 #include "main.h"
 
+#define TEST_FILL
+
 static GtkWidget *wps_dialog;
 static GtkWidget *wps_cp_name_label;
 static GtkWidget *wps_cp_pin_label;
@@ -49,8 +51,8 @@ begin_wps_dialog ( void )
 {
         GUPnPDeviceInfo *info;
         GUPnPDeviceProxy *deviceProxy;
-        GUPnPDeviceProxyWps *deviceProxyWps;
-        gpointer wps_user_data=NULL;
+//      GUPnPDeviceProxyWps *deviceProxyWps;
+//      gpointer wps_user_data=NULL;
 
         init_wps_dialog_fields();
 
@@ -219,6 +221,10 @@ init_wps_dialog_fields ( void )
 {
         gtk_entry_set_text ( GTK_ENTRY ( wps_dialog_name_entry ), "" );
         gtk_entry_set_text ( GTK_ENTRY ( wps_dialog_pin_entry ), "" );
+		if (g_getenv("GUPNP_PREFILL"))	// TEST
+		{
+		  gtk_entry_set_text ( GTK_ENTRY ( wps_dialog_pin_entry ), "49226874" );
+		}
         gtk_progress_bar_set_fraction ( GTK_PROGRESS_BAR ( wps_dialog_progressbar ),0 );
 }
 
@@ -237,7 +243,6 @@ init_wps_dialog ( GladeXML *glade_xml )
         wps_dialog_pin_entry = glade_xml_get_widget ( glade_xml,
                                "wps-dialog-pin-entry" );
         g_assert ( wps_dialog_pin_entry != NULL );
-
         /* All the labels */
         wps_cp_name_label = glade_xml_get_widget ( glade_xml,
                             "wps-dialog-name-label" );
