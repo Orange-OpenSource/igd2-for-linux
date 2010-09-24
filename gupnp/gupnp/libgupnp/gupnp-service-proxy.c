@@ -591,13 +591,15 @@ begin_action_msg (GUPnPServiceProxy              *proxy,
 
         /* Create message */
         /* Prefer secure URL. If it doesn't exist, use nonsecure instead */
-        control_url = gupnp_service_info_get_secure_control_url
-                                        (GUPNP_SERVICE_INFO (proxy));
+		control_url = gupnp_service_info_get_secure_control_url
+										  (GUPNP_SERVICE_INFO (proxy));
+
         if (control_url == NULL) {
             control_url = gupnp_service_info_get_control_url
                                             (GUPNP_SERVICE_INFO (proxy));
         }
 
+		g_warning("%s:created control url '%s'", __func__, control_url );
         if (control_url != NULL) {
                 ret->msg = soup_message_new (SOUP_METHOD_POST, control_url);
 
@@ -784,7 +786,10 @@ finish_action_msg (GUPnPServiceProxyAction *action,
                                 (GUPNP_SERVICE_INFO (action->proxy));
 
         // get ssl-client from deviceproxy                      
-        GUPnPSSLClient **client = gupnp_device_proxy_get_ssl_client(action->proxy->priv->device_proxy);
+		GUPnPSSLClient **client = gupnp_device_proxy_get_ssl_client(action->proxy->priv->device_proxy);
+		if ( g_getenv("GUPNP_NO_SSL"))	// TESTING: no SLL
+		  *client = NULL;
+		
         if (*client == NULL)
         {
             g_warning("We don't have SSL");                              
