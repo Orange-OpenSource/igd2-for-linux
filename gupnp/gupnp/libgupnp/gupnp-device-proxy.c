@@ -1757,7 +1757,7 @@ gupnp_device_proxy_remove_user (GUPnPDeviceProxy           *proxy,
 <Identity xmlns=\"urn:schemas-upnp-org:gw:DeviceProtection\"\
 xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"\
 xsi:schemaLocation=\"urn:schemas-upnp-org:gw:DeviceProtection\
-http://www.upnp.org/schemas/gw/DeviceProtection.xsd\">\
+http://www.upnp.org/schemas/gw/DeviceProtection-v1.xsd\">\
 <User>\
 <Name>%s</Name>\
 </User>\
@@ -1873,7 +1873,7 @@ gupnp_device_proxy_add_roles (GUPnPDeviceProxy           *proxy,
 <Identity xmlns=\"urn:schemas-upnp-org:gw:DeviceProtection\"\
 xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"\
 xsi:schemaLocation=\"urn:schemas-upnp-org:gw:DeviceProtection\
-http://www.upnp.org/schemas/gw/DeviceProtection.xsd\">\
+http://www.upnp.org/schemas/gw/DeviceProtection-v1.xsd\">\
 <User>\
 <Name>%s</Name>\
 </User>\
@@ -1993,7 +1993,7 @@ gupnp_device_proxy_remove_roles (GUPnPDeviceProxy           *proxy,
 <Identity xmlns=\"urn:schemas-upnp-org:gw:DeviceProtection\"\
 xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"\
 xsi:schemaLocation=\"urn:schemas-upnp-org:gw:DeviceProtection\
-http://www.upnp.org/schemas/gw/DeviceProtection.xsd\">\
+http://www.upnp.org/schemas/gw/DeviceProtection-v1.xsd\">\
 <User>\
 <Name>%s</Name>\
 </User>\
