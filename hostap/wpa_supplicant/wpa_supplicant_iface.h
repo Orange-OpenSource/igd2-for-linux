@@ -66,6 +66,8 @@ int wpa_supplicant_update_enrollee_state_machine(void* esm,
 						 int* next_message_len,
 						 int* ready);
 
+  char *wpa_supplicant_get_pin(void);
+
 unsigned char *wpa_supplicant_base64_encode(const unsigned char *src,
 						   size_t len,
 						   size_t *out_len);

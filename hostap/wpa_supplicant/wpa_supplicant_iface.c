@@ -193,15 +193,25 @@ int wpa_supplicant_start_enrollee_state_machine(void *esm,
 						int* next_message_len)
 {
 	// Generate cli command: "wpa_supplicant WPS_PIN any 1111"
+	char *resp_string;
 	size_t resp_len;
-	const char *cli_cmd = "WPS_PIN any ";
+	const char *cli_cmd = "WPS_PIN any";
 	const int cli_req_max_len = 100;
 	char *cli_req = os_malloc(cli_req_max_len + 1);
-	strncpy(cli_req, cli_cmd, cli_req_max_len);
-	strncat(cli_req, g_pin_code, cli_req_max_len - strlen(cli_cmd));
 
-	wpa_supplicant_ctrl_iface_process((struct wpa_supplicant *)global->ifaces,
-					  cli_req, &resp_len);
+	if (strlen(g_pin_code) == 0) {
+		// Empty PIN => wpa_supplicant generates a new PIN
+		snprintf(cli_req, cli_req_max_len, "%s", cli_cmd);
+	} else {
+		// Use "label" PIN
+		snprintf(cli_req, cli_req_max_len, "%s %s", cli_cmd, g_pin_code);
+	}
+
+	resp_string = wpa_supplicant_ctrl_iface_process((struct wpa_supplicant *)global->ifaces,
+							 cli_req, &resp_len);
+	wpa_printf(MSG_DEBUG, "Response from wpa_supplicant_ctrl_iface_process():'%s'", resp_string);
+	os_free(resp_string);
+	
 	os_free(cli_req);
 	{
 		// Run eloop some rounds to get the state machines to correct states
@@ -260,6 +270,21 @@ int wpa_supplicant_update_enrollee_state_machine(void* esm,
 	//TODO: check if there is a better way to find out the state
 	*ready = wpas_wps_status_get();
 	return 0;
+}
+
+char *wpa_supplicant_get_pin(void)
+{
+	char *tmp_pin;
+	char *ret_pin;
+	
+	// Dig up the PIN. Hmm, can not really understand why PIN is in variable "phase1"???
+	tmp_pin = wpa_config_get(((struct wpa_supplicant *)global->ifaces)->conf->ssid, "phase1");
+
+	// Do not return memory blocks reserved with os_*alloc(), because they must be freed with os_free().
+	ret_pin = strdup(tmp_pin);
+	os_free(tmp_pin);
+
+	return ret_pin;
 }
 
 unsigned char *wpa_supplicant_base64_encode(const unsigned char *src,
