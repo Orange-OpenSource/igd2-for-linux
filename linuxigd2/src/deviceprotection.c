@@ -1377,7 +1377,8 @@ int SendSetupMessage(struct Upnp_Action_Request *ca_event)
     }
 
     // Any else state means that WPS is either ready or in error state and it must be terminated
-    if (sm_status != WPASUPP_SM_E_PROCESS)
+    if (sm_status != WPASUPP_SM_E_PROCESS &&
+        sm_status != WPASUPP_SM_E_SUCCESSINFO)
     {
         stopWPS();
     }
