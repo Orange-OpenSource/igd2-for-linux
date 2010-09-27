@@ -47,7 +47,14 @@ int g_wps_status = WPASUPP_SM_E_SUCCESS;
 
 int wpas_wps_status_get(void)
 {
-	return g_wps_status;
+	int ret_status;
+
+	ret_status = g_wps_status;
+	// Not nice, but have to update status back to processing somehow
+	if (g_wps_status == WPASUPP_SM_E_SUCCESSINFO) {
+	    g_wps_status = WPASUPP_SM_E_PROCESS;
+	}
+	return ret_status;
 }
 
 int wpas_wps_eapol_cb(struct wpa_supplicant *wpa_s)
@@ -387,6 +394,8 @@ static void wpa_supplicant_wps_event_m2d(struct wpa_supplicant *wpa_s,
 		"dev_password_id=%d config_error=%d",
 		m2d->dev_password_id, m2d->config_error);
 	wpas_notify_wps_event_m2d(wpa_s, m2d);
+
+	g_wps_status = WPASUPP_SM_E_SUCCESSINFO;
 }
 
 
