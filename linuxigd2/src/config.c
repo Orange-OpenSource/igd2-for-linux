@@ -158,7 +158,7 @@ int parseConfigFile(globals_p vars)
 
     // Regexps to match configuration file settings
     regcomp(&re_pin_code,"pin_code[[:blank:]]*=[[:blank:]]*([[:alnum:][:punct:]_/.]{1,50})",REG_EXTENDED);
-    regcomp(&re_admin_passwd,"admin_password[[:blank:]]*=[[:blank:]]*([[:alpha:]_/.]{1,50})",REG_EXTENDED);
+    regcomp(&re_admin_passwd,"admin_password[[:blank:]]*=[[:blank:]]*\"([[:alpha:][:blank:]_/.]{1,50})\"",REG_EXTENDED);
     regcomp(&re_iptables_location,"iptables_location[[:blank:]]*=[[:blank:]]*\"([^\"]+)\"",REG_EXTENDED);
     regcomp(&re_debug_mode,"debug_mode[[:blank:]]*=[[:blank:]]*([[:digit:]])",REG_EXTENDED);
     regcomp(&re_forward_chain_name,"forward_chain_name[[:blank:]]*=[[:blank:]]*([[:alpha:]_-]+)",REG_EXTENDED);
@@ -419,12 +419,6 @@ int parseConfigFile(globals_p vars)
     if (strnlen(vars->iptables, OPTION_LEN) == 0)
     {
         // Can't find the iptables executable, return -1 to
-        // indicate en error
-        return -1;
-    }
-    if (strnlen(vars->pinCode, PIN_SIZE) == 0)
-    {
-        // Can't find the PIN code, return -1 to
         // indicate en error
         return -1;
     }
