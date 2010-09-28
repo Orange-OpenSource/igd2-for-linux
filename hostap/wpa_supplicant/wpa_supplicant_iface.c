@@ -151,7 +151,6 @@ int wpa_supplicant_create_enrollee_state_machine(void **esm)
 {
 	int exitcode = 0;
 
-	printf("create_enrollee_state_machine\n");
 	wpa_printf(MSG_DEBUG, "create_enrollee_state_machine");
 
 	g_iface = os_zalloc(sizeof(struct wpa_interface));
@@ -281,7 +280,9 @@ char *wpa_supplicant_get_pin(void)
 	tmp_pin = wpa_config_get(((struct wpa_supplicant *)global->ifaces)->conf->ssid, "phase1");
 
 	// Do not return memory blocks reserved with os_*alloc(), because they must be freed with os_free().
-	ret_pin = strdup(tmp_pin);
+	// Drop unnecessary characters before and after the PIN.
+	tmp_pin[13] = '\0';
+	ret_pin = strdup(&tmp_pin[5]);
 	os_free(tmp_pin);
 
 	return ret_pin;
