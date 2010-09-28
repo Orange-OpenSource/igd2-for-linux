@@ -104,7 +104,15 @@ G_GNUC_INTERNAL void
 xml_util_add_content                    (GString    *xml_str,
                                          const char *content);
 
-G_GNUC_INTERNAL void 
+G_GNUC_INTERNAL void
+xml_util_add_content_wo_escape          (GString    *xml_str,
+                                         const char *content);
+
+G_GNUC_INTERNAL void
+xml_util_escaping_on_off				(int val  );
+
+
+G_GNUC_INTERNAL void
 xml_util_unescape                       (const char *escaped,
                                          char **unescaped);
 

@@ -264,6 +264,10 @@ xml_util_end_element (GString    *xml_str,
         g_string_append_c (xml_str, '>');
 }
 
+void hostapd_printf(const char *fmt, ...); // TEST
+
+int xml_escaping = 0;
+
 void
 xml_util_add_content (GString    *xml_str,
                       const char *content)
@@ -273,36 +277,68 @@ xml_util_add_content (GString    *xml_str,
 
         p = content;
 
-        while (*p) {
+		while (*p) {
                 const gchar *next;
                 next = g_utf8_next_char (p);
 
-                switch (*p) {
-                case '&':
-                        g_string_append (xml_str, "&amp;");
-                        break;
+				if ( xml_escaping )
+				{
+				  switch (*p) {
+				  case '&':
+						  g_string_append (xml_str, "&amp;");
+						  break;
 
-                case '<':
-                        g_string_append (xml_str, "&lt;");
-                        break;
+				  case '<':
+						  g_string_append (xml_str, "&lt;");
+						  break;
 
-                case '>':
-                        g_string_append (xml_str, "&gt;");
-                        break;
+				  case '>':
+						  g_string_append (xml_str, "&gt;");
+						  break;
 
-                case '"':
-                        g_string_append (xml_str, "&quot;");
-                        break;
+				  case '"':
+						  g_string_append (xml_str, "&quot;");
+						  break;
 
-                default:
-                        g_string_append_len (xml_str, p, next - p);
-                        break;
-                }
-
+				  default:
+						  g_string_append_len (xml_str, p, next - p);
+						  break;
+				  }
+				}
+				else
+				{
+				  g_string_append_len (xml_str, p, next - p);
+				}
                 p = next;
         }
+		hostapd_printf("%s:(%s)", __func__, content );
 }
 
+
+void
+xml_util_escaping_on_off ( int val  )
+{
+  xml_escaping = val;
+}
+
+void
+xml_util_add_content_wo_escape (GString    *xml_str,
+								 const char *content)
+{
+        /* Modified from GLib gmarkup.c */
+        const gchar *p;
+
+        p = content;
+
+		while (*p) {
+                const gchar *next;
+                next = g_utf8_next_char (p);
+
+				g_string_append_len (xml_str, p, next - p);
+                p = next;
+        }
+		hostapd_printf("%s:(%s)", __func__, content );
+}
 
 /**
  * Change given XML string in unescaped form. 

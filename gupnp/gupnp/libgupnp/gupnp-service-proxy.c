@@ -512,6 +512,8 @@ gupnp_service_proxy_send_action_hash (GUPnPServiceProxy *proxy,
         return TRUE;
 }
 
+		static int recursion = 0;		// TEST
+
 /**
  * gupnp_service_proxy_begin_action
  * @proxy: A #GUPnPServiceProxy
@@ -541,7 +543,9 @@ gupnp_service_proxy_begin_action (GUPnPServiceProxy              *proxy,
         va_list var_args;
         GUPnPServiceProxyAction *ret;
 
-        va_start (var_args, user_data);
+		recursion ++;	// TEST
+		hostapd_printf("%s: recursion=%d", __func__, recursion );	// TEST
+		va_start (var_args, user_data);
         ret = gupnp_service_proxy_begin_action_valist (proxy,
                                                        action,
                                                        callback,
@@ -591,15 +595,13 @@ begin_action_msg (GUPnPServiceProxy              *proxy,
 
         /* Create message */
         /* Prefer secure URL. If it doesn't exist, use nonsecure instead */
-		control_url = gupnp_service_info_get_secure_control_url
-										  (GUPNP_SERVICE_INFO (proxy));
-
+        control_url = gupnp_service_info_get_secure_control_url
+                                        (GUPNP_SERVICE_INFO (proxy));
         if (control_url == NULL) {
             control_url = gupnp_service_info_get_control_url
                                             (GUPNP_SERVICE_INFO (proxy));
         }
 
-		g_warning("%s:created control url '%s'", __func__, control_url );
         if (control_url != NULL) {
                 ret->msg = soup_message_new (SOUP_METHOD_POST, control_url);
 
@@ -768,6 +770,7 @@ finish_action_msg (GUPnPServiceProxyAction *action,
                          "</s:Body>"
                          "</s:Envelope>");
 
+		hostapd_printf("%s: msg(%s)\n", __func__, action->msg_str->str );	// N123
         soup_message_set_request (action->msg,
                                   "text/xml; charset=utf-8",
                                   SOUP_MEMORY_TAKE,
@@ -786,10 +789,7 @@ finish_action_msg (GUPnPServiceProxyAction *action,
                                 (GUPNP_SERVICE_INFO (action->proxy));
 
         // get ssl-client from deviceproxy                      
-		GUPnPSSLClient **client = gupnp_device_proxy_get_ssl_client(action->proxy->priv->device_proxy);
-		if ( g_getenv("GUPNP_NO_SSL"))	// TESTING: no SLL
-		  *client = NULL;
-		
+        GUPnPSSLClient **client = gupnp_device_proxy_get_ssl_client(action->proxy->priv->device_proxy);
         if (*client == NULL)
         {
             g_warning("We don't have SSL");                              
@@ -820,7 +820,32 @@ write_in_parameter (const char *arg_name,
 {
         /* Write parameter pair */
         xml_util_start_element (msg_str, arg_name);
+
+
+		hostapd_printf("%s: arg_name=(%s)", __func__, arg_name );
+
+		if (( g_strcmp0( arg_name, "IdentityList")       == 0 )  ||
+		    ( g_strcmp0( arg_name, "SupportedProtocols") == 0 )  ||
+		    ( g_strcmp0( arg_name, "Identity")           == 0 )  ||
+		    ( g_strcmp0( arg_name, "RoleList")           == 0 )  ||
+		    ( g_strcmp0( arg_name, "DeviceUDN")          == 0 )  ||
+		    ( g_strcmp0( arg_name, "ServiceID")          == 0 )  ||
+		    ( g_strcmp0( arg_name, "ActionName")         == 0 )  ||
+		    ( g_strcmp0( arg_name, "ProtocolType")       == 0 )  ||
+		    ( g_strcmp0( arg_name, "Name")               == 0 ))
+		{
+		  xml_util_escaping_on_off( 1 );	/* TEST: after this, XML message has escaping */
+		  hostapd_printf("%s: escaping ON for '%s'\n", __func__, arg_name );
+		}
+		else
+		{
+		  xml_util_escaping_on_off( 0 );	/* TEST: after this, XML message has no escaping */
+		  hostapd_printf("%s: escaping OFF for '%s'\n", __func__, arg_name );
+		}
+
         gvalue_util_value_append_to_xml_string (value, msg_str);
+
+		xml_util_escaping_on_off( 0 );	/* TEST: after this, XML message has no escaping */
         xml_util_end_element (msg_str, arg_name);
 }
 
@@ -976,10 +1001,10 @@ gupnp_service_proxy_end_action (GUPnPServiceProxy       *proxy,
         va_list var_args;
         gboolean ret;
 
-#ifdef WPA_ADDITIONAL_DEBUG
-	  hostapd_printf("%s:start\n", __func__ );
-#endif
-        va_start (var_args, error);
+	  hostapd_printf("%s:recursion=%d\n", __func__, recursion );	// TEST
+	  recursion --;			// TEST
+
+		va_start (var_args, error);
         ret = gupnp_service_proxy_end_action_valist (proxy,
                                                      action,
                                                      error,
