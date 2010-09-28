@@ -21,6 +21,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 
 #include "deviceprotection.h"
 #include "gatedevice.h"
@@ -59,6 +61,7 @@ static IXML_Document *ACLDoc = NULL;
 static int gWpsIntroductionRunning = 0;
 
 static const char *admin_name = "Administrator";
+static const char *wps_pin_file_name = "/tmp/upnpd.wps.pin";
 
 static wpa_supplicant_wps_enrollee_config enrollee_config;
 
@@ -126,6 +129,16 @@ static void trace_ixml(int debuglevel, const char *msg, IXML_Document *doc)
     free(tmp);
 }
 
+static int show_pin_to_user(const char *pin)
+{
+    trace(1, "store PIN to %s\n", wps_pin_file_name);
+    FILE *filep = fopen(wps_pin_file_name, "w");
+    fprintf(filep, "%s\n", pin);
+    fclose(filep);
+
+    return 0;
+}	
+
 /**
  * Initialize DeviceProtection StateVariables for their default values.
  * 
@@ -158,6 +171,8 @@ int InitDP()
     unsigned char MAC[MAC_LEN];
     memset(MAC, 0x00, MAC_LEN);
     GetMACAddressStr(MAC, MAC_LEN, g_vars.intInterfaceName);
+
+    unlink(wps_pin_file_name);
 
     // manufacturer and device info is read from device description XML
     sprintf(descDocFile, "%s/%s", g_vars.xmlPath, g_vars.descDocName);
@@ -1360,15 +1375,22 @@ int SendSetupMessage(struct Upnp_Action_Request *ca_event)
         pB64Msg = wpa_supplicant_base64_encode(Enrollee_send_msg, Enrollee_send_msg_len, &b64len);
 
         trace(3,"Send response for SendSetupMessage request\n");
+        ca_event->ErrCode = UPNP_E_SUCCESS;
 
-                //Handle invalid PIN case correctly
         if (sm_status == WPASUPP_SM_E_FAILURE)
         {
-                trace(1, "return error 704\n");
-                ca_event->ErrCode = 704;
+            //Handle invalid PIN case here
+            trace(1, "return error 704\n");
+            ca_event->ErrCode = 704;
         }
-        else
-                ca_event->ErrCode = UPNP_E_SUCCESS;
+        else if (sm_status == WPASUPP_SM_E_SUCCESSINFO)
+        {
+            //M2D received from registrar, show PIN to user
+            char *wps_pin = wpa_supplicant_get_pin();
+            trace(1, "WPS PIN:%s\n", wps_pin);
+            show_pin_to_user(wps_pin);
+            free(wps_pin);
+        }
         
         snprintf(resultStr, RESULT_LEN, "<u:%sResponse xmlns:u=\"%s\">\n<OutMessage>%s</OutMessage>\n</u:%sResponse>",
                  ca_event->ActionName, DP_SERVICE_TYPE, pB64Msg, ca_event->ActionName);
