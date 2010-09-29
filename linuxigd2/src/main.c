@@ -456,6 +456,7 @@ int main (int argc, char** argv)
         sigaddset(&sigsToCatch, SIGINT);
         sigaddset(&sigsToCatch, SIGTERM);
         sigaddset(&sigsToCatch, SIGUSR1);
+        sigaddset(&sigsToCatch, SIGUSR2);
         pthread_sigmask(SIG_SETMASK, &sigsToCatch, NULL);
         sigwait(&sigsToCatch, &signum);
         trace(3, "Caught signal %d...\n", signum);
@@ -463,6 +464,9 @@ int main (int argc, char** argv)
         {
         case SIGUSR1:
             DeleteAllPortMappings();
+            break;
+        case SIGUSR2:
+            DP_buttonPressed();
             break;
         default:
             break;

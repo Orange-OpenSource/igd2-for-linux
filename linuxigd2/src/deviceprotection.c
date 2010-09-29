@@ -40,6 +40,7 @@ static int createUserLoginChallengeResponse(struct Upnp_Action_Request *ca_event
 static int getValuesFromPasswdFile(const char *user_name, unsigned char **b64_salt, int *salt_len, unsigned char **b64_stored, int *stored_len, int max_size);
 static int putValuesToPasswdFile(const char *name, const unsigned char *b64_salt, const unsigned char *b64_stored);
 static int updateValuesToPasswdFile(const char *user_name, const unsigned char *b64_salt, const unsigned char *b64_stored, int delete_values);
+static void sendSetUpReadyEvent(int set_up_ready_state);
 static int getIdentifierOfCP(struct Upnp_Action_Request *ca_event, char **identifier, int *idLen, char **CN);
 static int createAuthenticator(const char *b64_stored, const char *b64_challenge, unsigned char **bin_authenticator, const unsigned char *cp_uuid, int *auth_len);
 static int startWPS();
@@ -137,7 +138,7 @@ static int show_pin_to_user(const char *pin)
     fclose(filep);
 
     return 0;
-}	
+}
 
 /**
  * Initialize DeviceProtection StateVariables for their default values.
@@ -469,10 +470,21 @@ void createUuidFromData(char **uuid_str, unsigned char **uuid_bin, size_t *uuid_
 }
 
 /**
+ * This is called when a button is pressed during PBC
+ */
+void DP_buttonPressed()
+{
+    trace(1, "Button pressed\n");
+
+    SetupReady = 1;
+    sendSetUpReadyEvent(SetupReady);
+}
+
+/**
  * Send SetUpReady event to all subscribers
  * @param set_up_ready_state Current state value
  */
-void SendSetUpReadyEvent(int set_up_ready_state)
+static void sendSetUpReadyEvent(int set_up_ready_state)
 {
     IXML_Document *propSet = NULL;
     char *valueStr;
@@ -726,7 +738,7 @@ static void stopWPS()
     if (SetupReady == 0)
     {
         SetupReady = 1;
-        SendSetUpReadyEvent(SetupReady);
+        sendSetUpReadyEvent(SetupReady);
     } 
 }
 
@@ -1368,7 +1380,7 @@ int SendSetupMessage(struct Upnp_Action_Request *ca_event)
 
             // set state variable SetupReady to false, meaning DP service is busy
             SetupReady = 0;
-            SendSetUpReadyEvent(SetupReady);
+            sendSetUpReadyEvent(SetupReady);
         }
     }
     else
@@ -1401,6 +1413,10 @@ int SendSetupMessage(struct Upnp_Action_Request *ca_event)
             trace(1, "WPS PIN:%s\n", wps_pin);
             show_pin_to_user(wps_pin);
             free(wps_pin);
+
+            //send event because of PBC handshake
+            SetupReady = 0;
+            sendSetUpReadyEvent(SetupReady);
         }
         
         snprintf(resultStr, RESULT_LEN, "<u:%sResponse xmlns:u=\"%s\">\n<OutMessage>%s</OutMessage>\n</u:%sResponse>",
