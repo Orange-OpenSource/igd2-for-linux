@@ -23,6 +23,7 @@
 #include <upnp/upnp.h>
 
 
+#define DP_SERVICE_ID "urn:upnp-org:serviceId:DeviceProtection1"
 #define DP_SERVICE_TYPE "urn:schemas-upnp-org:service:DeviceProtection:1"
 // for use with GetUserLoginChallenge action
 #define DP_PRF_ROUNDS    5000
@@ -35,6 +36,7 @@
 #define DP_MAX_LOGIN_ATTEMPTS 5
 
 #define DP_MAX_WPS_SETUP_TIME 60
+#define DP_SETUPREADY_EVENT_NAME "SetupReady"
 
 // DeviceProtection state variables
 int SetupReady;

@@ -469,6 +469,25 @@ void createUuidFromData(char **uuid_str, unsigned char **uuid_bin, size_t *uuid_
 }
 
 /**
+ * Send SetUpReady event to all subscribers
+ * @param set_up_ready_state Current state value
+ */
+void SendSetUpReadyEvent(int set_up_ready_state)
+{
+    IXML_Document *propSet = NULL;
+    char *valueStr;
+    
+    trace(3, "DeviceProtection %s event: %d", DP_SETUPREADY_EVENT_NAME, set_up_ready_state);
+    if (set_up_ready_state == 0)
+        valueStr = "0";
+    else //set_up_ready_state == 1
+        valueStr = "1";
+    UpnpAddToPropertySet(&propSet, DP_SETUPREADY_EVENT_NAME, valueStr);
+    UpnpNotifyExt(deviceHandle, gateUDN, DP_SERVICE_ID, propSet);
+    ixmlDocument_free(propSet);
+}
+
+/**
  * Get identity identifier of Control point based on certificate of Control Point.
  * Identifier is created like this:
  *  1. create sha-1 hash from CP certificate
@@ -707,11 +726,7 @@ static void stopWPS()
     if (SetupReady == 0)
     {
         SetupReady = 1;
-        IXML_Document *propSet = NULL;
-        trace(3, "DeviceProtection SetupReady: %d", SetupReady);
-        UpnpAddToPropertySet(&propSet, "SetupReady", "1");
-        UpnpNotifyExt(deviceHandle, gateUDN, "urn:upnp-org:serviceId:DeviceProtection1", propSet);
-        ixmlDocument_free(propSet);
+        SendSetUpReadyEvent(SetupReady);
     } 
 }
 
@@ -1353,11 +1368,7 @@ int SendSetupMessage(struct Upnp_Action_Request *ca_event)
 
             // set state variable SetupReady to false, meaning DP service is busy
             SetupReady = 0;
-            IXML_Document *propSet = NULL;
-            trace(3, "DeviceProtection SetupReady: %d", SetupReady);
-            UpnpAddToPropertySet(&propSet, "SetupReady", "0");
-            UpnpNotifyExt(deviceHandle, gateUDN, "urn:upnp-org:serviceId:DeviceProtection1", propSet);
-            ixmlDocument_free(propSet);
+            SendSetUpReadyEvent(SetupReady);
         }
     }
     else

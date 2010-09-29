@@ -179,13 +179,13 @@ int HandleSubscriptionRequest(struct Upnp_Subscription_Request *sr_event)
 
     if (strcmp(sr_event->UDN, gateUDN) == 0)
     {
-        if (strcmp(sr_event->ServiceId, "urn:upnp-org:serviceId:DeviceProtection1") == 0)
+        if (strcmp(sr_event->ServiceId, DP_SERVICE_ID) == 0)
         {
             char tmp[2];
             snprintf(tmp,2,"%d",SetupReady);
 
             trace(3, "Received request to subscribe to DeviceProtection1");
-            UpnpAddToPropertySet(&propSet, "SetupReady", tmp);
+            UpnpAddToPropertySet(&propSet, DP_SETUPREADY_EVENT_NAME, tmp);
             UpnpAcceptSubscriptionExt(deviceHandle, sr_event->UDN, sr_event->ServiceId,
                                       propSet, sr_event->Sid);
             ixmlDocument_free(propSet);
@@ -286,7 +286,7 @@ int HandleActionRequest(struct Upnp_Action_Request *ca_event)
 
     if (strcmp(ca_event->DevUDN, gateUDN) == 0)
     {
-        if (strcmp(ca_event->ServiceID,"urn:upnp-org:serviceId:DeviceProtection1") == 0)
+        if (strcmp(ca_event->ServiceID, DP_SERVICE_ID) == 0)
         {
             if (strcmp(ca_event->ActionName,"SendSetupMessage") == 0)
                 result = SendSetupMessage(ca_event);
