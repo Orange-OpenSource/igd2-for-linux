@@ -1502,7 +1502,7 @@ int GetUserLoginChallenge(struct Upnp_Action_Request *ca_event)
 
         // check if user exits in password file and also in ACL.
         // "Administrator" is an exception and it doesn't have to be in those files.
-        if ((caseInsesitive_strcmp(name, admin_name) == 0) ||
+        if ((strcmp(name, admin_name) == 0) ||
             ((getValuesFromPasswdFile(name, NULL,NULL,NULL,NULL,0) == 0) &&
             (ACL_getRolesOfUser(ACLDoc, name) != NULL)))
         {
