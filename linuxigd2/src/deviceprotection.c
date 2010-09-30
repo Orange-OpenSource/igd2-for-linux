@@ -42,6 +42,8 @@ static int putValuesToPasswdFile(const char *name, const unsigned char *b64_salt
 static int updateValuesToPasswdFile(const char *user_name, const unsigned char *b64_salt, const unsigned char *b64_stored, int delete_values);
 static void sendSetUpReadyEvent(int set_up_ready_state);
 static int getIdentifierOfCP(struct Upnp_Action_Request *ca_event, char **identifier, int *idLen, char **CN);
+static void stopWpsPbcWalkingTimer(void);
+static int createWpsPbcWalkingTimer(void);
 static int createAuthenticator(const char *b64_stored, const char *b64_challenge, unsigned char **bin_authenticator, const unsigned char *cp_uuid, int *auth_len);
 static int startWPS();
 static void stopWPS();
@@ -50,6 +52,7 @@ static void* enrollee_state_machine;
 static unsigned char* Enrollee_send_msg;
 static int Enrollee_send_msg_len;
 static int gStopWPSJobId = -1;
+static int gWpsPbcWalkingJobId = -1;
 static unsigned char *device_uuid;
 
 // identifer of control point which is executing introduction process
@@ -60,6 +63,9 @@ static IXML_Document *ACLDoc = NULL;
 
 // flag telling if WPS introduction process is going on
 static int gWpsIntroductionRunning = 0;
+
+// flag telling if WPS PBC walk timer is running after button press
+static int gWpsPbcWalkTimerRunning = 0;
 
 static const char *admin_name = "Administrator";
 static const char *wps_pin_file_name = "/tmp/upnpd.wps.pin";
@@ -478,14 +484,21 @@ void createUuidFromData(char **uuid_str, unsigned char **uuid_bin, size_t *uuid_
 }
 
 /**
- * This is called when a button is pressed during PBC
+ * This is called when a button is pressed
  */
 void DP_buttonPressed()
 {
     trace(1, "Button pressed\n");
 
-    SetupReady = 1;
-    sendSetUpReadyEvent(SetupReady);
+    if (strcmp(g_vars.wpsConfigMethods, "push_button") == 0)
+    {   //WPS PBC
+        createWpsPbcWalkingTimer();
+        if (gWpsIntroductionRunning && (SetupReady == 0))
+        {
+            SetupReady = 1;
+            sendSetUpReadyEvent(SetupReady);
+        }
+    }
 }
 
 /**
@@ -653,8 +666,54 @@ static int getRolesOfSession(struct Upnp_Action_Request *ca_event, char **roles)
 }
 
 /**
- * Create timer for stopping WPS setup process if it has been running over DP_MAX_WPS_SETUP_TIME
- * (60 seconds).
+ * Stop WPS PBC Walking Timer.
+ */
+static void stopWpsPbcWalkingTimer(void)
+{
+    trace(1,"Stop WPS PBC Walking Timer");
+    if (gWpsPbcWalkingJobId != -1)
+    {
+        TimerThreadRemove(&gExpirationTimerThread, gWpsPbcWalkingJobId, NULL);
+        gWpsPbcWalkingJobId = -1;
+    }
+
+    gWpsPbcWalkTimerRunning = 0;
+}
+
+/**
+ * Create timer for resetting WPS PBC walking state if the state has been active
+ * longer than DP_MAX_WPS_PBC_WALKING_TIME.
+ * 
+ * @return Upnp error code.
+ */
+static int createWpsPbcWalkingTimer(void)
+{
+    int result = 0;
+
+    trace(1,"Create WPS PBC Walking Timer");
+    if (gWpsPbcWalkingJobId != -1)
+    {
+        // cancel previous job
+        TimerThreadRemove(&gExpirationTimerThread, gWpsPbcWalkingJobId, NULL);
+        gWpsPbcWalkingJobId = -1;
+    }
+
+    // schedule new job
+    ThreadPoolJob job;
+    TPJobInit( &job, (start_routine) stopWpsPbcWalkingTimer, NULL );
+    result = TimerThreadSchedule( &gExpirationTimerThread,
+                                  DP_MAX_WPS_PBC_WALKING_TIME,
+                                  REL_SEC, &job, SHORT_TERM,
+                                  &gWpsPbcWalkingJobId );
+
+    gWpsPbcWalkTimerRunning = 1;
+    if (result != 0) 
+        trace(1,"FAILED TO CREATE TIMER!");
+    return result;
+}
+
+/**
+ * Create timer for stopping WPS setup process if it has been running over DP_MAX_WPS_SETUP_TIME.
  * This way we release WPS for others to use if some client stays in error state for example.
  * 
  * @return Upnp error code.
@@ -736,6 +795,8 @@ static void stopWPS()
         TimerThreadRemove(&gExpirationTimerThread, gStopWPSJobId, NULL);
         gStopWPSJobId = -1;
     }
+
+    stopWpsPbcWalkingTimer();
 
     error = wpa_supplicant_stop_enrollee_state_machine(enrollee_state_machine);
     wpa_supplicant_iface_delete();
@@ -820,7 +881,7 @@ static void message_received(struct Upnp_Action_Request *ca_event, int error, un
         }
         case WPASUPP_SM_E_SUCCESSINFO:
         {
-            trace(3,"DeviceProtection introduction last message received M2D!\n");
+            trace(3,"DeviceProtection introduction M2D message received\n");
             break;
         }
 
@@ -1400,11 +1461,6 @@ int SendSetupMessage(struct Upnp_Action_Request *ca_event)
 
     if (result == 0)
     {
-        // response (next message) to base64
-        size_t b64len = 0;
-        unsigned char *pB64Msg;
-        pB64Msg = wpa_supplicant_base64_encode(Enrollee_send_msg, Enrollee_send_msg_len, &b64len);
-
         trace(3,"Send response for SendSetupMessage request\n");
         ca_event->ErrCode = UPNP_E_SUCCESS;
 
@@ -1416,17 +1472,37 @@ int SendSetupMessage(struct Upnp_Action_Request *ca_event)
         }
         else if (sm_status == WPASUPP_SM_E_SUCCESSINFO)
         {
-            //M2D received from registrar, show PIN to user
-            char *wps_pin = wpa_supplicant_get_pin();
-            trace(1, "WPS PIN:%s\n", wps_pin);
-            show_pin_to_user(wps_pin);
-            free(wps_pin);
-
-            //send event because of PBC handshake
-            SetupReady = 0;
-            sendSetUpReadyEvent(SetupReady);
+            //M2D received from registrar
+            if (strcmp(g_vars.wpsConfigMethods, "push_button") == 0)
+            {   //WPS PBC
+                if (gWpsPbcWalkTimerRunning) // Button already pressed
+                {
+                    //Send WSC_ACK to registrar (i.e. to control point)
+                    //Just flow through. WPS enrollee state machine inside wpa_supplicant
+                    //has already generated WSC_ACK message (in Enrollee_send_msg).
+                }
+                else // Button not pressed yet
+                {
+                    //TODO: release memory before call!
+                    Enrollee_send_msg = wpa_supplicant_generate_nack(&Enrollee_send_msg_len);
+                    SetupReady = 0;
+                    sendSetUpReadyEvent(SetupReady);
+                }
+            }
+            else
+            {   //show PIN to user
+                char *wps_pin = wpa_supplicant_get_pin();
+                trace(1, "WPS PIN:%s\n", wps_pin);
+                show_pin_to_user(wps_pin);
+                free(wps_pin);
+            }
         }
         
+        // Convert outgoing response to base64
+        size_t b64len = 0;
+        unsigned char *pB64Msg;
+        pB64Msg = wpa_supplicant_base64_encode(Enrollee_send_msg, Enrollee_send_msg_len, &b64len);
+
         snprintf(resultStr, RESULT_LEN, "<u:%sResponse xmlns:u=\"%s\">\n<OutMessage>%s</OutMessage>\n</u:%sResponse>",
                  ca_event->ActionName, DP_SERVICE_TYPE, pB64Msg, ca_event->ActionName);
         ca_event->ActionResult = ixmlParseBuffer(resultStr);

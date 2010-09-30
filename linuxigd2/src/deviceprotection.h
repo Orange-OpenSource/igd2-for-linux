@@ -35,7 +35,8 @@
 
 #define DP_MAX_LOGIN_ATTEMPTS 5
 
-#define DP_MAX_WPS_SETUP_TIME 60
+#define DP_MAX_WPS_SETUP_TIME 60 //seconds
+#define DP_MAX_WPS_PBC_WALKING_TIME 120 //seconds
 #define DP_SETUPREADY_EVENT_NAME "SetupReady"
 
 // DeviceProtection state variables
