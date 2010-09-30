@@ -1372,6 +1372,7 @@ gupnp_service_proxy_add_notify (GUPnPServiceProxy              *proxy,
                 data->type       = type;
                 data->callbacks  = NULL;
 
+				hostapd_printf("%s: added callback for variable '%s', type='%s'", __func__, variable, g_type_name (type) );
                 g_hash_table_insert (proxy->priv->notify_hash,
                                      g_strdup (variable),
                                      data);

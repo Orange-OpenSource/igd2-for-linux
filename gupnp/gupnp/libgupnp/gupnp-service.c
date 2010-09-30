@@ -544,7 +544,7 @@ gupnp_service_action_return_error (GUPnPServiceAction *action,
         xml_util_end_element (action->response_str, "errorCode");
 
         xml_util_start_element (action->response_str, "errorDescription");
-        xml_util_add_content (action->response_str, error_description);
+        xml_util_add_content_wo_escape (action->response_str, error_description);
         xml_util_end_element (action->response_str, "errorDescription");
 
         xml_util_end_element (action->response_str, "UPnPError");

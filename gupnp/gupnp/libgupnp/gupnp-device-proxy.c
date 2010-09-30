@@ -396,7 +396,8 @@ wps_got_response (GUPnPServiceProxy       *proxy,
         int err;
         int status;
 
-        if (!gupnp_service_proxy_end_action (proxy,
+		hostapd_printf("%s:", __func__ );
+		if (!gupnp_service_proxy_end_action (proxy,
                                              action,
                                             &error,
                                              "OutMessage",
@@ -1582,6 +1583,7 @@ add_identitylist_response (GUPnPServiceProxy       *proxy,
         
         GError *error = NULL;
 
+		hostapd_printf("%s:", __func__ );
         if (!gupnp_service_proxy_end_action (proxy,
                                              action,
                                             &error,
@@ -1655,9 +1657,11 @@ gupnp_device_proxy_add_user (GUPnPDeviceProxy           *proxy,
 
         // escape identitylist xml
         GString *escIdList = g_string_new("");
-        xml_util_add_content(escIdList, adduserdata->identitylist->str);
+        xml_util_add_content_wo_escape(escIdList, adduserdata->identitylist->str);
         
-        gupnp_service_proxy_begin_action(adduserdata->device_prot_service,
+		escIdList->str[ escIdList->len ] = '\0';	/* TEST - terminate for printing */
+		hostapd_printf("\n\n************* %s: AddIdentityList(%s)\n", __func__, escIdList->str ); /* TEST - printing */
+		gupnp_service_proxy_begin_action(adduserdata->device_prot_service,
                                          "AddIdentityList",
                                          add_identitylist_response,
                                          adduserdata,
@@ -1762,7 +1766,7 @@ gupnp_device_proxy_remove_user (GUPnPDeviceProxy           *proxy,
 <Identity xmlns=\"urn:schemas-upnp-org:gw:DeviceProtection\"\
 xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"\
 xsi:schemaLocation=\"urn:schemas-upnp-org:gw:DeviceProtection\
-http://www.upnp.org/schemas/gw/DeviceProtection-v1.xsd\">\
+http://www.upnp.org/schemas/gw/DeviceProtection.xsd\">\
 <User>\
 <Name>%s</Name>\
 </User>\
@@ -1770,8 +1774,10 @@ http://www.upnp.org/schemas/gw/DeviceProtection-v1.xsd\">\
 
         // escape identity xml
         GString *escId = g_string_new("");
-        xml_util_add_content(escId, removeuserdata->identity->str);
+        xml_util_add_content_wo_escape(escId, removeuserdata->identity->str);
 
+		escId->str[ escId->len ] = '\0';	/* TEST - terminate for printing */
+		hostapd_printf("\n\n************* %s: RemoveIdentity (%s)\n", __func__, escId->str ); /* TEST - printing */
         gupnp_service_proxy_begin_action(removeuserdata->device_prot_service,
                                          "RemoveIdentity",
                                          remove_identity_response,
@@ -1878,7 +1884,7 @@ gupnp_device_proxy_add_roles (GUPnPDeviceProxy           *proxy,
 <Identity xmlns=\"urn:schemas-upnp-org:gw:DeviceProtection\"\
 xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"\
 xsi:schemaLocation=\"urn:schemas-upnp-org:gw:DeviceProtection\
-http://www.upnp.org/schemas/gw/DeviceProtection-v1.xsd\">\
+http://www.upnp.org/schemas/gw/DeviceProtection.xsd\">\
 <User>\
 <Name>%s</Name>\
 </User>\
@@ -1886,7 +1892,7 @@ http://www.upnp.org/schemas/gw/DeviceProtection-v1.xsd\">\
 
         // escape identity xml
         GString *escId = g_string_new("");
-        xml_util_add_content(escId, addrolesdata->identity->str);
+        xml_util_add_content_wo_escape(escId, addrolesdata->identity->str);
 
         gupnp_service_proxy_begin_action(addrolesdata->device_prot_service,
                                          "AddRolesForIdentity",
@@ -1998,7 +2004,7 @@ gupnp_device_proxy_remove_roles (GUPnPDeviceProxy           *proxy,
 <Identity xmlns=\"urn:schemas-upnp-org:gw:DeviceProtection\"\
 xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"\
 xsi:schemaLocation=\"urn:schemas-upnp-org:gw:DeviceProtection\
-http://www.upnp.org/schemas/gw/DeviceProtection-v1.xsd\">\
+http://www.upnp.org/schemas/gw/DeviceProtection.xsd\">\
 <User>\
 <Name>%s</Name>\
 </User>\
@@ -2006,7 +2012,7 @@ http://www.upnp.org/schemas/gw/DeviceProtection-v1.xsd\">\
 
         // escape identity xml
         GString *escId = g_string_new("");
-        xml_util_add_content(escId, removerolesdata->identity->str);
+        xml_util_add_content_wo_escape(escId, removerolesdata->identity->str);
 
         gupnp_service_proxy_begin_action(removerolesdata->device_prot_service,
                                          "RemoveRolesForIdentity",
