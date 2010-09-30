@@ -28,6 +28,7 @@
 #include "wps_upnp_i.h"
 
 #define WPS_WORKAROUNDS
+#define	NEW_CONFIG_SPEC	// Configuration expects the M2D sent instead of M2 and so on ...
 
 #include "../../hostapd/hostapd_iface.h"
 
@@ -617,6 +618,7 @@ static const u8 * wps_registrar_get_pin(struct wps_registrar *reg,
 			if (pin->wildcard_uuid == 1) {
 				wpa_printf(MSG_DEBUG, "WPS: Found a wildcard "
 					   "PIN. Assigned it for this UUID-E");
+				wpa_hexdump(MSG_DEBUG, "WPS:Wildcard pin", pin->uuid, WPS_UUID_LEN);	// TEST
 				pin->wildcard_uuid = 2;
 				os_memcpy(pin->uuid, uuid, WPS_UUID_LEN);
 				found = pin;
@@ -2063,6 +2065,12 @@ static enum wps_process_res wps_process_m1(struct wps_data *wps,
 		return WPS_FAILURE;
 	}
 
+	if ( getenv("SEND_M2D"))	/* TEST: This is a possibility terminate handshaking and let Enrollee to know, we don't know it's password */
+	{
+		wpa_printf(MSG_DEBUG, "WPS: %s: env 'SEND_M2D' causes M2D mode", __func__);
+		wps->state = SEND_M2D;
+		return WPS_CONTINUE;
+	}
 	if (wps_process_uuid_e(wps, attr->uuid_e) ||
 	    wps_process_mac_addr(wps, attr->mac_addr) ||
 	    wps_process_enrollee_nonce(wps, attr->enrollee_nonce) ||
@@ -2137,7 +2145,11 @@ static enum wps_process_res wps_process_m1(struct wps_data *wps,
 	}
 #endif /* WPS_WORKAROUNDS */
 
+#ifdef NEW_CONFIG_SPEC
+	wps->state = SEND_M2D;
+#else
 	wps->state = SEND_M2;
+#endif
 	return WPS_CONTINUE;
 }
 
@@ -2416,12 +2428,18 @@ static enum wps_process_res wps_process_wsc_msg(struct wps_data *wps,
 		if (ret == WPS_FAILURE || wps->state == SEND_WSC_NACK)
 			wps_fail_event(wps->wps, WPS_M7);
 		break;
+	case WPS_WSC_ACK:
+		wpa_printf(MSG_DEBUG, "WPS: WPS_WSC_ACK received" );
+		break;
+	case WPS_WSC_NACK:
+		wpa_printf(MSG_DEBUG, "WPS: WPS_WSC_NACK received" );
+		break;
+	case WPS_WSC_DONE:
+		wpa_printf(MSG_DEBUG, "WPS: WPS_WSC_DONE received. Terminating WPS handshake" );
+		wps_handshaking_done = 1;
+		break;
 	default:
-		wpa_printf(MSG_DEBUG, "WPS: Unsupported Message Type %d",
-			   *attr.msg_type);
-#ifdef WPA_ADDITIONAL_DEBUG
-		wpa_printf(MSG_DEBUG, "%s: ending WPS/WPA handshake. msg_type=%d", __func__, *attr.msg_type );
-#endif
+		wpa_printf(MSG_DEBUG, "WPS: Unsupported Message Type %d", *attr.msg_type);
 		wps_handshaking_done = 1;
 		return WPS_FAILURE;
 	}

@@ -588,22 +588,22 @@ static int handle_eapol_req_immediately(void *drv, const u8 *data, size_t data_l
 	const u8 msg3[] = {0x02, 0x00, 0x00, 0x05, 0x01, 0x67, 0x00, 0x05, 0x01 };
 	const int msg3_len = 9;
 
-	hostapd_printf("%s", __func__);
+//	hostapd_printf("%s", __func__);
 	send_resp_drv = drv; // store for later usage	
 	if (msg1_len == data_len &&
 	    memcmp(msg1, data, data_len) == 0) {
 		internally_handled_msg_id = 1;
-		hostapd_printf( "xxx msg1 req");
+//		hostapd_printf( "xxx msg1 req");
 		return 0;		
 	} else if (msg2_len == data_len &&
 		   memcmp(msg2, data, data_len) == 0) {
 		internally_handled_msg_id = 2;
-		hostapd_printf( "xxx msg2 req");
+//		hostapd_printf( "xxx msg2 req");
 		return 0;		
 	} else if (msg3_len == data_len &&
 		   memcmp(msg3, data, data_len) == 0) {
 		internally_handled_msg_id = 3;
-		hostapd_printf( "xxx msg3 req");
+//		hostapd_printf( "xxx msg3 req");
 		return 0;
 	}
 //	else
@@ -617,16 +617,16 @@ char *pid_file = NULL;
 static int hostapd_iface_send_eapol_cb (void *drv, const u8 *data, size_t data_len)
 {
 	// First check if we must handle this message internally in this module
-	hostapd_printf("%s", __func__);
+//	hostapd_printf("%s", __func__);
 	if ( !data || !data_len || data_len < 18 ) {
-		hostapd_printf("%s: invalid parameters", __func__ );
+//		hostapd_printf("%s: invalid parameters", __func__ );
 		return 0;			
 	}
 	if (handle_eapol_req_immediately(drv, data, data_len) == 0) {
 		return 0;
 	}
 	// Save the message to be delivered out of interface
-	hostapd_printf( "%s: send_eapol_cb (len=%d), check the data structure in code", __func__, data_len);
+//	hostapd_printf( "%s: send_eapol_cb (len=%d), check the data structure in code", __func__, data_len);
 	send_eapol_data_len = data_len - 18;  //##024 check this
 	send_eapol_data = malloc(send_eapol_data_len); //##034 who will release this memory?
 	memcpy(send_eapol_data, data + 18, send_eapol_data_len);
@@ -687,13 +687,13 @@ int hostapd_iface_init(hostapd_wps_registrar_info *info)
 			}
 		}
 #endif
-	hostapd_printf("%s ... done", __func__);
+//	hostapd_printf("%s ... done", __func__);
 	return 0;
 }
 
 int hostapd_iface_delete(void)
 {
-	hostapd_printf("%s", __func__);
+//	hostapd_printf("%s", __func__);
 	/* Deinitialize all interfaces */
 	hostapd_interface_deinit_free(interfaces.iface[0]);
 	os_free(interfaces.iface);
