@@ -180,6 +180,55 @@ wps_invocation ( void )
                         GtkWidget *info_dialog;
 
                         info_dialog = gtk_message_dialog_new ( GTK_WINDOW ( wps_dialog ),
+                                                               GTK_DIALOG_DESTROY_WITH_PARENT,
+                                                               GTK_MESSAGE_INFO,
+                                                               GTK_BUTTONS_OK,
+                                                               "Request for PIN generation sent. Please, input generated PIN " );
+                        g_signal_connect_swapped( info_dialog,
+                                                  "response",
+												  G_CALLBACK( gtk_widget_destroy ),
+												  info_dialog );
+						gtk_widget_show_all( info_dialog );
+				}
+        }
+
+        deviceProxyWps = gupnp_device_proxy_begin_wps ( deviceProxy,
+                         method,
+                         "",
+                         device_pin,
+                         continue_wps_cb,
+                         wps_user_data );
+}
+
+void
+wps_invocation_old ( void )
+{
+        const gchar *device_pin;
+        gpointer wps_user_data=NULL;
+        GUPnPDeviceInfo *info;
+        GUPnPDeviceProxy *deviceProxy;
+        GUPnPDeviceProxyWps *deviceProxyWps;
+        guint method;
+
+        device_pin = gtk_entry_get_text ( GTK_ENTRY ( wps_dialog_pin_entry ) );
+
+        info = get_selected_device_info ();
+        deviceProxy = GUPNP_DEVICE_PROXY ( info );
+        g_assert ( deviceProxy != NULL );
+
+        if ( togglebutton_active )
+        {
+                method = GUPNP_DEVICE_WPS_METHOD_PUSHBUTTON;
+        }
+        else
+        {
+                method = GUPNP_DEVICE_WPS_METHOD_PIN;
+                if ( strcmp ( device_pin, "" ) == 0 )
+                {
+                        /* Device PIN must be added with this WPS setup method */
+                        GtkWidget *info_dialog;
+
+                        info_dialog = gtk_message_dialog_new ( GTK_WINDOW ( wps_dialog ),
                                                                GTK_DIALOG_MODAL,
                                                                GTK_MESSAGE_INFO,
                                                                GTK_BUTTONS_CLOSE,
@@ -187,7 +236,7 @@ wps_invocation ( void )
 
                         gtk_dialog_run ( GTK_DIALOG ( info_dialog ) );
                         gtk_widget_destroy ( info_dialog );
-                        return;
+                        return;	// TEST
                 }
         }
 

@@ -40,6 +40,11 @@ start_user_login_setup (GladeXML *glade_xml)
 	    if (get_selected_device_info ()) {
             init_user_login_dialog_fields();
 	        gtk_dialog_run (GTK_DIALOG (user_login_setup_dialog));
+			if (g_getenv("GUPNP_PREFILL"))		// TEST
+			{
+				  gtk_entry_set_text (GTK_ENTRY(uls_dialog_username_entry), "Administrator");
+				  gtk_entry_set_text (GTK_ENTRY(uls_dialog_password_entry), "admin password");
+			}
 	        gtk_widget_hide (user_login_setup_dialog);
 	    } else {
 	    	/* Device must be selected before starting User login setup */

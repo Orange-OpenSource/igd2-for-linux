@@ -25,6 +25,8 @@
 #include "event-treeview.h"
 #include "gui.h"
 
+void hostapd_printf(const char *fmt, ...);	// TEST
+
 #define MAX_VALUE_SIZE 128
 
 static GtkWidget *treeview;
