@@ -29,6 +29,7 @@
 #define CHAIN_NAME_LEN 32
 #define BITRATE_LEN 32
 #define OPTION_LEN 64
+#define WPS_CONFIG_METHODS_SIZE 32
 #define RESULT_LEN 4096
 #define RESULT_LEN_LONG 65536
 #define NUM_LEN 32
@@ -46,6 +47,7 @@ struct GLOBALS
     char extInterfaceName[IFNAMSIZ]; // The name of the external interface, picked up from the
     // command line
     char intInterfaceName[IFNAMSIZ]; // The name of the internal interface, picked from command line
+    char wpsConfigMethods[WPS_CONFIG_METHODS_SIZE];  // WPS Config Methods
 
     // All vars below are read from /etc/upnpd.conf in main.c
     int debug;  // 1 - print debug messages to syslog

@@ -101,6 +101,7 @@ int parseConfigFile(globals_p vars)
     regex_t re_empty_row;
     regex_t re_pin_code;
     regex_t re_admin_passwd;
+    regex_t re_wps_config_methods;
     regex_t re_iptables_location;
     regex_t re_debug_mode;
     regex_t re_create_forward_rules;
@@ -131,6 +132,7 @@ int parseConfigFile(globals_p vars)
     vars->forwardRulesAppend = 0;
     strcpy(vars->pinCode,"");
     strcpy(vars->adminPassword,"");
+    strcpy(vars->wpsConfigMethods,"");
     strcpy(vars->iptables,"");
     strcpy(vars->forwardChainName,"");
     strcpy(vars->preroutingChainName,"");
@@ -159,6 +161,7 @@ int parseConfigFile(globals_p vars)
     // Regexps to match configuration file settings
     regcomp(&re_pin_code,"pin_code[[:blank:]]*=[[:blank:]]*([[:alnum:][:punct:]_/.]{1,50})",REG_EXTENDED);
     regcomp(&re_admin_passwd,"admin_password[[:blank:]]*=[[:blank:]]*\"([[:alpha:][:blank:]_/.]{1,50})\"",REG_EXTENDED);
+    regcomp(&re_wps_config_methods,"wps_config_methods[[:blank:]]*=[[:blank:]]*([[:alpha:]_]{1,50})",REG_EXTENDED);
     regcomp(&re_iptables_location,"iptables_location[[:blank:]]*=[[:blank:]]*\"([^\"]+)\"",REG_EXTENDED);
     regcomp(&re_debug_mode,"debug_mode[[:blank:]]*=[[:blank:]]*([[:digit:]])",REG_EXTENDED);
     regcomp(&re_forward_chain_name,"forward_chain_name[[:blank:]]*=[[:blank:]]*([[:alpha:]_-]+)",REG_EXTENDED);
@@ -201,6 +204,10 @@ int parseConfigFile(globals_p vars)
                 else if (regexec(&re_admin_passwd,line,NMATCH,submatch,0) == 0)
                 {
                     getConfigOptionArgument(vars->adminPassword, OPTION_LEN, line, submatch);
+                }
+                else if (regexec(&re_wps_config_methods,line,NMATCH,submatch,0) == 0)
+                {
+                    getConfigOptionArgument(vars->wpsConfigMethods, WPS_CONFIG_METHODS_SIZE, line, submatch);
                 }
                 // Check if iptables_location
                 else if (regexec(&re_iptables_location,line,NMATCH,submatch,0) == 0)

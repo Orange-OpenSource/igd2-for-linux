@@ -219,7 +219,15 @@ int InitDP()
         enrollee_config.model_number = GetFirstDocumentItem(descDoc, "modelNumber");
         enrollee_config.serial_number = GetFirstDocumentItem(descDoc, "serialNumber");
         enrollee_config.device_type = "1-0050F204-1"; //(Computer / PC)
-        enrollee_config.config_methods = "label";
+        if (strcmp(g_vars.wpsConfigMethods, "push_button") == 0)
+        {
+            trace(1, "Using PBC config method");
+            enrollee_config.config_methods = g_vars.wpsConfigMethods;
+        }
+        else
+        {
+            enrollee_config.config_methods = "label";
+        }
         memcpy(enrollee_config.uuid, device_uuid, uuid_size);
     }
     else return UPNP_E_FILE_NOT_FOUND;
