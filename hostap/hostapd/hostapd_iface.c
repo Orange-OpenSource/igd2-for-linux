@@ -106,10 +106,11 @@ void hostapd_printf(const char *fmt, ...)
 	char * mptr;
 	int		len;
 
+    #define PRINTF_BUF_LEN 2048
 	va_start(ap, fmt);
-	if ( (mptr = malloc( 500 ))) {
+	if ( (mptr = malloc( PRINTF_BUF_LEN ))) {
 	  len = hostapd_debug_print_timestamp( mptr );
-	  vsprintf(&mptr[len], fmt, ap);
+	  vsnprintf(&mptr[len], PRINTF_BUF_LEN - len, fmt, ap);
 	  printf( "%s\n", mptr );
 	  free( mptr );
 	}
