@@ -359,11 +359,12 @@ static struct wpabuf * wps_build_wsc_done(struct wps_data *wps)
 	return msg;
 }
 
+struct wps_data *wps_save; //TODO: get rid of this hack
 
 static struct wpabuf * wps_build_wsc_ack(struct wps_data *wps)
 {
 	struct wpabuf *msg;
-
+	wps_save = wps;
 	wpa_printf(MSG_DEBUG, "WPS: Building Message WSC_ACK");
 
 	msg = wpabuf_alloc(1000);
@@ -402,6 +403,12 @@ static struct wpabuf * wps_build_wsc_nack(struct wps_data *wps)
 	}
 
 	return msg;
+}
+
+struct wpabuf * wps_build_wsc_nack1(void)
+{
+	wpa_printf(MSG_DEBUG, "WPS: hack!!!: Building Message WSC_NACK");
+	return wps_build_wsc_nack(wps_save);
 }
 
 

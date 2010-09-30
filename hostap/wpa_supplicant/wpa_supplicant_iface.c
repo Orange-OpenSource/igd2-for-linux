@@ -25,6 +25,8 @@
 
 #include "common.h"
 #include "wpa_supplicant_i.h"
+#include "wps/wps_i.h"
+#include "utils/wpabuf.h"
 #include "driver_i.h"
 #include "ctrl_iface.h"
 #include "base64.h"
@@ -269,6 +271,26 @@ int wpa_supplicant_update_enrollee_state_machine(void* esm,
 	//TODO: check if there is a better way to find out the state
 	*ready = wpas_wps_status_get();
 	return 0;
+}
+
+
+struct wpabuf * wps_build_wsc_nack1(void);
+
+unsigned char *wpa_supplicant_generate_nack(int* len)
+{
+//	wps_build_wsc_nack( ((struct wpa_supplicant *)global->ifaces)->eapol->eap->eap_method_priv->wps );
+	struct wpabuf *tmp_buf = wps_build_wsc_nack1();
+	unsigned char *ret_buf = NULL;
+	*len = 0;
+	if (tmp_buf != NULL) {
+		ret_buf = malloc(wpabuf_len(tmp_buf));
+		if (ret_buf != NULL) {
+			*len = wpabuf_len(tmp_buf);
+			memcpy(ret_buf, wpabuf_head_u8(tmp_buf), *len);
+		}
+	}
+	wpabuf_free(tmp_buf);
+	return ret_buf;
 }
 
 char *wpa_supplicant_get_pin(void)

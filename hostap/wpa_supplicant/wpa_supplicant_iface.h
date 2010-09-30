@@ -111,6 +111,14 @@ int wpa_supplicant_update_enrollee_state_machine(void* esm,
 						 int* ready);
 
 /**
+ * wpa_supplicant_generate_nack - This is a hack!!! TODO get rid of this
+ * @len: OUT message length
+ * Returns: Pointer to nack msg on success, NULL on failure
+ * Note! Caller must release the reserved memory area with free()
+ */
+unsigned char *wpa_supplicant_generate_nack(int* len);
+  
+/**
  * wpa_supplicant_get_pin - get WPS PIN
  * Returns: Pointer to PIN on success, NULL on failure
  * Note! Caller must release the reserved memory area with free()
