@@ -47,6 +47,7 @@ void test_driver_set_send_eapol_cb( int (*send_eapol_cb)(void *drv, const u8 *da
 //in wps_supplicant.c
 int wpas_wps_status_get(void);
 
+static int inject_cli_command(void);
 static void send_to_wpa_driver(void *drv, const u8 *data, size_t data_len);
 static int handle_eapol_req_immediately(void *drv, const u8 *data, size_t data_len);
 static void generate_and_inject_eapol_resp(void *drv);
@@ -55,6 +56,7 @@ struct wpa_params params;
 struct wpa_interface *g_iface;
 struct wpa_global *global;
 char *g_pin_code = NULL;
+int g_pbc_method_in_use = 0; //Flag which tells if we are using WPS Push Button Config
 
 //TODO: combine to struct
 u8 *send_eapol_data = NULL;
@@ -101,6 +103,13 @@ int wpa_supplicant_iface_init(wpa_supplicant_wps_enrollee_config *config_in)
 	exitcode = 0;
 
 	g_pin_code = os_strdup(config_in->device_pin);
+	if (strcmp(config_in->config_methods, "push_button") == 0) {
+		g_pbc_method_in_use = 1;
+	}
+	else
+	{
+		g_pbc_method_in_use = 0;
+	}
 
 	struct wpa_config *conf1 = os_zalloc(sizeof(struct wpa_config));
 	conf1->ssid = NULL;
@@ -193,27 +202,12 @@ int wpa_supplicant_start_enrollee_state_machine(void *esm,
 						unsigned char** next_message,
 						int* next_message_len)
 {
-	// Generate cli command: "wpa_supplicant WPS_PIN any 1111"
-	char *resp_string;
-	size_t resp_len;
-	const char *cli_cmd = "WPS_PIN any";
-	const int cli_req_max_len = 100;
-	char *cli_req = os_malloc(cli_req_max_len + 1);
-
-	if (strlen(g_pin_code) == 0) {
-		// Empty PIN => wpa_supplicant generates a new PIN
-		snprintf(cli_req, cli_req_max_len, "%s", cli_cmd);
-	} else {
-		// Use "label" PIN
-		snprintf(cli_req, cli_req_max_len, "%s %s", cli_cmd, g_pin_code);
+	int ret;
+	ret = inject_cli_command();
+	if (ret != 0) {
+		return ret;
 	}
 
-	resp_string = wpa_supplicant_ctrl_iface_process((struct wpa_supplicant *)global->ifaces,
-							 cli_req, &resp_len);
-	wpa_printf(MSG_DEBUG, "Response from wpa_supplicant_ctrl_iface_process():'%s'", resp_string);
-	os_free(resp_string);
-	
-	os_free(cli_req);
 	{
 		// Run eloop some rounds to get the state machines to correct states
 		// TODO: handle this with timer
@@ -343,6 +337,43 @@ unsigned char *wpa_supplicant_base64_decode(const unsigned char *src,
 	return correct_alloc;
 }
 
+/**
+ * Returns 0 on success, -1 on failure
+ */
+static int inject_cli_command(void)
+{
+	char *cli_resp;
+	size_t resp_len;
+	const int cli_req_max_len = 100;
+	char *cli_req = os_malloc(cli_req_max_len + 1);
+
+	if (g_pbc_method_in_use != 0) {
+		// Tell wpa_supplicant to use PBC method
+		const char *cli_cmd = "WPS_PBC any";
+		snprintf(cli_req, cli_req_max_len, "%s", cli_cmd);
+	}
+	else {
+		// Tell wpa_supplicant to use PIN method
+		const char *cli_cmd = "WPS_PIN any";
+
+		if (strlen(g_pin_code) == 0) {
+			// Empty PIN => wpa_supplicant generates a new PIN
+			snprintf(cli_req, cli_req_max_len, "%s", cli_cmd);
+		} else {
+			// Use "label" PIN
+			snprintf(cli_req, cli_req_max_len, "%s %s", cli_cmd, g_pin_code);
+		}
+	}
+
+	wpa_printf(MSG_DEBUG, "Request to wpa_supplicant_ctrl_iface_process():'%s'", cli_req);
+	cli_resp = wpa_supplicant_ctrl_iface_process((struct wpa_supplicant *)global->ifaces,
+							 cli_req, &resp_len);
+	wpa_printf(MSG_DEBUG, "Response from wpa_supplicant_ctrl_iface_process():'%s'", cli_resp);
+
+	os_free(cli_resp);
+	os_free(cli_req);
+	return 0;
+}
 
 static void send_to_wpa_driver(void *drv, const u8 *data, size_t data_len)
 {
