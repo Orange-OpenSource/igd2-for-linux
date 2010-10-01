@@ -72,6 +72,7 @@ int wpa_supplicant_create_enrollee_state_machine(void **esm);
  * @next_message: OUT new message going to registrar, typically M1
  * @next_message_len: OUT length
  * Returns: 0 on success, -1 on failure
+ * Note! Caller must free next_message memory.
  */
 int wpa_supplicant_start_enrollee_state_machine(void *esm,
 						unsigned char** next_message,
@@ -102,6 +103,7 @@ typedef enum {WPASUPP_SM_E_PROCESS,
  * @next_message_len: OUT length
  * @ready: OUT new state
  * Returns: 0 on success, -1 on failure
+ * Note! Caller must free next_message memory.
  */
 int wpa_supplicant_update_enrollee_state_machine(void* esm,
 						 unsigned char* received_message,

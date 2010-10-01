@@ -223,7 +223,7 @@ int wpa_supplicant_start_enrollee_state_machine(void *esm,
 	if (send_eapol_data != NULL) {
 		wpa_printf(MSG_DEBUG, "start enrollee sm, out msg available, len:%d", send_eapol_data_len);
 		*next_message_len = send_eapol_data_len;
-		*next_message = send_eapol_data; //TODO: who will release this memory?
+		*next_message = send_eapol_data;
 		send_eapol_data = NULL;
 		send_eapol_data_len = 0;
 	}
@@ -257,7 +257,7 @@ int wpa_supplicant_update_enrollee_state_machine(void* esm,
 		wpa_printf(MSG_DEBUG, "update enrollee sm, out msg available, len:%d", send_eapol_data_len);
 		wpa_hexdump(MSG_MSGDUMP, "data: ", send_eapol_data, send_eapol_data_len);
 		*next_message_len = send_eapol_data_len;
-		*next_message = send_eapol_data; //TODO: who will release this memory?
+		*next_message = send_eapol_data;
 		send_eapol_data = NULL;
 		send_eapol_data_len = 0;
 	}
