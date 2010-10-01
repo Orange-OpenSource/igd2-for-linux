@@ -35,8 +35,9 @@
 
 #define DP_MAX_LOGIN_ATTEMPTS 5
 
-#define DP_MAX_WPS_SETUP_TIME 60 //seconds
-#define DP_MAX_WPS_PBC_WALKING_TIME 120 //seconds
+#define DP_MAX_WPS_PIN_DURATION 60 //seconds
+#define DP_MAX_WPS_PBC_DURATION 180 //seconds, must be longer than DP_MAX_WPS_PBC_WALK_TIME
+#define DP_MAX_WPS_PBC_WALK_TIME 120 //seconds
 #define DP_SETUPREADY_EVENT_NAME "SetupReady"
 
 // DeviceProtection state variables

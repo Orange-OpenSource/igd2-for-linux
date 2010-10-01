@@ -42,8 +42,8 @@ static int putValuesToPasswdFile(const char *name, const unsigned char *b64_salt
 static int updateValuesToPasswdFile(const char *user_name, const unsigned char *b64_salt, const unsigned char *b64_stored, int delete_values);
 static void sendSetUpReadyEvent(int set_up_ready_state);
 static int getIdentifierOfCP(struct Upnp_Action_Request *ca_event, char **identifier, int *idLen, char **CN);
-static void stopWpsPbcWalkingTimer(void);
-static int createWpsPbcWalkingTimer(void);
+static void stopWpsPbcWalkTimer(void);
+static int createWpsPbcWalkTimer(void);
 static int createAuthenticator(const char *b64_stored, const char *b64_challenge, unsigned char **bin_authenticator, const unsigned char *cp_uuid, int *auth_len);
 static int startWPS();
 static void stopWPS();
@@ -52,7 +52,7 @@ static void* enrollee_state_machine;
 static unsigned char* Enrollee_send_msg = NULL;
 static int Enrollee_send_msg_len;
 static int gStopWPSJobId = -1;
-static int gWpsPbcWalkingJobId = -1;
+static int gWpsPbcWalkJobId = -1;
 static unsigned char *device_uuid;
 
 // identifer of control point which is executing introduction process
@@ -492,7 +492,7 @@ void DP_buttonPressed()
 
     if (strcmp(g_vars.wpsConfigMethods, "push_button") == 0)
     {   //WPS PBC
-        createWpsPbcWalkingTimer();
+        createWpsPbcWalkTimer();
         if (gWpsIntroductionRunning && (SetupReady == 0))
         {
             SetupReady = 1;
@@ -666,45 +666,45 @@ static int getRolesOfSession(struct Upnp_Action_Request *ca_event, char **roles)
 }
 
 /**
- * Stop WPS PBC Walking Timer.
+ * Stop WPS PBC Walk Timer.
  */
-static void stopWpsPbcWalkingTimer(void)
+static void stopWpsPbcWalkTimer(void)
 {
-    trace(1,"Stop WPS PBC Walking Timer");
-    if (gWpsPbcWalkingJobId != -1)
+    trace(1,"Stop WPS PBC Walk Timer");
+    if (gWpsPbcWalkJobId != -1)
     {
-        TimerThreadRemove(&gExpirationTimerThread, gWpsPbcWalkingJobId, NULL);
-        gWpsPbcWalkingJobId = -1;
+        TimerThreadRemove(&gExpirationTimerThread, gWpsPbcWalkJobId, NULL);
+        gWpsPbcWalkJobId = -1;
     }
 
     gWpsPbcWalkTimerRunning = 0;
 }
 
 /**
- * Create timer for resetting WPS PBC walking state if the state has been active
- * longer than DP_MAX_WPS_PBC_WALKING_TIME.
+ * Create timer for resetting WPS PBC walk state if the state has been active
+ * longer than DP_MAX_WPS_PBC_WALK_TIME.
  * 
  * @return Upnp error code.
  */
-static int createWpsPbcWalkingTimer(void)
+static int createWpsPbcWalkTimer(void)
 {
     int result = 0;
 
-    trace(1,"Create WPS PBC Walking Timer");
-    if (gWpsPbcWalkingJobId != -1)
+    trace(1,"Create WPS PBC Walk Timer");
+    if (gWpsPbcWalkJobId != -1)
     {
         // cancel previous job
-        TimerThreadRemove(&gExpirationTimerThread, gWpsPbcWalkingJobId, NULL);
-        gWpsPbcWalkingJobId = -1;
+        TimerThreadRemove(&gExpirationTimerThread, gWpsPbcWalkJobId, NULL);
+        gWpsPbcWalkJobId = -1;
     }
 
     // schedule new job
     ThreadPoolJob job;
-    TPJobInit( &job, (start_routine) stopWpsPbcWalkingTimer, NULL );
+    TPJobInit( &job, (start_routine) stopWpsPbcWalkTimer, NULL );
     result = TimerThreadSchedule( &gExpirationTimerThread,
-                                  DP_MAX_WPS_PBC_WALKING_TIME,
+                                  DP_MAX_WPS_PBC_WALK_TIME,
                                   REL_SEC, &job, SHORT_TERM,
-                                  &gWpsPbcWalkingJobId );
+                                  &gWpsPbcWalkJobId );
 
     gWpsPbcWalkTimerRunning = 1;
     if (result != 0) 
@@ -713,24 +713,24 @@ static int createWpsPbcWalkingTimer(void)
 }
 
 /**
- * Create timer for stopping WPS setup process if it has been running over DP_MAX_WPS_SETUP_TIME.
+ * Create timer for stopping WPS setup process if it has been running too long.
  * This way we release WPS for others to use if some client stays in error state for example.
  * 
  * @return Upnp error code.
  */
-static int createStopWPSTimer(void)
+static int createStopWPSTimer(time_t seconds)
 {
     int result = 0;
 
-    if (DP_MAX_WPS_SETUP_TIME > 0)
+    if (seconds > 0)
     {
-        trace(3,"Create StopWPS timer to be executed after %d seconds",DP_MAX_WPS_SETUP_TIME);
+        trace(3,"Create StopWPS timer to be executed after %d seconds", seconds);
         // schedule new autodisconnect job
         ThreadPoolJob job;
         // Add disconnect job
         TPJobInit( &job, ( start_routine ) stopWPS, NULL );
         result = TimerThreadSchedule( &gExpirationTimerThread,
-                                        DP_MAX_WPS_SETUP_TIME,
+                                        seconds,
                                         REL_SEC, &job, SHORT_TERM,
                                         &gStopWPSJobId );
     }
@@ -747,10 +747,16 @@ static int createStopWPSTimer(void)
 static int startWPS()
 {
     int err;
+    time_t allowed_duration;
     trace(2,"startWPS");
 
     // create timer which will end introduction after 60 seconds if it is still runnning
-    if ((err = createStopWPSTimer()) != 0)
+    if (strcmp(g_vars.wpsConfigMethods, "push_button") == 0)
+        allowed_duration = DP_MAX_WPS_PBC_DURATION;
+    else
+        allowed_duration = DP_MAX_WPS_PIN_DURATION;
+    trace(3,"Allowed WPS duration: %d secs", allowed_duration);
+    if ((err = createStopWPSTimer(allowed_duration)) != 0)
     {
         trace(1, "Failed to create StopWPS timer! Error: %d",err);
         return err;
@@ -796,7 +802,7 @@ static void stopWPS()
         gStopWPSJobId = -1;
     }
 
-    stopWpsPbcWalkingTimer();
+    stopWpsPbcWalkTimer();
 
     error = wpa_supplicant_stop_enrollee_state_machine(enrollee_state_machine);
     wpa_supplicant_iface_delete();
