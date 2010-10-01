@@ -49,7 +49,7 @@ static int startWPS();
 static void stopWPS();
 
 static void* enrollee_state_machine;
-static unsigned char* Enrollee_send_msg;
+static unsigned char* Enrollee_send_msg = NULL;
 static int Enrollee_send_msg_len;
 static int gStopWPSJobId = -1;
 static int gWpsPbcWalkingJobId = -1;
@@ -1483,14 +1483,14 @@ int SendSetupMessage(struct Upnp_Action_Request *ca_event)
                 }
                 else // Button not pressed yet
                 {
-                    //TODO: release memory before call!
+                    free(Enrollee_send_msg); //discard ACK
                     Enrollee_send_msg = wpa_supplicant_generate_nack(&Enrollee_send_msg_len);
                     SetupReady = 0;
                     sendSetUpReadyEvent(SetupReady);
                 }
             }
             else
-            {   //show PIN to user
+            {   //WPS PIN, show PIN to user
                 char *wps_pin = wpa_supplicant_get_pin();
                 trace(1, "WPS PIN:%s\n", wps_pin);
                 show_pin_to_user(wps_pin);
@@ -1509,7 +1509,7 @@ int SendSetupMessage(struct Upnp_Action_Request *ca_event)
         free(pB64Msg);
     }
 
-    // Any else state means that WPS is either ready or in error state and it must be terminated
+    // Any other state means that WPS is either ready or in error state and it must be terminated
     if (sm_status != WPASUPP_SM_E_PROCESS &&
         sm_status != WPASUPP_SM_E_SUCCESSINFO)
     {
@@ -1533,6 +1533,11 @@ int SendSetupMessage(struct Upnp_Action_Request *ca_event)
         free(pB64Msg);
     }
 
+    if (Enrollee_send_msg != NULL)
+    {
+        free(Enrollee_send_msg);
+        Enrollee_send_msg = NULL;
+    }
     free(CP_id);
     free(inmessage);
     free(protocoltype);
