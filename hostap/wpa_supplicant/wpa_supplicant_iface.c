@@ -386,6 +386,7 @@ static void send_to_wpa_driver(void *drv, const u8 *data, size_t data_len)
 
 	u8 *whole_msg;
 	size_t whole_msg_len;
+	static unsigned char eap_msg_id = 0;
 
 	whole_msg_len = 32 + data_len;
 	whole_msg = os_malloc(whole_msg_len);
@@ -393,12 +394,16 @@ static void send_to_wpa_driver(void *drv, const u8 *data, size_t data_len)
 	memcpy(&whole_msg[32], data, data_len);
 	//TODO: release *data memory??
 
+	// Update data length both to ieee802_1x_hdr and to eap_hdr
 	//TODO: replace with something like this:
 	//	struct ieee802_1x_hdr *hdr;
 	//	hdr = (struct ieee802_1x_hdr *)&whole_msg[14];
 	//	hdr->length = 0x01;//host_to_be16(data_len);
 	whole_msg[16] = whole_msg[20] = (data_len + 14) / 256;
 	whole_msg[17] = whole_msg[21] = (data_len + 14) % 256;
+
+	// Update message id to eap_hdr
+	whole_msg[19] = eap_msg_id ++;
 
 	wpa_driver_test_eapol_inject(drv, whole_msg, whole_msg_len);
 }
