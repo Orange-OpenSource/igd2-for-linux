@@ -1501,6 +1501,11 @@ int SendSetupMessage(struct Upnp_Action_Request *ca_event)
                 free(wps_pin);
             }
         }
+        else if (sm_status == WPASUPP_SM_E_SUCCESS)
+        {
+            // Send last ACK if success
+            trace(3,"Send last ack in WPS\n");
+        }
         
         // Convert outgoing response to base64
         size_t b64len = 0;
@@ -1518,23 +1523,6 @@ int SendSetupMessage(struct Upnp_Action_Request *ca_event)
         sm_status != WPASUPP_SM_E_SUCCESSINFO)
     {
         stopWPS();
-    }
-
-    // Send last ACK if success
-    if (sm_status == WPASUPP_SM_E_SUCCESS)
-    {
-        // response (next message) to base64
-        size_t b64len = 0;
-        unsigned char *pB64Msg;
-        pB64Msg = wpa_supplicant_base64_encode(Enrollee_send_msg, Enrollee_send_msg_len, &b64len);
-
-        trace(3,"Send last ack in WPS\n");
-
-        ca_event->ErrCode = UPNP_E_SUCCESS;
-        snprintf(resultStr, RESULT_LEN, "<u:%sResponse xmlns:u=\"%s\">\n<OutMessage>%s</OutMessage>\n</u:%sResponse>",
-                 ca_event->ActionName, DP_SERVICE_TYPE, pB64Msg, ca_event->ActionName);
-        ca_event->ActionResult = ixmlParseBuffer(resultStr);
-        free(pB64Msg);
     }
 
     if (Enrollee_send_msg != NULL)
