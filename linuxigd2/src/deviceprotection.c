@@ -493,7 +493,7 @@ void DP_buttonPressed()
     if (strcmp(g_vars.wpsConfigMethods, "push_button") == 0)
     {   //WPS PBC
         createWpsPbcWalkTimer();
-        if (gWpsIntroductionRunning && (SetupReady == 0))
+        if (gWpsIntroductionRunning)
         {
             SetupReady = 1;
             sendSetUpReadyEvent(SetupReady);
@@ -1487,12 +1487,10 @@ int SendSetupMessage(struct Upnp_Action_Request *ca_event)
                     //Just flow through. WPS enrollee state machine inside wpa_supplicant
                     //has already generated WSC_ACK message (in Enrollee_send_msg).
                 }
-                else // Button not pressed yet
+                else // Button not pressed yet, send NACK
                 {
                     free(Enrollee_send_msg); //discard ACK
                     Enrollee_send_msg = wpa_supplicant_generate_nack(&Enrollee_send_msg_len);
-                    SetupReady = 0;
-                    sendSetUpReadyEvent(SetupReady);
                 }
             }
             else
