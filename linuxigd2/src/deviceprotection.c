@@ -1510,7 +1510,13 @@ int SendSetupMessage(struct Upnp_Action_Request *ca_event)
         // Convert outgoing response to base64
         size_t b64len = 0;
         unsigned char *pB64Msg;
-        pB64Msg = wpa_supplicant_base64_encode(Enrollee_send_msg, Enrollee_send_msg_len, &b64len);
+        if (Enrollee_send_msg != NULL)
+            pB64Msg = wpa_supplicant_base64_encode(Enrollee_send_msg, Enrollee_send_msg_len, &b64len);
+        else
+        {
+            trace(1, "Note: OutMessage is empty\n");
+            pB64Msg = (unsigned char*)strdup("");
+        }
 
         snprintf(resultStr, RESULT_LEN, "<u:%sResponse xmlns:u=\"%s\">\n<OutMessage>%s</OutMessage>\n</u:%sResponse>",
                  ca_event->ActionName, DP_SERVICE_TYPE, pB64Msg, ca_event->ActionName);
