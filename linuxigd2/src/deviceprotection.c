@@ -21,11 +21,11 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 
 #include "deviceprotection.h"
-#include "gatedevice.h"
 #include "globals.h"
 #include "util.h"
 #include "crypt.h"
@@ -71,6 +71,8 @@ static const char *admin_name = "Administrator";
 static const char *wps_pin_file_name = "/tmp/upnpd.wps.pin";
 
 static wpa_supplicant_wps_enrollee_config enrollee_config;
+
+static dp_device_info_t *dev_info;
 
 #define MAC_LEN               6
 #define HASH_LEN              32
@@ -169,8 +171,9 @@ void DPStateTableInit()
  * 
  * @return int. 0 on success
  */
-int InitDP()
+int InitDP(dp_device_info_t *info)
 {
+    dev_info = info;
     DP_loadDocuments();
 
     int ret = 0;
@@ -516,7 +519,8 @@ static void sendSetUpReadyEvent(int set_up_ready_state)
     else //set_up_ready_state == 1
         valueStr = "1";
     UpnpAddToPropertySet(&propSet, DP_SETUPREADY_EVENT_NAME, valueStr);
-    UpnpNotifyExt(deviceHandle, gateUDN, DP_SERVICE_ID, propSet);
+    //The first UDN in the list is the root device
+    UpnpNotifyExt(*(dev_info->deviceHandle), dev_info->udnList[0], DP_SERVICE_ID, propSet);
     ixmlDocument_free(propSet);
 }
 
@@ -673,7 +677,7 @@ static void stopWpsPbcWalkTimer(void)
     trace(1,"Stop WPS PBC Walk Timer");
     if (gWpsPbcWalkJobId != -1)
     {
-        TimerThreadRemove(&gExpirationTimerThread, gWpsPbcWalkJobId, NULL);
+        TimerThreadRemove(dev_info->timerThread, gWpsPbcWalkJobId, NULL);
         gWpsPbcWalkJobId = -1;
     }
 
@@ -694,14 +698,14 @@ static int createWpsPbcWalkTimer(void)
     if (gWpsPbcWalkJobId != -1)
     {
         // cancel previous job
-        TimerThreadRemove(&gExpirationTimerThread, gWpsPbcWalkJobId, NULL);
+        TimerThreadRemove(dev_info->timerThread, gWpsPbcWalkJobId, NULL);
         gWpsPbcWalkJobId = -1;
     }
 
     // schedule new job
     ThreadPoolJob job;
     TPJobInit( &job, (start_routine) stopWpsPbcWalkTimer, NULL );
-    result = TimerThreadSchedule( &gExpirationTimerThread,
+    result = TimerThreadSchedule( dev_info->timerThread,
                                   DP_MAX_WPS_PBC_WALK_TIME,
                                   REL_SEC, &job, SHORT_TERM,
                                   &gWpsPbcWalkJobId );
@@ -729,7 +733,7 @@ static int createStopWPSTimer(time_t seconds)
         ThreadPoolJob job;
         // Add disconnect job
         TPJobInit( &job, ( start_routine ) stopWPS, NULL );
-        result = TimerThreadSchedule( &gExpirationTimerThread,
+        result = TimerThreadSchedule( dev_info->timerThread,
                                         seconds,
                                         REL_SEC, &job, SHORT_TERM,
                                         &gStopWPSJobId );
@@ -798,7 +802,7 @@ static void stopWPS()
     if (gStopWPSJobId != -1)
     {
         trace(3,"Cancel StopWPS timer");
-        TimerThreadRemove(&gExpirationTimerThread, gStopWPSJobId, NULL);
+        TimerThreadRemove(dev_info->timerThread, gStopWPSJobId, NULL);
         gStopWPSJobId = -1;
     }
 
@@ -2246,11 +2250,25 @@ int GetRolesForAction(struct Upnp_Action_Request *ca_event)
         /* Here we are going to cheat a little. Instead of checking that ActionName is found from device
            with DeviceUDN, we just check that given DeviceUDN is valid. This IGD won't most probably 
            have two services with same id under different devices. */
-        if ( (strcmp(deviceUDN, gateUDN) != 0) && (strcmp(deviceUDN, wanUDN) != 0) && (strcmp(deviceUDN, wanConnectionUDN) != 0) )
+        int found = 0;
+        int ii = 0;
+        while (dev_info->udnList[ii] != NULL)
+        {
+            if (strcmp(deviceUDN, dev_info->udnList[ii]) == 0)
+            {
+                found = 1;
+                break;
+            }
+        }
+        if (! found)
         {
             trace(1, "%s: Invalid DeviceUDN '%s'",
                   ca_event->ActionName, deviceUDN);
-            trace(3, "compared to '%s', '%s', '%s'", gateUDN, wanUDN, wanConnectionUDN);
+            int jj = 0;
+            while (dev_info->udnList[ii] != NULL)
+            {
+                trace(3, "compared to '%s'", dev_info->udnList[jj]);
+            }
             result = 600;
             addErrorData(ca_event, result, "Argument Value Invalid");
         }

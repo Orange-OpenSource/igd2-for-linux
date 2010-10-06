@@ -438,7 +438,11 @@ int main (int argc, char** argv)
     InitLanHostConfig();
 
     // Initialize DeviceProtection
-    InitDP();
+    dp_device_info_t dp_dev_info;
+    dp_dev_info.deviceHandle = GetDeviceHandle();
+    dp_dev_info.udnList = GetUdnList();
+    dp_dev_info.timerThread = GetTimerThread();
+    InitDP(&dp_dev_info);
 
     // Send out initial advertisements of our device's services (with timeouts of 30 minutes, default value,can be changed from config file)
     if ( (ret = UpnpSendAdvertisement(deviceHandle, g_vars.advertisementInterval) != UPNP_E_SUCCESS ))
@@ -485,7 +489,8 @@ int main (int argc, char** argv)
 
     // Cleanup deviceprotection module
     FreeDP();
-
+    free(dp_dev_info.udnList);
+    
     UpnpUnRegisterRootDevice(deviceHandle);
     UpnpFinish();
 

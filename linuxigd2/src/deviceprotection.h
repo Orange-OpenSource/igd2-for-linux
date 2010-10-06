@@ -21,6 +21,7 @@
 #define _DEVICEPROTECTION_H_
 
 #include <upnp/upnp.h>
+#include <upnp/TimerThread.h>
 
 
 #define DP_SERVICE_ID "urn:upnp-org:serviceId:DeviceProtection1"
@@ -43,6 +44,12 @@
 // DeviceProtection state variables
 int SetupReady;
 char SupportedProtocols[500];
+
+typedef struct {
+    UpnpDevice_Handle *deviceHandle;
+    char **udnList;
+    TimerThread *timerThread;
+} dp_device_info_t;
 
 int InitDP();
 void FreeDP();

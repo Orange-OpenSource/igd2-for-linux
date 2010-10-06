@@ -249,6 +249,45 @@ int HandleSubscriptionRequest(struct Upnp_Subscription_Request *sr_event)
 }
 
 /**
+ * Get device handle to be used by service(s)
+ *  
+ * @return pointer to the handle on success, or NULL on failure
+ */
+UpnpDevice_Handle *GetDeviceHandle(void)
+{
+    return &deviceHandle;
+}
+
+/**
+ * Get timer thread handle to be used by service(s)
+ *  
+ * @return pointer to the handle on success, or NULL on failure
+ */
+TimerThread *GetTimerThread(void)
+{
+    return &gExpirationTimerThread;
+}
+
+/**
+ * Get UDN list to be used by service(s)
+ * The first UDN in the list belongs to root device
+ * @return pointer to the list on success, or NULL on failure
+ * Note! the caller must free the list, but must not free the list elements
+ */
+char **GetUdnList(void)
+{
+    char **udnList = malloc(4 * sizeof(unsigned char*));
+    if (udnList != NULL)
+    {
+	udnList[0] = gateUDN; //the first in the list is root device
+	udnList[1] = wanUDN;
+	udnList[2] = wanConnectionUDN;
+	udnList[3] = NULL; // the list must end in the NULL
+    }
+    return udnList;
+}
+
+/**
  * Handles GetVar request for state variables.
  * GET VAR REQUEST DEPRECATED FROM UPnP SPECIFICATIONS!
  * Report this in debug and ignore requests.

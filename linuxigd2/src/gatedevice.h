@@ -65,6 +65,9 @@ struct portMap *pmlist_Current;
 // WanIPConnection Actions
 int EventHandler(Upnp_EventType EventType, void *Event, void *Cookie);
 int StateTableInit(char *descDocUrl);
+UpnpDevice_Handle *GetDeviceHandle(void);
+TimerThread *GetTimerThread(void);
+char **GetUdnList(void);
 int HandleSubscriptionRequest(struct Upnp_Subscription_Request *sr_event);
 int HandleGetVarRequest(struct Upnp_State_Var_Request *gv_event);
 int HandleActionRequest(struct Upnp_Action_Request *ca_event);
