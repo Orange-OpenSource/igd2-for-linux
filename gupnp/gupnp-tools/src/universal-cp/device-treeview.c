@@ -417,6 +417,8 @@ remove_device (GUPnPDeviceInfo *info)
         }
 }
 
+extern void hostapd_printf(const char *fmt, ...);
+
 static void
 on_state_variable_changed (GUPnPServiceProxy *proxy,
                            const char        *variable_name,
@@ -460,6 +462,7 @@ on_state_variable_changed (GUPnPServiceProxy *proxy,
                        id,
                        variable_name,
                        g_value_get_string (&str_value));
+		hostapd_printf("%s: %s=%s", __func__, variable_name, g_value_get_string (&str_value) );
 
         g_free (notified_at);
         g_free (friendly_name);

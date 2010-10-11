@@ -34,6 +34,12 @@ void
 begin_wps_dialog (void);
 
 void
+wps_pin_setup_begin();
+
+void
+wps_pbc_setup_begin();
+
+void
 wps_dialog_push_button(GtkToggleButton *button,
 					   gpointer         user_data);
 

@@ -39,11 +39,16 @@ static GtkWidget *wps_dialog_progressbar;
 
 static gboolean togglebutton_active;
 
+void
+on_start_wps_setup_pin_activate ( GladeXML *glade_xml )
+{
+        wps_pin_setup_begin();
+}
 
 void
-on_start_wps_setup_activate ( GladeXML *glade_xml )
+on_start_wps_setup_pbc_activate ( GladeXML *glade_xml )
 {
-        begin_wps_dialog();
+        wps_pbc_setup_begin();
 }
 
 void
@@ -151,14 +156,17 @@ continue_wps_cb ( GUPnPDeviceProxy    *proxy,
         }
 }
 
+#define	MAX_PIN_LENGTH	10
+
 void
-wps_invocation ( void )
+wps_pin_invocation( GUPnPDeviceProxyWps *deviceProxyWps,
+					char *pin_code )
 {
         const gchar *device_pin;
-        gpointer wps_user_data=NULL;
+//        gpointer wps_user_data=NULL;
         GUPnPDeviceInfo *info;
         GUPnPDeviceProxy *deviceProxy;
-        GUPnPDeviceProxyWps *deviceProxyWps;
+//      GUPnPDeviceProxyWps *deviceProxyWps;
         guint method;
 
         device_pin = gtk_entry_get_text ( GTK_ENTRY ( wps_dialog_pin_entry ) );
@@ -180,24 +188,21 @@ wps_invocation ( void )
                         GtkWidget *info_dialog;
 
                         info_dialog = gtk_message_dialog_new ( GTK_WINDOW ( wps_dialog ),
-                                                               GTK_DIALOG_DESTROY_WITH_PARENT,
+                                                               GTK_DIALOG_MODAL,
                                                                GTK_MESSAGE_INFO,
-                                                               GTK_BUTTONS_OK,
-                                                               "Request for PIN generation sent. Please, input generated PIN " );
-                        g_signal_connect_swapped( info_dialog,
-                                                  "response",
-												  G_CALLBACK( gtk_widget_destroy ),
-												  info_dialog );
-						gtk_widget_show_all( info_dialog );
-				}
-        }
+                                                               GTK_BUTTONS_CLOSE,
+                                                               "Device PIN is missing" );
 
-        deviceProxyWps = gupnp_device_proxy_begin_wps ( deviceProxy,
-                         method,
-                         "",
-                         device_pin,
-                         continue_wps_cb,
-                         wps_user_data );
+                        gtk_dialog_run ( GTK_DIALOG ( info_dialog ) );
+                        gtk_widget_destroy ( info_dialog );
+                        return;	// TEST
+                }
+        }
+		strncpy( pin_code, device_pin, MAX_PIN_LENGTH );
+//        deviceProxyWps = gupnp_device_proxy_continue_wps (
+//						  deviceProxyWps,
+//						  device_pin,
+//						  wps_user_data );
 }
 
 void
@@ -246,6 +251,97 @@ wps_invocation_old ( void )
                          device_pin,
                          continue_wps_cb,
                          wps_user_data );
+}
+
+void
+wps_pin_setup_begin ( void )
+{
+        const gchar *device_pin;
+        gpointer wps_user_data=NULL;
+        GUPnPDeviceInfo *info;
+        GUPnPDeviceProxy *deviceProxy;
+        GUPnPDeviceProxyWps *deviceProxyWps;
+        guint method;
+
+        device_pin = gtk_entry_get_text ( GTK_ENTRY ( wps_dialog_pin_entry ) );
+
+        info = get_selected_device_info ();
+        deviceProxy = GUPNP_DEVICE_PROXY ( info );
+        g_assert ( deviceProxy != NULL );
+
+        method = GUPNP_DEVICE_WPS_METHOD_PIN;
+
+        {
+		  if ( strcmp ( device_pin, "" ) == 0 )
+		  {
+				  /* Device PIN must be added with this WPS setup method */
+				  GtkWidget *info_dialog;
+
+				  info_dialog = gtk_message_dialog_new ( GTK_WINDOW ( wps_dialog ),
+														  GTK_DIALOG_DESTROY_WITH_PARENT,
+														  GTK_MESSAGE_INFO,
+														  GTK_BUTTONS_OK,
+														  "Request for PIN generation sent.\n"
+														  "Waiting for device .." );
+				  g_signal_connect_swapped( info_dialog,
+											"response",
+											G_CALLBACK( gtk_widget_destroy ),
+											info_dialog );
+				  gtk_widget_show_all( info_dialog );
+		  }
+        }
+        gupnp_device_proxy_set_pin_dialog_cb( &wps_pin_invocation );
+
+        deviceProxyWps = gupnp_device_proxy_begin_wps (
+						deviceProxy,
+                        method,
+                        "",
+                        device_pin,
+                        continue_wps_cb,
+                        wps_user_data );
+}
+
+void
+wps_pbc_setup_begin ( void )
+{
+        const gchar *device_pin;
+        gpointer wps_user_data=NULL;
+        GUPnPDeviceInfo *info;
+        GUPnPDeviceProxy *deviceProxy;
+        GUPnPDeviceProxyWps *deviceProxyWps;
+        guint method;
+
+        device_pin = gtk_entry_get_text ( GTK_ENTRY ( wps_dialog_pin_entry ) );
+
+        info = get_selected_device_info ();
+        deviceProxy = GUPNP_DEVICE_PROXY ( info );
+        g_assert ( deviceProxy != NULL );
+
+        method = GUPNP_DEVICE_WPS_METHOD_PUSHBUTTON;
+
+		/* Device PIN must be added with this WPS setup method */
+		GtkWidget *info_dialog;
+
+		info_dialog = gtk_message_dialog_new ( GTK_WINDOW ( wps_dialog ),
+												GTK_DIALOG_DESTROY_WITH_PARENT,
+												GTK_MESSAGE_INFO,
+												GTK_BUTTONS_OK,
+												"Request for Push-Button Configuration sent.\n"
+												"Waiting for device .." );
+		g_signal_connect_swapped( info_dialog,
+								  "response",
+								  G_CALLBACK( gtk_widget_destroy ),
+								  info_dialog );
+		gtk_widget_show_all( info_dialog );
+
+		deviceProxyWps = gupnp_device_proxy_begin_wps ( deviceProxy,
+                         method,
+                         "",
+                         device_pin,
+                         continue_wps_cb,
+                         wps_user_data );
+//         gtk_dialog_run ( GTK_DIALOG ( info_dialog ) );
+         gtk_widget_destroy ( info_dialog );
 }
 
 void

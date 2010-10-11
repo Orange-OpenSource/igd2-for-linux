@@ -427,9 +427,18 @@ Inspired by Intel Tools for UPnP.</property>
   <child>
     <widget class="GtkMenuItem" id="start_wps_setup1">
       <property name="visible">True</property>
-      <property name="label" translatable="yes">Start wps setup</property>
+      <property name="label" translatable="yes">Start wps setup: PIN method</property>
       <property name="use_underline">True</property>
-      <signal name="activate" handler="on_start_wps_setup_activate"/>
+      <signal name="activate" handler="on_start_wps_setup_pin_activate"/>
+    </widget>
+  </child>
+
+  <child>
+    <widget class="GtkMenuItem" id="start_wps_setup2">
+      <property name="visible">True</property>
+      <property name="label" translatable="yes">Start wps setup: PBC method</property>
+      <property name="use_underline">True</property>
+      <signal name="activate" handler="on_start_wps_setup_pbc_activate"/>
     </widget>
   </child>
 
@@ -1174,7 +1183,7 @@ Inspired by Intel Tools for UPnP.</property>
 	      <property name="can_focus">True</property>
 	      <property name="relief">GTK_RELIEF_NORMAL</property>
 	      <property name="focus_on_click">True</property>
-	      <signal name="clicked" handler="wps_invocation"/>
+	      <signal name="clicked" handler="wps_pin_invocation"/>
 
 	      <child>
 		<widget class="GtkHBox" id="wps-dialog-hbox2">
