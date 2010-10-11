@@ -353,6 +353,7 @@ gupnp_device_proxy_get_ACL_data (GUPnPDeviceProxy           *proxy,
 gboolean
 gupnp_device_proxy_end_get_ACL_data (GUPnPDeviceProxyGetACLData *ACLData);
 
+void gupnp_device_proxy_set_pin_dialog_cb( void (*wps_pin_invocation_cb) );
 
 G_END_DECLS
 

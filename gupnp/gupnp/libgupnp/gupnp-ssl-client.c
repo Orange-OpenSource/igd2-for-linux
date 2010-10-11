@@ -28,6 +28,7 @@
 #include "pki.h"
 #include "gupnp-ssl-client.h"
 
+void hostapd_printf(const char *fmt, ...); // TEST
 
 // these are now global variables, because this is the only way I can imagine 
 // that clientCertCallback function can access these
@@ -134,7 +135,6 @@ static int parse_headers(SoupMessageHeaders *soup_headers, const char *headers)
     return status_code;      
 }
 
-
 static void *ssl_client_send_and_receive_thread(void *data)
 {
     int headers_ready = 0;
@@ -144,7 +144,7 @@ static void *ssl_client_send_and_receive_thread(void *data)
     int content_len = 0;
 
     GUPnPSSLThreadData *ssl_data = data;
-    
+
     GUPnPSSLClient **client = ssl_data->client;
     if ((*client)->session == NULL)
     {
@@ -155,26 +155,27 @@ static void *ssl_client_send_and_receive_thread(void *data)
 
     int alloc = gnutls_record_get_max_size((*client)->session); // get the maximum size of record that can be received
     int len = alloc;
-    char recv[len+1];    
+    char recv[len+1];
     char *message = ssl_data->message;
     SoupMessage *msg = ssl_data->soupmesg;
 
     char *response = malloc((alloc+1)*sizeof( char* ));
     //char response[alloc+1];
-    *response = '\0';    
+    *response = '\0';
 
     // Send the message
+	hostapd_printf("%s: sending (%s)", __func__, message );	// TEST
     retVal = gnutls_record_send((*client)->session, message, strlen(message));
-     
+
     if (retVal < 0)
     {
         g_warning("Error: gnutls_record_send failed. %s", gnutls_strerror(retVal));
         // close the client
         ssl_finish_client(client);
         g_slice_free(GUPnPSSLThreadData, data);
-        return NULL;// retVal;  
+        return NULL;// retVal;
     }
-    
+
     // Start receiving until error occurs or whole message is received.
     while (retVal > 0) // if retVal is negative, then gnutls have returned error
     {
@@ -191,7 +192,7 @@ static void *ssl_client_send_and_receive_thread(void *data)
             return NULL;// retVal;
         }
         else
-        { 
+        {
             recv[retVal] = '\0';
             //g_warning("Received %d bytes", retVal);
         }
@@ -203,22 +204,22 @@ static void *ssl_client_send_and_receive_thread(void *data)
         // if received data begins with 1-4 characters and after that there is CRLF
         // we assume that this is length of chunk and we remove and totally ignore that.
         // Unless it is "0\r\n\r\n"
-        if (strlen(recv) > 2 && recv[1] == '\r' && recv[2] == '\n') 
+        if (strlen(recv) > 2 && recv[1] == '\r' && recv[2] == '\n')
         {
             tmp = recv + 3;
             strcpy(recv, tmp);
         }
-        if (strlen(recv) > 3 && recv[2] == '\r' && recv[3] == '\n') 
+        if (strlen(recv) > 3 && recv[2] == '\r' && recv[3] == '\n')
         {
             tmp = recv + 4;
             strcpy(recv, tmp);
         }
-        if (strlen(recv) > 4 && recv[3] == '\r' && recv[4] == '\n') 
+        if (strlen(recv) > 4 && recv[3] == '\r' && recv[4] == '\n')
         {
             tmp = recv + 5;
             strcpy(recv, tmp);
         }
-        if (strlen(recv) > 5 && recv[4] == '\r' && recv[5] == '\n') 
+        if (strlen(recv) > 5 && recv[4] == '\r' && recv[5] == '\n')
         {
             tmp = recv + 6;
             strcpy(recv, tmp);
@@ -241,7 +242,7 @@ static void *ssl_client_send_and_receive_thread(void *data)
             // because *response may now locate somewhere else than before
             // we need to update location of body.
             // This needs to be done only if headers are parsed already and
-            // we are wiating for the body be finished 
+            // we are wiating for the body be finished
             if (headers_ready && (tmp = strstr(response, "\r\n\r\n")) != NULL)
             {
                 body = tmp + 4; // body of message is everything that comes after "\r\n\r\n"
@@ -251,7 +252,7 @@ static void *ssl_client_send_and_receive_thread(void *data)
         strcat(response, recv);
         size = strlen(response);
 
-        // receive data until empty line containing only \r\n is received (also previous line must end with \r\n). 
+        // receive data until empty line containing only \r\n is received (also previous line must end with \r\n).
         // That means that headers are done
         if (!headers_ready && (tmp = strstr(response, "\r\n\r\n")) != NULL)
         {
@@ -285,14 +286,14 @@ static void *ssl_client_send_and_receive_thread(void *data)
             headers_ready = 1;
         }
 
-        if (headers_ready && body != NULL && 
+        if (headers_ready && body != NULL &&
             (strlen(body) >= content_len || (content_len == -1 && (tmp = strstr(response, "0\r\n\r\n")) != NULL)))
         {
             // if chunked data
             if (content_len == -1) *tmp = '\0';
             else body[content_len] = '\0';
-            // body should be ready    
-            // Put body to SoupMessage (soup_message_set_response() should do that also, but didn't get it working 
+            // body should be ready
+            // Put body to SoupMessage (soup_message_set_response() should do that also, but didn't get it working
             msg->response_body->data = strdup(body);
             msg->response_body->length = strlen(body);
             //g_debug("WHOLE BODY: '%s'",body);
@@ -303,15 +304,14 @@ static void *ssl_client_send_and_receive_thread(void *data)
         }
         else
         {
-            //g_debug("RESPONSE SO FAR\n %s", response); 
+            //g_debug("RESPONSE SO FAR\n %s", response);
             // whole message is not received yet...
         }
-        
+
     }
 
-    return NULL;// retVal; 
+    return NULL;// retVal;
 }
-
 
 /************************************************************************
 *   Function :  ssl_create_https_url
@@ -684,8 +684,6 @@ ssl_close_client_session( GUPnPSSLClient **client )
     return GUPNP_E_SUCCESS;
 
 }  /****************** End of ssl_close_client_session   *********************/
-
-
 
 
 /**************************************************************************

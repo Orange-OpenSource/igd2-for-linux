@@ -432,6 +432,7 @@ gupnp_service_proxy_send_action_valist (GUPnPServiceProxy *proxy,
         main_context = gssdp_client_get_main_context (GSSDP_CLIENT (context));
         main_loop = g_main_loop_new (main_context, TRUE);
 
+		hostapd_printf("%s: main_loop context = 0x%p", __func__, main_loop );	// TEST
         handle = gupnp_service_proxy_begin_action_valist (proxy,
                                                           action,
                                                           stop_main_loop,
@@ -486,6 +487,7 @@ gupnp_service_proxy_send_action_hash (GUPnPServiceProxy *proxy,
         main_context = gssdp_client_get_main_context (GSSDP_CLIENT (context));
         main_loop = g_main_loop_new (main_context, TRUE);
 
+		hostapd_printf("%s: main_loop context = 0x%p", __func__, main_loop );	// TEST
         handle = gupnp_service_proxy_begin_action_hash (proxy,
                                                         action,
                                                         stop_main_loop,
@@ -770,7 +772,7 @@ finish_action_msg (GUPnPServiceProxyAction *action,
                          "</s:Body>"
                          "</s:Envelope>");
 
-		hostapd_printf("%s: msg(%s)\n", __func__, action->msg_str->str );	// N123
+//		hostapd_printf("%s: send to SSL (%s)\n", __func__, action->msg_str->str );	// N123
         soup_message_set_request (action->msg,
                                   "text/xml; charset=utf-8",
                                   SOUP_MEMORY_TAKE,
@@ -792,10 +794,10 @@ finish_action_msg (GUPnPServiceProxyAction *action,
         GUPnPSSLClient **client = gupnp_device_proxy_get_ssl_client(action->proxy->priv->device_proxy);
         if (*client == NULL)
         {
-            g_warning("We don't have SSL");                              
-                                
+//          g_warning("We don't have SSL");
+
             session = gupnp_context_get_session (context);
-    
+
             soup_session_queue_message (session,
                                         action->msg,
                                         (SoupSessionCallback) action_got_response,
@@ -803,7 +805,7 @@ finish_action_msg (GUPnPServiceProxyAction *action,
         }
         else
         {
-            g_warning("We do have SSL");
+//          g_warning("We do have SSL");
             SoupURI *uri = soup_message_get_uri (action->msg);
             char *message;
             create_msg_string(action, uri->path, uri->host, uri->port, &message);
@@ -818,11 +820,10 @@ write_in_parameter (const char *arg_name,
                     GValue     *value,
                     GString    *msg_str)
 {
-        /* Write parameter pair */
+  gboolean escaping;
+  
+  /* Write parameter pair */
         xml_util_start_element (msg_str, arg_name);
-
-
-		hostapd_printf("%s: arg_name=(%s)", __func__, arg_name );
 
 		if (( g_strcmp0( arg_name, "IdentityList")       == 0 )  ||
 		    ( g_strcmp0( arg_name, "SupportedProtocols") == 0 )  ||
@@ -834,19 +835,21 @@ write_in_parameter (const char *arg_name,
 		    ( g_strcmp0( arg_name, "ProtocolType")       == 0 )  ||
 		    ( g_strcmp0( arg_name, "Name")               == 0 ))
 		{
+		  escaping = TRUE;
 		  xml_util_escaping_on_off( 1 );	/* TEST: after this, XML message has escaping */
-		  hostapd_printf("%s: escaping ON for '%s'\n", __func__, arg_name );
 		}
 		else
 		{
+		  escaping = FALSE;
 		  xml_util_escaping_on_off( 0 );	/* TEST: after this, XML message has no escaping */
-		  hostapd_printf("%s: escaping OFF for '%s'\n", __func__, arg_name );
 		}
 
         gvalue_util_value_append_to_xml_string (value, msg_str);
 
 		xml_util_escaping_on_off( 0 );	/* TEST: after this, XML message has no escaping */
         xml_util_end_element (msg_str, arg_name);
+
+		hostapd_printf("%s: escaping %s for arg_name=(%s)", __func__, (escaping ? "TRUE" : "FALSE "), arg_name );
 }
 
 /**
