@@ -20,6 +20,7 @@
 #include "eap_common/eap_wsc_common.h"
 #include "wps/wps.h"
 
+#define	NEW_CONFIG_SPEC
 
 struct eap_wsc_data {
 	enum { START, MESG, FRAG_ACK, WAIT_FRAG_ACK, DONE, FAIL } state;
@@ -80,6 +81,9 @@ static void eap_wsc_ext_reg_timeout(void *eloop_ctx, void *timeout_ctx)
 	eap_sm_pending_cb(sm);
 }
 
+#ifdef NEW_CONFIG_SPEC
+extern int hostapd_use_push_button_mode;
+#endif
 
 static void * eap_wsc_init(struct eap_sm *sm)
 {
@@ -108,6 +112,10 @@ static void * eap_wsc_init(struct eap_sm *sm)
 	data->registrar = registrar;
 
 	os_memset(&cfg, 0, sizeof(cfg));
+	if (hostapd_use_push_button_mode)	// TEST : // if said, Push-Button mode requested from GUI, pass it to wps_init()
+	{
+	  cfg.pbc = 1;
+	}
 	cfg.wps = sm->wps;
 	cfg.registrar = registrar;
 	if (registrar) {

@@ -26,9 +26,11 @@
 #include "wps_dev_attr.h"
 #include "wps_upnp.h"
 #include "wps_upnp_i.h"
+#ifdef NEW_CONFIG_SPEC
+  #include "wps_defs.h"
+#endif
 
 #define WPS_WORKAROUNDS
-#define	NEW_CONFIG_SPEC	// Configuration expects the M2D sent instead of M2 and so on ...
 
 #include "../../hostapd/hostapd_iface.h"
 
@@ -45,6 +47,55 @@ struct wps_uuid_pin {
 };
 
 int	wps_handshaking_done = 0;
+
+#ifdef NEW_CONFIG_SPEC
+  wps_message_monitor wps_info;
+  extern int hostapd_use_push_button_mode;	// TEST: This Hack gives us opinion, what is the required mode ( Push-Button / PIN )
+  extern const char * hostapd_wps_message_type_name( int type );
+
+const char *state_names[] = {
+	"SEND_M1",
+    "RECV_M2",
+    "SEND_M3",
+    "RECV_M4",
+    "SEND_M5",
+    "RECV_M6",
+    "SEND_M7",
+    "RECV_M8",
+    "RECEIVED_M2D",
+    "WPS_MSG_DONE",
+	"RECV_ACK",
+	"WPS_FINISHED",
+	"SEND_WSC_NACK",
+	/* Registrar states */
+	"RECV_M1",
+	"SEND_M2",
+	"RECV_M3",
+	"SEND_M4",
+	"RECV_M5",
+	"SEND_M6",
+	"RECV_M7",
+	"SEND_M8",
+	"RECV_DONE",
+	"SEND_M2D",
+	"RECV_M2D_ACK" };
+	
+const char * wps_state_name( int state )
+{
+  static char err_buf[ 50 ];
+  
+  if ( state >= 0 && state <= 23 )
+	return( state_names[ state ] );
+  else
+  {
+	sprintf( err_buf,"Reg/Enroll.state %d is undefined", state );
+	return( err_buf );
+  }
+}
+
+#endif
+
+
 unsigned char wps_uuid_e_buf[ WPS_UUID_LEN ];
 
 static void wps_free_pin(struct wps_uuid_pin *pin)
@@ -391,10 +442,19 @@ static int wps_build_sel_reg_config_methods(struct wps_registrar *reg,
 		return 0;
 	methods = reg->wps->config_methods & ~WPS_CONFIG_PUSHBUTTON;
 	if (reg->pbc)
+		wpa_printf(MSG_DEBUG, "WPS:  PBC in effect");
+#ifdef NEW_CONFIG_SPEC
+		methods = WPS_CONFIG_PUSHBUTTON;
+#else
 		methods |= WPS_CONFIG_PUSHBUTTON;
-	if (reg->sel_reg_config_methods_override >= 0)
+#endif
+	if (reg->sel_reg_config_methods_override >= 0) {
+#ifdef NEW_CONFIG_SPEC
+		wpa_printf(MSG_DEBUG, "WPS:  Overriding registrar Config Methods 0x%04X with 0x%04X", methods, reg->sel_reg_config_methods_override);
+#endif
 		methods = reg->sel_reg_config_methods_override;
-	wpa_printf(MSG_DEBUG, "WPS:  * Selected Registrar Config Methods (%x)",
+	}
+	wpa_printf(MSG_DEBUG, "WPS:  * Selected Registrar Config Methods (0x%X)",
 		   methods);
 	wpabuf_put_be16(msg, ATTR_SELECTED_REGISTRAR_CONFIG_METHODS);
 	wpabuf_put_be16(msg, 2);
@@ -412,7 +472,7 @@ static int wps_build_probe_config_methods(struct wps_registrar *reg,
 	 * external Registrars.
 	 */
 	methods = reg->wps->config_methods & ~WPS_CONFIG_PUSHBUTTON;
-	wpa_printf(MSG_DEBUG, "WPS:  * Config Methods (%x)", methods);
+	wpa_printf(MSG_DEBUG, "WPS:  * Config Methods (0x%04X)", methods);
 	wpabuf_put_be16(msg, ATTR_CONFIG_METHODS);
 	wpabuf_put_be16(msg, 2);
 	wpabuf_put_be16(msg, methods);
@@ -426,7 +486,11 @@ static int wps_build_config_methods_r(struct wps_registrar *reg,
 	u16 methods;
 	methods = reg->wps->config_methods & ~WPS_CONFIG_PUSHBUTTON;
 	if (reg->pbc)
-		methods |= WPS_CONFIG_PUSHBUTTON;
+#ifdef NEW_CONFIG_SPEC
+        methods = WPS_CONFIG_PUSHBUTTON;	// In the case of M2D & PBC, only PBC method set
+#else
+        methods |= WPS_CONFIG_PUSHBUTTON;
+#endif
 	return wps_build_config_methods(msg, methods);
 }
 
@@ -515,6 +579,7 @@ int wps_registrar_add_pin(struct wps_registrar *reg, const u8 *uuid,
 {
 	struct wps_uuid_pin *p;
 
+	wpa_printf(MSG_DEBUG, "WPS: %s", __func__ );	// TEST
 	p = os_zalloc(sizeof(*p));
 	if (p == NULL)
 		return -1;
@@ -704,6 +769,7 @@ static void wps_registrar_pbc_timeout(void *eloop_ctx, void *timeout_ctx)
  */
 int wps_registrar_button_pushed(struct wps_registrar *reg)
 {
+	wpa_printf(MSG_DEBUG, "WPS: %s", __func__ );	// TEST
 	if (wps_registrar_pbc_overlap(reg, NULL, NULL)) {
 		wpa_printf(MSG_DEBUG, "WPS: PBC overlap - do not start PBC "
 			   "mode");
@@ -1333,7 +1399,10 @@ static struct wpabuf * wps_build_m2(struct wps_data *wps)
 	wpa_hexdump(MSG_DEBUG, "WPS: Registrar Nonce",
 		    wps->nonce_r, WPS_NONCE_LEN);
 	wpa_hexdump(MSG_DEBUG, "WPS: UUID-R", wps->uuid_r, WPS_UUID_LEN);
-
+	if ( hostapd_use_push_button_mode )	// TEST: TODO: Find better place to set this ..
+	{
+	  wps->dev_pw_id = DEV_PW_PUSHBUTTON;
+	}
 	wpa_printf(MSG_DEBUG, "WPS: Building Message M2");
 	msg = wpabuf_alloc(1000);
 	if (msg == NULL)
@@ -1373,6 +1442,13 @@ static struct wpabuf * wps_build_m2d(struct wps_data *wps)
 	u16 err = wps->config_error;
 
 	wpa_printf(MSG_DEBUG, "WPS: Building Message M2D");
+#if 0
+//#ifdef NEW_CONFIG_SPEC	// Now we generate Registrar Nonce also in M2D ... not just in M2
+	if (os_get_random(wps->nonce_r, WPS_NONCE_LEN) < 0)
+		return NULL;
+	wpa_hexdump(MSG_DEBUG, "WPS: Registrar Nonce",
+		    wps->nonce_r, WPS_NONCE_LEN);
+#endif
 	msg = wpabuf_alloc(1000);
 	if (msg == NULL)
 		return NULL;
@@ -1398,7 +1474,9 @@ static struct wpabuf * wps_build_m2d(struct wps_data *wps)
 		wpabuf_free(msg);
 		return NULL;
 	}
-
+#ifdef NEW_CONFIG_SPEC
+	wps_info.wsc_last_sent_message_type = WPS_M2D;
+#endif
 	wps->state = RECV_M2D_ACK;
 	return msg;
 }
@@ -1435,6 +1513,9 @@ static struct wpabuf * wps_build_m4(struct wps_data *wps)
 		return NULL;
 	}
 	wpabuf_free(plain);
+#ifdef NEW_CONFIG_SPEC
+	wps_info.wsc_last_sent_message_type = WPS_M4;
+#endif
 
 	wps->state = RECV_M5;
 	return msg;
@@ -1469,6 +1550,9 @@ static struct wpabuf * wps_build_m6(struct wps_data *wps)
 		return NULL;
 	}
 	wpabuf_free(plain);
+#ifdef NEW_CONFIG_SPEC
+	wps_info.wsc_last_sent_message_type = WPS_M6;
+#endif
 
 	wps->wps_pin_revealed = 1;
 	wps->state = RECV_M7;
@@ -1504,6 +1588,9 @@ static struct wpabuf * wps_build_m8(struct wps_data *wps)
 		return NULL;
 	}
 	wpabuf_free(plain);
+#ifdef NEW_CONFIG_SPEC
+	wps_info.wsc_last_sent_message_type = WPS_M8;
+#endif
 
 	wps->state = RECV_DONE;
 	return msg;
@@ -1527,7 +1614,9 @@ static struct wpabuf * wps_build_wsc_ack(struct wps_data *wps)
 		wpabuf_free(msg);
 		return NULL;
 	}
-
+#ifdef NEW_CONFIG_SPEC
+	wps_info.wsc_last_sent_message_type = WPS_WSC_ACK;
+#endif
 	return msg;
 }
 
@@ -1550,6 +1639,9 @@ static struct wpabuf * wps_build_wsc_nack(struct wps_data *wps)
 		wpabuf_free(msg);
 		return NULL;
 	}
+#ifdef NEW_CONFIG_SPEC
+	wps_info.wsc_last_sent_message_type = WPS_WSC_NACK;
+#endif
 
 	return msg;
 }
@@ -1559,6 +1651,10 @@ struct wpabuf * wps_registrar_get_msg(struct wps_data *wps,
 				      enum wsc_op_code *op_code)
 {
 	struct wpabuf *msg;
+#ifdef NEW_CONFIG_SPEC
+//	struct wpabuf *msg2;
+	int old_state;
+#endif
 
 #ifdef CONFIG_WPS_UPNP
 	if (!wps->int_reg && wps->wps->wps_upnp) {
@@ -1603,6 +1699,9 @@ struct wpabuf * wps_registrar_get_msg(struct wps_data *wps,
 	}
 #endif /* CONFIG_WPS_UPNP */
 
+#ifdef NEW_CONFIG_SPEC
+	old_state = (int)wps->state;
+#endif
 	switch (wps->state) {
 	case SEND_M2:
 		if (wps_get_dev_password(wps) < 0)
@@ -1612,6 +1711,13 @@ struct wpabuf * wps_registrar_get_msg(struct wps_data *wps,
 		*op_code = WSC_MSG;
 		break;
 	case SEND_M2D:
+#ifdef NEW_CONFIG_SPEC
+//		msg2 = wps_build_m2(wps);
+//		wps_info.m2_msg_len = wpabuf_len(msg2);
+//		os_memcpy(wps_info.m2_msg_buf, wpabuf_mhead_u8(msg2), wps_info.m2_msg_len);
+//		hostapd_printf("%s:constructed M2 together with M2D, len=%d", __func__, wps_info.m2_msg_len );
+//		wpabuf_free(msg2);
+#endif
 		msg = wps_build_m2d(wps);
 		*op_code = WSC_MSG;
 		break;
@@ -1634,7 +1740,21 @@ struct wpabuf * wps_registrar_get_msg(struct wps_data *wps,
 	case SEND_WSC_NACK:
 		msg = wps_build_wsc_nack(wps);
 		*op_code = WSC_NACK;
+#ifdef NEW_CONFIG_SPEC
+		wpa_printf(MSG_DEBUG, "WPS: %s: in state 'SEND_WSC_NACK'", __func__); // What needs to done there ??
+#endif
 		break;
+#ifdef NEW_CONFIG_SPEC
+	case RECV_M2D_ACK:
+		wpa_printf(MSG_DEBUG, "WPS: %s: in state 'RECV_M2D_ACK'", __func__); // What needs to done there ??
+		// At now, we try to go to send M2 as an answer to ACK caused by M2D
+		if (wps_get_dev_password(wps) < 0)
+		  msg = wps_build_m2d(wps);
+		else
+		  msg = wps_build_m2(wps);
+		*op_code = WSC_MSG;
+		break;
+#endif
 	default:
 		wpa_printf(MSG_DEBUG, "WPS: Unsupported state %d for building "
 			   "a message", wps->state);
@@ -1643,10 +1763,26 @@ struct wpabuf * wps_registrar_get_msg(struct wps_data *wps,
 	}
 
 	if (*op_code == WSC_MSG && msg) {
+#ifdef NEW_CONFIG_SPEC
+	  if (( wps->state == RECV_M3 ) ||	/* Save only meaningfull received messages for authentication purposes */
+	      ( wps->state == RECV_M5 ) ||
+	      ( wps->state == RECV_M7 ))
+	  {
+		wpa_printf(MSG_DEBUG, "WPS: Saving SENT (%s-->%s=%d) for Authenticator derivation",
+				   wps_state_name(old_state), wps_state_name(wps->state), wps->state);
+#endif
 		/* Save a copy of the last message for Authenticator derivation
 		 */
 		wpabuf_free(wps->last_msg);
 		wps->last_msg = wpabuf_dup(msg);
+#ifdef NEW_CONFIG_SPEC
+	  }
+	  else
+	  {
+		  wpa_printf(MSG_DEBUG, "WPS: Don't save SENT msg %d (%s) for Authenticator derivation",
+					 wps->state, wps_state_name(wps->state));
+	  }
+#endif
 	}
 
 	return msg;
@@ -1661,6 +1797,9 @@ static int wps_process_enrollee_nonce(struct wps_data *wps, const u8 *e_nonce)
 	}
 
 	os_memcpy(wps->nonce_e, e_nonce, WPS_NONCE_LEN);
+#ifdef NEW_CONFIG_SPEC
+	os_memcpy( wps_info.enrollee_nonce, e_nonce, WPS_NONCE_LEN );
+#endif
 	wpa_hexdump(MSG_DEBUG, "WPS: Enrollee Nonce",
 		    wps->nonce_e, WPS_NONCE_LEN);
 
@@ -2053,11 +2192,15 @@ static int wps_process_config_error(struct wps_data *wps, const u8 *err)
 	return 0;
 }
 
-
 static enum wps_process_res wps_process_m1(struct wps_data *wps,
 					   struct wps_parse_attr *attr)
 {
 	wpa_printf(MSG_DEBUG, "WPS: Received M1");
+	if ( hostapd_use_push_button_mode )	// TEST
+	{
+	  hostapd_printf("%s: overwriting Enrollees opinion 0x%02X --> 0x%02X (=DEV_PW_PUSHBUTTON)", __func__, wps->dev_pw_id, DEV_PW_PUSHBUTTON );
+	  wps->dev_pw_id = DEV_PW_PUSHBUTTON;
+	}
 
 	if (wps->state != RECV_M1) {
 		wpa_printf(MSG_DEBUG, "WPS: Unexpected state (%d) for "
@@ -2065,12 +2208,6 @@ static enum wps_process_res wps_process_m1(struct wps_data *wps,
 		return WPS_FAILURE;
 	}
 
-	if ( getenv("SEND_M2D"))	/* TEST: This is a possibility terminate handshaking and let Enrollee to know, we don't know it's password */
-	{
-		wpa_printf(MSG_DEBUG, "WPS: %s: env 'SEND_M2D' causes M2D mode", __func__);
-		wps->state = SEND_M2D;
-		return WPS_CONTINUE;
-	}
 	if (wps_process_uuid_e(wps, attr->uuid_e) ||
 	    wps_process_mac_addr(wps, attr->mac_addr) ||
 	    wps_process_enrollee_nonce(wps, attr->enrollee_nonce) ||
@@ -2146,13 +2283,13 @@ static enum wps_process_res wps_process_m1(struct wps_data *wps,
 #endif /* WPS_WORKAROUNDS */
 
 #ifdef NEW_CONFIG_SPEC
+	wpa_printf(MSG_DEBUG, "WPS: Always answer M1 --> M2D");
 	wps->state = SEND_M2D;
 #else
 	wps->state = SEND_M2;
 #endif
 	return WPS_CONTINUE;
 }
-
 
 static enum wps_process_res wps_process_m3(struct wps_data *wps,
 					   const struct wpabuf *msg,
@@ -2375,6 +2512,9 @@ static enum wps_process_res wps_process_wsc_msg(struct wps_data *wps,
 	enum wps_process_res ret = WPS_CONTINUE;
 
 	wpa_printf(MSG_DEBUG, "WPS: Received WSC_MSG");
+#ifdef NEW_CONFIG_SPEC
+	wps_info.wsc_msg_tot_cnt++;
+#endif
 
 	if (wps_parse_msg(msg, &attr) < 0)
 		return WPS_FAILURE;
@@ -2390,14 +2530,20 @@ static enum wps_process_res wps_process_wsc_msg(struct wps_data *wps,
 		return WPS_FAILURE;
 	}
 
+//#ifndef NEW_CONFIG_SPEC	// TEST: Just pass this checking, cause ACK after M2D produces this unwanted behavior
 	if (*attr.msg_type != WPS_M1 &&
 	    (attr.registrar_nonce == NULL ||
 	     os_memcmp(wps->nonce_r, attr.registrar_nonce,
 		       WPS_NONCE_LEN != 0))) {
 		wpa_printf(MSG_DEBUG, "WPS: Mismatch in registrar nonce");
+		wpa_hexdump(MSG_DEBUG, "attr.registrar_nonce", attr.registrar_nonce, WPS_NONCE_LEN );
+		wpa_hexdump(MSG_DEBUG, "wps->nonce_r", wps->nonce_r, WPS_NONCE_LEN );
 		return WPS_FAILURE;
 	}
-
+//#endif
+#ifdef NEW_CONFIG_SPEC
+	wps_info.wsc_last_received_message_type = *attr.msg_type;
+#endif
 	switch (*attr.msg_type) {
 	case WPS_M1:
 #ifdef CONFIG_WPS_UPNP
@@ -2412,43 +2558,90 @@ static enum wps_process_res wps_process_wsc_msg(struct wps_data *wps,
 		}
 #endif /* CONFIG_WPS_UPNP */
 		ret = wps_process_m1(wps, &attr);
+#ifdef NEW_CONFIG_SPEC
+		wps_info.wsc_m1_cnt++;
+#endif
 		break;
 	case WPS_M3:
 		ret = wps_process_m3(wps, msg, &attr);
 		if (ret == WPS_FAILURE || wps->state == SEND_WSC_NACK)
 			wps_fail_event(wps->wps, WPS_M3);
+#ifdef NEW_CONFIG_SPEC
+		wps_info.wsc_m3_cnt++;
+#endif
 		break;
 	case WPS_M5:
 		ret = wps_process_m5(wps, msg, &attr);
 		if (ret == WPS_FAILURE || wps->state == SEND_WSC_NACK)
 			wps_fail_event(wps->wps, WPS_M5);
+#ifdef NEW_CONFIG_SPEC
+		wps_info.wsc_m5_cnt++;
+#endif
 		break;
 	case WPS_M7:
 		ret = wps_process_m7(wps, msg, &attr);
 		if (ret == WPS_FAILURE || wps->state == SEND_WSC_NACK)
 			wps_fail_event(wps->wps, WPS_M7);
+#ifdef NEW_CONFIG_SPEC
+		wps_info.wsc_m7_cnt++;
+#endif
 		break;
 	case WPS_WSC_ACK:
 		wpa_printf(MSG_DEBUG, "WPS: WPS_WSC_ACK received" );
+#ifdef NEW_CONFIG_SPEC
+		wps_info.wsc_ack_cnt++;
+#endif
 		break;
 	case WPS_WSC_NACK:
 		wpa_printf(MSG_DEBUG, "WPS: WPS_WSC_NACK received" );
+#ifdef NEW_CONFIG_SPEC
+		wps_info.wsc_nack_cnt++;
+		if ( wps_info.wsc_last_sent_message_type == WPS_M2D )	// if last sent message was M2D ..
+		{
+		  wpa_printf(MSG_DEBUG, "WPS: WPS_WSC_NACK received as a response to M2D\n"
+		                        "     Next: WPS_CONTINUE & wps->state = SEND_M2" );
+		  wps->state = SEND_M2;
+		}
+#endif
 		break;
 	case WPS_WSC_DONE:
 		wpa_printf(MSG_DEBUG, "WPS: WPS_WSC_DONE received. Terminating WPS handshake" );
+#ifdef NEW_CONFIG_SPEC
+		wps_info.wsc_done_cnt++;
+#endif
 		wps_handshaking_done = 1;
 		break;
 	default:
 		wpa_printf(MSG_DEBUG, "WPS: Unsupported Message Type %d", *attr.msg_type);
 		wps_handshaking_done = 1;
+#ifdef NEW_CONFIG_SPEC
+		wps_info.wsc_unknown_cnt++;
+#endif
 		return WPS_FAILURE;
 	}
 
 	if (ret == WPS_CONTINUE) {
+#ifdef NEW_CONFIG_SPEC
+	  if (( *attr.msg_type == WPS_M1 ) ||	/* Save only meaningfull received messages for authentication purposes */
+	      ( *attr.msg_type == WPS_M3 ) ||
+	      ( *attr.msg_type == WPS_M5 ) ||
+	      ( *attr.msg_type == WPS_M7 ))
+	  {
+#endif
+		wpa_printf(MSG_DEBUG, "WPS: Saving RECEIVED msg type %d (%s) for Authenticator derivation",
+				   *attr.msg_type, hostapd_wps_message_type_name(*attr.msg_type));
 		/* Save a copy of the last message for Authenticator derivation
 		 */
 		wpabuf_free(wps->last_msg);
 		wps->last_msg = wpabuf_dup(msg);
+#ifdef NEW_CONFIG_SPEC
+	  }
+	  else
+	  {
+		wpa_printf(MSG_DEBUG, "WPS: Don't save RECEIVED msg type %d (%s) for Authenticator derivation",
+				   *attr.msg_type, hostapd_wps_message_type_name(*attr.msg_type));
+	  }
+#endif
 	}
 
 	return ret;
@@ -2485,6 +2678,9 @@ static enum wps_process_res wps_process_wsc_ack(struct wps_data *wps,
 #ifdef CONFIG_WPS_UPNP
 	if (wps->wps->wps_upnp && wps->ext_reg && wps->state == RECV_M2D_ACK &&
 	    upnp_wps_subscribers(wps->wps->wps_upnp)) {
+#ifdef NEW_CONFIG_SPEC
+		wpa_printf(MSG_DEBUG, "WPS: ACK received in state 'RECV_M2D_ACK'#1");
+#endif
 		if (wps->wps->upnp_msgs)
 			return WPS_CONTINUE;
 		wpa_printf(MSG_DEBUG, "WPS: Wait for response from an "
@@ -2507,6 +2703,9 @@ static enum wps_process_res wps_process_wsc_ack(struct wps_data *wps,
 	}
 
 	if (wps->state == RECV_M2D_ACK) {
+#ifdef NEW_CONFIG_SPEC
+		wpa_printf(MSG_DEBUG, "WPS: ACK received in state 'RECV_M2D_ACK'#2");
+#endif
 #ifdef CONFIG_WPS_UPNP
 		if (wps->wps->wps_upnp &&
 		    upnp_wps_subscribers(wps->wps->wps_upnp)) {
@@ -2878,6 +3077,9 @@ void wps_registrar_selected_registrar_changed(struct wps_registrar *reg)
 				DEV_PW_PUSHBUTTON;
 			reg->sel_reg_config_methods_override |=
 				WPS_CONFIG_PUSHBUTTON;
+#ifdef NEW_CONFIG_SPEC
+			reg->sel_reg_config_methods_override = WPS_CONFIG_PUSHBUTTON;
+#endif
 		}
 		wpa_printf(MSG_DEBUG, "WPS: Internal Registrar selected "
 			   "(pbc=%d)", reg->pbc);

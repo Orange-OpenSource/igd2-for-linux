@@ -457,6 +457,7 @@ SM_STATE(BE_AUTH, INITIALIZE)
 SM_STATE(BE_AUTH, REQUEST)
 {
 	SM_ENTRY_MA(BE_AUTH, REQUEST, be_auth);
+	wpa_printf(MSG_DEBUG, "SM_STATE(BE_AUTH, REQUEST)");	// TEST
 
 	txReq();
 	sm->eap_if->eapReq = FALSE;
@@ -494,6 +495,7 @@ SM_STATE(BE_AUTH, RESPONSE)
 SM_STATE(BE_AUTH, SUCCESS)
 {
 	SM_ENTRY_MA(BE_AUTH, SUCCESS, be_auth);
+	wpa_printf(MSG_DEBUG, "SM_STATE(BE_AUTH, SUCCESS)");	// TEST
 
 	txReq();
 	sm->authSuccess = TRUE;
@@ -504,6 +506,7 @@ SM_STATE(BE_AUTH, SUCCESS)
 SM_STATE(BE_AUTH, FAIL)
 {
 	SM_ENTRY_MA(BE_AUTH, FAIL, be_auth);
+	wpa_printf(MSG_DEBUG, "SM_STATE(BE_AUTH, FAIL)");	// TEST
 
 	txReq();
 	sm->authFail = TRUE;

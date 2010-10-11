@@ -21,9 +21,43 @@
 #define HOSTAPD_IFACE_H
 
 #define	WPA_ADDITIONAL_DEBUG	1
+#define	NEW_CONFIG_SPEC	// Configuration expects the M2D sent instead of M2 and so on ...
 
 #ifdef __cplusplus
 extern "C" {
+#endif
+
+#ifdef NEW_CONFIG_SPEC
+
+//#include "wps/wps_defs.h"d
+
+#define	M2_SIZE 1024
+#define WPS_NONCE_LEN 16
+
+typedef struct {
+	int		wsc_last_sent_message_type;			//	enum	wps_msg_type wsc_last_sent_message_type;
+	int		wsc_last_received_message_type;		//	enum	wps_msg_type wsc_last_received_message_type;
+	int		wsc_msg_tot_cnt;
+	int		wsc_start_cnt;
+	int		wsc_ack_cnt;
+	int		wsc_nack_cnt;
+	int		wsc_msg_cnt;
+	int		wsc_frack_ack_cnt;
+	int		wsc_done_cnt;
+	int		wsc_unknown_cnt;
+	int		wsc_m1_cnt;
+	int		wsc_m2_cnt;
+	int		wsc_m3_cnt;
+	int		wsc_m4_cnt;
+	int		wsc_m5_cnt;
+	int		wsc_m6_cnt;
+	int		wsc_m7_cnt;
+	int		wsc_m8_cnt;
+	char    m2_msg_buf[ M2_SIZE ];
+	int		m2_msg_len;
+	char    enrollee_nonce[ WPS_NONCE_LEN ];
+} wps_message_monitor;
+
 #endif
 
 
@@ -51,7 +85,9 @@ extern "C" {
 int hostapd_debug_print_timestamp(char * tbuff);
 void hostapd_printf(const char *fmt, ...);
 void hostapd_hexdump(const char *title, const unsigned char *buf, size_t len);
+const char * hostapd_wps_message_type_name( int type );
 
+int hostapd_sleep( unsigned int amount_of_100msecs );
 //unsigned char *hostapd_base64_encode(const unsigned char *src,size_t len,size_t *out_len);
 void hostapd_base64_encode(int	 				in_len,
 						  const unsigned char	*in_ptr,
@@ -74,6 +110,12 @@ int hostapd_update_registrar_state_machine(
 						 unsigned char** next_message,
 						 int* next_message_len,
 						 int* ready);
+wps_message_monitor * hostapd_get_wps_counters( void );
+int hostapd_construct_ack_mesage( unsigned char * ack_buffer, int *msg_len );
+int	hostapd_wsc_nack_received( void );
+int	hostapd_wsc_ack_received( void );
+int hostapd_is_this_wps_nack_message( unsigned char *binary_message, int outlen );
+int hostapd_is_this_wps_ack_message( unsigned char *binary_message, int outlen );
 int hostapd_is_authentication_finished( void );
 unsigned char *hostapd_get_uuid_e_ptr( void );
 void hostapd_push_button_configuration( void );

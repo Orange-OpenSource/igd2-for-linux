@@ -637,10 +637,10 @@ struct eap_sm {
 static const char * eap_sm_state_txt2(int state)
 {
 	switch (state) {
-	  case EAP_DISABLED: return "EAP_DISABLED";
-	  case EAP_INITIALIZE: return "EAP_INITIALIZE";
-	  case EAP_IDLE: return "EAP_IDLE";
-	  case EAP_RECEIVED: return "EAP_RECEIVED";
+	  case EAP_DISABLED:		return "EAP_DISABLED";
+	  case EAP_INITIALIZE: 		return "EAP_INITIALIZE";
+	  case EAP_IDLE: 			return "EAP_IDLE";
+	  case EAP_RECEIVED:		return "EAP_RECEIVED";
 	  case EAP_INTEGRITY_CHECK: return "EAP_INTEGRITY_CHECK";
 	  case EAP_METHOD_RESPONSE: return "EAP_METHOD_RESPONSE";
 	  case EAP_METHOD_REQUEST: 	return "EAP_METHOD_REQUEST";
