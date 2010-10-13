@@ -6,6 +6,7 @@ CC=gcc
 INCLUDES= -I$(LIBUPNP_PREFIX)/include -I../include
 LIBS= -lpthread -lupnp -lixml -lthreadutil -L$(LIBUPNP_PREFIX)/lib -L../libs
 FILES= main.o gatedevice.o pmlist.o util.o config.o
+BIN=bin/
 
 CFLAGS += -Wall -g -O2
 
@@ -20,24 +21,25 @@ INCLUDES += -DHAVE_LIBIPTC
 FILES += iptc.o
 endif
 
+
 all: upnpd
 
 upnpd: $(FILES)
-	$(CC) $(CFLAGS) $(FILES) $(LIBS) -o $@
+	$(CC) $(CFLAGS) $^ $(LIBS) -o $(BIN)$@
 	@echo "make $@ finished on `date`"
 
-%.o:	%.c
-	$(CC) $(CFLAGS) $(INCLUDES) -D_GNU_SOURCE -c $<
+%.o:	src/%.c
+	$(CC) $(CFLAGS) $(INCLUDES) -D_GNU_SOURCE -c $< -o $@
 
 clean:
-	rm -f *.o upnpd
+	rm -f *.o $(BIN)upnpd
 
 install: upnpd
 	install -d /etc/linuxigd
-	install etc/gatedesc.xml /etc/linuxigd
-	install etc/gateconnSCPD.xml  /etc/linuxigd
-	install etc/gateicfgSCPD.xml /etc/linuxigd
-	install etc/dummy.xml /etc/linuxigd
-	install upnpd $(PREFIX)/sbin
-	install upnpd.8 $(PREFIX)/share/man/man8
-	if [ ! -f /etc/upnpd.conf ]; then install etc/upnpd.conf /etc; fi
+	install configs/gatedesc.xml /etc/linuxigd
+	install configs/gateconnSCPD.xml  /etc/linuxigd
+	install configs/gateicfgSCPD.xml /etc/linuxigd
+	install configs/dummy.xml /etc/linuxigd
+	install $(BIN)upnpd $(PREFIX)/sbin
+	install doc/upnpd.8 $(PREFIX)/share/man/man8
+	if [ ! -f /etc/upnpd.conf ]; then install configs/upnpd.conf /etc; fi

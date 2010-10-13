@@ -1,5 +1,5 @@
 #ifndef _IPTC_H_
-	#define _IPTC_H_
+#define _IPTC_H_
 
 void iptc_add_rule(const char *table,
                    const char *chain,
