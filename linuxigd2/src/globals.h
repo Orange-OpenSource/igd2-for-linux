@@ -13,29 +13,30 @@
 #define min(a,b) ((a) < (b) ? (a) : (b))
 #endif
 
-struct GLOBALS {
-  char extInterfaceName[IFNAMSIZ]; // The name of the external interface, picked up from the
-                                   // command line
-  char intInterfaceName[IFNAMSIZ]; // The name of the internal interface, picked from command line
+struct GLOBALS
+{
+    char extInterfaceName[IFNAMSIZ]; // The name of the external interface, picked up from the
+    // command line
+    char intInterfaceName[IFNAMSIZ]; // The name of the internal interface, picked from command line
 
-  // All vars below are read from /etc/upnpd.conf in main.c
-  int debug;  // 1 - print debug messages to syslog
-               // 0 - no debug messages
-  char iptables[PATH_LEN];  // The full name and path of the iptables executable, used in pmlist.c
-  char upstreamBitrate[BITRATE_LEN];  // The upstream bitrate reported by the daemon
-  char downstreamBitrate[BITRATE_LEN]; // The downstream bitrate reported by the daemon
-  char forwardChainName[CHAIN_NAME_LEN];  // The name of the iptables chain to put FORWARD rules in
-  char preroutingChainName[CHAIN_NAME_LEN]; // The name of the chain to put PREROUTING rules in
-  int createForwardRules;     // 1 - create rules in forward chain
-                              // 0 - do not create rules in forward chain
-  int forwardRulesAppend; // 1 - add rules to end of forward chain
-  			  // 0 - add rules to start of forward chain
-  long int duration;    // 0 - no duration
-                          // >0 - duration in seconds
-                          // <0 - expiration time 
-  char descDocName[PATH_LEN];
-  char xmlPath[PATH_LEN];
-  int listenport;	//The port to listen on
+    // All vars below are read from /etc/upnpd.conf in main.c
+    int debug;  // 1 - print debug messages to syslog
+    // 0 - no debug messages
+    char iptables[PATH_LEN];  // The full name and path of the iptables executable, used in pmlist.c
+    char upstreamBitrate[BITRATE_LEN];  // The upstream bitrate reported by the daemon
+    char downstreamBitrate[BITRATE_LEN]; // The downstream bitrate reported by the daemon
+    char forwardChainName[CHAIN_NAME_LEN];  // The name of the iptables chain to put FORWARD rules in
+    char preroutingChainName[CHAIN_NAME_LEN]; // The name of the chain to put PREROUTING rules in
+    int createForwardRules;     // 1 - create rules in forward chain
+    // 0 - do not create rules in forward chain
+    int forwardRulesAppend; // 1 - add rules to end of forward chain
+    // 0 - add rules to start of forward chain
+    long int duration;    // 0 - no duration
+    // >0 - duration in seconds
+    // <0 - expiration time
+    char descDocName[PATH_LEN];
+    char xmlPath[PATH_LEN];
+    int listenport;	//The port to listen on
 };
 
 typedef struct GLOBALS* globals_p;

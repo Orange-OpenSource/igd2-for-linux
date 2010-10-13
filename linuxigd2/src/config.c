@@ -7,7 +7,7 @@
 
 #define NMATCH 3
 
-int getConfigOptionArgument(char var[],int varlen, char line[], regmatch_t *submatch) 
+int getConfigOptionArgument(char var[],int varlen, char line[], regmatch_t *submatch)
 {
     /* limit buffer operations to varlen - 1 */
     int match_length = min(submatch[1].rm_eo-submatch[1].rm_so, varlen - 1);
@@ -18,36 +18,38 @@ int getConfigOptionArgument(char var[],int varlen, char line[], regmatch_t *subm
     return 0;
 }
 
-int getConfigOptionDuration(long int *duration,char line[], regmatch_t *submatch) 
+int getConfigOptionDuration(long int *duration,char line[], regmatch_t *submatch)
 {
-  long int dur;
-  int absolute_time = submatch[1].rm_eo-submatch[1].rm_so; // >0 if @ was present
-  char num[NUM_LEN];
-  char *p;
+    long int dur;
+    int absolute_time = submatch[1].rm_eo-submatch[1].rm_so; // >0 if @ was present
+    char num[NUM_LEN];
+    char *p;
 
-  /* limit buffer operations to NUM_LEN - 1 */
-  unsigned int len = min(submatch[2].rm_eo-submatch[2].rm_so, NUM_LEN - 1);
+    /* limit buffer operations to NUM_LEN - 1 */
+    unsigned int len = min(submatch[2].rm_eo-submatch[2].rm_so, NUM_LEN - 1);
 
-  strncpy(num, &line[submatch[2].rm_so], len);
-  num[len] = '\0';
-  if ((p=index(num,':'))==NULL) {
-    dur = atol(num);
-  }
-  else {
-    *p++ = '\0';
-    dur = atol(num)*3600 + atol(p)*60;
-  }
-  if (absolute_time)
-    dur *= -1;
-  *duration = dur;
-  return 0;
+    strncpy(num, &line[submatch[2].rm_so], len);
+    num[len] = '\0';
+    if ((p=index(num,':'))==NULL)
+    {
+        dur = atol(num);
+    }
+    else
+    {
+        *p++ = '\0';
+        dur = atol(num)*3600 + atol(p)*60;
+    }
+    if (absolute_time)
+        dur *= -1;
+    *duration = dur;
+    return 0;
 }
 
 int parseConfigFile(globals_p vars)
 {
     FILE *conf_file;
     regmatch_t submatch[NMATCH]; // Stores the regex submatch start and end index
-    
+
     regex_t re_comment;
     regex_t re_empty_row;
     regex_t re_iptables_location;
@@ -97,89 +99,89 @@ int parseConfigFile(globals_p vars)
 
     if ((conf_file=fopen(CONF_FILE,"r")) != NULL)
     {
-	char line[MAX_CONFIG_LINE];
-	// Walk through the config file line by line
-	while(fgets(line,MAX_CONFIG_LINE,conf_file) != NULL)
-	{
-	    // Check if a comment line or an empty one
-	    if ( (0 != regexec(&re_comment,line,0,NULL,0)  )  && 
-		 (0 != regexec(&re_empty_row,line,0,NULL,0))  )
-	    {
-		// Chec if iptables_location
-		if (regexec(&re_iptables_location,line,NMATCH,submatch,0) == 0)
-		{
-		  getConfigOptionArgument(vars->iptables, PATH_LEN, line, submatch);
-		}
-		// Check if create_forward_rules
-		else if (regexec(&re_create_forward_rules,line,NMATCH,submatch,0) == 0)
-		{
-		  char tmp[4];
-		  getConfigOptionArgument(tmp,sizeof(tmp),line,submatch);
-		  vars->createForwardRules = strcmp(tmp,"yes")==0 ? 1 : 0;
-		}
-		// Check if forward_rules_append
-		else if (regexec(&re_forward_rules_append,line,NMATCH,submatch,0) == 0)
-		{
-		  char tmp[4];
-		  getConfigOptionArgument(tmp,sizeof(tmp),line,submatch);
-		  vars->forwardRulesAppend = strcmp(tmp,"yes")==0 ? 1 : 0;
-		}
-		// Check forward_chain_name
-		else if (regexec(&re_forward_chain_name,line,NMATCH,submatch,0) == 0)
-		{
-		  getConfigOptionArgument(vars->forwardChainName, CHAIN_NAME_LEN, line, submatch);
-		}
-		else if (regexec(&re_debug_mode,line,NMATCH,submatch,0) == 0)
-		{
-		  char tmp[2];
-		  getConfigOptionArgument(tmp,sizeof(tmp),line,submatch);
-		  vars->debug = atoi(tmp);
-		}
-		else if (regexec(&re_prerouting_chain_name,line,NMATCH,submatch,0) == 0)
-		{
-		  getConfigOptionArgument(vars->preroutingChainName, CHAIN_NAME_LEN, line, submatch);
-		}
-		else if (regexec(&re_upstream_bitrate,line,NMATCH,submatch,0) == 0)
-		{
-		  getConfigOptionArgument(vars->upstreamBitrate, BITRATE_LEN, line, submatch);
-		}
-		else if (regexec(&re_downstream_bitrate,line,NMATCH,submatch,0) == 0)
-		{
-		  getConfigOptionArgument(vars->downstreamBitrate, BITRATE_LEN, line, submatch);
-		}
-		else if (regexec(&re_duration,line,NMATCH,submatch,0) == 0)
-		{
-		  getConfigOptionDuration(&vars->duration,line,submatch);
-		}
-		else if (regexec(&re_desc_doc,line,NMATCH,submatch,0) == 0)
-		{
-		  getConfigOptionArgument(vars->descDocName, PATH_LEN, line, submatch);
-		}
-		else if (regexec(&re_xml_path,line,NMATCH,submatch,0) == 0)
-		{
-		  getConfigOptionArgument(vars->xmlPath, PATH_LEN, line, submatch);
-		}
-		else if (regexec(&re_listenport,line,NMATCH,submatch,0) == 0)
-		{
-		  char tmp[6];
-		  getConfigOptionArgument(tmp,sizeof(tmp),line,submatch);
-		  vars->listenport = atoi(tmp);
-		}
-		else
-		{
-		    // We end up here if ther is an unknown config directive
-		    printf("Unknown config line: %s",line);
-		}
-	    }
-	}
-	fclose(conf_file);
+        char line[MAX_CONFIG_LINE];
+        // Walk through the config file line by line
+        while (fgets(line,MAX_CONFIG_LINE,conf_file) != NULL)
+        {
+            // Check if a comment line or an empty one
+            if ( (0 != regexec(&re_comment,line,0,NULL,0)  )  &&
+                    (0 != regexec(&re_empty_row,line,0,NULL,0))  )
+            {
+                // Chec if iptables_location
+                if (regexec(&re_iptables_location,line,NMATCH,submatch,0) == 0)
+                {
+                    getConfigOptionArgument(vars->iptables, PATH_LEN, line, submatch);
+                }
+                // Check if create_forward_rules
+                else if (regexec(&re_create_forward_rules,line,NMATCH,submatch,0) == 0)
+                {
+                    char tmp[4];
+                    getConfigOptionArgument(tmp,sizeof(tmp),line,submatch);
+                    vars->createForwardRules = strcmp(tmp,"yes")==0 ? 1 : 0;
+                }
+                // Check if forward_rules_append
+                else if (regexec(&re_forward_rules_append,line,NMATCH,submatch,0) == 0)
+                {
+                    char tmp[4];
+                    getConfigOptionArgument(tmp,sizeof(tmp),line,submatch);
+                    vars->forwardRulesAppend = strcmp(tmp,"yes")==0 ? 1 : 0;
+                }
+                // Check forward_chain_name
+                else if (regexec(&re_forward_chain_name,line,NMATCH,submatch,0) == 0)
+                {
+                    getConfigOptionArgument(vars->forwardChainName, CHAIN_NAME_LEN, line, submatch);
+                }
+                else if (regexec(&re_debug_mode,line,NMATCH,submatch,0) == 0)
+                {
+                    char tmp[2];
+                    getConfigOptionArgument(tmp,sizeof(tmp),line,submatch);
+                    vars->debug = atoi(tmp);
+                }
+                else if (regexec(&re_prerouting_chain_name,line,NMATCH,submatch,0) == 0)
+                {
+                    getConfigOptionArgument(vars->preroutingChainName, CHAIN_NAME_LEN, line, submatch);
+                }
+                else if (regexec(&re_upstream_bitrate,line,NMATCH,submatch,0) == 0)
+                {
+                    getConfigOptionArgument(vars->upstreamBitrate, BITRATE_LEN, line, submatch);
+                }
+                else if (regexec(&re_downstream_bitrate,line,NMATCH,submatch,0) == 0)
+                {
+                    getConfigOptionArgument(vars->downstreamBitrate, BITRATE_LEN, line, submatch);
+                }
+                else if (regexec(&re_duration,line,NMATCH,submatch,0) == 0)
+                {
+                    getConfigOptionDuration(&vars->duration,line,submatch);
+                }
+                else if (regexec(&re_desc_doc,line,NMATCH,submatch,0) == 0)
+                {
+                    getConfigOptionArgument(vars->descDocName, PATH_LEN, line, submatch);
+                }
+                else if (regexec(&re_xml_path,line,NMATCH,submatch,0) == 0)
+                {
+                    getConfigOptionArgument(vars->xmlPath, PATH_LEN, line, submatch);
+                }
+                else if (regexec(&re_listenport,line,NMATCH,submatch,0) == 0)
+                {
+                    char tmp[6];
+                    getConfigOptionArgument(tmp,sizeof(tmp),line,submatch);
+                    vars->listenport = atoi(tmp);
+                }
+                else
+                {
+                    // We end up here if ther is an unknown config directive
+                    printf("Unknown config line: %s",line);
+                }
+            }
+        }
+        fclose(conf_file);
     }
     regfree(&re_comment);
     regfree(&re_empty_row);
     regfree(&re_iptables_location);
-    regfree(&re_debug_mode);	
-    regfree(&re_create_forward_rules);	
-    regfree(&re_forward_rules_append);	
+    regfree(&re_debug_mode);
+    regfree(&re_create_forward_rules);
+    regfree(&re_forward_rules_append);
     regfree(&re_forward_chain_name);
     regfree(&re_prerouting_chain_name);
     regfree(&re_upstream_bitrate);
@@ -191,39 +193,40 @@ int parseConfigFile(globals_p vars)
     // Set default values for options not found in config file
     if (strnlen(vars->forwardChainName, CHAIN_NAME_LEN) == 0)
     {
-	// No forward chain name was set in conf file, set it to default
-	snprintf(vars->forwardChainName, CHAIN_NAME_LEN, IPTABLES_DEFAULT_FORWARD_CHAIN);
+        // No forward chain name was set in conf file, set it to default
+        snprintf(vars->forwardChainName, CHAIN_NAME_LEN, IPTABLES_DEFAULT_FORWARD_CHAIN);
     }
     if (strnlen(vars->preroutingChainName, CHAIN_NAME_LEN) == 0)
     {
-	// No prerouting chain name was set in conf file, set it to default
-	snprintf(vars->preroutingChainName, CHAIN_NAME_LEN, IPTABLES_DEFAULT_PREROUTING_CHAIN);
+        // No prerouting chain name was set in conf file, set it to default
+        snprintf(vars->preroutingChainName, CHAIN_NAME_LEN, IPTABLES_DEFAULT_PREROUTING_CHAIN);
     }
     if (strnlen(vars->upstreamBitrate, BITRATE_LEN) == 0)
     {
-	// No upstream_bitrate was found in the conf file, set it to default
-	snprintf(vars->upstreamBitrate, BITRATE_LEN, DEFAULT_UPSTREAM_BITRATE);
+        // No upstream_bitrate was found in the conf file, set it to default
+        snprintf(vars->upstreamBitrate, BITRATE_LEN, DEFAULT_UPSTREAM_BITRATE);
     }
     if (strnlen(vars->downstreamBitrate, BITRATE_LEN) == 0)
     {
-	// No downstream bitrate was found in the conf file, set it to default
-	snprintf(vars->downstreamBitrate, BITRATE_LEN, DEFAULT_DOWNSTREAM_BITRATE);
+        // No downstream bitrate was found in the conf file, set it to default
+        snprintf(vars->downstreamBitrate, BITRATE_LEN, DEFAULT_DOWNSTREAM_BITRATE);
     }
     if (strnlen(vars->descDocName, PATH_LEN) == 0)
     {
-	snprintf(vars->descDocName, PATH_LEN, DESC_DOC_DEFAULT);
+        snprintf(vars->descDocName, PATH_LEN, DESC_DOC_DEFAULT);
     }
     if (strnlen(vars->xmlPath, PATH_LEN) == 0)
     {
-	snprintf(vars->xmlPath, PATH_LEN, XML_PATH_DEFAULT);
+        snprintf(vars->xmlPath, PATH_LEN, XML_PATH_DEFAULT);
     }
-    if (strnlen(vars->iptables, PATH_LEN) == 0) {
-	// Can't find the iptables executable, return -1 to 
-	// indicate en error
-	return -1;
+    if (strnlen(vars->iptables, PATH_LEN) == 0)
+    {
+        // Can't find the iptables executable, return -1 to
+        // indicate en error
+        return -1;
     }
     else
     {
-	return 0;
+        return 0;
     }
 }

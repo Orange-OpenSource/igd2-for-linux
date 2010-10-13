@@ -4,12 +4,13 @@
 #include <upnp/upnp.h>
 
 /* interface statistics */
-typedef enum {
-        STATS_TX_BYTES,
-        STATS_RX_BYTES,
-        STATS_TX_PACKETS,
-        STATS_RX_PACKETS,
-        STATS_LIMIT
+typedef enum
+{
+    STATS_TX_BYTES,
+    STATS_RX_BYTES,
+    STATS_TX_PACKETS,
+    STATS_RX_PACKETS,
+    STATS_LIMIT
 } stats_t;
 
 // IGD Device Globals
@@ -39,7 +40,7 @@ char* GetFirstDocumentItem( IN IXML_Document * doc, const char *item );
 struct portMap *pmlist_Head;
 struct portMap *pmlist_Current;
 
-// WanIPConnection Actions 
+// WanIPConnection Actions
 int EventHandler(Upnp_EventType EventType, void *Event, void *Cookie);
 int StateTableInit(char *descDocUrl);
 int HandleSubscriptionRequest(struct Upnp_Subscription_Request *sr_event);
@@ -63,8 +64,8 @@ int DeletePortMapping(struct Upnp_Action_Request *ca_event);
 // Definitions for mapping expiration timer thread
 #define THREAD_IDLE_TIME 5000
 #define JOBS_PER_THREAD 10
-#define MIN_THREADS 2 
-#define MAX_THREADS 12 
+#define MIN_THREADS 2
+#define MAX_THREADS 12
 
 int ExpirationTimerThreadInit(void);
 int ExpirationTimerThreadShutdown(void);
