@@ -63,7 +63,6 @@ define Package/linuxigd2/install
 	$(INSTALL_DATA) $(PKG_BUILD_DIR)/configs/*.xml $(1)/etc/linuxigd/
 	$(INSTALL_DIR) $(1)/etc
 	$(INSTALL_DATA) $(PKG_BUILD_DIR)/configs/upnpd.conf $(1)/etc/
-	$(INSTALL_DATA) $(PKG_BUILD_DIR)/configs/upnpd_ACL.xml $(1)/etc/
 	$(INSTALL_DIR) $(1)/etc/init.d
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/configs/upnpd.init $(1)/etc/init.d/upnpd
 endef
