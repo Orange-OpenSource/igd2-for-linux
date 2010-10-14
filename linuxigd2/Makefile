@@ -6,7 +6,7 @@ LIBUPNP_PREFIX=/usr/local
 PACKAGE = linuxigd2
 VERSION = 1.0
 DISTDIR = $(PACKAGE)-$(VERSION)
-DISTFILES = Makefile Doxyfile bin/ configs/ doc/ inc/ lib/ src/ 
+DISTFILES = Makefile Doxyfile bin/ configs/ doc/ src/ 
 
 CC=gcc
 INCLUDES= -I$(LIBUPNP_PREFIX)/include -I../include 
