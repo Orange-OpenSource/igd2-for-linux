@@ -52,7 +52,9 @@
 #include	<hostap/hostapd_iface.h>
 #include	"./libgupnp/crypt.h"
 
-typedef enum {WPA_SM_R_PROCESS,WPA_SM_R_SUCCESS,WPA_SM_R_SUCCESSINFO,WPA_SM_R_FAILURE,WPA_SM_R_FAILUREEXIT} wpa_registrar_sm_status; /* if WPA_SM_R_SUCCESS, SM can exit after sending any pending messages */
+typedef enum {  WPA_SM_R_PROCESS,         WPA_SM_R_SUCCESS,        WPA_SM_R_SUCCESSINFO,
+                WPA_SM_R_FAILURE,         WPA_SM_R_FAILUREEXIT,	   WPA_SM_R_PASS_HANDLING
+} wpa_registrar_sm_status; /* if WPA_SM_R_SUCCESS, SM can exit after sending any pending messages */
 
 G_DEFINE_TYPE (GUPnPDeviceProxy,
                gupnp_device_proxy,
@@ -364,9 +366,9 @@ gupnp_device_proxy_set_root_proxy(GUPnPDeviceProxy *proxy,
     proxy->priv->root_proxy = g_object_ref( root );
 }
 
+#if 0
 int setup_ready_value;
 
-#if 0
 static void
 setup_ready_cb (GUPnPServiceProxy *proxy,
 				const char        *variable,
@@ -384,6 +386,7 @@ setup_ready_cb (GUPnPServiceProxy *proxy,
 }
 #endif
 
+#if 0
 #define PBC_WALK_TIME	10	// in seconds
 
 int pbc_button_wait_handling( GUPnPServiceProxy		*proxy,
@@ -405,7 +408,6 @@ int pbc_button_wait_handling( GUPnPServiceProxy		*proxy,
 
 	  setup_ready_value = -1;	// say this is an initialization
 
-#if 0
       GUPnPContext *context;
       GMainContext *main_context;
       GMainLoop *main_loop;
@@ -414,11 +416,9 @@ int pbc_button_wait_handling( GUPnPServiceProxy		*proxy,
       main_context = gssdp_client_get_main_context (GSSDP_CLIENT (context));
       main_loop = g_main_loop_new (main_context, TRUE);
 	  hostapd_printf("%s: main_loop context = 0x%p", __func__, main_loop );	// TEST
-#endif
 	  for ( i = 0; i < PBC_WALK_TIME; i++ )
 	  {
         /* Loop till we get a reply (or time out) */
-#if 0
         if (g_main_loop_is_running (main_loop))	// run the main-loop cause the event-receive expects that
           g_main_loop_run (main_loop);
 		if ( setup_ready_value != -1 )
@@ -427,15 +427,12 @@ int pbc_button_wait_handling( GUPnPServiceProxy		*proxy,
 		  return_value = setup_ready_value;
 		  break;
 		}
-#endif
 		hostapd_sleep( 10 );	// 1 second sleep
 	  }
 	  hostapd_printf("%s: end-of-waiting SetupReady -event", __func__ );
 	  setup_ready_value = TRUE; // TEST
-#if 0
       g_main_loop_unref (main_loop);
       g_main_loop_quit (main_loop);
-#endif
 
 	}
 	else	// NACK, but method is not PBC .... assuming PIN
@@ -444,6 +441,7 @@ int pbc_button_wait_handling( GUPnPServiceProxy		*proxy,
 	}
 	return( return_value );
 }
+#endif
 
 #define	MAX_PIN_LENGTH	10
 
@@ -454,13 +452,14 @@ int pbc_button_wait_handling( GUPnPServiceProxy		*proxy,
 void
 gupnp_device_proxy_continue_wps (GUPnPDeviceProxyWps        *wps,
                                  GString                    *pin,
+								 GUPnPDeviceProxyWpsCallback callback,
                                  gpointer                    user_data);
+#if 0
+void (*wps_pin_dialog_cb)(void *, void *);
 
-void (*wps_pin_invocation_cb)(void *, void *);
-
-void gupnp_device_proxy_set_pin_dialog_cb( void (*wps_pin_invocation) )
+void gupnp_device_proxy_set_pin_dialog_cb( void (*wps_pin_dialog) )
 {
-	wps_pin_invocation_cb = wps_pin_invocation;	// save callback for later use
+	wps_pin_dialog_cb = wps_pin_dialog;	// save callback for later use
 }
 
 int pin_wait_handling( GUPnPServiceProxy		*proxy,
@@ -477,16 +476,17 @@ int pin_wait_handling( GUPnPServiceProxy		*proxy,
 		//        transferred out-of-band from Device and after that continue WPS-handshaking with M2 -message
 		//        We need a call-back dialog to ask user for PIN code... what else ??
 
-	  wps_pin_invocation_cb( wps, device_pin );	// ask PIN from User and continue
+	  wps_pin_dialog_cb();	// ask PIN from User and continue
 	  dev_pin = g_string_new( device_pin );
 	  gupnp_device_proxy_continue_wps (			// continue WPS: messages M2...M8
 						wps,
 						dev_pin,
+						NULL,
 						NULL );
 	}
 	return( return_value );
 }
-
+#endif
 /* Functions related to the device protection:1 service */
 
 static void
@@ -506,6 +506,10 @@ wps_got_response_null (GUPnPServiceProxy       *proxy,
 //
 //         wps->callback(wps->proxy, wps->name, wps, wps->user_data);
 // }
+
+/* this is in 'wps_dialog.c' */
+//extern void on_state_variable_changed_setup_ready( GUPnPServiceProxy *proxy, char * str_value);
+
 static void
 wps_got_response (GUPnPServiceProxy       *proxy,
                   GUPnPServiceProxyAction *action,
@@ -528,6 +532,7 @@ wps_got_response (GUPnPServiceProxy       *proxy,
         {
                 wps->error = error;
                 g_warning("Error: %s", wps->error->message);
+				hostapd_printf("Error: %s", wps->error->message);
                 wps->callback(wps->proxy, wps, wps->device_name, &wps->error, wps->user_data);
                 return;
         }
@@ -535,94 +540,102 @@ wps_got_response (GUPnPServiceProxy       *proxy,
         if (wps->error != NULL || out_message == NULL)
         {
                 g_warning("Error: %s", wps->error->message);
+				hostapd_printf("Error: %s", wps->error->message);
                 wps->callback(wps->proxy, wps, wps->device_name, &wps->error, wps->user_data);
                 return;
         }
 /** Decode message received from SLL -path to binary ****/
+		// Base64-->Binary decoding variables
         int b64_msg_len = strlen(out_message);
         unsigned char *binary_message=(unsigned char *)g_malloc(b64_msg_len);
 		int outlen;
+		
 		hostapd_base64_decode (b64_msg_len, (const unsigned char *)out_message, &outlen, binary_message, b64_msg_len);
 
-/** Handling of WPS -level messages (hostapd) in this level ... weird  ********/
 		char cstr[ 30 ];
 		sprintf( cstr,"SSL-input:%s", hostapd_wps_message_type_name( binary_message[9] ));
 		hostapd_hexdump(cstr, binary_message, outlen);
-
-		if ( hostapd_is_this_wps_nack_message( binary_message, outlen ))
-//		if (hostapd_wsc_nack_received())	// test if WPS_NACK received
-		{
-		  hostapd_printf("%s: received WPS_NACK", __func__ );
-//		  if ( pbc_button_wait_handling( proxy, wps ) == TRUE )
-		  if ( pbc_button_wait_handling( proxy, wps ) )
-		  {
-			hostapd_printf("%s: SetupReady == TRUE received", __func__ );
-			// TODO : Start / Continue WPS with M2 -message
-			hostapd_construct_ack_mesage( binary_message, &outlen );
-//			gupnp_device_proxy_continue_wps ( wps, NULL, NULL ); // we just continue in this level !!!!!!!!
-		  }
-		}
-		else if ( hostapd_is_this_wps_ack_message( binary_message, outlen ))
-//		if (hostapd_wsc_ack_received())		// test if WPS_ACK received
-		{
-		  hostapd_printf("%s: received WPS_ACK", __func__ );
-		  if ( pin_wait_handling( proxy, wps ) == TRUE )
-		  {
-			hostapd_printf("%s: received WPS_ACK & method == PIN", __func__ );
-			// TODO : Here we need to wait max. 120 seconds ( timeout needed ?? ) for User to input the PIN-code
-			//        tarnsferred out-of-band from Device and after that continue WPS-handshaking with M2 -message
-		  }
-		  else	// ACK, but method is not PIN .... assuming PBC
-		  {
-			hostapd_printf("%s: ACK, but method is not PIN .... assuming PBC", __func__);
-		  }
-		}
-/******** End-of handling of WPS -level messages (hostapd) in this level ... weird  ********/
-
 		
-		hostapd_wsc_nack_received();	// update current value by making call
-		hostapd_wsc_ack_received();	// update current value by making call
-		int update_status = hostapd_update_registrar_state_machine(
-								  binary_message,
-								  outlen,
-								  &wps->wpa_registrar_send_msg,
-								  &wps->wpa_registrar_send_msg_len,
-								  &err);
-        if (err != 0 || wps->wpa_registrar_send_msg_len <= 0 || update_status == 0 )
-        {
-                wps->error = g_error_new(GUPNP_SERVER_ERROR,
-                                         GUPNP_SERVER_ERROR_OTHER,
-                                         "DeviceProtection introduction failed to update state machine (%d). Terminating...",err);
-                g_warning("Error: %s", wps->error->message);
+/** Now we check the existence of ACK/NACK messages. With method checking (PIN/Push-Button) next steps after M2D are branched here. **/
+		char terminate_after_m2d_or_m8 = FALSE;
 
-                wps->callback(wps->proxy, wps, wps->device_name, &wps->error, wps->user_data);
-                return;
-        }
-
-        int maxb64len = 2 * wps->wpa_registrar_send_msg_len;
-        int b64len;
-        unsigned char *base64msg = (unsigned char *)g_malloc(maxb64len);
-
-		hostapd_base64_encode(wps->wpa_registrar_send_msg_len, wps->wpa_registrar_send_msg, &b64len, base64msg, maxb64len);
-
-		if ( hostapd_is_authentication_finished() ) 	/* M8 processed --> all done */
+		status = WPA_SM_R_PROCESS;	// this is a default meaning: continue
+		switch( wps->method )
 		{
-		  status = WPA_SM_R_SUCCESS;
-#ifdef WPA_ADDITIONAL_DEBUG
-		  hostapd_printf("%s: TEST: authentication finished cause WSC_Done received", __func__ );
-#endif
-		}
-		else	/* continue .. */
-		  status = WPA_SM_R_PROCESS;	// TODO: something else is needed to set "status" --> continue forever
+		  case GUPNP_DEVICE_WPS_METHOD_PUSHBUTTON :	// deal : PBC configuration ?
+			if ( hostapd_is_this_wps_nack_message( binary_message, outlen ))	// NACK --> Button not yet pushed
+			{
+			  hostapd_printf("%s: PBC: received WPS_NACK. Start to waiting SetupReady=TRUE", __func__ );
+			  status = WPA_SM_R_SUCCESSINFO;	/** terminate after M2D, and let UI to deal with "gupnp_device_proxy_continue_wps" **/
+			  terminate_after_m2d_or_m8 = TRUE;
+			}
+			else if ( hostapd_is_this_wps_ack_message( binary_message, outlen ))	// ACK --> Button has already pushed
+			{
+			  hostapd_printf("%s: PBC: received WPS_ACK --> Don't wait SetupReady=TRUE. Continue immediately", __func__ );
+//			  gupnp_device_proxy_continue_wps ( wps, NULL, NULL, user_data ); // we just continue in this level !!!!!!!!
+//			  on_state_variable_changed_setup_ready( proxy, "TRUE");
 
+			  status = WPA_SM_R_PASS_HANDLING;	/** terminate after M8, and let UI to deal with "gupnp_device_proxy_continue_wps" **/
+			  terminate_after_m2d_or_m8 = TRUE;
+			}
+			break;
+		  case GUPNP_DEVICE_WPS_METHOD_PIN :	// deal : PIN  configuration ?
+			hostapd_printf("%s: PIN method in progress", __func__ );
+			// if ACK --> Enrollee have PIN available for Registrar. Feed it in using GUI !!
+			if ( hostapd_is_this_wps_ack_message( binary_message, outlen ))	
+			{
+				status = WPA_SM_R_SUCCESSINFO;	/** terminate after M2D, and let UI to deal with "gupnp_device_proxy_continue_wps" **/
+				terminate_after_m2d_or_m8 = TRUE;
+			}
+			break;
+		  default :
+			hostapd_printf("%s: undefined method %d", __func__, wps->method );
+			break;
+		}
+		// Base64 encoding variables
+		int maxb64len;
+		int b64len;
+		unsigned char *base64msg = NULL;
+
+		if ( terminate_after_m2d_or_m8 == FALSE )
+		{
+	//		hostapd_wsc_nack_received();	// update current value by making call
+	//		hostapd_wsc_ack_received();	// update current value by making call
+			int update_status = hostapd_update_registrar_state_machine(	binary_message,
+																		outlen,
+																		&wps->wpa_registrar_send_msg,
+																		&wps->wpa_registrar_send_msg_len,
+																		&err);
+			if (err != 0 || wps->wpa_registrar_send_msg_len <= 0 || update_status == 0 )
+			{
+					wps->error = g_error_new(GUPNP_SERVER_ERROR,
+											GUPNP_SERVER_ERROR_OTHER,
+											"DeviceProtection introduction failed to update state machine (%d). Terminating...",err);
+					g_warning("Error: %s", wps->error->message);
+
+					wps->callback(wps->proxy, wps, wps->device_name, &wps->error, wps->user_data);
+					return;
+			}
+
+			maxb64len = 2 * wps->wpa_registrar_send_msg_len;
+			base64msg = (unsigned char *)g_malloc(maxb64len);
+			hostapd_base64_encode(wps->wpa_registrar_send_msg_len, wps->wpa_registrar_send_msg, &b64len, base64msg, maxb64len);
+
+			if ( hostapd_is_authentication_finished() ) 	/* M8 processed --> all done */
+			{
+			  status = WPA_SM_R_SUCCESS;
+			  hostapd_printf("%s: TEST: authentication finished cause WSC_Done received", __func__ );
+			}
+			else	/* continue .. */
+			  status = WPA_SM_R_PROCESS;	// TODO: something else is needed to set "status" --> continue forever
+		} /* terminate_after_m2d_or_m8 == TRUE */
 		switch (status)
         {
         case WPA_SM_R_SUCCESS:
                 g_warning("DeviceProtection introduction last message received!");
 
 				/* TODO: UUID should be digged from somewhere ?? */
-                wps->proxy->priv->root_proxy->priv->device_uuid = malloc( GUPNP_DP_UUID_LEN );
-                memcpy( wps->proxy->priv->root_proxy->priv->device_uuid, hostapd_get_uuid_e_ptr(), GUPNP_DP_UUID_LEN );
+                wps->proxy->priv->root_proxy->priv->device_uuid = hostapd_get_uuid_e_ptr();
 				print_uuid( "UUID-R: ", wps->proxy->priv->root_proxy->priv->cp_uuid, GUPNP_DP_UUID_LEN );
 				print_uuid( "UUID-E: ", wps->proxy->priv->root_proxy->priv->device_uuid, GUPNP_DP_UUID_LEN );
 
@@ -635,6 +648,7 @@ wps_got_response (GUPnPServiceProxy       *proxy,
 				hostapd_printf("%s: status=WPA_SM_R_SUCCESSINFO", __func__ );
 #endif
 				g_warning("DeviceProtection introduction last message received M2D!");
+#if 0
                 g_warning("Message: %s", base64msg);
                 // Send last ack, TODO: change callback, we don't want to process the response
                 gupnp_service_proxy_begin_action(wps->device_prot_service,
@@ -648,7 +662,7 @@ wps_got_response (GUPnPServiceProxy       *proxy,
                                                  G_TYPE_STRING,
                                                  base64msg,
                                                  NULL);
-
+#endif
                 wps->device_name = g_string_new("Device-Name");	/* TODO: Where to get "DeviceName" ?? */
 
 				g_warning("Device name: %s", wps->device_name->str);
@@ -690,7 +704,12 @@ wps_got_response (GUPnPServiceProxy       *proxy,
 
                 wps->callback(wps->proxy, wps, wps->device_name, &wps->error, wps->user_data);
                 break;
-
+		case WPA_SM_R_PASS_HANDLING :
+				// Don't do nothing, because everything handled in recursion
+				hostapd_printf("%s: status=WPA_SM_R_PASS_HANDLING", __func__ );
+				g_warning("DeviceProtection introduction last message received M2D!");
+                wps->callback(wps->proxy, wps, wps->device_name, &wps->error, (gpointer)1);
+		  break;
         default:
 #ifdef WPA_ADDITIONAL_DEBUG
 				hostapd_printf("%s: status=%d, -->continue", __func__, status );
@@ -782,65 +801,65 @@ gupnp_device_proxy_begin_wps (GUPnPDeviceProxy           *proxy,
                               GUPnPDeviceProxyWpsCallback callback,
                               gpointer                    user_data)
 {
-        // TODO: send m1 to device and register callback
-        GUPnPDeviceProxyWps *wps;
-        int error;
+	// TODO: send m1 to device and register callback
+	GUPnPDeviceProxyWps *wps;
+	int error;
 
-        g_return_val_if_fail (GUPNP_IS_DEVICE_PROXY (proxy), NULL);
-        g_return_val_if_fail (callback, NULL);
-        g_return_val_if_fail (client_name, NULL);
+	g_return_val_if_fail (GUPNP_IS_DEVICE_PROXY (proxy), NULL);
+	g_return_val_if_fail (callback, NULL);
+	g_return_val_if_fail (client_name, NULL);
 
-        wps = g_slice_new (GUPnPDeviceProxyWps);
-        wps->proxy = proxy;
-        wps->callback = callback;
-        wps->user_data = user_data;
-        wps->error = NULL;
-        wps->device_prot_service = find_device_protection_service (proxy);
-        wps->client_name = g_string_new(client_name);
-        wps->pin = g_string_new(pin);
-        wps->method = method;
-        wps->done = FALSE;
+	wps = g_slice_new (GUPnPDeviceProxyWps);
+	wps->proxy = proxy;
+	wps->callback = callback;
+	wps->user_data = user_data;
+	wps->error = NULL;
+	wps->device_prot_service = find_device_protection_service (proxy);
+	wps->client_name = g_string_new(client_name);
+	wps->pin = g_string_new(pin);
+	wps->method = method;
+	wps->done = FALSE;
 
-        // we need to have SSL
-        // so let's create it (if not created already)
-        if (!gupnp_device_proxy_init_ssl (proxy, &wps->error))
-        {
-                g_warning("Error: %s", wps->error->message);
-                return wps;
-        }
+	// we need to have SSL
+	// so let's create it (if not created already)
+	if (!gupnp_device_proxy_init_ssl (proxy, &wps->error))
+	{
+			g_warning("Error: %s", wps->error->message);
+			return wps;
+	}
 
 /*        if (wps->method == GUPNP_DEVICE_WPS_METHOD_PUSHBUTTON)
-        {
-                wps->error = g_error_new(GUPNP_SERVER_ERROR,
-                                         GUPNP_SERVER_ERROR_OTHER,
-                                         "Push button method not yet supported.");
-                g_warning("Error: %s", wps->error->message);
-                return wps;
-        }
+	{
+			wps->error = g_error_new(GUPNP_SERVER_ERROR,
+									  GUPNP_SERVER_ERROR_OTHER,
+									  "Push button method not yet supported.");
+			g_warning("Error: %s", wps->error->message);
+			return wps;
+	}
 */
-        if (wps->device_prot_service == NULL)
-        {
-                wps->error = g_error_new(GUPNP_SERVER_ERROR,
-                                         GUPNP_SERVER_ERROR_OTHER,
-                                         "No device protection service found.");
-                g_warning("Error: %s", wps->error->message);
-                return wps;
-        }
+	if (wps->device_prot_service == NULL)
+	{
+			wps->error = g_error_new(GUPNP_SERVER_ERROR,
+									  GUPNP_SERVER_ERROR_OTHER,
+									  "No device protection service found.");
+			g_warning("Error: %s", wps->error->message);
+			return wps;
+	}
 
-        // create UUID-R for WPS
-        if (createUUIDR(&wps->uuid, &wps->uuid_len) != 0)
-        {
-                wps->error = g_error_new(GUPNP_SERVER_ERROR,
-                                         GUPNP_SERVER_ERROR_OTHER,
-                                         "Failed to create UUID-R for WPS.");
-                g_warning("Error: %s", wps->error->message);
-                return wps;
-        }
+	// create UUID-R for WPS
+	if (createUUIDR(&wps->uuid, &wps->uuid_len) != 0)
+	{
+			wps->error = g_error_new(GUPNP_SERVER_ERROR,
+									  GUPNP_SERVER_ERROR_OTHER,
+									  "Failed to create UUID-R for WPS.");
+			g_warning("Error: %s", wps->error->message);
+			return wps;
+	}
 
-        // save our uuid
-        proxy->priv->root_proxy->priv->cp_uuid = (unsigned char *)malloc( GUPNP_DP_UUID_LEN );
-        memcpy( proxy->priv->root_proxy->priv->cp_uuid, wps->uuid, GUPNP_DP_UUID_LEN );
-        print_uuid(  "UUID-R: ", proxy->priv->root_proxy->priv->cp_uuid, GUPNP_DP_UUID_LEN );
+	// save our uuid
+	proxy->priv->root_proxy->priv->cp_uuid = (unsigned char *)malloc( GUPNP_DP_UUID_LEN );
+	memcpy( proxy->priv->root_proxy->priv->cp_uuid, wps->uuid, GUPNP_DP_UUID_LEN );
+	print_uuid(  "UUID-R: ", proxy->priv->root_proxy->priv->cp_uuid, GUPNP_DP_UUID_LEN );
 
 	hostapd_wps_registrar_info info;
 
@@ -915,68 +934,78 @@ gupnp_device_proxy_begin_wps (GUPnPDeviceProxy           *proxy,
                                         NULL);
 	hostapd_printf("%s:all done\n", __func__ );
 
-
-        return wps;
+    return wps;
 }
 
-extern wps_message_monitor wps_info;
-
-// useless?
+//extern wps_message_monitor wps_info;
+/*********
+ At now, situation is this :
+  - M2 message has constructed in together with M2D message and HOSTAPD State Machine has turned into position,
+	which starts with M2 after this ACK has injected into it.
+*********/
+#define	M2_MESSAGE_MAX_LEN	1024
 void
 gupnp_device_proxy_continue_wps (GUPnPDeviceProxyWps        *wps,
-                                 GString                    *pin,
+                                 GString                    *pin_code,
+								 GUPnPDeviceProxyWpsCallback callback,
                                  gpointer                    user_data)
 {
-#if 0
-	printf("ZZZZZZZZ Send NACK\n");
-	unsigned char msg_nack[] =
-		{0x10,	0x4a,	0x00,	0x01,	0x10,	0x10,	0x22,	0x00,
-		 0x01,	0x0e,	0x10,	0x1a,	0x00,	0x10,	0x93,	0x11,
-		 0xff,	0x1d,	0x0a,	0x9f,	0xa8,	0x7c,	0x2b,	0xf3,
-		 0xc1,	0x9f,	0xe5,	0xcb,	0x78,	0x25,	0x10,	0x39,
-		 0x00,	0x10,	0x00,	0x00,	0x00,	0x00,	0x00,	0x00,
-		 0x00,	0x00,	0x00,	0x00,	0x00,	0x00,	0x00,	0x00,
-		 0x00,	0x00,	0x10,	0x09,	0x00,	0x02,	0x00,	0x00};
-	int msg_nack_len = 56;
-	ret_val = hostapd_update_registrar_state_machine(msg_nack, msg_nack_len, &next_message,
-							 &next_message_len, &ready);
-	printf("hostapd_update_registrar_state_machine ret_val:%d\n", ret_val);
+	// TODO: wps messages m2..m8
 
-	printf("ZZZZZZZZ Send ACK\n");
-	unsigned char msg_ack[] =
-		{0x10,	0x4a,	0x00,	0x01,	0x10,	0x10,	0x22,	0x00,
-		 0x01,	0x0d,	0x10,	0x1a,	0x00,	0x10,	0xbc,	0x43,
-		 0x7b,	0x06,	0x2c,	0xa7,	0x40,	0xcb,	0x46,	0x27,
-		 0xfa,	0x5f,	0xa7,	0x2b,	0x47,	0xd1,	0x10,	0x39,
-		 0x00,	0x10,	0x00,	0x00,	0x00,	0x00,	0x00,	0x00,
-		 0x00,	0x00,	0x00,	0x00,	0x00,	0x00,	0x00,	0x00,
-		 0x00,	0x00};
-	int msg_ack_len = 50;
-	ret_val = hostapd_update_registrar_state_machine(msg_ack, msg_ack_len, &next_message,
-							 &next_message_len, &ready);
+	hostapd_printf("%s:", __func__ );
 
-							 #ifdef WPA_ADDITIONAL_DEBUG
-		hostapd_printf("%s:", __func__ );
-#endif
-		// TODO: wps messages m2..m8
+	if ( wps->method == GUPNP_DEVICE_WPS_METHOD_PIN && pin_code )
+	{
+		// Change the PIN, cause we have just received it from the UI dialog
+  		hostapd_input_pin_to_wps( pin_code->str );
+		g_string_free( pin_code, TRUE );
+	}
+	if ( callback )	// if callback wanted to be changed
+	  wps->callback = callback;
+	unsigned char 	*ack_binary_message =(unsigned char *)g_malloc(200);	// 200 bytes is enough for WPS-ACK
+	int				ack_bin_msg_len;
+	hostapd_construct_ack_mesage( ack_binary_message, &ack_bin_msg_len );	// continue immediately with M2
+	
+	unsigned char *	wps_next_message = (unsigned char *)g_malloc( M2_MESSAGE_MAX_LEN );
+	int				wps_next_message_len;
+	int				err;
 
-        int maxb64len = 2 * wps_info.m2_msg_len;
-        int b64len;
-        unsigned char *base64msg = (unsigned char *)g_malloc(maxb64len);
+	int update_status = hostapd_update_registrar_state_machine(	ack_binary_message,
+																ack_bin_msg_len,
+																&wps_next_message,
+																&wps_next_message_len,
+																&err);
 
-		hostapd_base64_encode(wps_info.m2_msg_len, (const unsigned char	*)wps_info.m2_msg_buf, &b64len, base64msg, maxb64len);
-#endif
-		gupnp_service_proxy_begin_action(wps->device_prot_service,
-                                         "SendSetupMessage",
-                                         wps_got_response,
-                                         wps,
-                                         "ProtocolType",
-                                         G_TYPE_STRING,
-                                         "WPS",
-                                         "InMessage",
-                                         G_TYPE_STRING,
-                                         "",
-                                         NULL);
+	g_free( ack_binary_message );
+    if (err != 0 || wps_next_message_len <= 0 || update_status == 0 )
+    {
+		wps->error = g_error_new(GUPNP_SERVER_ERROR,
+								GUPNP_SERVER_ERROR_OTHER,
+								"DeviceProtection introduction failed to update state machine (%d). Terminating...",err);
+		g_warning("Error: %s", wps->error->message);
+
+		wps->callback(wps->proxy, wps, wps->device_name, &wps->error, wps->user_data);
+		g_free( wps_next_message );
+		return;
+	}
+    int maxbase64len = 2 * wps_next_message_len;	// ASCII conversion doubles bytecnt.
+    int base64len;
+    unsigned char *base64msg = (unsigned char *)g_malloc(maxbase64len);
+
+	hostapd_base64_encode(wps_next_message_len, (const unsigned char *)wps_next_message, &base64len, base64msg, maxbase64len);
+	g_free( wps_next_message );
+
+	gupnp_service_proxy_begin_action(wps->device_prot_service,
+									  "SendSetupMessage",
+									  wps_got_response,
+									  wps,
+									  "ProtocolType",
+									  G_TYPE_STRING,
+									  "WPS",
+									  "InMessage",
+									  G_TYPE_STRING,
+									  base64msg,
+									  NULL);
 
 }
 
@@ -993,7 +1022,8 @@ gupnp_device_proxy_end_wps (GUPnPDeviceProxyWps *wps)
         gboolean done = wps->done;
         g_object_unref(wps->proxy);
         g_string_free(wps->client_name, TRUE);
-        g_string_free(wps->pin, TRUE);
+		if ( wps->pin )
+		  g_string_free(wps->pin, TRUE);
         //g_string_free(wps->device_name, TRUE);
 
 		//		g_free(wps);
