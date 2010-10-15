@@ -24,6 +24,10 @@
 #include <glade/glade.h>
 
 void
+on_state_variable_changed_setup_ready(	GUPnPServiceProxy *proxy,
+										char *            str_value);
+
+void
 continue_wps_cb (GUPnPDeviceProxy    *proxy,
                  GUPnPDeviceProxyWps *wps,
                  GString             *device_name,

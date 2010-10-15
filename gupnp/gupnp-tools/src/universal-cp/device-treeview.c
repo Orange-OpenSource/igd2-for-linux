@@ -38,7 +38,8 @@ static GtkWidget *treeview;
 static GtkWidget *popup;
 static GtkWidget *subscribe_menuitem;
 static GtkWidget *action_menuitem;
-static GtkWidget *wps_setup_menuitem;
+static GtkWidget *wps_setup_menuitem_pbc;
+static GtkWidget *wps_setup_menuitem_pin;
 static GtkWidget *device_separator;
 static GtkWidget *user_login_menuitem;
 static GtkWidget *user_administration_menuitem;
@@ -157,7 +158,11 @@ setup_device_popup (GtkWidget *popup)
         /* See which icon is selected */
         proxy = get_selected_service (&icon_type);
         if (icon_type == ICON_DEVICE) {
-        	g_object_set (wps_setup_menuitem,
+        	g_object_set (wps_setup_menuitem_pin,
+                          "visible",
+                          TRUE,
+                          NULL);
+        	g_object_set (wps_setup_menuitem_pbc,
                           "visible",
                           TRUE,
                           NULL);
@@ -186,7 +191,11 @@ setup_device_popup (GtkWidget *popup)
                           "visible",
                           FALSE,
                           NULL);
-            g_object_set (wps_setup_menuitem,
+            g_object_set (wps_setup_menuitem_pin,
+                          "visible",
+                          FALSE,
+                          NULL);
+            g_object_set (wps_setup_menuitem_pbc,
                           "visible",
                           FALSE,
                           NULL);
@@ -207,7 +216,11 @@ setup_device_popup (GtkWidget *popup)
                           "visible",
                           FALSE,
                           NULL);
-            g_object_set (wps_setup_menuitem,
+            g_object_set (wps_setup_menuitem_pin,
+                          "visible",
+                          FALSE,
+                          NULL);
+            g_object_set (wps_setup_menuitem_pbc,
                           "visible",
                           FALSE,
                           NULL);
@@ -220,7 +233,11 @@ setup_device_popup (GtkWidget *popup)
                           FALSE,
                           NULL);
         } else {
-            g_object_set (wps_setup_menuitem,
+            g_object_set (wps_setup_menuitem_pin,
+                          "visible",
+                          FALSE,
+                          NULL);
+            g_object_set (wps_setup_menuitem_pbc,
                           "visible",
                           FALSE,
                           NULL);
@@ -417,7 +434,10 @@ remove_device (GUPnPDeviceInfo *info)
         }
 }
 
-extern void hostapd_printf(const char *fmt, ...);
+extern void hostapd_printf(const char *fmt, ...);	// TEST
+extern void
+on_state_variable_changed_setup_ready(	GUPnPServiceProxy *proxy,
+										char *            str_value);
 
 static void
 on_state_variable_changed (GUPnPServiceProxy *proxy,
@@ -456,13 +476,14 @@ on_state_variable_changed (GUPnPServiceProxy *proxy,
         notified_at = g_strdup_printf ("%02d:%02d",
                                        tm->tm_hour,
                                        tm->tm_min);
-
         display_event (notified_at,
                        friendly_name,
                        id,
                        variable_name,
                        g_value_get_string (&str_value));
-		hostapd_printf("%s: %s=%s", __func__, variable_name, g_value_get_string (&str_value) );
+//		hostapd_printf("%s: %s=%s, time:%02d:%02d:%02d", __func__, variable_name, g_value_get_string (&str_value), tm->tm_hour,tm->tm_min, tm->tm_sec );	// TEST
+		if ( strcmp( variable_name,"SetupReady") == 0 )
+		  on_state_variable_changed_setup_ready(proxy, g_value_get_string (&str_value));
 
         g_free (notified_at);
         g_free (friendly_name);
@@ -816,9 +837,12 @@ setup_device_treeview (GladeXML *glade_xml)
         g_assert (subscribe_menuitem != NULL);
         action_menuitem = glade_xml_get_widget (glade_xml, "invoke-action");
         g_assert (action_menuitem != NULL);
-        wps_setup_menuitem = glade_xml_get_widget (glade_xml,
-                                                   "start_wps_setup1");
-        g_assert (wps_setup_menuitem != NULL);
+        wps_setup_menuitem_pin = glade_xml_get_widget (glade_xml,
+                                                   "start_wps_setup_pin");
+        g_assert (wps_setup_menuitem_pin != NULL);
+        wps_setup_menuitem_pbc = glade_xml_get_widget (glade_xml,
+                                                   "start_wps_setup_pbc");
+        g_assert (wps_setup_menuitem_pbc != NULL);
         device_separator = glade_xml_get_widget (glade_xml, "device-popup-separator");
         g_assert (device_separator != NULL);
         

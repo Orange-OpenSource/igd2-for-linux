@@ -77,13 +77,23 @@
 	      <child>
 		<widget class="GtkMenu" id="connection_menuitem_menu">
 
-		  <child>
-		    <widget class="GtkMenuItem" id="start_wps_setup">
-		      <property name="label" translatable="yes">Start wps setup</property>
-		      <property name="use_underline">True</property>
-		      <signal name="activate" handler="on_start_wps_setup_activate"/>
-		    </widget>
-		  </child>
+		<child>
+		  <widget class="GtkMenuItem" id="start_wps_setup_pin">
+			<property name="visible">True</property>
+			<property name="label" translatable="yes">Start wps setup: PIN method</property>
+			<property name="use_underline">True</property>
+			<signal name="activate" handler="on_start_wps_setup_pin_activate"/>
+		  </widget>
+		</child>
+
+		<child>
+		  <widget class="GtkMenuItem" id="start_wps_setup_pbc">
+			<property name="visible">True</property>
+			<property name="label" translatable="yes">Start wps setup: PBC method</property>
+			<property name="use_underline">True</property>
+			<signal name="activate" handler="on_start_wps_setup_pbc_activate"/>
+		  </widget>
+		</child>
 
 		  <child>
 		    <widget class="GtkSeparatorMenuItem" id="separator1">
@@ -425,7 +435,7 @@ Inspired by Intel Tools for UPnP.</property>
   </child>
 
   <child>
-    <widget class="GtkMenuItem" id="start_wps_setup1">
+    <widget class="GtkMenuItem" id="start_wps_setup_pin">
       <property name="visible">True</property>
       <property name="label" translatable="yes">Start wps setup: PIN method</property>
       <property name="use_underline">True</property>
@@ -434,7 +444,7 @@ Inspired by Intel Tools for UPnP.</property>
   </child>
 
   <child>
-    <widget class="GtkMenuItem" id="start_wps_setup2">
+    <widget class="GtkMenuItem" id="start_wps_setup_pbc">
       <property name="visible">True</property>
       <property name="label" translatable="yes">Start wps setup: PBC method</property>
       <property name="use_underline">True</property>
