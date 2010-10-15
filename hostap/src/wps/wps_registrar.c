@@ -46,11 +46,8 @@ struct wps_uuid_pin {
 	struct os_time expiration;
 };
 
-int	wps_handshaking_done = 0;
-
 #ifdef NEW_CONFIG_SPEC
-  wps_message_monitor wps_info;
-  extern int hostapd_use_push_button_mode;	// TEST: This Hack gives us opinion, what is the required mode ( Push-Button / PIN )
+  extern wps_message_monitor wps_info;
   extern const char * hostapd_wps_message_type_name( int type );
 
 const char *state_names[] = {
@@ -1396,10 +1393,14 @@ static struct wpabuf * wps_build_m2(struct wps_data *wps)
 
 	if (os_get_random(wps->nonce_r, WPS_NONCE_LEN) < 0)
 		return NULL;
+#ifdef NEW_CONFIG_SPEC
+	wpa_printf(MSG_DEBUG, "WPS: Saved Registrar Nonce for later use (on constructing ACK)");
+	os_memcpy( wps_info.registrar_nonce, wps->nonce_r, WPS_NONCE_LEN );
+#endif
 	wpa_hexdump(MSG_DEBUG, "WPS: Registrar Nonce",
 		    wps->nonce_r, WPS_NONCE_LEN);
 	wpa_hexdump(MSG_DEBUG, "WPS: UUID-R", wps->uuid_r, WPS_UUID_LEN);
-	if ( hostapd_use_push_button_mode )	// TEST: TODO: Find better place to set this ..
+	if ( wps_info.use_push_button_mode )	// TEST: TODO: Find better place to set this ..
 	{
 	  wps->dev_pw_id = DEV_PW_PUSHBUTTON;
 	}
@@ -1426,8 +1427,8 @@ static struct wpabuf * wps_build_m2(struct wps_data *wps)
 	    wps_build_dev_password_id(msg, wps->dev_pw_id) ||
 	    wps_build_os_version(&wps->wps->dev, msg) ||
 	    wps_build_authenticator(wps, msg)) {
-		wpabuf_free(msg);
-		return NULL;
+		  wpabuf_free(msg);
+		  return NULL;
 	}
 
 	wps->int_reg = 1;
@@ -1831,7 +1832,7 @@ static int wps_process_uuid_e(struct wps_data *wps, const u8 *uuid_e)
 
 	os_memcpy(wps->uuid_e, uuid_e, WPS_UUID_LEN);
 
-	os_memcpy(wps_uuid_e_buf, uuid_e, WPS_UUID_LEN);	/* hack: copy to buff, where it can be retrieved later */
+	os_memcpy(wps_info.wps_uuid_e_buf, uuid_e, WPS_UUID_LEN);	/* hack: copy to buff, where it can be retrieved later */
 
 	wpa_hexdump(MSG_DEBUG, "WPS: UUID-E", wps->uuid_e, WPS_UUID_LEN);
 
@@ -2196,7 +2197,7 @@ static enum wps_process_res wps_process_m1(struct wps_data *wps,
 					   struct wps_parse_attr *attr)
 {
 	wpa_printf(MSG_DEBUG, "WPS: Received M1");
-	if ( hostapd_use_push_button_mode )	// TEST
+	if ( wps_info.use_push_button_mode )	// TEST
 	{
 	  hostapd_printf("%s: overwriting Enrollees opinion 0x%02X --> 0x%02X (=DEV_PW_PUSHBUTTON)", __func__, wps->dev_pw_id, DEV_PW_PUSHBUTTON );
 	  wps->dev_pw_id = DEV_PW_PUSHBUTTON;
@@ -2609,11 +2610,11 @@ static enum wps_process_res wps_process_wsc_msg(struct wps_data *wps,
 #ifdef NEW_CONFIG_SPEC
 		wps_info.wsc_done_cnt++;
 #endif
-		wps_handshaking_done = 1;
+		wps_info.wps_handshaking_done = 1;
 		break;
 	default:
 		wpa_printf(MSG_DEBUG, "WPS: Unsupported Message Type %d", *attr.msg_type);
-		wps_handshaking_done = 1;
+		wps_info.wps_handshaking_done = 1;
 #ifdef NEW_CONFIG_SPEC
 		wps_info.wsc_unknown_cnt++;
 #endif
@@ -2870,7 +2871,7 @@ static enum wps_process_res wps_process_wsc_done(struct wps_data *wps,
 	wps_device_store(wps->wps->registrar, &wps->peer_dev,
 			 wps->uuid_e);
 
-	wps_handshaking_done = 1;	/* say: "WPA handshaking is ready" */
+	wps_info.wps_handshaking_done = 1;	/* say: "WPA handshaking is ready" */
 
 	if (wps->wps->wps_state == WPS_STATE_NOT_CONFIGURED && wps->new_psk &&
 	    wps->wps->ap && !wps->wps->registrar->disable_auto_conf) {

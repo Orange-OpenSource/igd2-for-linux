@@ -22,6 +22,8 @@
 
 #define	NEW_CONFIG_SPEC
 
+#include "../../hostapd/hostapd_iface.h"
+
 struct eap_wsc_data {
 	enum { START, MESG, FRAG_ACK, WAIT_FRAG_ACK, DONE, FAIL } state;
 	int registrar;
@@ -82,7 +84,7 @@ static void eap_wsc_ext_reg_timeout(void *eloop_ctx, void *timeout_ctx)
 }
 
 #ifdef NEW_CONFIG_SPEC
-extern int hostapd_use_push_button_mode;
+extern wps_message_monitor wps_info;
 #endif
 
 static void * eap_wsc_init(struct eap_sm *sm)
@@ -112,7 +114,7 @@ static void * eap_wsc_init(struct eap_sm *sm)
 	data->registrar = registrar;
 
 	os_memset(&cfg, 0, sizeof(cfg));
-	if (hostapd_use_push_button_mode)	// TEST : // if said, Push-Button mode requested from GUI, pass it to wps_init()
+	if (wps_info.use_push_button_mode)	// TEST : // if said, Push-Button mode requested from GUI, pass it to wps_init()
 	{
 	  cfg.pbc = 1;
 	}

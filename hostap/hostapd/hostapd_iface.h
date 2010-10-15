@@ -33,29 +33,34 @@ extern "C" {
 
 #define	M2_SIZE 1024
 #define WPS_NONCE_LEN 16
+#define WPS_UUID_LEN 16
 
 typedef struct {
-	int		wsc_last_sent_message_type;			//	enum	wps_msg_type wsc_last_sent_message_type;
-	int		wsc_last_received_message_type;		//	enum	wps_msg_type wsc_last_received_message_type;
-	int		wsc_msg_tot_cnt;
-	int		wsc_start_cnt;
-	int		wsc_ack_cnt;
-	int		wsc_nack_cnt;
-	int		wsc_msg_cnt;
-	int		wsc_frack_ack_cnt;
-	int		wsc_done_cnt;
-	int		wsc_unknown_cnt;
-	int		wsc_m1_cnt;
-	int		wsc_m2_cnt;
-	int		wsc_m3_cnt;
-	int		wsc_m4_cnt;
-	int		wsc_m5_cnt;
-	int		wsc_m6_cnt;
-	int		wsc_m7_cnt;
-	int		wsc_m8_cnt;
-	char    m2_msg_buf[ M2_SIZE ];
-	int		m2_msg_len;
-	char    enrollee_nonce[ WPS_NONCE_LEN ];
+	int				wsc_last_sent_message_type;			//	enum	wps_msg_type wsc_last_sent_message_type;
+	int				wsc_last_received_message_type;		//	enum	wps_msg_type wsc_last_received_message_type;
+	int				wsc_msg_tot_cnt;
+	int				wsc_start_cnt;
+	int				wsc_ack_cnt;
+	int				wsc_nack_cnt;
+	int				wsc_msg_cnt;
+	int				wsc_frack_ack_cnt;
+	int				wsc_done_cnt;
+	int				wsc_unknown_cnt;
+	int				wsc_m1_cnt;
+	int				wsc_m2_cnt;
+	int				wsc_m3_cnt;
+	int				wsc_m4_cnt;
+	int				wsc_m5_cnt;
+	int				wsc_m6_cnt;
+	int				wsc_m7_cnt;
+	int				wsc_m8_cnt;
+	char    		m2_msg_buf[ M2_SIZE ];
+	int				m2_msg_len;
+	char    		enrollee_nonce[ WPS_NONCE_LEN ];
+	char    		registrar_nonce[ WPS_NONCE_LEN ];
+	unsigned char   wps_uuid_e_buf[ WPS_UUID_LEN ];	/* hack: copy to buff, where it can be retrieved later */
+	char			wps_handshaking_done;
+	char			use_push_button_mode;
 } wps_message_monitor;
 
 #endif
@@ -88,6 +93,7 @@ void hostapd_hexdump(const char *title, const unsigned char *buf, size_t len);
 const char * hostapd_wps_message_type_name( int type );
 
 int hostapd_sleep( unsigned int amount_of_100msecs );
+int hostapd_input_pin_to_wps( const char *pin_code );
 //unsigned char *hostapd_base64_encode(const unsigned char *src,size_t len,size_t *out_len);
 void hostapd_base64_encode(int	 				in_len,
 						  const unsigned char	*in_ptr,

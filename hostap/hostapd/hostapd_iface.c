@@ -85,9 +85,7 @@ void *send_resp_drv = NULL;
 u8 *send_eapol_data = NULL;
 size_t send_eapol_data_len = 0;
 
-/* WPS Configuration Mode */
-int hostapd_use_push_button_mode = 0;
-
+wps_message_monitor wps_info;
 
 int hostapd_debug_print_timestamp(char * tbuff)
 {
@@ -186,17 +184,14 @@ void hostapd_base64_encode(	int					in_len,
 #endif
 	os_free(wpa_trace_alloc);
 
-//    out_len_internal --; //exclude trailing 0x0a from the length
+//  out_len_internal --; //exclude trailing 0x0a from the length
     out_ptr[out_len_internal] = '\0'; // overwrite 0x0a with a NUL
     *out_len = (int)out_len_internal;
 }
 
-extern unsigned char wps_uuid_e_buf[ WPS_UUID_LEN ];
-extern int wps_handshaking_done;
-
 int hostapd_is_authentication_finished( void )
 {
-  return( wps_handshaking_done );
+  return( wps_info.wps_handshaking_done );
 }
 
 extern wps_message_monitor wps_info;
@@ -224,7 +219,7 @@ int hostapd_is_this_wps_nack_message( unsigned char *binary_message, int outlen 
   else
 	return( FALSE );
 }
-
+/*
 unsigned char msg_ack[] =
 		{0x10,	0x4a,	0x00,	0x01,	0x10,	0x10,	0x22,	0x00,
 		 0x01,	0x0d,	0x10,	0x1a,	0x00,	0x10,	0xbc,	0x43,
@@ -232,11 +227,20 @@ unsigned char msg_ack[] =
 		 0xfa,	0x5f,	0xa7,	0x2b,	0x47,	0xd1,	0x10,	0x39,
 		 0x00,	0x10,	0x00,	0x00,	0x00,	0x00,	0x00,	0x00,
 		 0x00,	0x00,	0x00,	0x00,	0x00,	0x00,	0x00,	0x00,
-		 0x00,	0x00};
+		 0x00,	0x00}; */
+unsigned char msg_ack_without_registrar_nonce[] =
+		{0x10,	0x4a,	0x00,	0x01,	0x10,	0x10,	0x22,	0x00,
+		 0x01,	0x0d,	0x10,	0x1a,	0x00,	0x10,	0xbc,	0x43,
+		 0x7b,	0x06,	0x2c,	0xa7,	0x40,	0xcb,	0x46,	0x27,
+		 0xfa,	0x5f,	0xa7,	0x2b,	0x47,	0xd1,	0x10,	0x39,
+		 0x00,	0x10,	0x00,	0x00,	0x00,	0x00,	0x00,	0x00 };
+
 #define MSG_ACK_LEN	50
+#define MSG_ACK_WITHOUT_REGISTRAR_NONCE_LEN	(MSG_ACK_LEN-WPS_NONCE_LEN)
 int hostapd_construct_ack_mesage( unsigned char * ack_buffer, int *msg_len )
 {
-  os_memcpy( ack_buffer, msg_ack, MSG_ACK_LEN );
+  os_memcpy( ack_buffer, msg_ack_without_registrar_nonce, MSG_ACK_WITHOUT_REGISTRAR_NONCE_LEN );
+  os_memcpy( &ack_buffer[ MSG_ACK_WITHOUT_REGISTRAR_NONCE_LEN ], wps_info.registrar_nonce, WPS_NONCE_LEN );
   *msg_len = MSG_ACK_LEN;
   return( MSG_ACK_LEN );
 }
@@ -290,7 +294,7 @@ int	hostapd_wsc_ack_received( void )
 
 unsigned char *hostapd_get_uuid_e_ptr( void )
 {
-  return( wps_uuid_e_buf );
+  return( wps_info.wps_uuid_e_buf );
 }
 /*********
 const char * hostapd_wps_message_type_name( unsigned char * bin_msg )
@@ -679,7 +683,7 @@ static int hostapd_global_init(struct hapd_interfaces *interfaces)
 {
 	int	ret;
 	hostapd_logger_register_cb(hostapd_logger_cb);
-	memset( wps_uuid_e_buf, 0, WPS_UUID_LEN );	/* place for Enrollee's UUID. Stored by WPS */
+	memset( wps_info.wps_uuid_e_buf, 0, WPS_UUID_LEN );	/* place for Enrollee's UUID. Stored by WPS */
 
 	hostapd_printf("%s", __func__);
 	ret = eap_server_register_methods();
@@ -856,6 +860,8 @@ int hostapd_iface_delete(void)
 void hostapd_create_registrar_state_machine(int *error)
 {
 	hostapd_printf("%s", __func__);
+	memset( &wps_info, 0, sizeof( wps_info ));
+//	wps_info.wps_handshaking_done = 0;
 	*error = 0;
 }
 
@@ -864,28 +870,33 @@ int hostapd_sleep( unsigned int amount_of_100msecs )
   return( usleep( amount_of_100msecs * 100000 ));
 }
 
-int hostapd_start_registrar_state_machine(const char	*pin_code )
-{
-	int error;
-	
 #define NO_TIMEOUT   0
 #define ANY_ENROLLEE 0
 
-//	const char *pin_code = "49226874";
-//	const char *pin_code = "any";
+int hostapd_input_pin_to_wps(const char	*pin_code)
+{
+	int error = 0;
 
-	switch( hostapd_use_push_button_mode )
+	hostapd_printf("%s:PIN-config mode: pin='%s', length=%d", __func__, pin_code, strlen(pin_code) );
+	if ((error = wps_registrar_add_pin(interfaces.iface[0]->bss[0]->wps->registrar, ANY_ENROLLEE,
+				(const u8 *) pin_code, strlen(pin_code),
+				NO_TIMEOUT)) != 0 ) {
+	  hostapd_printf("%s: wps_registrar_add_pin() failed,error=%d", __func__, error);
+	}
+	return( error );
+}
+
+int hostapd_start_registrar_state_machine(const char	*pin_code )
+{
+	switch( wps_info.use_push_button_mode )
 	{
 	  case 0 :
-		hostapd_printf("%s:PIN-config mode: pin='%s', length=%d", __func__, pin_code, strlen(pin_code) );
-		if ((error = wps_registrar_add_pin(interfaces.iface[0]->bss[0]->wps->registrar, ANY_ENROLLEE,
-					(const u8 *) pin_code, strlen(pin_code),
-					NO_TIMEOUT)) != 0 ) {
-		  wpa_printf(MSG_ERROR, "wps_registrar_add_pin() failed,error=%d", error);
-		}
+		hostapd_input_pin_to_wps( pin_code );
 		break;
 	  case 1 :
-		hostapd_printf("%s:Push-Button config mode: %s", __func__, (hostapd_wps_button_pushed(interfaces.iface[0]->bss[0]) ? "FAILED" : "SUCCESS"));
+		hostapd_printf("%s:Push-Button config mode: %s",
+					   __func__,
+					   (hostapd_wps_button_pushed(interfaces.iface[0]->bss[0]) ? "FAILED" : "SUCCESS"));
 		break;
 	  default :
 		hostapd_printf("%s:invalid configuration mode", __func__ );
@@ -935,28 +946,41 @@ int hostapd_start_registrar_state_machine(const char	*pin_code )
 }
 
 typedef enum {WPSU_SM_E_PROCESS,WPSU_SM_E_SUCCESS,WPSU_SM_E_SUCCESSINFO,WPSU_SM_E_FAILURE,WPSU_SM_E_FAILUREEXIT} wpsu_enrollee_sm_status;
-int hostapd_update_registrar_state_machine(
-						 unsigned char* received_message,
-						 int received_message_len,
-						 unsigned char** next_message,
-						 int* next_message_len,
-						 int* err)
+int hostapd_update_registrar_state_machine(	unsigned char * 	received_message,
+											int 				received_message_len,
+											unsigned char **	next_message,
+											int* 				next_message_len,
+											int* 				err)
 {
 	int	return_value;
 	char *cptr;
 	
 	hostapd_printf("%s: EAP state machine: inject msg (%s) into it, len=%d",
 				   __func__, (char *)hostapd_wps_message_type_name(received_message[9]), received_message_len);
-	if ( received_message[9] == 0x7 )	// trick for debugger to easy M3 catching
+#if 0
+				   if ( received_message[9] == 0x7 )	// trick for debugger to easy M3 catching
 	{
 		return_value = (int)received_message[9] + (int)received_message[8];
 	}
+#endif
 	send_to_test_driver(eloop_drv_get(), received_message, received_message_len);
+#if 0
+//	hostapd_printf( "stepping eloop 0.6 sec");
+	int ii = 0;
+	int ff = 6;
+	while (ii < ff) {
+		eloop_running_part2(NULL, 0);
+		hostapd_sleep(1);
+		ii++;
+	}
+#else
 	eloop_running_part2(NULL, 0);
 	eloop_running_part2(NULL, 0);
 	eloop_running_part2(NULL, 0);
 	eloop_running_part2(NULL, 0);
 	eloop_running_part2(NULL, 0);
+	eloop_running_part2(NULL, 0);
+#endif
 	if (send_eapol_data != NULL) {
 		if ( send_eapol_data_len >= 10 )
 		  cptr = (char *)hostapd_wps_message_type_name(send_eapol_data[9]);
@@ -1049,7 +1073,7 @@ static void eapol_nnnn_from_sta()
 
 void hostapd_push_button_configuration()
 {
-  hostapd_use_push_button_mode = 1;
+  wps_info.use_push_button_mode = 1;
 }
 
 //Just a wrapper to hide the internal crypto method
