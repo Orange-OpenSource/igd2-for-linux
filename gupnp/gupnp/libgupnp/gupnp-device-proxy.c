@@ -665,7 +665,6 @@ wps_got_response (GUPnPServiceProxy       *proxy,
 #endif
                 wps->device_name = g_string_new("Device-Name");	/* TODO: Where to get "DeviceName" ?? */
 
-				g_warning("Device name: %s", wps->device_name->str);
                 wps->callback(wps->proxy, wps, wps->device_name, &wps->error, wps->user_data);
 
                 break;
