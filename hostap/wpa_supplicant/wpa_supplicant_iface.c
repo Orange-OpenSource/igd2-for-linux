@@ -26,6 +26,7 @@
 #include "common.h"
 #include "wpa_supplicant_i.h"
 #include "wps/wps_i.h"
+#include "wps/wps_defs.h"
 #include "utils/wpabuf.h"
 #include "driver_i.h"
 #include "ctrl_iface.h"
@@ -291,7 +292,7 @@ char *wpa_supplicant_get_pin(void)
 {
 	char *tmp_pin;
 	char *ret_pin;
-	
+
 	// Dig up the PIN. Hmm, can not really understand why PIN is in variable "phase1"???
 	tmp_pin = wpa_config_get(((struct wpa_supplicant *)global->ifaces)->conf->ssid, "phase1");
 
@@ -302,6 +303,18 @@ char *wpa_supplicant_get_pin(void)
 	os_free(tmp_pin);
 
 	return ret_pin;
+}
+
+int wpa_supplicant_is_this_m3(const unsigned char* msg, int msg_len)
+{
+	if (msg_len > 9 &&
+	    msg[5] == (ATTR_MSG_TYPE >> 8) &&
+	    msg[6] == (ATTR_MSG_TYPE & 0xFF) &&
+	    msg[9] == WPS_M3)
+	{
+		return 1;
+	}
+	return 0;
 }
 
 unsigned char *wpa_supplicant_base64_encode(const unsigned char *src,

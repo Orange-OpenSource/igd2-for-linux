@@ -128,6 +128,12 @@ unsigned char *wpa_supplicant_generate_nack(int* len);
 char *wpa_supplicant_get_pin(void);
 
 /**
+ * wpa_supplicant_is_this_m3 - verifies if the message buffer contains M3 message
+ * Returns: 1 if message is M3, otherwise 0
+ */
+int wpa_supplicant_is_this_m3(const unsigned char* msg, int msg_len);
+
+/**
  * wpa_supplicant_base64_encode - encode binary data block into base64
  * @src: source data block
  * @len: source data block length
