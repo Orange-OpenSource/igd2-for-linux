@@ -47,7 +47,7 @@ struct wps_uuid_pin {
 };
 
 #ifdef NEW_CONFIG_SPEC
-  extern wps_message_monitor wps_info;
+  wps_message_monitor wps_info;
   extern const char * hostapd_wps_message_type_name( int type );
 
 const char *state_names[] = {

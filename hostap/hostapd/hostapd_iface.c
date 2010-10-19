@@ -85,7 +85,8 @@ void *send_resp_drv = NULL;
 u8 *send_eapol_data = NULL;
 size_t send_eapol_data_len = 0;
 
-wps_message_monitor wps_info;
+/** struct containing necessary information about WPS registrar states & variables **/
+extern wps_message_monitor wps_info;
 
 int hostapd_debug_print_timestamp(char * tbuff)
 {
@@ -193,8 +194,6 @@ int hostapd_is_authentication_finished( void )
 {
   return( wps_info.wps_handshaking_done );
 }
-
-extern wps_message_monitor wps_info;
 
 wps_message_monitor * hostapd_get_wps_counters( void )
 {
