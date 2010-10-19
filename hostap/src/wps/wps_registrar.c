@@ -1747,7 +1747,7 @@ struct wpabuf * wps_registrar_get_msg(struct wps_data *wps,
 //		msg2 = wps_build_m2(wps);
 //		wps_info.m2_msg_len = wpabuf_len(msg2);
 //		os_memcpy(wps_info.m2_msg_buf, wpabuf_mhead_u8(msg2), wps_info.m2_msg_len);
-//		hostapd_printf("%s:constructed M2 together with M2D, len=%d", __func__, wps_info.m2_msg_len );
+//		wpa_printf(MSG_DEBUG, "%s:constructed M2 together with M2D, len=%d", __func__, wps_info.m2_msg_len );
 //		wpabuf_free(msg2);
 #endif
 		msg = wps_build_m2d(wps);
@@ -2230,7 +2230,7 @@ static enum wps_process_res wps_process_m1(struct wps_data *wps,
 	wpa_printf(MSG_DEBUG, "WPS: Received M1");
 	if ( wps_info.use_push_button_mode )	// TEST
 	{
-	  hostapd_printf("%s: overwriting Enrollees opinion 0x%02X --> 0x%02X (=DEV_PW_PUSHBUTTON)", __func__, wps->dev_pw_id, DEV_PW_PUSHBUTTON );
+	  wpa_printf(MSG_DEBUG, "%s: overwriting Enrollees opinion 0x%02X --> 0x%02X (=DEV_PW_PUSHBUTTON)", __func__, wps->dev_pw_id, DEV_PW_PUSHBUTTON );
 	  wps->dev_pw_id = DEV_PW_PUSHBUTTON;
 	}
 
