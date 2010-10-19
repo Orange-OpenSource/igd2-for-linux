@@ -436,8 +436,7 @@ remove_device (GUPnPDeviceInfo *info)
 
 extern void hostapd_printf(const char *fmt, ...);	// TEST
 extern void
-on_state_variable_changed_setup_ready(	GUPnPServiceProxy *proxy,
-										char *            str_value);
+on_state_variable_changed_setup_ready( char * variable_str_value);
 
 static void
 on_state_variable_changed (GUPnPServiceProxy *proxy,
@@ -483,7 +482,7 @@ on_state_variable_changed (GUPnPServiceProxy *proxy,
                        g_value_get_string (&str_value));
 //		hostapd_printf("%s: %s=%s, time:%02d:%02d:%02d", __func__, variable_name, g_value_get_string (&str_value), tm->tm_hour,tm->tm_min, tm->tm_sec );	// TEST
 		if ( strcmp( variable_name,"SetupReady") == 0 )
-		  on_state_variable_changed_setup_ready(proxy, g_value_get_string (&str_value));
+		  on_state_variable_changed_setup_ready((char *)g_value_get_string (&str_value));
 
         g_free (notified_at);
         g_free (friendly_name);

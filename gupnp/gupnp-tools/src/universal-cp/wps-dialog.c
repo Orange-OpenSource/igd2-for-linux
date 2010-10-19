@@ -36,7 +36,7 @@ static GtkWidget *wps_cp_name_label;
 static GtkWidget *wps_cp_pin_label;
 static GtkWidget *wps_dialog_name_entry;
 static GtkWidget *wps_dialog_pin_entry;
-static GtkWidget *wps_dialog_checkbutton;
+//static GtkWidget *wps_dialog_checkbutton;
 static GtkWidget *wps_dialog_progressbar;
 static GUPnPDeviceProxyWps *setup_time_wps;	// TODO: ugly way to store it there, but .... fix this more re-entrant manner
 
@@ -44,14 +44,14 @@ static GtkWidget *pin_info_dialog;
 static GtkWidget *pbc_info_dialog;
 static GtkWidget *m2d_info_dialog;
 
-static gboolean togglebutton_active;
-static gboolean pbc_in_progess;
+//static gboolean togglebutton_active;
+static gboolean pbc_in_progress;
 static gboolean wps_authentication_in_progress;
 static gboolean wps_allow_setup_ready;
 
 void clear_in_progress_flags( void )
 {
-	pbc_in_progess                     = FALSE;
+	pbc_in_progress                    = FALSE;
     wps_authentication_in_progress     = FALSE;
 	wps_allow_setup_ready              = FALSE;
 }
@@ -61,8 +61,7 @@ on_start_wps_setup_pin_activate ( GladeXML *glade_xml )
 {
 		pin_info_dialog = m2d_info_dialog  = NULL;
 		wps_authentication_in_progress     = TRUE;
-//      wps_allow_setup_ready              = TRUE; // don't allow SetupReady=TRUE to continiue hadshake M2....M8
-		pbc_in_progess = FALSE;
+		pbc_in_progress                    = FALSE;
         wps_pin_setup_begin();
 }
 
@@ -72,8 +71,66 @@ on_start_wps_setup_pbc_activate ( GladeXML *glade_xml )
 		pbc_info_dialog = m2d_info_dialog  = NULL;
 		wps_authentication_in_progress     = TRUE;
         wps_allow_setup_ready              = TRUE;
-		pbc_in_progess = TRUE;
+		pbc_in_progress                    = TRUE;
         wps_pbc_setup_begin();
+}
+
+static gint wps_pin_timeout_value;
+
+#define	PIN_INPUT_TIMEOUT		120	// seconds
+#define PIN_INPUT_TIMEOUT_STEP	2	// seconds
+
+static gboolean
+wps_pin_timeout( gpointer user_data )
+{
+	  GtkWidget *error_dialog;
+	  gboolean	return_value;
+	  gchar		progress_bar_text[ 20 ];
+
+	  hostapd_printf("%s:", __func__ );
+	  wps_pin_timeout_value += PIN_INPUT_TIMEOUT_STEP;
+	  gtk_progress_bar_set_fraction( (GtkProgressBar *)wps_dialog_progressbar, (1.0 / PIN_INPUT_TIMEOUT) * (gdouble)wps_pin_timeout_value);	/* increse progress bar graphical 'bar' */
+	  sprintf( progress_bar_text, "%03d/%03d sec.", wps_pin_timeout_value,PIN_INPUT_TIMEOUT );
+	  gtk_progress_bar_set_text((GtkProgressBar *)wps_dialog_progressbar, progress_bar_text );
+	  
+	  if ( wps_pin_timeout_value >= PIN_INPUT_TIMEOUT )
+	  {
+		hostapd_printf("%s: PIN timeout occurred", __func__ );
+		if ( pbc_info_dialog ) {
+		  gtk_widget_destroy ( pbc_info_dialog );
+		  pbc_info_dialog = NULL;
+		}
+		if ( pin_info_dialog ) {
+		  gtk_widget_destroy ( pin_info_dialog );
+		  pin_info_dialog = NULL;
+		}
+		if ( m2d_info_dialog ) {
+		  gtk_widget_destroy ( m2d_info_dialog );
+		  m2d_info_dialog = NULL;
+		}
+		if ( wps_dialog ) {
+		  gtk_widget_destroy ( wps_dialog );
+		  m2d_info_dialog = wps_dialog;
+		}
+		if ( pbc_in_progress || wps_authentication_in_progress || wps_allow_setup_ready )
+		{
+		  error_dialog = gtk_message_dialog_new ( GTK_WINDOW ( wps_dialog ),
+												  GTK_DIALOG_MODAL,
+												  GTK_MESSAGE_INFO,
+												  GTK_BUTTONS_OK,
+												  "PIN setup timed out in %d seconds",
+												  PIN_INPUT_TIMEOUT );
+		  gtk_dialog_run ( GTK_DIALOG ( error_dialog ) );
+		  gtk_widget_destroy ( error_dialog );
+		  gtk_widget_hide ( error_dialog );
+		}
+		clear_in_progress_flags();
+		return_value = FALSE;
+	  }
+	  else {
+		return_value = TRUE;
+	  }
+	  return( return_value );
 }
 
 void
@@ -81,8 +138,6 @@ begin_wps_dialog ( void )
 {
         GUPnPDeviceInfo *info;
         GUPnPDeviceProxy *deviceProxy;
-//      GUPnPDeviceProxyWps *deviceProxyWps;
-//      gpointer wps_user_data=NULL;
 
         if ( m2d_info_dialog ) {
 		  gtk_widget_destroy ( m2d_info_dialog );
@@ -94,7 +149,10 @@ begin_wps_dialog ( void )
 
         if ( info )
         {
-                deviceProxy = GUPNP_DEVICE_PROXY ( info );
+				wps_pin_timeout_value = 0;
+				g_timeout_add_seconds( PIN_INPUT_TIMEOUT_STEP, wps_pin_timeout, NULL );
+
+				deviceProxy = GUPNP_DEVICE_PROXY ( info );
                 g_assert ( deviceProxy != NULL );
                 gtk_entry_set_text ( GTK_ENTRY ( wps_dialog_name_entry ), gupnp_device_info_get_friendly_name(info) );
 
@@ -167,11 +225,23 @@ continue_wps_m2d_cb ( GUPnPDeviceProxy        *proxy,
 
 		gtk_progress_bar_set_fraction ( GTK_PROGRESS_BAR ( wps_dialog_progressbar ),1 );
 
-		m2d_info_dialog = gtk_message_dialog_new ( GTK_WINDOW ( wps_dialog ),
-												GTK_DIALOG_DESTROY_WITH_PARENT,
-												GTK_MESSAGE_INFO,
-												GTK_BUTTONS_OK,
-												"WPS setup: phase 1:M2D successfully performed" );
+		if ( pbc_in_progress )
+		  m2d_info_dialog = gtk_message_dialog_new ( GTK_WINDOW ( wps_dialog ),
+												  GTK_DIALOG_DESTROY_WITH_PARENT,
+												  GTK_MESSAGE_INFO,
+												  GTK_BUTTONS_NONE,
+												  "WPS setup:\n"
+												  "PBC: phase 1:M2D successfully performed\n"
+												  "Waiting for phase 2 (M2...M8) to start ..." );
+		else
+		  m2d_info_dialog = gtk_message_dialog_new ( GTK_WINDOW ( wps_dialog ),
+												  GTK_DIALOG_DESTROY_WITH_PARENT,
+												  GTK_MESSAGE_INFO,
+												  GTK_BUTTONS_NONE,
+												  "WPS setup:\n"
+												  "PIN: phase 1:M2D successfully performed\n"
+												  "Waiting for phase 2 (M2...M8) to start (timeout %d seconds) ...",
+												  PIN_INPUT_TIMEOUT );
 		g_signal_connect_swapped( m2d_info_dialog,
 								  "response",
 								  G_CALLBACK( gtk_widget_destroy ),
@@ -185,10 +255,10 @@ continue_wps_m2d_cb ( GUPnPDeviceProxy        *proxy,
 //		if ( wps->method == GUPNP_DEVICE_WPS_METHOD_PIN )
 		statusbar_update ( TRUE );
 
-		if ( ! pbc_in_progess )	// if PIN method ...
+		if ( ! pbc_in_progress )	// if PIN method ...
 		  begin_wps_dialog();
 		if ( user_data == (gpointer)1 )
-		  on_state_variable_changed_setup_ready( proxy,"TRUE");
+		  on_state_variable_changed_setup_ready( "TRUE" );
 
 }
 
@@ -244,7 +314,9 @@ continue_wps_cb_phase2 ( GUPnPDeviceProxy    *proxy,
                                                        GTK_DIALOG_MODAL,
                                                        GTK_MESSAGE_INFO,
                                                        GTK_BUTTONS_OK,
-                                                       "WPS setup: phase 2: M2..M8 successfully performed" );
+                                                       "WPS setup:\n"
+                                                       "phase 2: M2..M8 successfully performed\n"
+                                                       "WPS Setup Completed");
 
                 gtk_dialog_run ( GTK_DIALOG ( info_dialog ) );
                 gtk_widget_destroy ( info_dialog );
@@ -268,15 +340,14 @@ gupnp_device_proxy_continue_wps (GUPnPDeviceProxyWps        *wps,
                                  gpointer                    user_data);
 
 void
-on_state_variable_changed_setup_ready(	GUPnPServiceProxy *proxy,
-										char *            str_value)
+on_state_variable_changed_setup_ready( char * variable_str_value)
 {
   if ( wps_authentication_in_progress )
   {
-	hostapd_printf("%s: SetupReady=%s: pbc_in_progess=%s", __func__, str_value, pbc_in_progess ? "TRUE " : "FALSE");
+	hostapd_printf("%s: SetupReady=%s: pbc_in_progress=%s", __func__, variable_str_value, pbc_in_progress ? "TRUE " : "FALSE");
 	if ( wps_allow_setup_ready )	// if already in this phase, don't do it twice
 	{
-	  if ( strcmp("TRUE", str_value) == 0 )
+	  if ( strcmp("TRUE", variable_str_value) == 0 )
 	  {
 		wps_allow_setup_ready = FALSE;	// prevent another start, if not started through UI-menu
 		hostapd_printf("%s: continue handshake: M2...M8", __func__ );
@@ -296,8 +367,6 @@ on_state_variable_changed_setup_ready(	GUPnPServiceProxy *proxy,
 	}
   }
 }
-
-#define	MAX_PIN_LENGTH	10
 
 void
 wps_pin_invocation( GUPnPDeviceProxyWps *	deviceProxyWps,
@@ -466,6 +535,7 @@ wps_pbc_setup_begin ( void )
         }
 }
 
+#if 0 // not used anymore
 void
 wps_dialog_push_button ( GtkToggleButton *button,
                          gpointer   user_data )
@@ -482,7 +552,7 @@ wps_dialog_push_button ( GtkToggleButton *button,
                 gtk_entry_set_editable ( GTK_ENTRY ( wps_dialog_pin_entry ), TRUE );
         }
 }
-
+#endif
 void
 init_wps_dialog_fields ( void )
 {
@@ -513,12 +583,12 @@ init_wps_dialog ( GladeXML *glade_xml )
         wps_cp_pin_label = glade_xml_get_widget ( glade_xml,
                            "wps-dialog-pin-label" );
         g_assert ( wps_cp_pin_label != NULL );
-
+#if 0 // not used anymore
         /* Check button */
         wps_dialog_checkbutton = glade_xml_get_widget ( glade_xml,
                                  "wps-dialog-checkbutton" );
         g_assert ( wps_dialog_checkbutton != NULL );
-
+#endif
         /* Progressbar */
         wps_dialog_progressbar = glade_xml_get_widget ( glade_xml,
                                  "wps-dialog-progressbar" );

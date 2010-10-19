@@ -24,8 +24,7 @@
 #include <glade/glade.h>
 
 void
-on_state_variable_changed_setup_ready(	GUPnPServiceProxy *proxy,
-										char *            str_value);
+on_state_variable_changed_setup_ready(	char *            str_value);
 
 void
 continue_wps_cb (GUPnPDeviceProxy    *proxy,
@@ -42,11 +41,11 @@ wps_pin_setup_begin();
 
 void
 wps_pbc_setup_begin();
-
+#if 0 // not used anymore
 void
 wps_dialog_push_button(GtkToggleButton *button,
 					   gpointer         user_data);
-
+#endif
 void
 init_wps_dialog_fields (void);
 
