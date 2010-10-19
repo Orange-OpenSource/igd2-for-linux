@@ -824,10 +824,12 @@ static void stopWPS()
 
 /**
  * WPS introduction uses this function. SendSetupMessage calls this.
- * When message M2, M2D, M4, M6, M8 or Done ACK is received, enrollee state machine is updated here
+ * When message M2, M2D, M4, M6, M8 or Done ACK is received from registrar (i.e. control point),
+ * enrollee state machine is updated here.
  * 
  * Actual stopping of state machine must be done at the end of SendSetupMessage, because 
- * stopping will release Enrollee_send_msg which is needed at SendSetupMessage after returning from here.
+ * stopping will release Enrollee_send_msg which is needed in SendSetupMessage after returning
+ * from here.
  * 
  * @param error Error code is passed through this.
  * @param data Received WPS introduction binary message
@@ -909,6 +911,12 @@ static void message_received(struct Upnp_Action_Request *ca_event, int error, un
         case WPASUPP_SM_E_PROCESS:
         {
             trace(3, "Continuing DeviceProtection introduction...\n");
+            if (wpa_supplicant_is_this_m3(Enrollee_send_msg, Enrollee_send_msg_len))
+            {
+                // set state variable SetupReady to false, meaning DP service is busy
+                SetupReady = 0;
+                sendSetUpReadyEvent(SetupReady);
+            }
             break;
         }
         default:
