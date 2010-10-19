@@ -90,7 +90,6 @@ typedef struct {
 int hostapd_debug_print_timestamp(char * tbuff);
 void hostapd_printf(const char *fmt, ...);
 void hostapd_hexdump(const char *title, const unsigned char *buf, size_t len);
-const char * hostapd_wps_message_type_name( int type );
 
 int hostapd_sleep( unsigned int amount_of_100msecs );
 int hostapd_input_pin_to_wps( const char *pin_code );

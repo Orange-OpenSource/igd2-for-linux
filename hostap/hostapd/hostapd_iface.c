@@ -87,6 +87,8 @@ size_t send_eapol_data_len = 0;
 
 /** struct containing necessary information about WPS registrar states & variables **/
 extern wps_message_monitor wps_info;
+/** get WPS message type names */
+extern const char * wps_message_type_name( int type );
 
 int hostapd_debug_print_timestamp(char * tbuff)
 {
@@ -295,63 +297,6 @@ unsigned char *hostapd_get_uuid_e_ptr( void )
 {
   return( wps_info.wps_uuid_e_buf );
 }
-/*********
-const char * hostapd_wps_message_type_name( unsigned char * bin_msg )
-{
-  const char * cptr;
-
-  switch( bin_msg[ 9 ] )
-  {
-	case 1	:	cptr = "Beacon";		break;
-	case 2	:	cptr = "Probe Req";		break;
-	case 3	:	cptr = "Probe Resp.";	break;
-	case 4	:	cptr = "M1";			break;
-	case 5	:	cptr = "M2";			break;
-	case 6	:	cptr = "M2D";			break;
-	case 7	:	cptr = "M3";			break;
-	case 8	:	cptr = "M4";			break;
-	case 9	:	cptr = "M5";			break;
-	case 10	:	cptr = "M6";			break;
-	case 11	:	cptr = "M7";			break;
-	case 12	:	cptr = "M8";			break;
-	case 13	:	cptr = "WSC_ACK";		break;
-	case 14	:	cptr = "WSC_NACK";		break;
-	case 15	:	cptr = "WSC_DONE";		break;
-	default	:	cptr = "unknown";		break;
-  }
-  return( cptr );
-}
-*******/
-const char * wps_msg_type_names[] = {
-  "--",
-  "WPS_Beacon",
-  "WPS_ProbeRequest",
-  "WPS_ProbeResponse",
-  "WPS_M1",
-  "WPS_M2",
-  "WPS_M2D",
-  "WPS_M3",
-  "WPS_M4",
-  "WPS_M5",
-  "WPS_M6",
-  "WPS_M7",
-  "WPS_M8",
-  "WPS_WSC_ACK",
-  "WPS_WSC_NACK",
-  "WPS_WSC_DONE" };
-
-const char * hostapd_wps_message_type_name( int type )
-{
-  static char err_buf[ 50 ];
-
-  if ( type >= 1 && type <= 15 )
-	return( wps_msg_type_names[ type ] );
-  else
-  {
-	sprintf( err_buf,"WPS Msg type %d undefined", type );
-	return( err_buf );
-  }
-}
 
 static int hostapd_for_each_interface(struct hapd_interfaces *interfaces,
 				      int (*cb)(struct hostapd_iface *iface,
@@ -368,7 +313,6 @@ static int hostapd_for_each_interface(struct hapd_interfaces *interfaces,
 
 	return 0;
 }
-
 
 #ifndef CONFIG_NO_HOSTAPD_LOGGER
 static void hostapd_logger_cb(void *ctx, const u8 *addr, unsigned int module,
@@ -955,34 +899,21 @@ int hostapd_update_registrar_state_machine(	unsigned char * 	received_message,
 	char *cptr;
 	
 	hostapd_printf("%s: EAP state machine: inject msg (%s) into it, len=%d",
-				   __func__, (char *)hostapd_wps_message_type_name(received_message[9]), received_message_len);
-#if 0
-				   if ( received_message[9] == 0x7 )	// trick for debugger to easy M3 catching
-	{
-		return_value = (int)received_message[9] + (int)received_message[8];
-	}
-#endif
+				   __func__, (char *)wps_message_type_name(received_message[9]), received_message_len);
 	send_to_test_driver(eloop_drv_get(), received_message, received_message_len);
-#if 0
-//	hostapd_printf( "stepping eloop 0.6 sec");
+
+	//	hostapd_printf( "stepping eloop 0.6 sec");
 	int ii = 0;
 	int ff = 6;
 	while (ii < ff) {
 		eloop_running_part2(NULL, 0);
-		hostapd_sleep(1);
+//		hostapd_sleep(1);
 		ii++;
 	}
-#else
-	eloop_running_part2(NULL, 0);
-	eloop_running_part2(NULL, 0);
-	eloop_running_part2(NULL, 0);
-	eloop_running_part2(NULL, 0);
-	eloop_running_part2(NULL, 0);
-	eloop_running_part2(NULL, 0);
-#endif
-	if (send_eapol_data != NULL) {
+
+if (send_eapol_data != NULL) {
 		if ( send_eapol_data_len >= 10 )
-		  cptr = (char *)hostapd_wps_message_type_name(send_eapol_data[9]);
+		  cptr = (char *)wps_message_type_name(send_eapol_data[9]);
 		else
 		  cptr = "unknown";
 		hostapd_printf( "%s: EAP state machine: output available(%s), len:%d", __func__, cptr, send_eapol_data_len);

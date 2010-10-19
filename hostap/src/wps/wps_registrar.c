@@ -48,7 +48,7 @@ struct wps_uuid_pin {
 
 #ifdef NEW_CONFIG_SPEC
   wps_message_monitor wps_info;
-  extern const char * hostapd_wps_message_type_name( int type );
+  extern const char * wps_message_type_name( int type );
 
 const char *state_names[] = {
 	"SEND_M1",
@@ -86,6 +86,37 @@ const char * wps_state_name( int state )
   else
   {
 	sprintf( err_buf,"Reg/Enroll.state %d is undefined", state );
+	return( err_buf );
+  }
+}
+
+const char * wps_msg_type_names[] = {
+  "--",
+  "WPS_Beacon",
+  "WPS_ProbeRequest",
+  "WPS_ProbeResponse",
+  "WPS_M1",
+  "WPS_M2",
+  "WPS_M2D",
+  "WPS_M3",
+  "WPS_M4",
+  "WPS_M5",
+  "WPS_M6",
+  "WPS_M7",
+  "WPS_M8",
+  "WPS_WSC_ACK",
+  "WPS_WSC_NACK",
+  "WPS_WSC_DONE" };
+
+const char * wps_message_type_name( int type )
+{
+  static char err_buf[ 50 ];
+
+  if ( type >= 1 && type <= 15 )
+	return( wps_msg_type_names[ type ] );
+  else
+  {
+	sprintf( err_buf,"WPS Msg type %d undefined", type );
 	return( err_buf );
   }
 }
@@ -2630,7 +2661,7 @@ static enum wps_process_res wps_process_wsc_msg(struct wps_data *wps,
 	  {
 #endif
 		wpa_printf(MSG_DEBUG, "WPS: Saving RECEIVED msg type %d (%s) for Authenticator derivation",
-				   *attr.msg_type, hostapd_wps_message_type_name(*attr.msg_type));
+				   *attr.msg_type, wps_message_type_name(*attr.msg_type));
 		/* Save a copy of the last message for Authenticator derivation
 		 */
 		wpabuf_free(wps->last_msg);
@@ -2640,7 +2671,7 @@ static enum wps_process_res wps_process_wsc_msg(struct wps_data *wps,
 	  else
 	  {
 		wpa_printf(MSG_DEBUG, "WPS: Don't save RECEIVED msg type %d (%s) for Authenticator derivation",
-				   *attr.msg_type, hostapd_wps_message_type_name(*attr.msg_type));
+				   *attr.msg_type, wps_message_type_name(*attr.msg_type));
 	  }
 #endif
 	}
