@@ -558,6 +558,22 @@ ssl_create_client_session(  GUPnPSSLClient **client,
         return GUPNP_E_SOCKET_ERROR;
     }
 
+
+	gchar * envptr;
+	if ((envptr = getenv("CP_SSL_TIMEOUT")))
+	{
+	  gint	tout = atoi( envptr);
+	  
+      hostapd_printf("%s: SO_RCVTIMEO & SO_SNDTIMEO = %d", __func__, tout);
+
+	  /** TEST: Set xx seconds timeout for SSL send/receive */
+	  struct timeval tv;
+	  tv.tv_sec = tout;
+	  setsockopt( sd, SOL_SOCKET, SO_RCVTIMEO, (struct timeval *)&tv, sizeof(struct timeval));
+	  setsockopt( sd, SOL_SOCKET, SO_SNDTIMEO, (struct timeval *)&tv, sizeof(struct timeval));
+	}
+
+
     retVal = connect (sd, (struct sockaddr*)&ip4addr, sizeof( struct sockaddr_in ));
     if (retVal < 0) {
         close (sd);
