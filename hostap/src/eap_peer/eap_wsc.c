@@ -491,17 +491,12 @@ static struct wpabuf * eap_wsc_process(struct eap_sm *sm, void *priv,
 		break;
 	case WPS_CONTINUE:
 		eap_wsc_state(data, MESG);
-		wpa_printf(MSG_DEBUG, "EAP-WSC: WPS_CONTINUE");		// TEST
 		break;
 	case WPS_FAILURE:
-		wpa_printf(MSG_DEBUG, "EAP-WSC: WPS_FAILURE");		// TEST
 	case WPS_PENDING:
 		wpa_printf(MSG_DEBUG, "EAP-WSC: WPS processing failed");
 		eap_wsc_state(data, FAIL);
 		break;
-	default:
-		wpa_printf(MSG_DEBUG, "EAP-WSC: %s: something unexpected in file '%s', line %d", __func__, __file__, __line__);
-	  break;
 	}
 
 	if (data->in_buf != &tmpbuf)
@@ -512,8 +507,8 @@ send_msg:
 	if (data->out_buf == NULL) {
 		data->out_buf = wps_get_msg(data->wps, &data->out_op_code);
 		if (data->out_buf == NULL) {
-			wpa_printf(MSG_DEBUG, "EAP-WSC: %s: Failed to receive "
-				   "message from WPS", __func__);
+			wpa_printf(MSG_DEBUG, "EAP-WSC: Failed to receive "
+				   "message from WPS");
 			return NULL;
 		}
 		data->out_used = 0;
