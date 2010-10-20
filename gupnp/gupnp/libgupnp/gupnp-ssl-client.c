@@ -113,6 +113,7 @@ static int parse_headers(SoupMessageHeaders *soup_headers, const char *headers)
                 if (token && value)
                 {
                     soup_message_headers_append(soup_headers, token, value);
+					g_debug("%s:token='%s' value='%s'", __func__, token, value );
                 }
                 free(value);
             }
@@ -164,7 +165,7 @@ static void *ssl_client_send_and_receive_thread(void *data)
     *response = '\0';
 
     // Send the message
-	hostapd_printf("%s: sending (%s)", __func__, message );	// TEST
+//	hostapd_printf("%s: sending (%s)", __func__, message );	// TEST
     retVal = gnutls_record_send((*client)->session, message, strlen(message));
 
     if (retVal < 0)
@@ -180,22 +181,34 @@ static void *ssl_client_send_and_receive_thread(void *data)
     while (retVal > 0) // if retVal is negative, then gnutls have returned error
     {
         memset(recv, '\0',len+1);// earlier receivings doesn't bother after this
-        retVal = gnutls_record_recv ((*client)->session, recv, len);
+		if ( getenv( "CP_SSL_TIMEOUT" ))
+		{
+		  int i;
+		  for ( i = 0; i < 5; i ++ )	/* 5 * 2 seconds timeout */
+		  {
+			retVal = gnutls_record_recv ((*client)->session, recv, len);
+			if ( retVal != GNUTLS_E_AGAIN )
+			  break;
+		  }
+		}
+		else
+		{
+		  retVal = gnutls_record_recv ((*client)->session, recv, len);
+		}
+		if ( retVal <= 0 ) // 0 should mean EOF, peer has closed session?
+		{
+			g_warning("Error: gnutls_record_recv failed. %s (error=%d)", gnutls_strerror(retVal), retVal );
+			// close the client
+			ssl_finish_client(client);
 
-        if (retVal <= 0) // 0 should mean EOF, peer has closed session?
-        {
-            g_warning("Error: gnutls_record_recv failed. %s", gnutls_strerror(retVal));
-            // close the client
-            ssl_finish_client(client);
-
-            g_slice_free(GUPnPSSLThreadData, data);
-            return NULL;// retVal;
-        }
-        else
-        {
-            recv[retVal] = '\0';
-            //g_warning("Received %d bytes", retVal);
-        }
+			g_slice_free(GUPnPSSLThreadData, data);
+			return NULL;// retVal;
+		}
+		else
+		{
+//			g_warning("Received %d bytes", retVal);
+			recv[retVal] = '\0';
+		}
 
     // chunked encoding is used
     if (content_len == -1 && recv[0] != '0' && recv[0] != '\r' && (tmp = strstr(recv, "\r\n")) != NULL)
@@ -296,7 +309,7 @@ static void *ssl_client_send_and_receive_thread(void *data)
             // Put body to SoupMessage (soup_message_set_response() should do that also, but didn't get it working
             msg->response_body->data = strdup(body);
             msg->response_body->length = strlen(body);
-            //g_debug("WHOLE BODY: '%s'",body);
+//          g_debug("%s: WHOLE BODY: '%s'",__func__, body);
             g_free(response);
 
             ssl_data->callback(ssl_data->client, msg, ssl_data->userdata);
@@ -558,7 +571,7 @@ ssl_create_client_session(  GUPnPSSLClient **client,
         return GUPNP_E_SOCKET_ERROR;
     }
 
-
+#if 0
 	gchar * envptr;
 	if ((envptr = getenv("CP_SSL_TIMEOUT")))
 	{
@@ -572,7 +585,12 @@ ssl_create_client_session(  GUPnPSSLClient **client,
 	  setsockopt( sd, SOL_SOCKET, SO_RCVTIMEO, (struct timeval *)&tv, sizeof(struct timeval));
 	  setsockopt( sd, SOL_SOCKET, SO_SNDTIMEO, (struct timeval *)&tv, sizeof(struct timeval));
 	}
-
+#else
+	  struct timeval tv;
+	  tv.tv_sec = 2;	// 2 seconds timeout
+	  setsockopt( sd, SOL_SOCKET, SO_RCVTIMEO, (struct timeval *)&tv, sizeof(struct timeval));
+	  setsockopt( sd, SOL_SOCKET, SO_SNDTIMEO, (struct timeval *)&tv, sizeof(struct timeval));
+#endif
 
     retVal = connect (sd, (struct sockaddr*)&ip4addr, sizeof( struct sockaddr_in ));
     if (retVal < 0) {
