@@ -626,7 +626,7 @@ static int hostapd_global_init(struct hapd_interfaces *interfaces)
 {
 	int	ret;
 	hostapd_logger_register_cb(hostapd_logger_cb);
-	memset( wps_info.wps_uuid_e_buf, 0, WPS_UUID_LEN );	/* place for Enrollee's UUID. Stored by WPS */
+//	memset( wps_info.wps_uuid_e_buf, 0, WPS_UUID_LEN );	/* place for Enrollee's UUID. Stored by WPS */
 
 	hostapd_printf("%s", __func__);
 	ret = eap_server_register_methods();
