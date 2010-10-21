@@ -36,9 +36,9 @@ static GtkWidget *wps_cp_name_label;
 static GtkWidget *wps_cp_pin_label;
 static GtkWidget *wps_dialog_name_entry;
 static GtkWidget *wps_dialog_pin_entry;
-//static GtkWidget *wps_dialog_checkbutton;
-//static GtkWidget *wps_dialog_progressbar;
-static GtkProgressBar *wps_dialog_progressbar;
+static GtkWidget *wps_dialog_progressbar;
+static GtkWidget *pbc_wait_progressbar;
+static GtkWidget *pbc_wait_dialog;
 static GUPnPDeviceProxyWps *setup_time_wps;	// TODO: ugly way to store it there, but .... fix this more re-entrant manner
 
 static GtkWidget *pin_info_dialog;
@@ -51,19 +51,26 @@ static gboolean wps_authentication_in_progress;
 static gboolean wps_allow_setup_ready;
 static gboolean stop_progress_bar;
 static gint wps_pin_timeout_value;
+static gint wps_pbc_timeout_value;
 static gboolean allow_wps_failed_phase1_dialog;
 static gboolean allow_wps_failed_phase2_dialog;
 
 #define	PIN_INPUT_TIMEOUT		120	// seconds
+#define	PBC_INPUT_TIMEOUT		120	// seconds
 #define PIN_INPUT_TIMEOUT_STEP	1	// seconds
+#define PBC_INPUT_TIMEOUT_STEP	1	// seconds
 #define	PHASE1_TIMOUT_TIME		15	// seconds
 #define	PHASE2_TIMOUT_TIME		15	// seconds
+
+void init_pbc_dialog_fields ( void );
 
 void clear_in_progress_flags( void )
 {
 	pbc_in_progress                    = FALSE;
     wps_authentication_in_progress     = FALSE;
 	wps_allow_setup_ready              = FALSE;
+	allow_wps_failed_phase1_dialog     = FALSE;
+	allow_wps_failed_phase2_dialog     = FALSE;
 }
 
 static gboolean wps_phase1_failed_timeout( gpointer user_data );
@@ -75,14 +82,14 @@ void wps_begin_initializations( void )
 	allow_wps_failed_phase1_dialog		= TRUE;
 	allow_wps_failed_phase2_dialog		= TRUE;
 	wps_pin_timeout_value 				= 0;
-	g_timeout_add_seconds( PHASE1_TIMOUT_TIME, wps_phase1_failed_timeout, NULL );
+	wps_pbc_timeout_value 				= 0;
+	stop_progress_bar                   = FALSE;
 }
 
 void
 on_start_wps_setup_pin_activate ( GladeXML *glade_xml )
 {
 		pbc_in_progress                    = FALSE;
-		stop_progress_bar                  = FALSE;
 		wps_begin_initializations();
         wps_pin_setup_begin();
 }
@@ -144,6 +151,51 @@ wps_phase2_failed_timeout( gpointer user_data )
 }
 
 static gboolean
+wps_pbc_timeout( gpointer user_data )
+{
+	  GtkWidget *error_dialog;
+	  gboolean	return_value;
+	  gchar		progress_bar_text[ 20 ];
+
+	  wps_pbc_timeout_value += PBC_INPUT_TIMEOUT_STEP;
+	  if ( ! stop_progress_bar )
+	  {
+		gtk_progress_bar_set_fraction( (GtkProgressBar *)pbc_wait_progressbar, (1.0 / PBC_INPUT_TIMEOUT) * (gdouble)wps_pbc_timeout_value);	/* increse progress bar graphical 'bar' */
+		sprintf( progress_bar_text, "%03d/%03d sec.", wps_pbc_timeout_value,PBC_INPUT_TIMEOUT );
+		gtk_progress_bar_set_text( (GtkProgressBar *)pbc_wait_progressbar, progress_bar_text );
+	  }
+
+	  if ( wps_pbc_timeout_value >= PBC_INPUT_TIMEOUT || stop_progress_bar )
+	  {
+		hostapd_printf("%s: PBC timeout/Stop Request occurred", __func__ );
+		gtk_widget_destroy( pbc_info_dialog );
+		gtk_widget_destroy( pin_info_dialog );
+		gtk_widget_destroy( m2d_info_dialog );
+
+		gtk_widget_hide( pbc_wait_dialog );
+
+		if (( pbc_in_progress || wps_authentication_in_progress || wps_allow_setup_ready ) && (wps_pbc_timeout_value >= PIN_INPUT_TIMEOUT) )
+		{
+			error_dialog = gtk_message_dialog_new ( GTK_WINDOW ( wps_dialog ),
+													GTK_DIALOG_MODAL,
+													GTK_MESSAGE_INFO,
+													GTK_BUTTONS_OK,
+													"PBC setup timed out in %d seconds",
+													PBC_INPUT_TIMEOUT );
+			gtk_dialog_run ( GTK_DIALOG ( error_dialog ) );
+			gtk_widget_destroy( error_dialog );
+			gtk_widget_hide ( error_dialog );
+		}
+		clear_in_progress_flags();
+		return_value = FALSE;
+	  }
+	  else {
+		return_value = TRUE;
+	  }
+	  return( return_value );
+}
+
+static gboolean
 wps_pin_timeout( gpointer user_data )
 {
 	  GtkWidget *error_dialog;
@@ -153,22 +205,22 @@ wps_pin_timeout( gpointer user_data )
 	  wps_pin_timeout_value += PIN_INPUT_TIMEOUT_STEP;
 	  if ( ! stop_progress_bar )
 	  {
-		gtk_progress_bar_set_fraction( wps_dialog_progressbar, (1.0 / PIN_INPUT_TIMEOUT) * (gdouble)wps_pin_timeout_value);	/* increse progress bar graphical 'bar' */
+		gtk_progress_bar_set_fraction( (GtkProgressBar *)wps_dialog_progressbar, (1.0 / PIN_INPUT_TIMEOUT) * (gdouble)wps_pin_timeout_value);	/* increse progress bar graphical 'bar' */
 		sprintf( progress_bar_text, "%03d/%03d sec.", wps_pin_timeout_value,PIN_INPUT_TIMEOUT );
-		gtk_progress_bar_set_text( wps_dialog_progressbar, progress_bar_text );
+		gtk_progress_bar_set_text( (GtkProgressBar *)wps_dialog_progressbar, progress_bar_text );
 	  }
-      
-//	  if ( wps_pin_timeout_value >= PIN_INPUT_TIMEOUT || stop_progress_bar )
-	  if ( wps_pin_timeout_value >= PIN_INPUT_TIMEOUT )
+
+	  if ( wps_pin_timeout_value >= PIN_INPUT_TIMEOUT || stop_progress_bar )
 	  {
 		hostapd_printf("%s: PIN timeout/Stop Request occurred", __func__ );
 		gtk_widget_destroy( pbc_info_dialog );
 		gtk_widget_destroy( pin_info_dialog );
 		gtk_widget_destroy( m2d_info_dialog );
 
-		gtk_widget_destroy( wps_dialog );
+//		gtk_widget_destroy( wps_dialog );
+		gtk_widget_hide( wps_dialog );
 
-		if ( pbc_in_progress || wps_authentication_in_progress || wps_allow_setup_ready )
+		if (  wps_authentication_in_progress  && (wps_pin_timeout_value >= PIN_INPUT_TIMEOUT) )
 		{
 			error_dialog = gtk_message_dialog_new ( GTK_WINDOW ( wps_dialog ),
 													GTK_DIALOG_MODAL,
@@ -212,7 +264,8 @@ begin_wps_dialog ( void )
 				hostapd_printf("%s: continue handshake: M2...M8", __func__ );
 
 				gtk_dialog_run ( GTK_DIALOG ( wps_dialog ) );
-				gtk_widget_show_all( wps_dialog );
+//				gtk_widget_show_all( wps_dialog );
+				gtk_widget_show( wps_dialog );
 //              gtk_widget_hide ( wps_dialog );
         }
         else
@@ -268,18 +321,21 @@ continue_wps_m2d_cb ( GUPnPDeviceProxy        *proxy,
                 return;
         }
 
-        g_assert ( wps_dialog_name_entry != NULL );
 		setup_time_wps = wps;	// gupnp_device_proxy_continue_wps needs this ...
 
 		if ( pbc_in_progress )
-		  m2d_info_dialog = gtk_message_dialog_new ( GTK_WINDOW ( wps_dialog ),
-												  GTK_DIALOG_DESTROY_WITH_PARENT,
-												  GTK_MESSAGE_INFO,
-												  GTK_BUTTONS_NONE,
-												  "WPS setup:\n"
-												  "PBC: phase 1:M2D successfully performed\n"
-												  "Waiting for phase 2 (M2...M8) to start ..." );
-		else
+		{
+		  init_pbc_dialog_fields();
+
+		  gtk_widget_show_all( pbc_wait_dialog );
+
+		  g_timeout_add_seconds( PBC_INPUT_TIMEOUT_STEP, wps_pbc_timeout, NULL );
+												  
+		  if ( user_data == (gpointer)1 )	/* wps_got_response() triggered this on case, PBC has already pushed, and wait is not necessary */
+			on_state_variable_changed_setup_ready( "TRUE" );
+		}
+		else /* method == GUPNP_DEVICE_WPS_METHOD_PIN */
+		{
 		  m2d_info_dialog = gtk_message_dialog_new ( GTK_WINDOW ( wps_dialog ),
 												  GTK_DIALOG_DESTROY_WITH_PARENT,
 												  GTK_MESSAGE_INFO,
@@ -288,19 +344,15 @@ continue_wps_m2d_cb ( GUPnPDeviceProxy        *proxy,
 												  "PIN: phase 1:M2D successfully performed\n"
 												  "Waiting for phase 2 (M2...M8) to start (timeout %d seconds) ...",
 												  PIN_INPUT_TIMEOUT );
-		g_signal_connect_swapped( m2d_info_dialog,
-								  "response",
-								  G_CALLBACK( gtk_widget_destroy ),
-								  m2d_info_dialog );
-		gtk_widget_show_all( m2d_info_dialog );
-
-		statusbar_update ( TRUE );
-
-		if ( ! pbc_in_progress )	// if PIN method ...
+		  g_signal_connect_swapped( m2d_info_dialog,
+									"response",
+									G_CALLBACK( gtk_widget_destroy ),
+									m2d_info_dialog );
+		  gtk_widget_show_all( m2d_info_dialog );
 		  begin_wps_dialog();
-		if ( user_data == (gpointer)1 )
-		  on_state_variable_changed_setup_ready( "TRUE" );
+		}
 
+		statusbar_update ( TRUE );	// ?????????????????????????
 }
 
 void
@@ -347,6 +399,8 @@ continue_wps_cb_phase2 ( GUPnPDeviceProxy    *proxy,
 
                 GtkWidget *info_dialog;
 
+				stop_progress_bar = TRUE;	// make next round stop timer increasing progress-bar
+
 				clear_in_progress_flags();
                 info_dialog = gtk_message_dialog_new ( GTK_WINDOW ( wps_dialog ),
                                                        GTK_DIALOG_MODAL,
@@ -359,6 +413,7 @@ continue_wps_cb_phase2 ( GUPnPDeviceProxy    *proxy,
                 gtk_dialog_run ( GTK_DIALOG ( info_dialog ) );
                 gtk_widget_destroy( info_dialog );
                 gtk_widget_hide ( wps_dialog );
+                gtk_widget_hide ( pbc_wait_dialog );
 
                 statusbar_update ( TRUE );
         }
@@ -407,6 +462,13 @@ on_state_variable_changed_setup_ready( char * variable_str_value)
 }
 
 void
+on_pbc_wait_cancel_button_clicked()
+{
+	stop_progress_bar = TRUE;	// make next round stop timer increasing progress-bar
+	g_warning("%s:",__func__);
+}
+
+void
 wps_pin_invocation( GUPnPDeviceProxyWps *	deviceProxyWps,
 					char *					pin_code )
 {
@@ -441,7 +503,7 @@ wps_pin_invocation( GUPnPDeviceProxyWps *	deviceProxyWps,
 		}
 		dev_pin = g_string_new( device_pin );	// pick up PIN feed in by User
 		
-        gtk_widget_hide ( wps_dialog );	// hide the dialog asking PIN
+        gtk_widget_hide_all ( wps_dialog );	// hide the dialog asking PIN
 //      gtk_widget_destroy( wps_dialog );
 
 		g_timeout_add_seconds( PHASE2_TIMOUT_TIME, wps_phase2_failed_timeout, NULL );
@@ -473,13 +535,10 @@ wps_pin_setup_begin ( void )
 			  method = GUPNP_DEVICE_WPS_METHOD_PIN;
 
 			  /* Device PIN must be added with this WPS setup method */
-	  //		GtkWidget *pin_info_dialog;
-
 
 			  pin_info_dialog = gtk_message_dialog_new ( GTK_WINDOW ( wps_dialog ),
 													  GTK_DIALOG_DESTROY_WITH_PARENT,
 													  GTK_MESSAGE_INFO,
-//													  GTK_BUTTONS_OK,
 													  GTK_BUTTONS_NONE,
 													  "Request for PIN generation sent.\n"
 													  "Waiting for device .." );
@@ -544,7 +603,7 @@ wps_pbc_setup_begin ( void )
 														GTK_MESSAGE_INFO,
 //														GTK_BUTTONS_OK,
 														GTK_BUTTONS_NONE,
-														"Request for Push-Button Configuration sent.\n"
+														"Request for Push-Button Configuration (PBC) sent.\n"
 														"Waiting for device .." );
 			g_signal_connect_swapped( pbc_info_dialog,
 									  "response",
@@ -614,8 +673,40 @@ init_wps_dialog ( GladeXML *glade_xml )
 }
 
 void
+init_pbc_dialog_fields ( void )
+{
+        gtk_progress_bar_set_fraction ( GTK_PROGRESS_BAR ( pbc_wait_progressbar ),0 );
+}
+
+void
+init_pbc_dialog( GladeXML *glade_xml )
+{
+  GtkWidget *pbc_wait_text;
+
+        /* Dialog box */
+        pbc_wait_dialog = glade_xml_get_widget ( glade_xml, "pbc-wait-dialog" );
+        g_assert ( pbc_wait_dialog != NULL );
+
+        /* Progressbar */
+        pbc_wait_progressbar = glade_xml_get_widget ( glade_xml, "pbc-wait-progressbar" );
+        g_assert ( pbc_wait_progressbar != NULL );
+
+		/* Entry */
+        pbc_wait_text = glade_xml_get_widget ( glade_xml, "pcb-wait-label" );
+        gtk_label_set_text ( GTK_LABEL ( pbc_wait_text ), "WPS setup:\n"
+														  "PBC: phase 1:M2D successfully performed\n"
+														  "Waiting for phase 2 (M2...M8) to start ..." );
+}
+
+void
 deinit_wps_dialog ( void )
 {
         gtk_widget_destroy( wps_dialog );
+}
+
+void
+deinit_pbc_wait_dialog ( void )
+{
+        gtk_widget_destroy( pbc_wait_dialog );
 }
 

@@ -151,6 +151,7 @@ init_ui (gint   *argc,
         init_statusbar (glade_xml);
         init_action_dialog (glade_xml);
         init_wps_dialog (glade_xml);
+        init_pbc_dialog (glade_xml);
         init_user_administration_dialog (glade_xml);
         init_user_login_setup_dialog (glade_xml);
         init_add_user_dialog (glade_xml);

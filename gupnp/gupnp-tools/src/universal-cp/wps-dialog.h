@@ -41,16 +41,15 @@ wps_pin_setup_begin();
 
 void
 wps_pbc_setup_begin();
-#if 0 // not used anymore
-void
-wps_dialog_push_button(GtkToggleButton *button,
-					   gpointer         user_data);
-#endif
+
 void
 init_wps_dialog_fields (void);
 
 void
 init_wps_dialog      (GladeXML *glade_xml);
+
+void
+init_pbc_dialog      (GladeXML *glade_xml);
 
 void
 deinit_wps_dialog    (void);
