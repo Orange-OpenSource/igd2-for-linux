@@ -790,29 +790,11 @@ Inspired by Intel Tools for UPnP.</property>
                 <property name="receives_default">False</property>
                 <signal name="clicked" handler="wps_pin_invocation"/>
                 <child>
-                  <widget class="GtkHBox" id="wps-dialog-hbox2">
+                  <widget class="GtkLabel" id="label1">
                     <property name="visible">True</property>
-                    <property name="border_width">12</property>
-                    <property name="spacing">12</property>
-                    <child>
-                      <widget class="GtkImage" id="wps_image">
-                        <property name="visible">True</property>
-                        <property name="stock">gtk-execute</property>
-                      </widget>
-                      <packing>
-                        <property name="position">0</property>
-                      </packing>
-                    </child>
-                    <child>
-                      <widget class="GtkLabel" id="wps_label">
-                        <property name="visible">True</property>
-                        <property name="label" translatable="yes">_Invoke</property>
-                        <property name="use_underline">True</property>
-                      </widget>
-                      <packing>
-                        <property name="position">1</property>
-                      </packing>
-                    </child>
+                    <property name="label" translatable="yes">      _Invoke      </property>
+                    <property name="use_underline">True</property>
+                    <property name="justify">center</property>
                   </widget>
                 </child>
               </widget>
@@ -841,11 +823,12 @@ Inspired by Intel Tools for UPnP.</property>
             <property name="layout_style">end</property>
             <child>
               <widget class="GtkButton" id="wps-dialog-close-button">
-                <property name="label">gtk-close</property>
+                <property name="label">gtk-cancel</property>
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="receives_default">False</property>
                 <property name="use_stock">True</property>
+                <signal name="clicked" handler="on_wps_dialog_cancel_button_clicked"/>
               </widget>
               <packing>
                 <property name="expand">False</property>

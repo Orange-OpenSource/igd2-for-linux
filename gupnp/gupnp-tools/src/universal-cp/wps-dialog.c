@@ -468,6 +468,12 @@ on_pbc_wait_cancel_button_clicked()
 }
 
 void
+on_wps_dialog_cancel_button_clicked()
+{
+	stop_progress_bar = TRUE;	// make next round stop timer increasing progress-bar
+}
+
+void
 wps_pin_invocation( GUPnPDeviceProxyWps *	deviceProxyWps,
 					char *					pin_code )
 {
