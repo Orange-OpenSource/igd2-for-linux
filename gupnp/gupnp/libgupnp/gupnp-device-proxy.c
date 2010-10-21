@@ -52,6 +52,8 @@
 #include	<hostap/hostapd_iface.h>
 #include	"./libgupnp/crypt.h"
 
+extern const char * wps_message_type_name( int type );
+
 typedef enum {  WPA_SM_R_PROCESS,         WPA_SM_R_SUCCESS,        WPA_SM_R_SUCCESSINFO,
                 WPA_SM_R_FAILURE,         WPA_SM_R_FAILUREEXIT,	   WPA_SM_R_PASS_HANDLING
 } wpa_registrar_sm_status; /* if WPA_SM_R_SUCCESS, SM can exit after sending any pending messages */
@@ -553,7 +555,7 @@ wps_got_response (GUPnPServiceProxy       *proxy,
 		hostapd_base64_decode (b64_msg_len, (const unsigned char *)out_message, &outlen, binary_message, b64_msg_len);
 
 		char cstr[ 30 ];
-		sprintf( cstr,"SSL-input:%s", hostapd_wps_message_type_name( binary_message[9] ));
+		sprintf( cstr,"SSL-input:%s", wps_message_type_name( binary_message[9] ));
 		hostapd_hexdump(cstr, binary_message, outlen);
 		
 /** Now we check the existence of ACK/NACK messages. With method checking (PIN/Push-Button) next steps after M2D are branched here. **/
@@ -936,7 +938,6 @@ gupnp_device_proxy_begin_wps (GUPnPDeviceProxy           *proxy,
     return wps;
 }
 
-//extern wps_message_monitor wps_info;
 /*********
  At now, situation is this :
   - M2 message has constructed in together with M2D message and HOSTAPD State Machine has turned into position,
