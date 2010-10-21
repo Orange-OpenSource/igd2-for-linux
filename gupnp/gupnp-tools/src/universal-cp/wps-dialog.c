@@ -465,7 +465,6 @@ void
 on_pbc_wait_cancel_button_clicked()
 {
 	stop_progress_bar = TRUE;	// make next round stop timer increasing progress-bar
-	g_warning("%s:",__func__);
 }
 
 void
