@@ -307,7 +307,8 @@ char *wpa_supplicant_get_pin(void)
 
 int wpa_supplicant_is_this_m3(const unsigned char* msg, int msg_len)
 {
-	if (msg_len > 9 &&
+	if (msg != NULL &&
+	    msg_len > 9 &&
 	    msg[5] == (ATTR_MSG_TYPE >> 8) &&
 	    msg[6] == (ATTR_MSG_TYPE & 0xFF) &&
 	    msg[9] == WPS_M3)
