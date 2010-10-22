@@ -1449,15 +1449,25 @@ int SendSetupMessage(struct Upnp_Action_Request *ca_event)
         }
         else if (gWpsIntroductionRunning && (memcmp(prev_CP_id, CP_id, id_len) == 0)) // continue started introduction
         {
-            // to bin
             size_t b64msglen = strlen(inmessage);
-            unsigned char *pBinMsg;
-            size_t outlen;
-            pBinMsg = wpa_supplicant_base64_decode((unsigned char *)inmessage, b64msglen, &outlen);
+            if (b64msglen > 0) {
+                // to bin
+                unsigned char *pBinMsg;
+                size_t outlen;
+                pBinMsg = wpa_supplicant_base64_decode((unsigned char *)inmessage, b64msglen, &outlen);
 
-            // update state machine
-            message_received(ca_event, 0, pBinMsg, outlen, &sm_status);
-            free(pBinMsg);
+                // update state machine
+                message_received(ca_event, 0, pBinMsg, outlen, &sm_status);
+                free(pBinMsg);
+            }
+            else
+            {
+                trace(1, "Failure in SendSetupMessage: InMessage must not be empty in "
+                      "the middle of WPS setup");
+                stopWPS();
+                result = 402;
+                addErrorData(ca_event, result, "Invalid Args");
+            }
         }
         else // must be busy doing someone else's introduction process 
         {
