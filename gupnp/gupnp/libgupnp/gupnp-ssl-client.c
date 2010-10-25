@@ -181,19 +181,12 @@ static void *ssl_client_send_and_receive_thread(void *data)
     while (retVal > 0) // if retVal is negative, then gnutls have returned error
     {
         memset(recv, '\0',len+1);// earlier receivings doesn't bother after this
-		if ( getenv( "CP_SSL_TIMEOUT" ))
-		{
-		  int i;
-		  for ( i = 0; i < 5; i ++ )	/* 5 * 2 seconds timeout */
-		  {
-			retVal = gnutls_record_recv ((*client)->session, recv, len);
-			if ( retVal != GNUTLS_E_AGAIN )
-			  break;
-		  }
-		}
-		else
+		int i;
+		for ( i = 0; i < 5; i ++ )	/* 5 * 2 seconds (default, if not overwrote by env "CP_SSL_TIMEOUT") timeout */
 		{
 		  retVal = gnutls_record_recv ((*client)->session, recv, len);
+		  if ( retVal != GNUTLS_E_AGAIN )
+			break;
 		}
 		if ( retVal <= 0 ) // 0 should mean EOF, peer has closed session?
 		{
@@ -571,26 +564,24 @@ ssl_create_client_session(  GUPnPSSLClient **client,
         return GUPNP_E_SOCKET_ERROR;
     }
 
-#if 0
+    /** TEST: Set xx seconds timeout for SSL send/receive */
+	#define	TOUT_ENV "CP_SSL_TIMEOUT"
+	struct timeval tv;
+    gint   tout;
 	gchar * envptr;
-	if ((envptr = getenv("CP_SSL_TIMEOUT")))
+	if ((envptr = getenv(TOUT_ENV)))
 	{
-	  gint	tout = atoi( envptr);
-	  
-      hostapd_printf("%s: SO_RCVTIMEO & SO_SNDTIMEO = %d", __func__, tout);
+      tout = atoi( envptr);
+      hostapd_printf("%s: SO_RCVTIMEO & SO_SNDTIMEO: %s = %d", __func__, TOUT_ENV, tout);
 
-	  /** TEST: Set xx seconds timeout for SSL send/receive */
-	  struct timeval tv;
-	  tv.tv_sec = tout;
-	  setsockopt( sd, SOL_SOCKET, SO_RCVTIMEO, (struct timeval *)&tv, sizeof(struct timeval));
-	  setsockopt( sd, SOL_SOCKET, SO_SNDTIMEO, (struct timeval *)&tv, sizeof(struct timeval));
 	}
-#else
-	  struct timeval tv;
-	  tv.tv_sec = 2;	// 2 seconds timeout
-	  setsockopt( sd, SOL_SOCKET, SO_RCVTIMEO, (struct timeval *)&tv, sizeof(struct timeval));
-	  setsockopt( sd, SOL_SOCKET, SO_SNDTIMEO, (struct timeval *)&tv, sizeof(struct timeval));
-#endif
+	else
+	{
+	  tout = 2;
+	}
+	tv.tv_sec = tout;
+	setsockopt( sd, SOL_SOCKET, SO_RCVTIMEO, (struct timeval *)&tv, sizeof(struct timeval));
+	setsockopt( sd, SOL_SOCKET, SO_SNDTIMEO, (struct timeval *)&tv, sizeof(struct timeval));
 
     retVal = connect (sd, (struct sockaddr*)&ip4addr, sizeof( struct sockaddr_in ));
     if (retVal < 0) {
