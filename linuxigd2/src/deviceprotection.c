@@ -77,7 +77,9 @@ static dp_device_info_t *dev_info;
 #define MAC_LEN               6
 #define HASH_LEN              32
 
-#define PSEUDO_RANDOM_UUID_TYPE 0x5
+#define PSEUDO_RANDOM_UUID_TYPE 0x4
+#define SHA1_HASH_UUID_TYPE     0x5
+
 typedef struct {
     uint32_t  time_low;
     uint16_t  time_mid;
@@ -453,7 +455,7 @@ void createUuidFromData(char **uuid_str, unsigned char **uuid_bin, size_t *uuid_
 
     /* put in the variant and version bits */
     uuid->time_hi_and_version &= 0x0FFF;
-    uuid->time_hi_and_version |= (PSEUDO_RANDOM_UUID_TYPE << 12);
+    uuid->time_hi_and_version |= (SHA1_HASH_UUID_TYPE << 12);
     uuid->clock_seq_hi_and_reserved &= 0x3F;
     uuid->clock_seq_hi_and_reserved |= 0x80;
 
