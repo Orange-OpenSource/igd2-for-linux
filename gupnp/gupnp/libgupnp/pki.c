@@ -903,10 +903,10 @@ int get_peer_certificate(gnutls_session_t session, unsigned char *data, int *dat
  * @param hashLen Length of input data. Or how much of it is used.
  * @return void
  */
-void createUuidFromData(char **uuid_str, unsigned char **uuid_bin, size_t *uuid_bin_size, unsigned char *hash, int hashLen)
-{
+void createUuidFromData(char **uuid_str, uint8_t **uuid_bin, size_t *uuid_bin_size, uint8_t *hash, int hashLen) {
     size_t uuid_size = sizeof(my_uuid_t);
     my_uuid_t *uuid = malloc(uuid_size);
+    int len_uuid_str = (2*hashLen)+4*strlen("-")+1; /* if (hashLen==16) => 37 */
 
     memcpy(uuid, hash, uuid_size);
     uuid->time_low = ntohl(uuid->time_low);
@@ -921,21 +921,26 @@ void createUuidFromData(char **uuid_str, unsigned char **uuid_bin, size_t *uuid_
 
     if (uuid_bin && uuid_bin_size)
     {
-        // copy uuid struct to uuid_bin
+        // copy hash to uuid_bin
         *uuid_bin = (unsigned char*)malloc(uuid_size);
-        memcpy(*uuid_bin, uuid, uuid_size);
+        memcpy(*uuid_bin, hash, hashLen);
+        // put in the variant and version bits
+        (*uuid_bin)[6] &= 0x0F;
+        (*uuid_bin)[6] |= (SHA1_HASH_UUID_TYPE << (12-8));
+        (*uuid_bin)[8] &= 0x3F;
+        (*uuid_bin)[8] |= 0x80;
         *uuid_bin_size = uuid_size;
     }
 
     if (uuid_str)
     {
-        *uuid_str = malloc(37*sizeof(char));
+        *uuid_str = malloc(len_uuid_str*sizeof(char));
         char tmp[3];
         int i;
-        memset(*uuid_str, '\0', 37);
+        memset(*uuid_str, '\0', len_uuid_str);
 
         // create string representation from binary
-        snprintf(*uuid_str, 37, "%8.8x-%4.4x-%4.4x-%2.2x%2.2x-", uuid->time_low, uuid->time_mid,
+        snprintf(*uuid_str, len_uuid_str, "%8.8x-%4.4x-%4.4x-%2.2x%2.2x-", uuid->time_low, uuid->time_mid,
                 uuid->time_hi_and_version, uuid->clock_seq_hi_and_reserved, uuid->clock_seq_low);
 
         for (i = 0; i < 6; i++)
