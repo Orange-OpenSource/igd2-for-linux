@@ -4,6 +4,11 @@
  * Contact: mika.saaranen@nokia.com
  * Developer(s): jaakko.pasanen@tieto.com, opensource@tieto.com
  *  
+ * This file is part of igd2-for-linux project
+ * Copyright © 2011 France Telecom.
+ * Contact: fabrice.fontaine@orange-ftgroup.com
+ * Developer(s): fabrice.fontaine@orange-ftgroup.com, rmenard.ext@orange-ftgroup.com
+ * 
  * This program is free software: you can redistribute it and/or modify 
  * it under the terms of the GNU General Public License as published by 
  * the Free Software Foundation, either version 2 of the License, or 
@@ -15,7 +20,8 @@
  * GNU General Public License for more details. 
  * 
  * You should have received a copy of the GNU General Public License 
- * along with this program. If not, see http://www.gnu.org/licenses/. 
+ * along with this program, see the /doc directory of this program. If 
+ * not, see http://www.gnu.org/licenses/. 
  * 
  */
 
@@ -32,6 +38,8 @@
 #include "gatedevice.h"
 #include "pmlist.h"
 #include "lanhostconfig.h"
+#include "wanipv6fw.h"
+#include "config.h"
 
 //Definitions for mapping expiration timer thread
 static ThreadPool gExpirationThreadPool;
@@ -40,7 +48,7 @@ static ThreadPoolJob gEventUpdateJob;
 static int gAutoDisconnectJobId = -1;
 
 // MUTEX for locking shared state variables whenver they are changed
-static ithread_mutex_t DevMutex = PTHREAD_MUTEX_INITIALIZER;
+ithread_mutex_t DevMutex = PTHREAD_MUTEX_INITIALIZER;
 
 // XML string definitions
 static const char xml_portmapEntry[] =
@@ -155,6 +163,30 @@ int StateTableInit(char *descDocUrl)
     return (ret);
 }
 
+void AcceptSubscriptionExtForIPv4AndIPv6(const char *DevID, const char *ServID,
+                                        IXML_Document *PropSet, Upnp_SID SubsId)
+{
+    if(deviceHandle)
+        UpnpAcceptSubscriptionExt(deviceHandle, DevID, ServID, PropSet, SubsId);
+    if(deviceHandleIPv6)
+        UpnpAcceptSubscriptionExt(deviceHandleIPv6, DevID, ServID, PropSet,
+                SubsId); 
+    if(deviceHandleIPv6UlaGua)
+        UpnpAcceptSubscriptionExt(deviceHandleIPv6UlaGua, DevID, ServID,
+                PropSet, SubsId); 
+}
+
+void NotifyExtForIPv4AndIPv6(const char *DevID, const char *ServID,
+                            IXML_Document *PropSet)
+{
+    if(deviceHandle)
+        UpnpNotifyExt(deviceHandle, DevID, ServID, PropSet);
+    if(deviceHandleIPv6)
+        UpnpNotifyExt(deviceHandleIPv6, DevID, ServID, PropSet);
+    if(deviceHandleIPv6UlaGua)
+        UpnpNotifyExt(deviceHandleIPv6UlaGua, DevID, ServID, PropSet);
+}
+
 /**
  * Handles subscription request for state variable notifications.
  *  
@@ -174,8 +206,8 @@ int HandleSubscriptionRequest(struct Upnp_Subscription_Request *sr_event)
         {
             trace(3, "Received request to subscribe to WANCommonIFC1");
             UpnpAddToPropertySet(&propSet, "PhysicalLinkStatus", "Up");
-            UpnpAcceptSubscriptionExt(deviceHandle, sr_event->UDN, sr_event->ServiceId,
-                                      propSet, sr_event->Sid);
+            AcceptSubscriptionExtForIPv4AndIPv6(sr_event->UDN, sr_event->ServiceId,
+                                                propSet, sr_event->Sid);
             ixmlDocument_free(propSet);
         }
     }
@@ -197,8 +229,8 @@ int HandleSubscriptionRequest(struct Upnp_Subscription_Request *sr_event)
             snprintf(tmp,11,"%d",PortMappingNumberOfEntries);
             UpnpAddToPropertySet(&propSet, "PortMappingNumberOfEntries",tmp);
 
-            UpnpAcceptSubscriptionExt(deviceHandle, sr_event->UDN, sr_event->ServiceId,
-                                      propSet, sr_event->Sid);
+            AcceptSubscriptionExtForIPv4AndIPv6(sr_event->UDN, sr_event->ServiceId,
+                                                propSet, sr_event->Sid);
             ixmlDocument_free(propSet);
         }
         // LAN Host Config Management Notifications
@@ -206,8 +238,8 @@ int HandleSubscriptionRequest(struct Upnp_Subscription_Request *sr_event)
         {
             trace(3, "Received request to subscribe to LANHostConfig1");
             // No state variable requires eventing, is next step needed?
-            UpnpAcceptSubscriptionExt(deviceHandle, sr_event->UDN, sr_event->ServiceId,
-                                      propSet, sr_event->Sid);
+            AcceptSubscriptionExtForIPv4AndIPv6(sr_event->UDN, sr_event->ServiceId,
+                                                propSet, sr_event->Sid);
             ixmlDocument_free(propSet);
         }
         else if (strcmp(sr_event->ServiceId, "urn:upnp-org:serviceId:WANEthLinkC1") == 0)
@@ -215,8 +247,19 @@ int HandleSubscriptionRequest(struct Upnp_Subscription_Request *sr_event)
             trace(3, "Received request to subscribe to WANEthLinkC1");
             setEthernetLinkStatus(EthernetLinkStatus, g_vars.extInterfaceName);
             UpnpAddToPropertySet(&propSet, "EthernetLinkStatus", EthernetLinkStatus);
-            UpnpAcceptSubscriptionExt(deviceHandle, sr_event->UDN, sr_event->ServiceId,
-                                      propSet, sr_event->Sid);
+            AcceptSubscriptionExtForIPv4AndIPv6(sr_event->UDN, sr_event->ServiceId,
+                                                propSet, sr_event->Sid);
+            ixmlDocument_free(propSet);
+        }
+        else if (strcmp(sr_event->ServiceId, "urn:upnp-org:serviceId:WANIPv6FwCtrl1") == 0)
+        {
+            trace(3, "Received request to subscribe to WANIPv6FwCtrl1 UDN : %s, SID : %s", sr_event->UDN, sr_event->Sid);
+            snprintf(FirewallEnabled,2,"%i",g_vars.ipv6firewallEnabled);
+            snprintf(InboundPinholeAllowed,2,"%i",g_vars.ipv6inboundPinholeAllowed);
+            UpnpAddToPropertySet(&propSet, "FirewallEnabled", FirewallEnabled);
+            UpnpAddToPropertySet(&propSet, "InboundPinholeAllowed", InboundPinholeAllowed);
+            AcceptSubscriptionExtForIPv4AndIPv6(sr_event->UDN, sr_event->ServiceId,
+                                                propSet, sr_event->Sid);
             ixmlDocument_free(propSet);
         }
     }
@@ -266,13 +309,33 @@ int HandleActionRequest(struct Upnp_Action_Request *ca_event)
         if (strcmp(ca_event->ServiceID,"urn:upnp-org:serviceId:WANCommonIFC1") == 0)
         {
             if (strcmp(ca_event->ActionName,"GetTotalBytesSent") == 0)
-                result = GetTotal(ca_event, STATS_TX_BYTES);
+            {
+                if(GetNbSoapParameters(ca_event->ActionRequest, "u:GetTotalBytesSent") == 0) 
+		    result = GetTotal(ca_event, STATS_TX_BYTES);
+                else
+                    addErrorData(ca_event, UPNP_SOAP_E_INVALID_ARGS, "Invalid Args");
+            }
             else if (strcmp(ca_event->ActionName,"GetTotalBytesReceived") == 0)
-                result = GetTotal(ca_event, STATS_RX_BYTES);
+            {
+                if(GetNbSoapParameters(ca_event->ActionRequest, "u:GetTotalBytesReceived") == 0)
+                    result = GetTotal(ca_event, STATS_RX_BYTES);
+                else
+                    addErrorData(ca_event, UPNP_SOAP_E_INVALID_ARGS, "Invalid Args");
+            }
             else if (strcmp(ca_event->ActionName,"GetTotalPacketsSent") == 0)
-                result = GetTotal(ca_event, STATS_TX_PACKETS);
+            {
+                if(GetNbSoapParameters(ca_event->ActionRequest, "u:GetTotalPacketsSent") == 0)
+                    result = GetTotal(ca_event, STATS_TX_PACKETS);
+                else
+                    addErrorData(ca_event, UPNP_SOAP_E_INVALID_ARGS, "Invalid Args"); 
+            }
             else if (strcmp(ca_event->ActionName,"GetTotalPacketsReceived") == 0)
-                result = GetTotal(ca_event, STATS_RX_PACKETS);
+            {
+                if(GetNbSoapParameters(ca_event->ActionRequest, "u:GetTotalPacketsReceived") == 0)
+                    result = GetTotal(ca_event, STATS_RX_PACKETS);
+                else
+                    addErrorData(ca_event, UPNP_SOAP_E_INVALID_ARGS, "Invalid Args");
+            }
             else if (strcmp(ca_event->ActionName,"GetCommonLinkProperties") == 0)
                 result = GetCommonLinkProperties(ca_event);
             else
@@ -386,6 +449,31 @@ int HandleActionRequest(struct Upnp_Action_Request *ca_event)
                 result = InvalidAction(ca_event);
             }
         }
+        /**
+         * Added for WANIPv6FirewallControl
+         */
+        else if (strcmp(ca_event->ServiceID,"urn:upnp-org:serviceId:WANIPv6FwCtrl1") == 0)
+        {
+            if (strcmp(ca_event->ActionName,"GetFirewallStatus") == 0)
+                result = upnp_wanipv6_getFirewallStatus(ca_event);
+            else if (strcmp(ca_event->ActionName,"GetOutboundPinholeTimeout") == 0)
+                result = upnp_wanipv6_getOutboundPinholeTimeOut(ca_event);
+            else if (strcmp(ca_event->ActionName,"AddPinhole") == 0)
+                result = upnp_wanipv6_addPinhole(ca_event);
+            else if (strcmp(ca_event->ActionName,"UpdatePinhole") == 0)
+                result = upnp_wanipv6_updatePinhole(ca_event);
+            else if (strcmp(ca_event->ActionName,"DeletePinhole") == 0)
+                result = upnp_wanipv6_deletePinhole(ca_event);
+            else if (strcmp(ca_event->ActionName,"GetPinholePackets") == 0)
+                result = upnp_wanipv6_getPinholePackets(ca_event);
+            else if (strcmp(ca_event->ActionName,"CheckPinholeWorking") == 0)
+                result = upnp_wanipv6_checkPinholeWorking(ca_event);
+            else
+            {
+                trace(1, "Invalid Action Request : %s",ca_event->ActionName);
+                result = InvalidAction(ca_event);
+            }
+        }
     }
 
     ithread_mutex_unlock(&DevMutex);
@@ -422,6 +510,13 @@ int GetCommonLinkProperties(struct Upnp_Action_Request *ca_event)
 {
     char resultStr[RESULT_LEN];
     IXML_Document *result;
+
+    if(GetNbSoapParameters(ca_event->ActionRequest, "u:GetCommonLinkProperties") != 0)
+    {
+        trace(1, "GetCommonLinkProperties invalid number of parameters");
+        addErrorData(ca_event, UPNP_SOAP_E_INVALID_ARGS, "Invalid Args");
+        return ca_event->ErrCode;
+    }
 
     ca_event->ErrCode = UPNP_E_SUCCESS;
     snprintf(resultStr, RESULT_LEN,
@@ -519,6 +614,13 @@ int GetStatusInfo(struct Upnp_Action_Request *ca_event)
     char resultStr[RESULT_LEN];
     IXML_Document *result = NULL;
 
+    if(GetNbSoapParameters(ca_event->ActionRequest, "u:GetStatusInfo") != 0)
+    {
+        trace(1, "GetStatusInfo invalid number of parameters");
+        addErrorData(ca_event, UPNP_SOAP_E_INVALID_ARGS, "Invalid Args");
+        return ca_event->ErrCode;
+    }
+
     // If connection is not connected, uptime value is 0
     if (strcmp(ConnectionStatus, "Connected") == 0)
         uptime = (time(NULL) - startup_time);
@@ -526,12 +628,12 @@ int GetStatusInfo(struct Upnp_Action_Request *ca_event)
         uptime = 0;
 
     snprintf(resultStr, RESULT_LEN,
-             "<u:GetStatusInfoResponse xmlns:u=\"urn:schemas-upnp-org:service:GetStatusInfo:1\">\n"
+             "<u:GetStatusInfoResponse xmlns:u=\"%s\">\n"
              "<NewConnectionStatus>%s</NewConnectionStatus>\n"
              "<NewLastConnectionError>ERROR_NONE</NewLastConnectionError>\n"
              "<NewUptime>%ld</NewUptime>\n"
              "</u:GetStatusInfoResponse>",
-             ConnectionStatus, uptime);
+             WANIP_SERVICE_TYPE, ConnectionStatus, uptime);
 
     // Create a IXML_Document from resultStr and return with ca_event
     if ((result = ixmlParseBuffer(resultStr)) != NULL)
@@ -563,11 +665,17 @@ int GetConnectionTypeInfo (struct Upnp_Action_Request *ca_event)
     char resultStr[RESULT_LEN];
     IXML_Document *result;
 
+    if(GetNbSoapParameters(ca_event->ActionRequest, "u:GetConnectionTypeInfo") != 0) {
+        trace(1, "GetConnectionTypeInfo invalid number of parameters");
+        addErrorData(ca_event, UPNP_SOAP_E_INVALID_ARGS, "Invalid Args");
+        return ca_event->ErrCode;
+    }
+
     snprintf(resultStr, RESULT_LEN,
-             "<u:GetConnectionTypeInfoResponse xmlns:u=\"urn:schemas-upnp-org:service:WANIPConnection:2\">\n"
+             "<u:GetConnectionTypeInfoResponse xmlns:u=\"%s\">\n"
              "<NewConnectionType>IP_Routed</NewConnectionType>\n"
              "<NewPossibleConnectionTypes>IP_Routed</NewPossibleConnectionTypes>"
-             "</u:GetConnectionTypeInfoResponse>");
+             "</u:GetConnectionTypeInfoResponse>", WANIP_SERVICE_TYPE);
 
     // Create a IXML_Document from resultStr and return with ca_event
     if ((result = ixmlParseBuffer(resultStr)) != NULL)
@@ -598,10 +706,16 @@ int GetNATRSIPStatus(struct Upnp_Action_Request *ca_event)
     char resultStr[RESULT_LEN];
     IXML_Document *result;
 
-    snprintf(resultStr, RESULT_LEN, "<u:GetNATRSIPStatusResponse xmlns:u=\"urn:schemas-upnp-org:service:WANIPConnection:2\">\n"
+    if(GetNbSoapParameters(ca_event->ActionRequest, "u:GetNATRSIPStatus") != 0) {
+        trace(1, "GetNATRSIPStatus invalid number of parameters");
+        addErrorData(ca_event, UPNP_SOAP_E_INVALID_ARGS, "Invalid Args");
+        return ca_event->ErrCode;
+    }
+
+    snprintf(resultStr, RESULT_LEN, "<u:GetNATRSIPStatusResponse xmlns:u=\"%s\">\n"
              "<NewRSIPAvailable>0</NewRSIPAvailable>\n"
              "<NewNATEnabled>1</NewNATEnabled>\n"
-             "</u:GetNATRSIPStatusResponse>");
+             "</u:GetNATRSIPStatusResponse>", WANIP_SERVICE_TYPE);
 
     // Create a IXML_Document from resultStr and return with ca_event
     if ((result = ixmlParseBuffer(resultStr)) != NULL)
@@ -631,6 +745,13 @@ int GetNATRSIPStatus(struct Upnp_Action_Request *ca_event)
  */
 int SetConnectionType(struct Upnp_Action_Request *ca_event)
 {
+    if(GetNbSoapParameters(ca_event->ActionRequest, "u:SetConnectionType") != 1)
+    {
+        trace(1, "SetConnectionType invalid number of parameters");
+        addErrorData(ca_event, UPNP_SOAP_E_INVALID_ARGS, "Invalid Args");
+        return ca_event->ErrCode;
+    }
+
     ca_event->ErrCode = 731;
     strcpy(ca_event->ErrStr, "ReadOnly");
     ca_event->ActionResult = NULL;
@@ -652,7 +773,8 @@ int SetAutoDisconnectTime(struct Upnp_Action_Request *ca_event)
     long int delay;
     int result = 0;
 
-    if ((delay_str = GetFirstDocumentItem(ca_event->ActionRequest, "NewAutoDisconnectTime")))
+    if ((delay_str = GetFirstDocumentItem(ca_event->ActionRequest, "NewAutoDisconnectTime")) &&
+            (GetNbSoapParameters(ca_event->ActionRequest, "u:SetAutoDisconnectTime")==1))
     {
         delay = atol(delay_str);
         if (delay < 0)
@@ -708,7 +830,8 @@ int SetIdleDisconnectTime(struct Upnp_Action_Request *ca_event)
     long int delay;
     int result = 0;
 
-    if ((delay_str = GetFirstDocumentItem(ca_event->ActionRequest, "NewIdleDisconnectTime")))
+    if ((delay_str = GetFirstDocumentItem(ca_event->ActionRequest, "NewIdleDisconnectTime")) &&
+            (GetNbSoapParameters(ca_event->ActionRequest, "u:SetIdleDisconnectTime")==1))
     {
         delay = atol(delay_str);
         if (delay < 0)
@@ -756,7 +879,8 @@ int SetWarnDisconnectDelay(struct Upnp_Action_Request *ca_event)
     long int delay;
     int result = 0;
 
-    if ((delay_str = GetFirstDocumentItem(ca_event->ActionRequest, "NewWarnDisconnectDelay")))
+    if ((delay_str = GetFirstDocumentItem(ca_event->ActionRequest, "NewWarnDisconnectDelay")) &&
+           (GetNbSoapParameters(ca_event->ActionRequest, "u:SetWarnDisconnectDelay")==1))
     {
         delay = atol(delay_str);
         if (delay < 0)
@@ -803,6 +927,13 @@ int GetAutoDisconnectTime(struct Upnp_Action_Request *ca_event)
     char tmp[11];
     snprintf(tmp,11,"%ld",AutoDisconnectTime);
 
+    if(GetNbSoapParameters(ca_event->ActionRequest, "u:GetAutoDisconnectTime") != 0)
+    {
+        trace(1, "GetAutoDisconnectTime invalid number of parameters");
+        addErrorData(ca_event, UPNP_SOAP_E_INVALID_ARGS, "Invalid Args");
+        return ca_event->ErrCode;
+    }
+
     ActionResult = UpnpMakeActionResponse(ca_event->ActionName, WANIP_SERVICE_TYPE,
                                           1,
                                           "NewAutoDisconnectTime", tmp);
@@ -833,6 +964,13 @@ int GetIdleDisconnectTime(struct Upnp_Action_Request *ca_event)
     char tmp[11];
     snprintf(tmp,11,"%ld",IdleDisconnectTime);
 
+    if(GetNbSoapParameters(ca_event->ActionRequest, "u:GetIdleDisconnectTime") != 0)
+    {
+        trace(1, "GetIdleDisconnectTime invalid number of parameters");
+        addErrorData(ca_event, UPNP_SOAP_E_INVALID_ARGS, "Invalid Args");
+        return ca_event->ErrCode;
+    }
+
     ActionResult = UpnpMakeActionResponse(ca_event->ActionName, WANIP_SERVICE_TYPE,
                                           1,
                                           "NewIdleDisconnectTime", tmp);
@@ -862,6 +1000,13 @@ int GetWarnDisconnectDelay(struct Upnp_Action_Request *ca_event)
     IXML_Document *ActionResult = NULL;
     char tmp[11];
     snprintf(tmp,11,"%ld",WarnDisconnectDelay);
+
+    if(GetNbSoapParameters(ca_event->ActionRequest, "u:GetWarnDisconnectDelay") != 0)
+    {
+        trace(1, "GetWarnDisconnectDelay invalid number of parameters");
+        addErrorData(ca_event, UPNP_SOAP_E_INVALID_ARGS, "Invalid Args");
+        return ca_event->ErrCode;
+    }
 
     ActionResult = UpnpMakeActionResponse(ca_event->ActionName, WANIP_SERVICE_TYPE,
                                           1,
@@ -894,6 +1039,13 @@ int RequestConnection(struct Upnp_Action_Request *ca_event)
 {
     IXML_Document *propSet = NULL;
     int result = 0;
+
+    if(GetNbSoapParameters(ca_event->ActionRequest, "u:RequestConnection") != 0)
+    {
+        trace(1, "RequestConnection invalid number of parameters");
+        addErrorData(ca_event, UPNP_SOAP_E_INVALID_ARGS, "Invalid Args");
+        return ca_event->ErrCode;
+    }
 
     // create result document for succesfull cases. addErrorData overwrites this if no success
     IXML_Document *ActionResult = NULL;
@@ -936,7 +1088,7 @@ int RequestConnection(struct Upnp_Action_Request *ca_event)
         trace(1, "%s: Connection of %s is pending disconnect. Setting state back to Connected.",ca_event->ActionName, g_vars.extInterfaceName);
         strcpy(ConnectionStatus, "Connected");
         UpnpAddToPropertySet(&propSet, "ConnectionStatus", ConnectionStatus);
-        UpnpNotifyExt(deviceHandle, ca_event->DevUDN, ca_event->ServiceID, propSet);
+        NotifyExtForIPv4AndIPv6(ca_event->DevUDN, ca_event->ServiceID, propSet);
         ixmlDocument_free(propSet);
         propSet = NULL;
 
@@ -947,7 +1099,7 @@ int RequestConnection(struct Upnp_Action_Request *ca_event)
     {
         strcpy(ConnectionStatus, "Connecting");
         UpnpAddToPropertySet(&propSet, "ConnectionStatus", ConnectionStatus);
-        UpnpNotifyExt(deviceHandle, ca_event->DevUDN, ca_event->ServiceID, propSet);
+        NotifyExtForIPv4AndIPv6(ca_event->DevUDN, ca_event->ServiceID, propSet);
         ixmlDocument_free(propSet);
         propSet = NULL;
         trace(2, "RequestConnection received ... Connecting..");
@@ -965,7 +1117,7 @@ int RequestConnection(struct Upnp_Action_Request *ca_event)
         // Build DOM Document with state variable connectionstatus and event it
         UpnpAddToPropertySet(&propSet, "ConnectionStatus", ConnectionStatus);
         // Send off notifications of state change
-        UpnpNotifyExt(deviceHandle, ca_event->DevUDN, ca_event->ServiceID, propSet);
+        NotifyExtForIPv4AndIPv6(ca_event->DevUDN, ca_event->ServiceID, propSet);
 
         // if new status is connected, we create autodisconnecttimer and set startup time for Uptime statevariable
         if (strcmp(ConnectionStatus, "Connected") == 0)
@@ -992,6 +1144,13 @@ int RequestConnection(struct Upnp_Action_Request *ca_event)
 int ForceTermination(struct Upnp_Action_Request *ca_event)
 {
     int result = 0;
+
+    if(GetNbSoapParameters(ca_event->ActionRequest, "u:ForceTermination") != 0)
+    {
+        trace(1, "ForceTermination invalid number of parameters");
+        addErrorData(ca_event, UPNP_SOAP_E_INVALID_ARGS, "Invalid Args");
+        return ca_event->ErrCode;
+    }
 
     if (strcmp(ConnectionStatus,"Disconnecting") == 0)
     {
@@ -1021,6 +1180,13 @@ int RequestTermination(struct Upnp_Action_Request *ca_event)
 {
     int result = 0;
     long int delay = WarnDisconnectDelay;
+
+    if(GetNbSoapParameters(ca_event->ActionRequest, "u:RequestTermination") != 0)
+    {
+        trace(1, "RequestTermination invalid number of parameters");
+        addErrorData(ca_event, UPNP_SOAP_E_INVALID_ARGS, "Invalid Args");
+        return ca_event->ErrCode;
+    }
 
     if (strcmp(ConnectionStatus,"Disconnecting") == 0 || strcmp(ConnectionStatus,"PendingDisconnect") == 0) 
     {
@@ -1072,6 +1238,10 @@ int AddPortMapping(struct Upnp_Action_Request *ca_event)
             && (int_client = GetFirstDocumentItem(ca_event->ActionRequest, "NewInternalClient") )
             && (long_duration = GetFirstDocumentItem(ca_event->ActionRequest, "NewLeaseDuration") )
             && (bool_enabled = GetFirstDocumentItem(ca_event->ActionRequest, "NewEnabled") )
+            && (isStringInteger(ext_port) )
+            && (isStringInteger(int_port) )
+            && (isStringInteger(long_duration) )
+            && (GetNbSoapParameters(ca_event->ActionRequest, "u:AddPortMapping") == 8 )
             && (desc = GetFirstDocumentItem(ca_event->ActionRequest, "NewPortMappingDescription") ) )
     {
         if (((strcmp(proto, "TCP") != 0) && (strcmp(proto, "UDP") != 0))
@@ -1108,6 +1278,12 @@ unless control port is authorized. external_port:%s, internal_port:%s internal_c
             trace(1, "Wild cards not permitted in internal_client:%s", int_client);
             result = 715;
             addErrorData(ca_event, result, "WildCardNotPermittedInSrcIp");
+        }
+        else if (checkForWildCard(ext_port)) // Not sure if this is really needed
+        {
+            trace(1, "Wild cards not permitted in external_port:%s", ext_port);
+            result = 716;
+            addErrorData(ca_event, result, "WildCardNotPermittedInExtPort");
         }
         else if (checkForWildCard(int_port)) 
         {
@@ -1208,7 +1384,11 @@ int AddAnyPortMapping(struct Upnp_Action_Request *ca_event)
             && (int_client = GetFirstDocumentItem(ca_event->ActionRequest, "NewInternalClient") )
             && (bool_enabled = GetFirstDocumentItem(ca_event->ActionRequest, "NewEnabled") )
             && (desc = GetFirstDocumentItem(ca_event->ActionRequest, "NewPortMappingDescription") )
-            && (long_duration = GetFirstDocumentItem(ca_event->ActionRequest, "NewLeaseDuration") ) )
+            && (long_duration = GetFirstDocumentItem(ca_event->ActionRequest, "NewLeaseDuration") )
+            && (isStringInteger(ext_port) )
+            && (isStringInteger(int_port) )
+            && (isStringInteger(long_duration) )
+            && (GetNbSoapParameters(ca_event->ActionRequest, "u:AddAnyPortMapping") == 8) )
     {
         if (((strcmp(proto, "TCP") != 0) && (strcmp(proto, "UDP") != 0))
             || (atoi(ext_port) < 0)
@@ -1244,6 +1424,12 @@ unless control port is authorized. external_port:%s, internal_port:%s internal_c
             trace(1, "Wild cards not permitted in internal_client:%s", int_client);
             result = 715;
             addErrorData(ca_event, result, "WildCardNotPermittedInSrcIp");
+        }
+        else if (checkForWildCard(ext_port))
+        {
+            trace(1, "Wild cards not permitted in external_port:%s", ext_port);
+            result = 716;
+            addErrorData(ca_event, result, "WildCardNotPermittedInExtPort");
         }
         else if (checkForWildCard(int_port)) 
         {
@@ -1320,11 +1506,8 @@ unless control port is authorized. external_port:%s, internal_port:%s internal_c
         // Port mapping has been done for external port that control point wanted
         if (next_free_port == 0) next_free_port = atoi(ext_port);
 
-        // If wildcard ext_port (0) is supported, return value of NewReservedPort MUST be 0
-        if (checkForWildCard(ext_port)) next_free_port = 0;
-
         snprintf(resultStr, RESULT_LEN, "<u:%sResponse xmlns:u=\"%s\">\n%s%d%s\n</u:%sResponse>",
-                    ca_event->ActionName, "urn:schemas-upnp-org:service:WANIPConnection:2", "<NewReservedPort>",
+                    ca_event->ActionName, WANIP_SERVICE_TYPE, "<NewReservedPort>",
                     next_free_port, "</NewReservedPort>", ca_event->ActionName);
         ca_event->ActionResult = ixmlParseBuffer(resultStr);
     }
@@ -1332,6 +1515,7 @@ unless control port is authorized. external_port:%s, internal_port:%s internal_c
     free(remote_host);
     free(ext_port);
     free(proto);
+    free(int_port);
     free(int_client);
     free(bool_enabled);
     free(desc);
@@ -1356,7 +1540,9 @@ int GetGenericPortMappingEntry(struct Upnp_Action_Request *ca_event)
     char resultStr[RESULT_LEN];
     int action_succeeded = 0;
 
-    if ((mapindex = GetFirstDocumentItem(ca_event->ActionRequest, "NewPortMappingIndex")))
+    if ((mapindex = GetFirstDocumentItem(ca_event->ActionRequest, "NewPortMappingIndex"))
+            && (GetNbSoapParameters(ca_event->ActionRequest, "u:GetGenericPortMappingEntry") == 1)
+            && (isStringInteger(mapindex)) )
     {
         temp = pmlist_FindByIndex(atoi(mapindex));
         // if portmapping is found, we must check if CP is authorized OR if internalclient value of portmapping matches IP of CP
@@ -1394,7 +1580,7 @@ int GetGenericPortMappingEntry(struct Upnp_Action_Request *ca_event)
         {
             ca_event->ErrCode = UPNP_E_SUCCESS;
             snprintf(resultStr, RESULT_LEN, "<u:%sResponse xmlns:u=\"%s\">\n%s\n</u:%sResponse>", ca_event->ActionName,
-                     "urn:schemas-upnp-org:service:WANIPConnection:2",result_param, ca_event->ActionName);
+                     WANIP_SERVICE_TYPE,result_param, ca_event->ActionName);
             ca_event->ActionResult = ixmlParseBuffer(resultStr);
             trace(3, ixmlPrintDocument(ca_event->ActionResult));
         }
@@ -1431,6 +1617,8 @@ int GetSpecificPortMappingEntry(struct Upnp_Action_Request *ca_event)
 
     if ((remote_host = GetFirstDocumentItem(ca_event->ActionRequest, "NewRemoteHost")) &&
             (ext_port = GetFirstDocumentItem(ca_event->ActionRequest, "NewExternalPort")) &&
+            (GetNbSoapParameters(ca_event->ActionRequest, "u:GetSpecificPortMappingEntry")==3) &&
+            (isStringInteger(ext_port)) &&
             (proto = GetFirstDocumentItem(ca_event->ActionRequest,"NewProtocol")) )
     {
         //check if authorized
@@ -1487,7 +1675,7 @@ int GetSpecificPortMappingEntry(struct Upnp_Action_Request *ca_event)
         {
             ca_event->ErrCode = UPNP_E_SUCCESS;
             snprintf(resultStr, RESULT_LEN, "<u:%sResponse xmlns:u=\"%s\">\n%s\n</u:%sResponse>", ca_event->ActionName,
-                     "urn:schemas-upnp-org:service:WANIPConnection:2",result_param, ca_event->ActionName);
+                     WANIP_SERVICE_TYPE,result_param, ca_event->ActionName);
             ca_event->ActionResult = ixmlParseBuffer(resultStr);
         }
     }
@@ -1496,6 +1684,10 @@ int GetSpecificPortMappingEntry(struct Upnp_Action_Request *ca_event)
         trace(1, "Failure in GetSpecificPortMappingEntry: Invalid Args %s", remote_host);
         addErrorData(ca_event, 402, "Invalid Args");
     }
+
+    free(remote_host);
+    free(ext_port);
+    free(proto);
 
     return (ca_event->ErrCode);
 }
@@ -1513,11 +1705,18 @@ int GetExternalIPAddress(struct Upnp_Action_Request *ca_event)
     char resultStr[RESULT_LEN];
     IXML_Document *result = NULL;
 
+    if(GetNbSoapParameters(ca_event->ActionRequest, "u:GetExternalIPAddress") != 0)
+    {
+        trace(1, "Failure in GetExternalIPAddress: Invalid Args");
+        addErrorData(ca_event, UPNP_SOAP_E_INVALID_ARGS, "Invalid Args");
+        return ca_event->ErrCode;
+    }
+
     ca_event->ErrCode = UPNP_E_SUCCESS;
     GetIpAddressStr(ExternalIPAddress, g_vars.extInterfaceName);
-    snprintf(resultStr, RESULT_LEN, "<u:GetExternalIPAddressResponse xmlns:u=\"urn:schemas-upnp-org:service:WANIPConnection:2\">\n"
+    snprintf(resultStr, RESULT_LEN, "<u:GetExternalIPAddressResponse xmlns:u=\"%s\">\n"
              "<NewExternalIPAddress>%s</NewExternalIPAddress>\n"
-             "</u:GetExternalIPAddressResponse>", ExternalIPAddress);
+             "</u:GetExternalIPAddressResponse>", WANIP_SERVICE_TYPE, ExternalIPAddress);
 
     // Create a IXML_Document from resultStr and return with ca_event
     if ((result = ixmlParseBuffer(resultStr)) != NULL)
@@ -1558,6 +1757,8 @@ int DeletePortMapping(struct Upnp_Action_Request *ca_event)
 
     if ((remote_host = GetFirstDocumentItem(ca_event->ActionRequest, "NewRemoteHost")) &&
             (ext_port = GetFirstDocumentItem(ca_event->ActionRequest, "NewExternalPort")) &&
+            (GetNbSoapParameters(ca_event->ActionRequest, "u:DeletePortMapping")==3) &&
+            (isStringInteger(ext_port)) &&
             (proto = GetFirstDocumentItem(ca_event->ActionRequest, "NewProtocol")) )
     {
         if (((strcmp(proto, "TCP") != 0) && (strcmp(proto, "UDP") != 0)) || 
@@ -1604,7 +1805,7 @@ int DeletePortMapping(struct Upnp_Action_Request *ca_event)
                 UpnpAddToPropertySet(&propSet,"PortMappingNumberOfEntries", num);
                 snprintf(tmp,11,"%ld",++SystemUpdateID);
                 UpnpAddToPropertySet(&propSet,"SystemUpdateID", tmp);
-                UpnpNotifyExt(deviceHandle, ca_event->DevUDN,ca_event->ServiceID,propSet);
+                NotifyExtForIPv4AndIPv6(ca_event->DevUDN, ca_event->ServiceID, propSet);
                 ixmlDocument_free(propSet);
                 action_succeeded = 1;
             }
@@ -1636,7 +1837,7 @@ int DeletePortMapping(struct Upnp_Action_Request *ca_event)
     {
         ca_event->ErrCode = UPNP_E_SUCCESS;
         snprintf(resultStr, RESULT_LEN, "<u:%sResponse xmlns:u=\"%s\">\n%s\n</u:%sResponse>",
-                 ca_event->ActionName, "urn:schemas-upnp-org:service:WANIPConnection:2", "", ca_event->ActionName);
+                 ca_event->ActionName, WANIP_SERVICE_TYPE, "", ca_event->ActionName);
         ca_event->ActionResult = ixmlParseBuffer(resultStr);
     }
 
@@ -1682,6 +1883,9 @@ int DeletePortMappingRange(struct Upnp_Action_Request *ca_event)
     if ((start_port = GetFirstDocumentItem(ca_event->ActionRequest, "NewStartPort")) &&
             (end_port = GetFirstDocumentItem(ca_event->ActionRequest, "NewEndPort")) &&
             (proto = GetFirstDocumentItem(ca_event->ActionRequest, "NewProtocol")) &&
+            (GetNbSoapParameters(ca_event->ActionRequest, "u:DeletePortMappingRange") == 4) &&
+            (isStringInteger(start_port)) &&
+            (isStringInteger(end_port)) &&
             (bool_manage = GetFirstDocumentItem(ca_event->ActionRequest, "NewManage")) )
     {
         //check if authorized
@@ -1751,7 +1955,7 @@ int DeletePortMappingRange(struct Upnp_Action_Request *ca_event)
                 UpnpAddToPropertySet(&propSet,"PortMappingNumberOfEntries", tmp);
                 snprintf(tmp,11,"%ld",SystemUpdateID);
                 UpnpAddToPropertySet(&propSet,"SystemUpdateID", tmp);
-                UpnpNotifyExt(deviceHandle, ca_event->DevUDN,ca_event->ServiceID,propSet);
+                NotifyExtForIPv4AndIPv6(ca_event->DevUDN, ca_event->ServiceID, propSet);
             }
 
             // portmappings which are in area of deletion exists, but none has been deleted -> Action is not authorized
@@ -1777,7 +1981,7 @@ int DeletePortMappingRange(struct Upnp_Action_Request *ca_event)
     {
         ca_event->ErrCode = UPNP_E_SUCCESS;
         snprintf(resultStr, RESULT_LEN, "<u:%sResponse xmlns:u=\"%s\">\n%s\n</u:%sResponse>",
-                 ca_event->ActionName, "urn:schemas-upnp-org:service:WANIPConnection:2", "", ca_event->ActionName);
+                 ca_event->ActionName, WANIP_SERVICE_TYPE, "", ca_event->ActionName);
         ca_event->ActionResult = ixmlParseBuffer(resultStr);
     }
 
@@ -1819,6 +2023,10 @@ int GetListOfPortmappings(struct Upnp_Action_Request *ca_event)
             && (end_port = GetFirstDocumentItem(ca_event->ActionRequest, "NewEndPort") )
             && (manage = GetFirstDocumentItem(ca_event->ActionRequest, "NewManage") )
             && (number_of_ports = GetFirstDocumentItem(ca_event->ActionRequest, "NewNumberOfPorts") )
+            && (GetNbSoapParameters(ca_event->ActionRequest, "u:GetListOfPortmappings") == 5 )
+            && (isStringInteger(start_port) )
+            && (isStringInteger(end_port) )
+            && (isStringInteger(number_of_ports) )
             && (proto = GetFirstDocumentItem(ca_event->ActionRequest, "NewProtocol") ) )
     {
         //check if authorized
@@ -1950,6 +2158,12 @@ int GetEthernetLinkStatus (struct Upnp_Action_Request *ca_event)
     char resultStr[RESULT_LEN];
     IXML_Document *result;
 
+    if(GetNbSoapParameters(ca_event->ActionRequest, "u:GetEthernetLinkStatus") != 0)
+    {
+        trace(1, "GetEthernetLinkStatus invalid args");
+        addErrorData(ca_event, UPNP_SOAP_E_INVALID_ARGS, "Invalid Args");
+        return ca_event->ErrCode; 
+    } 
 
     setEthernetLinkStatus(EthernetLinkStatus, g_vars.extInterfaceName);
 
@@ -1993,6 +2207,7 @@ int ExpirationTimerThreadInit(void)
     TPAttrInit( &attr );
     TPAttrSetMaxThreads( &attr, MAX_THREADS );
     TPAttrSetMinThreads( &attr, MIN_THREADS );
+    TPAttrSetStackSize( &attr, ITHREAD_STACK_MIN ); 
     TPAttrSetJobsPerThread( &attr, JOBS_PER_THREAD );
     TPAttrSetIdleTime( &attr, THREAD_IDLE_TIME );
 
@@ -2020,7 +2235,8 @@ int ExpirationTimerThreadInit(void)
  */
 int ExpirationTimerThreadShutdown(void)
 {
-    return TimerThreadShutdown(&gExpirationTimerThread);
+    TimerThreadShutdown(&gExpirationTimerThread);
+    return ThreadPoolShutdown(&gExpirationThreadPool);
 }
 
 /**
@@ -2030,7 +2246,7 @@ int ExpirationTimerThreadShutdown(void)
  */
 void free_expiration_event(expiration_event *event)
 {
-    if (event->mapping!=NULL)
+    if (event!=NULL && event->mapping!=NULL)
         event->mapping->expirationEventId = -1;
     free(event);
 }
@@ -2095,7 +2311,7 @@ void DisconnectWAN(void *input)
         trace(3, "Pending WAN connection termination for %ld seconds...", *delay);
         strcpy(ConnectionStatus, "PendingDisconnect");
         UpnpAddToPropertySet(&propSet, "ConnectionStatus", ConnectionStatus);
-        UpnpNotifyExt(deviceHandle, wanConnectionUDN, "urn:upnp-org:serviceId:WANIPConn1", propSet);
+        NotifyExtForIPv4AndIPv6(wanConnectionUDN, "urn:upnp-org:serviceId:WANIPConn1", propSet);
         ixmlDocument_free(propSet);
         propSet = NULL;
 
@@ -2118,7 +2334,7 @@ void DisconnectWAN(void *input)
 
     strcpy(ConnectionStatus, "Disconnecting");
     UpnpAddToPropertySet(&propSet, "ConnectionStatus", ConnectionStatus);
-    UpnpNotifyExt(deviceHandle, wanConnectionUDN, "urn:upnp-org:serviceId:WANIPConn1", propSet);
+    NotifyExtForIPv4AndIPv6(wanConnectionUDN, "urn:upnp-org:serviceId:WANIPConn1", propSet);
     ixmlDocument_free(propSet);
     propSet = NULL;
 
@@ -2135,7 +2351,7 @@ void DisconnectWAN(void *input)
     GetConnectionStatus(ConnectionStatus, g_vars.extInterfaceName);
     // Event ConnectionStatus
     UpnpAddToPropertySet(&propSet, "ConnectionStatus", ConnectionStatus);
-    UpnpNotifyExt(deviceHandle, wanConnectionUDN, "urn:upnp-org:serviceId:WANIPConn1", propSet);
+    NotifyExtForIPv4AndIPv6(wanConnectionUDN, "urn:upnp-org:serviceId:WANIPConn1", propSet);
     ixmlDocument_free(propSet);
 
     if (strcmp(ConnectionStatus, "Disconnected") == 0)
@@ -2163,11 +2379,13 @@ int createEventUpdateTimer(void)
     {
         return 0;
     }
+    event->mapping=NULL;
 
     // Add event update job
     TPJobInit( &gEventUpdateJob, ( start_routine ) UpdateEvents, event );
+    TPJobSetFreeFunction( &gEventUpdateJob, ( free_routine ) free_expiration_event );
     TimerThreadSchedule( &gExpirationTimerThread,
-                         EVENTS_UPDATE_INTERVAL,
+                         g_vars.eventUpdateInterval,
                          REL_SEC, &gEventUpdateJob, SHORT_TERM,
                          &( event->eventId ) );
     return  event->eventId;
@@ -2192,7 +2410,7 @@ static void updateIdleTime()
          stats[STATS_TX_PACKETS] != connection_stats[STATS_TX_PACKETS])
         idle_time = 0;
     else 
-        idle_time += EVENTS_UPDATE_INTERVAL; // this function is executed every EVENTS_UPDATE_INTERVAL seconds
+        idle_time += g_vars.eventUpdateInterval; // this function is executed every g_vars.eventUpdateInterval seconds
 
     // if we have idled long enough lets terminate WAN connection
     if (idle_time >= IdleDisconnectTime)
@@ -2221,12 +2439,14 @@ static void updateIdleTime()
 void UpdateEvents(void *input)
 {
     IXML_Document *propSet = NULL;
+    expiration_event *event = ( expiration_event * ) input;
 
     ithread_mutex_lock(&DevMutex);
 
     EthernetLinkStatusEventing(propSet);
     ExternalIPAddressEventing(propSet);
     ConnectionStatusEventing(propSet);
+    WANIPv6FirewallStatusEventing(propSet);
 
     // this is not anything to do with eventing, but because this function is regularly executed this is here also.
     updateIdleTime();
@@ -2234,6 +2454,8 @@ void UpdateEvents(void *input)
     ithread_mutex_unlock(&DevMutex);
 
     ixmlDocument_free(propSet);
+
+    free_expiration_event(event);
 
     // create update event again
     createEventUpdateTimer();
@@ -2257,8 +2479,10 @@ int EthernetLinkStatusEventing(IXML_Document *propSet)
     if (strcmp(prevStatus,EthernetLinkStatus) != 0)
     {
         UpnpAddToPropertySet(&propSet, "EthernetLinkStatus", EthernetLinkStatus);
-        UpnpNotifyExt(deviceHandle, wanConnectionUDN, "urn:upnp-org:serviceId:WANEthLinkC1", propSet);
+        NotifyExtForIPv4AndIPv6(wanConnectionUDN, "urn:upnp-org:serviceId:WANEthLinkC1", propSet);
+
         trace(2, "EthernetLinkStatus changed: From %s to %s",prevStatus,EthernetLinkStatus);
+        ixmlDocument_free(propSet);
         propSet = NULL;
         return 1;
     }
@@ -2283,8 +2507,9 @@ int ExternalIPAddressEventing(IXML_Document *propSet)
     if (strcmp(prevStatus,ExternalIPAddress) != 0)
     {
         UpnpAddToPropertySet(&propSet, "ExternalIPAddress", ExternalIPAddress);
-        UpnpNotifyExt(deviceHandle, wanConnectionUDN, "urn:upnp-org:serviceId:WANIPConn1", propSet);
+        NotifyExtForIPv4AndIPv6(wanConnectionUDN, "urn:upnp-org:serviceId:WANIPConn1", propSet);
         trace(2, "ExternalIPAddress changed: From %s to %s",prevStatus,ExternalIPAddress);
+        ixmlDocument_free(propSet);
         propSet = NULL;
         return 1;
     }
@@ -2326,11 +2551,57 @@ int ConnectionStatusEventing(IXML_Document *propSet)
             }
 
             UpnpAddToPropertySet(&propSet, "ConnectionStatus", ConnectionStatus);
-            UpnpNotifyExt(deviceHandle, wanConnectionUDN, "urn:upnp-org:serviceId:WANIPConn1", propSet);
+            NotifyExtForIPv4AndIPv6(wanConnectionUDN, "urn:upnp-org:serviceId:WANIPConn1", propSet);
             trace(2, "ConnectionStatus changed: From %s to %s",prevStatus,ConnectionStatus);
+            ixmlDocument_free(propSet);
             propSet = NULL;
             return 1;
         }
+    }
+    return 0;
+}
+
+/**
+ * Check the state variables of the WANIPv6FirewallControl service
+ * Those variables are only changed in the /etc/upnpd.conf file
+ * A web service should be developped for that
+ * The only purpose of thisfunction is to test the GENA events
+ */
+int WANIPv6FirewallStatusEventing(IXML_Document *propSet)
+{
+    int ipv6firewall_enabled = g_vars.ipv6firewallEnabled;
+    int ipv6inbound_pinhole_allowed = g_vars.ipv6inboundPinholeAllowed;
+
+    char FirewallEnabled[2] = {'\0'};
+    char InboundPinholeAllowed[2] = {'\0'};
+
+    if(parseConfigFile(&g_vars))
+    {
+        perror("Error parsing config file");
+        return 0;
+    }
+    // has status changed?
+    if (g_vars.ipv6firewallEnabled != ipv6firewall_enabled
+            || g_vars.ipv6inboundPinholeAllowed != ipv6inbound_pinhole_allowed)
+    {
+        if(g_vars.ipv6firewallEnabled != ipv6firewall_enabled)
+        {
+            snprintf(FirewallEnabled,2,"%i", g_vars.ipv6firewallEnabled);
+            UpnpAddToPropertySet(&propSet, "FirewallEnabled", FirewallEnabled);
+            trace(2, "IPv6 FirewallEnabled changed to %i", g_vars.ipv6firewallEnabled);
+        }
+        if(g_vars.ipv6inboundPinholeAllowed != ipv6inbound_pinhole_allowed)
+        {
+            snprintf(InboundPinholeAllowed,2,"%i", g_vars.ipv6inboundPinholeAllowed);
+            UpnpAddToPropertySet(&propSet, "InboundPinholeAllowed", InboundPinholeAllowed);
+            trace(2, "IPv6 InboundPinholeAllowed changed to %i", g_vars.intInterfaceName);
+        }
+
+        NotifyExtForIPv4AndIPv6(wanConnectionUDN, "urn:upnp-org:serviceId:WANIPv6FwCtrl1", propSet);
+
+        ixmlDocument_free(propSet);
+        propSet = NULL;
+        return 1;
     }
     return 0;
 }
@@ -2355,15 +2626,17 @@ void ExpireMapping(void *input)
 
     //reset the event id before deleting the mapping so that pmlist_Delete
     //will not call CancelMappingExpiration
-    event->mapping->expirationEventId = -1;
-    pmlist_Delete(event->mapping);
+    if(event != NULL && event->mapping != NULL) {
+        event->mapping->expirationEventId = -1;
+        pmlist_Delete(event->mapping);
+    }
 
     PortMappingNumberOfEntries = pmlist_Size();
     sprintf(num,"%d",PortMappingNumberOfEntries);
     UpnpAddToPropertySet(&propSet, "PortMappingNumberOfEntries", num);
     snprintf(tmp,11,"%ld",++SystemUpdateID);
     UpnpAddToPropertySet(&propSet,"SystemUpdateID", tmp);
-    UpnpNotifyExt(deviceHandle, event->DevUDN, event->ServiceID, propSet);
+    NotifyExtForIPv4AndIPv6(event->DevUDN, event->ServiceID, propSet);
     ixmlDocument_free(propSet);
     trace(3, "ExpireMapping: UpnpNotifyExt(deviceHandle,%s,%s,propSet)\n  PortMappingNumberOfEntries: %s",
           event->DevUDN, event->ServiceID, num);
@@ -2498,7 +2771,7 @@ void DeleteAllPortMappings(void)
     UpnpAddToPropertySet(&propSet, "PortMappingNumberOfEntries", tmp);
     snprintf(tmp,11,"%ld",++SystemUpdateID);
     UpnpAddToPropertySet(&propSet,"SystemUpdateID", tmp);
-    UpnpNotifyExt(deviceHandle, wanConnectionUDN, "urn:upnp-org:serviceId:WANIPConn1", propSet);
+    NotifyExtForIPv4AndIPv6(wanConnectionUDN, "urn:upnp-org:serviceId:WANIPConn1", propSet);
     ixmlDocument_free(propSet);
     trace(2, "DeleteAllPortMappings: UpnpNotifyExt(deviceHandle,%s,%s,propSet)\n  PortMappingNumberOfEntries: %s",
           wanConnectionUDN, "urn:upnp-org:serviceId:WANIPConn1", "0");
@@ -2565,7 +2838,7 @@ int AddNewPortMapping(struct Upnp_Action_Request *ca_event, char* bool_enabled, 
         }
         snprintf(tmp,11,"%ld",++SystemUpdateID);
         UpnpAddToPropertySet(&propSet,"SystemUpdateID", tmp);
-        UpnpNotifyExt(deviceHandle, ca_event->DevUDN, ca_event->ServiceID, propSet);
+        NotifyExtForIPv4AndIPv6(ca_event->DevUDN, ca_event->ServiceID, propSet);
 
         ixmlDocument_free(propSet);
         trace(2, "%s: DevUDN: %s ServiceID: %s RemoteHost: %s Protocol: %s ExternalPort: %s InternalClient: %s.%s",

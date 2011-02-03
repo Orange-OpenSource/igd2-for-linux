@@ -9,7 +9,7 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=linuxigd2
-PKG_VERSION:=0.3
+PKG_VERSION:=0.4
 PKG_RELEASE:=1
 
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.gz
@@ -59,7 +59,7 @@ define Package/linuxigd2/install
 	$(INSTALL_DIR) $(1)/usr/sbin
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/bin/upnpd $(1)/usr/sbin/
 	$(INSTALL_DIR) $(1)/etc/linuxigd
-	$(INSTALL_DATA) $(PKG_BUILD_DIR)/configs/*.gif $(1)/etc/linuxigd/
+	$(INSTALL_DATA) $(PKG_BUILD_DIR)/configs/*.png $(1)/etc/linuxigd/
 	$(INSTALL_DATA) $(PKG_BUILD_DIR)/configs/*.xml $(1)/etc/linuxigd/
 	$(INSTALL_DIR) $(1)/etc
 	$(INSTALL_DATA) $(PKG_BUILD_DIR)/configs/upnpd.conf $(1)/etc/

@@ -4,6 +4,11 @@
  * Contact: mika.saaranen@nokia.com
  * Developer(s): jaakko.pasanen@tieto.com, opensource@tieto.com
  *  
+ * This file is part of igd2-for-linux project
+ * Copyright © 2011 France Telecom.
+ * Contact: fabrice.fontaine@orange-ftgroup.com
+ * Developer(s): fabrice.fontaine@orange-ftgroup.com, rmenard.ext@orange-ftgroup.com
+ * 
  * This program is free software: you can redistribute it and/or modify 
  * it under the terms of the GNU General Public License as published by 
  * the Free Software Foundation, either version 2 of the License, or 
@@ -15,7 +20,8 @@
  * GNU General Public License for more details. 
  * 
  * You should have received a copy of the GNU General Public License 
- * along with this program. If not, see http://www.gnu.org/licenses/. 
+ * along with this program, see the /doc directory of this program. If 
+ * not, see http://www.gnu.org/licenses/. 
  * 
  */
  
@@ -56,7 +62,7 @@ int GetIpAddressStr(char *address, char *ifname);
 int GetMACAddressStr(unsigned char *address, int addressSize, char *ifname);
 int GetConnectionStatus(char *conStatus, char *ifname);
 int IsIpOrDomain(char *address);
-int ControlPointIP_equals_InternalClientIP(char *ICAddress, struct in_addr *);
+int ControlPointIP_equals_InternalClientIP(char *ICAddress, struct sockaddr_storage *);
 int checkForWildCard(const char *str);
 void addErrorData(struct Upnp_Action_Request *ca_event, int errorCode, char* message);
 void trace(int debuglevel, const char *format, ...);
@@ -69,6 +75,8 @@ int readIntFromFile(char *file);
 
 char* GetFirstDocumentItem( IN IXML_Document * doc, const char *item );
 char* GetDocumentItem(IXML_Document * doc, const char *item, int index);
+int GetNbSoapParameters(IN IXML_Document * doc, IN const char* action);
+int isStringInteger(char * string);
 
 void ParseXMLResponse(struct Upnp_Action_Request *ca_event, const char *result);
 

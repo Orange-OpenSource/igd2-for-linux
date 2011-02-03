@@ -4,6 +4,11 @@
  * Contact: mika.saaranen@nokia.com
  * Developer(s): jaakko.pasanen@tieto.com, opensource@tieto.com
  *  
+ * This file is part of igd2-for-linux project
+ * Copyright © 2011 France Telecom.
+ * Contact: fabrice.fontaine@orange-ftgroup.com
+ * Developer(s): fabrice.fontaine@orange-ftgroup.com, rmenard.ext@orange-ftgroup.com
+ * 
  * This program is free software: you can redistribute it and/or modify 
  * it under the terms of the GNU General Public License as published by 
  * the Free Software Foundation, either version 2 of the License, or 
@@ -15,7 +20,8 @@
  * GNU General Public License for more details. 
  * 
  * You should have received a copy of the GNU General Public License 
- * along with this program. If not, see http://www.gnu.org/licenses/. 
+ * along with this program, see the /doc directory of this program. If 
+ * not, see http://www.gnu.org/licenses/. 
  * 
  */
  
@@ -33,6 +39,8 @@ TimerThread gExpirationTimerThread;
 
 // IGD Device Globals
 UpnpDevice_Handle deviceHandle;
+UpnpDevice_Handle deviceHandleIPv6;
+UpnpDevice_Handle deviceHandleIPv6UlaGua;
 char *gateUDN;
 char *wanUDN;
 char *wanConnectionUDN;
@@ -66,6 +74,10 @@ struct portMap *pmlist_Current;
 // WanIPConnection Actions
 int EventHandler(Upnp_EventType EventType, void *Event, void *Cookie);
 int StateTableInit(char *descDocUrl);
+void AcceptSubscriptionExtForIPv4andIPv6(const char *DevID, const char *ServID,
+                                        IXML_Document *PropSet, Upnp_SID SubsId);
+void NotifyExtForIPv4AndIPv6(const char *DevID, const char *ServID,
+                            IXML_Document *PropSet);
 int HandleSubscriptionRequest(struct Upnp_Subscription_Request *sr_event);
 int HandleGetVarRequest(struct Upnp_State_Var_Request *gv_event);
 int HandleActionRequest(struct Upnp_Action_Request *ca_event);
@@ -104,9 +116,6 @@ int GetEthernetLinkStatus (struct Upnp_Action_Request *ca_event);
 #define MIN_THREADS 2
 #define MAX_THREADS 12
 
-// how often it is checked if defined state variables has changed
-#define EVENTS_UPDATE_INTERVAL 5
-
 int ExpirationTimerThreadInit(void);
 int ExpirationTimerThreadShutdown(void);
 int ScheduleMappingExpiration(struct portMap *mapping, char *DevUDN, char *ServiceID);
@@ -126,6 +135,7 @@ int ConnectionStatusEventing(IXML_Document *propSet);
 int ConnectionTermination(struct Upnp_Action_Request *ca_event, long int disconnectDelay);
 int AuthorizeControlPoint(struct Upnp_Action_Request *ca_event, int managed, int addError);
 
+int WANIPv6FirewallStatusEventing(IXML_Document *propSet);
 
 // Definition for authorizing control point
 typedef enum

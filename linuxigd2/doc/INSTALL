@@ -9,29 +9,29 @@ Installation
 This version of the linux-igd is written in C as opposed to previous version 
 that was written in C++.  This was done at the requests of many embedded 
 developers, as well as some of our developers.  The upnp sdk we now use
-from Intel is libupnp-1.3.1, and is written in C as well.  Everything is a 
+is libupnp-1.6.10, and is written in C as well.  Everything is a 
 little more uniform now, and should create a smaller, leaner, faster device.
 
-Step 1 -- Download and install libupnp-1.3.1 source from 
-http://www.sourceforge.net/projects/upnp.  Please install with source 
+Step 1 -- Download and install libupnp-1.6.10 source from 
+http://sourceforge.net/projects/pupnp.  Please install with source 
 only as we haven't tested against any precompiled versions.  Also, as 
 the "make install" doesn't quite work as expected, please follow these 
 instructions to install it properly.
 
 (Note: See below regarding installing on Fedora Core 5!)
 
-1. tar -xvzf libupnp-1.3.1.tar.gz
-2. cd libupnp-1.3.1
+1. tar -xvzf libupnp-1.6.10.tar.gz
+2. cd libupnp-1.6.10
 3. ./configure
 4. make
 5. make install
 
-This process should install libupnp-1.3.1 to our liking (maybe not 
+This process should install libupnp-1.6.10 to our liking (maybe not 
 someone else's ;-)
 
-Step 2 -- Obtain the linux-igd software (if for some reason you're reading 
+Step 2 -- Obtain the igd2-for-linux software (if for some reason you're reading 
 this outside the package you should have already gotten, 
-http://linux-igd.sourceforge.net)
+http://gitorious.org/igd2-for-linux)
 
 1. tar -xvzf linuxigd-1.0.tgz    (or whatever the version you have is, or CVS)
 2. To compile using the iptables command to manipulate netfilter
@@ -61,6 +61,23 @@ set PREFIX:
 
    make PREFIX=/usr/local install
 
+IPv6 support
+------------
+
+igd2-for-linux has been enhanced to be a dual-stack IPv4/IPv6 enabled device
+that can be used by an IPv6 Control Point to open temporary pinholes in the
+IPv6 firewall of an IGD:2 (thanks to the WANIPv6FirewallControl service). All
+the actions defined in the WANIPv6FirewallControl specification have been
+implemented.
+
+To enable dual-stack capabilities, the following requirements must be fulfilled:
+   - the libupnp library must be installed and configured to support IPv6
+      (through a call to ./configure --enable-ipv6).
+
+   - ipv6, ip6t_LOG and nf_conntrack modules must be available. They are a part
+      of most of the 2.6.x kernel.
+
+   - ip6tables must be available. You can check this with "which ip6tables".
 
 System Preparation before starting 
 ----------------------------------

@@ -4,6 +4,11 @@
  * Contact: mika.saaranen@nokia.com
  * Developer(s): jaakko.pasanen@tieto.com, opensource@tieto.com
  *  
+ * This file is part of igd2-for-linux project
+ * Copyright © 2011 France Telecom.
+ * Contact: fabrice.fontaine@orange-ftgroup.com
+ * Developer(s): fabrice.fontaine@orange-ftgroup.com, rmenard.ext@orange-ftgroup.com
+ * 
  * This program is free software: you can redistribute it and/or modify 
  * it under the terms of the GNU General Public License as published by 
  * the Free Software Foundation, either version 2 of the License, or 
@@ -15,7 +20,8 @@
  * GNU General Public License for more details. 
  * 
  * You should have received a copy of the GNU General Public License 
- * along with this program. If not, see http://www.gnu.org/licenses/. 
+ * along with this program, see the /doc directory of this program. If 
+ * not, see http://www.gnu.org/licenses/. 
  * 
  */
  
@@ -80,6 +86,9 @@ struct GLOBALS
     // resolv.conf location
     char resolvConf[OPTION_LEN];
 
+    // Event update thread checking interval
+    int eventUpdateInterval;
+
     // dhcp-client command
     char dhcpc[OPTION_LEN];
 
@@ -89,6 +98,34 @@ struct GLOBALS
 
     // name of access level xml file
     char accessLevelXml[OPTION_LEN];
+
+    /**
+     * WANIPv6 Firewall control
+     */
+    //enables ipv6 firewall
+    int ipv6firewallEnabled;
+
+    //enables the creation of inbound pinhole
+    int ipv6inboundPinholeAllowed;
+
+    //authorized the control point
+    //TODO: must be replaced by DeviceProtection
+    int controlPointAuthorized;
+
+    //define the ipv6 forward chain
+    char ipv6forwardChain[OPTION_LEN];
+
+    //enables IPv4
+    //TODO: should be removed, only for testing purpose
+    int ipv4Enabled;
+
+    //enables IPv6
+    //TODO: should be removed, only for testing purpose
+    int ipv6UlaGuaEnabled;
+
+    //enables IPv6 Link Local
+    //TODO: should be removed, only for testing purpose
+    int ipv6LinkLocalEnabled;
 };
 
 typedef struct GLOBALS* globals_p;
@@ -113,6 +150,8 @@ extern globals g_vars;
 #define UCI_CMD_DEFAULT "/sbin/uci"
 #define RESOLV_CONF_DEFAULT "/etc/resolv.conf"
 #define RESOLV_CONF_TMP "/tmp/resolv.conf.IGDv2"
+// How often check if update events should be sent
+#define DEFAULT_EVENT_UPDATE_INTERVAL 60
 #define DHCPC_DEFAULT "udhcpc"
 #define NETWORK_CMD_DEFAULT "/etc/init.d/network"
 
@@ -121,5 +160,7 @@ extern globals g_vars;
 
 // location of ACL (access control list) xml file. This is totally internal file, and is not listed in config file. 
 #define ACL_XML "/etc/upnpd_ACL.xml"
+
+#define IP6TABLES_DEFAULT_FORWARD_CHAIN "FORWARD_upnp"
 
 #endif // _GLOBALS_H_

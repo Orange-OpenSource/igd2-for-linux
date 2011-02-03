@@ -4,6 +4,11 @@
  * Contact: mika.saaranen@nokia.com
  * Developer(s): jaakko.pasanen@tieto.com, opensource@tieto.com
  *  
+ * This file is part of igd2-for-linux project
+ * Copyright © 2011 France Telecom.
+ * Contact: fabrice.fontaine@orange-ftgroup.com
+ * Developer(s): fabrice.fontaine@orange-ftgroup.com, rmenard.ext@orange-ftgroup.com
+ * 
  * This program is free software: you can redistribute it and/or modify 
  * it under the terms of the GNU General Public License as published by 
  * the Free Software Foundation, either version 2 of the License, or 
@@ -15,7 +20,8 @@
  * GNU General Public License for more details. 
  * 
  * You should have received a copy of the GNU General Public License 
- * along with this program. If not, see http://www.gnu.org/licenses/. 
+ * along with this program, see the /doc directory of this program. If 
+ * not, see http://www.gnu.org/licenses/. 
  * 
  */
  
@@ -115,11 +121,20 @@ int parseConfigFile(globals_p vars)
     regex_t re_dnsmasq;
     regex_t re_uci;
     regex_t re_resolv;
+    regex_t re_event_interval;
     regex_t re_dhcrelay;
     regex_t re_dhcrelay_server;
     regex_t re_dhcpc;
     regex_t re_network;
     regex_t re_advertisement_interval;
+
+    regex_t re_ipv6firewall_enabled;
+    regex_t re_ipv6inbound_pinhole_allowed;
+    regex_t re_control_point_authorized;
+    regex_t re_ipv6forward_chain_name;
+    regex_t re_ipv4enabled;
+    regex_t re_ipv6ula_gua_enabled;
+    regex_t re_ipv6link_local_enabled;
 
     // Make sure all vars are 0 or \0 terminated
     vars->debug = 0;
@@ -139,9 +154,18 @@ int parseConfigFile(globals_p vars)
     strcpy(vars->resolvConf, "");
     strcpy(vars->dhcrelayCmd, "");
     strcpy(vars->dhcrelayServer, "");
+    vars->eventUpdateInterval = DEFAULT_EVENT_UPDATE_INTERVAL;
     strcpy(vars->dhcpc, "");
     strcpy(vars->networkCmd, "");
     vars->advertisementInterval = ADVERTISEMENT_INTERVAL;
+
+    vars->ipv6firewallEnabled = TRUE;
+    vars->ipv6inboundPinholeAllowed = TRUE;
+    vars->controlPointAuthorized = TRUE;
+    strcpy(vars->ipv6forwardChain, "");
+    vars->ipv4Enabled = TRUE;
+    vars->ipv6UlaGuaEnabled = TRUE;
+    vars->ipv6LinkLocalEnabled = TRUE;
 
     // Regexp to match a comment line
     regcomp(&re_comment,"^[[:blank:]]*#",0);
@@ -157,17 +181,26 @@ int parseConfigFile(globals_p vars)
     regcomp(&re_upstream_bitrate,"upstream_bitrate[[:blank:]]*=[[:blank:]]*([[:digit:]]+)",REG_EXTENDED);
     regcomp(&re_downstream_bitrate,"downstream_bitrate[[:blank:]]*=[[:blank:]]*([[:digit:]]+)",REG_EXTENDED);
     regcomp(&re_duration,"duration[[:blank:]]*=[[:blank:]]*(@?)([[:digit:]]+|[[:digit:]]{2,}:[[:digit:]]{2})",REG_EXTENDED);
-    regcomp(&re_desc_doc,"description_document_name[[:blank:]]*=[[:blank:]]*([[:alpha:].]{1,20})",REG_EXTENDED);
+    regcomp(&re_desc_doc,"description_document_name[[:blank:]]*=[[:blank:]]*([[:alnum:].]{1,20})",REG_EXTENDED);
     regcomp(&re_xml_path,"xml_document_path[[:blank:]]*=[[:blank:]]*([[:alpha:]_/.]{1,50})",REG_EXTENDED);
     regcomp(&re_listenport,"listenport[[:blank:]]*=[[:blank:]]*([[:digit:]]+)",REG_EXTENDED);
     regcomp(&re_dnsmasq,"dnsmasq_script[[:blank:]]*=[[:blank:]]*([[:alpha:]_/.]{1,50})",REG_EXTENDED);
     regcomp(&re_uci,"uci_command[[:blank:]]*=[[:blank:]]*([[:alpha:]_/.]{1,50})",REG_EXTENDED);
     regcomp(&re_dhcrelay,"dhcrelay_script[[:blank:]]*=[[:blank:]]*([[:alpha:]_/.]{1,50})",REG_EXTENDED);
     regcomp(&re_resolv,"resolf_conf[[:blank:]]*=[[:blank:]]*([[:alpha:]_/.]{1,50})",REG_EXTENDED);
+    regcomp(&re_event_interval,"event_update_interval[[:blank:]]*=[[:blank:]]*([[:digit:]]+)",REG_EXTENDED);
     regcomp(&re_dhcrelay_server,"dhcrelay_server[[:blank:]]*=[[:blank:]]*([[:digit:].:]+)",REG_EXTENDED);
     regcomp(&re_dhcpc,"dhcpc_cmd[[:blank:]]*=[[:blank:]]*([[:alpha:]_/.]{1,50})",REG_EXTENDED);
     regcomp(&re_network,"network_script[[:blank:]]*=[[:blank:]]*([[:alpha:]_/.]{1,50})",REG_EXTENDED);
     regcomp(&re_advertisement_interval,"advertisement_interval[[:blank:]]*=[[:blank:]]*([[:digit:]]+)",REG_EXTENDED);
+
+    regcomp(&re_ipv6firewall_enabled,"ipv6firewall_enabled[[:blank:]]*=[[:blank:]]*([[:digit:]]+)",REG_EXTENDED);
+    regcomp(&re_ipv6inbound_pinhole_allowed,"ipv6inbound_pinhole_allowed[[:blank:]]*=[[:blank:]]*([[:digit:]]+)",REG_EXTENDED);
+    regcomp(&re_control_point_authorized,"control_point_authorized[[:blank:]]*=[[:blank:]]*([[:digit:]]+)",REG_EXTENDED);
+    regcomp(&re_ipv6forward_chain_name,"ipv6forward_chain_name[[:blank:]]*=[[:blank:]]*([[:alpha:]_-]+)",REG_EXTENDED);
+    regcomp(&re_ipv4enabled,"ipv4_enabled[[:blank:]]*=[[:blank:]]*([[:digit:]]+)",REG_EXTENDED);
+    regcomp(&re_ipv6ula_gua_enabled,"ipv6_ula_gua_enabled[[:blank:]]*=[[:blank:]]*([[:digit:]]+)",REG_EXTENDED);
+    regcomp(&re_ipv6link_local_enabled,"ipv6_linklocal_enabled[[:blank:]]*=[[:blank:]]*([[:digit:]]+)",REG_EXTENDED);
 
     if ((conf_file=fopen(CONF_FILE,"r")) != NULL)
     {
@@ -197,11 +230,6 @@ int parseConfigFile(globals_p vars)
                     char tmp[4];
                     getConfigOptionArgument(tmp,sizeof(tmp),line,submatch);
                     vars->forwardRulesAppend = strcmp(tmp,"yes")==0 ? 1 : 0;
-                }
-                // Check forward_chain_name
-                else if (regexec(&re_forward_chain_name,line,NMATCH,submatch,0) == 0)
-                {
-                    getConfigOptionArgument(vars->forwardChainName, OPTION_LEN, line, submatch);
                 }
                 else if (regexec(&re_debug_mode,line,NMATCH,submatch,0) == 0)
                 {
@@ -259,6 +287,12 @@ int parseConfigFile(globals_p vars)
                 {
                     getConfigOptionArgument(vars->dhcrelayServer, OPTION_LEN, line, submatch);
                 }
+                else if (regexec(&re_event_interval,line,NMATCH,submatch,0) == 0)
+                {
+                    char tmp[6];
+                    getConfigOptionArgument(tmp, OPTION_LEN, line, submatch);
+                    vars->eventUpdateInterval = atoi(tmp);
+                }
                 else if (regexec(&re_dhcpc,line,NMATCH,submatch,0) == 0)
                 {
                     getConfigOptionArgument(vars->dhcpc, OPTION_LEN, line, submatch);
@@ -272,6 +306,51 @@ int parseConfigFile(globals_p vars)
                     char tmp[6];
                     getConfigOptionArgument(tmp, OPTION_LEN, line, submatch);
                     vars->advertisementInterval = atoi(tmp);
+                }
+                else if (regexec(&re_ipv6firewall_enabled,line,NMATCH,submatch,0) == 0)
+                {
+                    char tmp[2];
+                    getConfigOptionArgument(tmp, OPTION_LEN, line, submatch);
+                    vars->ipv6firewallEnabled = atoi(tmp);
+                }
+                else if (regexec(&re_ipv6inbound_pinhole_allowed,line,NMATCH,submatch,0) == 0)
+                {
+                    char tmp[2];
+                    getConfigOptionArgument(tmp, OPTION_LEN, line, submatch);
+                    vars->ipv6inboundPinholeAllowed = atoi(tmp);
+                }
+                else if (regexec(&re_control_point_authorized,line,NMATCH,submatch,0) == 0)
+                {
+                    char tmp[2];
+                    getConfigOptionArgument(tmp, OPTION_LEN, line, submatch);
+                    vars->controlPointAuthorized = atoi(tmp);
+                }
+                else if (regexec(&re_ipv4enabled,line,NMATCH,submatch,0) == 0)
+                {
+                    char tmp[2];
+                    getConfigOptionArgument(tmp, OPTION_LEN, line, submatch);
+                    vars->ipv4Enabled = atoi(tmp);
+                }
+                else if (regexec(&re_ipv6ula_gua_enabled,line,NMATCH,submatch,0) == 0)
+                {
+                    char tmp[2];
+                    getConfigOptionArgument(tmp, OPTION_LEN, line, submatch);
+                    vars->ipv6UlaGuaEnabled = atoi(tmp);
+                }
+                else if (regexec(&re_ipv6link_local_enabled,line,NMATCH,submatch,0) == 0)
+                {
+                    char tmp[2];
+                    getConfigOptionArgument(tmp, OPTION_LEN, line, submatch);
+                    vars->ipv6LinkLocalEnabled = atoi(tmp);
+                }
+                else if (regexec(&re_ipv6forward_chain_name,line,NMATCH,submatch,0) == 0)
+                {
+                    getConfigOptionArgument(vars->ipv6forwardChain, OPTION_LEN, line, submatch);
+                }
+                // Check forward_chain_name
+                else if (regexec(&re_forward_chain_name,line,NMATCH,submatch,0) == 0)
+                {
+                    getConfigOptionArgument(vars->forwardChainName, OPTION_LEN, line, submatch);
                 }
                 else
                 {
@@ -301,9 +380,19 @@ int parseConfigFile(globals_p vars)
     regfree(&re_dhcrelay);
     regfree(&re_dhcrelay_server);
     regfree(&re_resolv);
+    regfree(&re_event_interval);
     regfree(&re_dhcpc);
     regfree(&re_network);
     regfree(&re_advertisement_interval);
+
+    regfree(&re_ipv6firewall_enabled);
+    regfree(&re_ipv6inbound_pinhole_allowed);
+    regfree(&re_control_point_authorized);
+    regfree(&re_ipv6forward_chain_name);
+    regfree(&re_ipv4enabled);
+    regfree(&re_ipv6ula_gua_enabled);
+    regfree(&re_ipv6link_local_enabled);
+
     // Set default values for options not found in config file
     if (strnlen(vars->forwardChainName, OPTION_LEN) == 0)
     {
@@ -360,6 +449,35 @@ int parseConfigFile(globals_p vars)
     if (vars->advertisementInterval < 300) // smaller would mess everything
     {
         vars->advertisementInterval = 300;
+    }
+    if (vars->ipv6firewallEnabled < 0 || vars->ipv6firewallEnabled > 1 )
+    {
+        vars->ipv6firewallEnabled = TRUE;
+    }
+    if (vars->ipv6inboundPinholeAllowed < 0 || vars->ipv6inboundPinholeAllowed > 1 )
+    {
+        vars->ipv6inboundPinholeAllowed = TRUE;
+    }
+    if (vars->controlPointAuthorized < 0 || vars->controlPointAuthorized > 1)
+    {
+        vars->controlPointAuthorized = 1;
+    }
+    if (vars->ipv4Enabled < 0 || vars->ipv4Enabled > 1)
+    {
+        vars->ipv4Enabled = 1;
+    }
+    if (vars->ipv6UlaGuaEnabled < 0 || vars->ipv6UlaGuaEnabled > 1)
+    {
+        vars->ipv6UlaGuaEnabled = 1;
+    }
+    if (vars->ipv6LinkLocalEnabled < 0 || vars->ipv6LinkLocalEnabled > 1)
+    {
+        vars->ipv6LinkLocalEnabled = 1;
+    }
+    if (strnlen(vars->ipv6forwardChain, OPTION_LEN) == 0)
+    {
+        // No forward chain name was set in conf file, set it to default
+        snprintf(vars->ipv6forwardChain, OPTION_LEN, IP6TABLES_DEFAULT_FORWARD_CHAIN);
     }
     if (strnlen(vars->iptables, OPTION_LEN) == 0)
     {

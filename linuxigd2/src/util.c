@@ -4,6 +4,11 @@
  * Contact: mika.saaranen@nokia.com
  * Developer(s): jaakko.pasanen@tieto.com, opensource@tieto.com
  *  
+ * This file is part of igd2-for-linux project
+ * Copyright © 2011 France Telecom.
+ * Contact: fabrice.fontaine@orange-ftgroup.com
+ * Developer(s): fabrice.fontaine@orange-ftgroup.com, rmenard.ext@orange-ftgroup.com
+ * 
  * This program is free software: you can redistribute it and/or modify 
  * it under the terms of the GNU General Public License as published by 
  * the Free Software Foundation, either version 2 of the License, or 
@@ -15,7 +20,8 @@
  * GNU General Public License for more details. 
  * 
  * You should have received a copy of the GNU General Public License 
- * along with this program. If not, see http://www.gnu.org/licenses/. 
+ * along with this program, see the /doc directory of this program. If 
+ * not, see http://www.gnu.org/licenses/. 
  * 
  */
 
@@ -465,7 +471,7 @@ int GetMACAddressStr(unsigned char *address, int addressSize, char *ifname)
 int GetIpAddressStr(char *address, char *ifname)
 {
     struct ifreq ifr;
-    struct sockaddr_in *saddr;
+    struct in_addr saddr;
     int fd;
     int succeeded = 0;
 
@@ -476,8 +482,8 @@ int GetIpAddressStr(char *address, char *ifname)
         ifr.ifr_addr.sa_family = AF_INET;
         if (ioctl(fd, SIOCGIFADDR, &ifr) == 0)
         {
-            saddr = (struct sockaddr_in *)&ifr.ifr_addr;
-            strcpy(address,inet_ntoa(saddr->sin_addr));
+            saddr = ((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr;
+            strcpy(address,inet_ntoa(saddr));
             succeeded = 1;
         }
         else
@@ -550,11 +556,18 @@ int IsIpOrDomain(char *address)
  * @param in_ad IP of control point.
  * @return 1 if match, 0 else.
  */
-int ControlPointIP_equals_InternalClientIP(char *ICAddress, struct in_addr *in_ad)
+int ControlPointIP_equals_InternalClientIP(char *ICAddress, struct sockaddr_storage *ss)
 {
     char cpAddress[INET_ADDRSTRLEN];
     int result;
     int succeeded = 0;
+
+    if(ss->ss_family == AF_INET6) {
+        //TODO
+        return succeeded;
+    }
+
+    struct in_addr *in_ad=&(((struct sockaddr_in *)ss)->sin_addr);
 
     inet_ntop(AF_INET, in_ad, cpAddress, INET_ADDRSTRLEN);
 
@@ -652,6 +665,63 @@ void ParseXMLResponse(struct Upnp_Action_Request *ca_event, const char *result_s
     }
 }
 
+/**
+ * Get the number of parameters included in the SOAP action
+ * given in parameter
+ *
+ * @param doc XML document where the parameters are defined
+ * @param the SOAP action
+ * @return the number of parameters
+ */
+int GetNbSoapParameters( IN IXML_Document * doc,
+        IN const char* action)
+{
+    IXML_NodeList *nodeList = NULL;
+    IXML_Node* tmpNode = NULL;
+    IXML_Node* childNode = NULL;
+    int nbchild = 0;
+
+    if(doc == NULL) return 0;
+
+    nodeList = ixmlDocument_getElementsByTagName( doc, action );
+
+    if ( nodeList )
+    {
+        if ( ( tmpNode = ixmlNodeList_item( nodeList, 0 ) ) )
+        {
+            ixmlNodeList_free( nodeList );
+            nodeList = ixmlNode_getChildNodes(tmpNode);
+            nbchild = ixmlNodeList_length(nodeList);
+            if(nbchild > 0){
+                childNode = ixmlNode_getFirstChild(tmpNode);
+                if(childNode == NULL) return 0;
+            }
+            return nbchild;
+        }
+    }
+
+    if ( nodeList )
+        ixmlNodeList_free( nodeList );
+
+    return 0;
+
+}
+
+/**
+ * test if the string is an Integer
+ *
+ * @param string the string to test
+ * @return 1 if the string is only composed of digit,
+ * 0 otherwise
+ */
+int isStringInteger(char * string)
+{
+    int i = 0;
+    for(; i < strlen(string) ; i++) {
+        if(!isdigit(string[i])) return 0;
+    }
+    return 1;
+}
 
 /**
  * Resolve up/down status of given network interface and insert it into given string.

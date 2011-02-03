@@ -5,7 +5,7 @@
     <minor>0</minor>
   </specVersion>
   <device>
-    <deviceType>urn:schemas-upnp-org:device:InternetGatewayDevice:2</deviceType>
+    <deviceType>urn:schemas-upnp-org:device:InternetGatewayDevice:1</deviceType>
     <friendlyName>Linux Internet Gateway Device</friendlyName>
     <manufacturer>Linux UPnP IGD Project</manufacturer>
     <manufacturerURL>http://linux-igd.sourceforge.net</manufacturerURL>
@@ -32,7 +32,7 @@
     </serviceList>
     <deviceList>
       <device>
-        <deviceType>urn:schemas-upnp-org:device:WANDevice:2</deviceType>
+        <deviceType>urn:schemas-upnp-org:device:WANDevice:1</deviceType>
         <friendlyName>WANDevice</friendlyName>
         <manufacturer>Linux UPnP IGD Project</manufacturer>
         <manufacturerURL>http://linux-igd.sourceforge.net</manufacturerURL>
@@ -54,7 +54,7 @@
         </serviceList>
         <deviceList>
           <device>
-            <deviceType>urn:schemas-upnp-org:device:WANConnectionDevice:2</deviceType>
+            <deviceType>urn:schemas-upnp-org:device:WANConnectionDevice:1</deviceType>
             <friendlyName>WANConnectionDevice</friendlyName>
             <manufacturer>Linux UPnP IGD Project</manufacturer>
             <manufacturerURL>http://linux-igd.sourceforge.net</manufacturerURL>
@@ -67,7 +67,7 @@
             <UPC></UPC>
             <serviceList>
               <service>
-                <serviceType>urn:schemas-upnp-org:service:WANIPConnection:2</serviceType>
+                <serviceType>urn:schemas-upnp-org:service:WANIPConnection:1</serviceType>
                 <serviceId>urn:upnp-org:serviceId:WANIPConn1</serviceId>
                 <controlURL>/upnp/control/WANIPConn1</controlURL>
                 <eventSubURL>/upnp/control/WANIPConn1</eventSubURL>

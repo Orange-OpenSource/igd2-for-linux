@@ -106,15 +106,6 @@
       <dataType>string</dataType>
     </stateVariable>
     <stateVariable sendEvents="no">
-      <name>MaximumActiveConnections</name>
-      <dataType>ui2</dataType>
-      <allowedValueRange>
-        <minimum>1</minimum>
-        <maximum></maximum>
-        <step>1</step>
-      </allowedValueRange>
-    </stateVariable>
-    <stateVariable sendEvents="no">
       <name>TotalBytesSent</name>
       <dataType>ui4</dataType>
     </stateVariable>
