@@ -199,7 +199,7 @@ int HandleSubscriptionRequest(struct Upnp_Subscription_Request *sr_event)
 
     ithread_mutex_lock(&DevMutex);
 
-    if (strcmp(sr_event->UDN, wanUDN) == 0)
+    if (wanUDN != NULL && strcmp(sr_event->UDN, wanUDN) == 0)
     {
         // WAN Common Interface Config Device Notifications
         if (strcmp(sr_event->ServiceId, "urn:upnp-org:serviceId:WANCommonIFC1") == 0)
@@ -211,7 +211,7 @@ int HandleSubscriptionRequest(struct Upnp_Subscription_Request *sr_event)
             ixmlDocument_free(propSet);
         }
     }
-    else if (strcmp(sr_event->UDN, wanConnectionUDN) == 0)
+    else if (wanConnectionUDN != NULL && strcmp(sr_event->UDN, wanConnectionUDN) == 0)
     {
         // WAN IP Connection Device Notifications
         if (strcmp(sr_event->ServiceId, "urn:upnp-org:serviceId:WANIPConn1") == 0)
@@ -304,7 +304,7 @@ int HandleActionRequest(struct Upnp_Action_Request *ca_event)
         return ca_event->ErrCode;
     }
 
-    if (strcmp(ca_event->DevUDN, wanUDN) == 0)
+    if (wanUDN != NULL && strcmp(ca_event->DevUDN, wanUDN) == 0)
     {
         if (strcmp(ca_event->ServiceID,"urn:upnp-org:serviceId:WANCommonIFC1") == 0)
         {
@@ -345,7 +345,7 @@ int HandleActionRequest(struct Upnp_Action_Request *ca_event)
             }
         }
     }
-    else if (strcmp(ca_event->DevUDN, wanConnectionUDN) == 0)
+    else if (wanConnectionUDN !=NULL && strcmp(ca_event->DevUDN, wanConnectionUDN) == 0)
     {
         if (strcmp(ca_event->ServiceID, "urn:upnp-org:serviceId:WANIPConn1") == 0)
         {
