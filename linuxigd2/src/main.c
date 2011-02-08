@@ -58,9 +58,11 @@ int main (int argc, char** argv)
     // http://ipaddr:port/docName<null>
     char descDocUrl[7+INET_ADDRSTRLEN+1+5+1+sizeof(g_vars.descDocName)+1];
 
+#ifdef UPNP_ENABLE_IPV6
     // http://[ipaddr6]:port/docName<null>
     char descDocUrlv6[7+INET6_ADDRSTRLEN+1+5+1+sizeof(g_vars.descDocName)+1];
     char descDocUrlUlaGua[7+INET6_ADDRSTRLEN+1+5+1+sizeof(g_vars.descDocName)+1];
+#endif
 
     deviceHandle = 0;
     deviceHandleIPv6 = 0;
@@ -318,6 +320,7 @@ int main (int argc, char** argv)
         UpnpUnRegisterRootDevice(deviceHandle); // this will send byebye's
     }
 
+#ifdef UPNP_ENABLE_IPV6
     if(g_vars.ipv6UlaGuaEnabled)
     {
         if(strlen(descDocUrlUlaGua) > 0) {
@@ -331,6 +334,7 @@ int main (int argc, char** argv)
         UpnpUnRegisterRootDevice(deviceHandleIPv6);
         trace(3, "IPv6 sending byebye on Link Local");
     }
+#endif
 
 
     if(g_vars.ipv4Enabled)
@@ -347,6 +351,7 @@ int main (int argc, char** argv)
         }
     }
 
+#ifdef UPNP_ENABLE_IPV6
     /**
      * Added for IPv6
      */
@@ -379,6 +384,7 @@ int main (int argc, char** argv)
             exit(1);
         }
     }
+#endif
     //end of byebye
 
     trace(2, "IGD root device successfully registered.");
@@ -386,10 +392,12 @@ int main (int argc, char** argv)
     // Initialize the state variable table.
     if(g_vars.ipv4Enabled)
         StateTableInit(descDocUrl);
+#ifdef UPNP_ENABLE_IPV6
     else if(g_vars.ipv6LinkLocalEnabled)
         StateTableInit(descDocUrlv6);
     else
         StateTableInit(descDocUrlUlaGua);
+#endif
 
     // Initialize lanhostconfig module
     InitLanHostConfig();
@@ -406,6 +414,7 @@ int main (int argc, char** argv)
         trace(2, "IPv4 Advertisements Sent. Advertisement sending interval set to %d seconds.  Listening for requests ...",g_vars.advertisementInterval);
     }
 
+#ifdef UPNP_ENABLE_IPV6
     if(g_vars.ipv6UlaGuaEnabled)
     {
         if(strlen(descDocUrlUlaGua) > 0 )
@@ -430,6 +439,7 @@ int main (int argc, char** argv)
         }
         trace(2, "IPv6 Advertisements Sent on Link Local. Advertisement sending interval set to %d seconds.  Listening for requests ...",g_vars.advertisementInterval);
     }
+#endif
     trace(2, "Advertisements Sent. Advertisement sending interval set to %d seconds.  Listening for requests ...",g_vars.advertisementInterval);
 
     // Loop until program exit signals received
@@ -460,6 +470,7 @@ int main (int argc, char** argv)
         trace(3, "IPv4 sending byebye");
     }
 
+#ifdef UPNP_ENABLE_IPV6
     if(g_vars.ipv6UlaGuaEnabled)
     {
         if(strlen(descDocUrlUlaGua) > 0)
@@ -474,6 +485,7 @@ int main (int argc, char** argv)
         UpnpUnRegisterRootDevice(deviceHandleIPv6);
         trace(3, "IPv6 sending byebye on Link Local");
     }
+#endif
 
     trace(2, "Shutting down on signal %d...\n", signum);
 
