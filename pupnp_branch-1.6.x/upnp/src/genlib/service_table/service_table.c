@@ -356,17 +356,6 @@ FindServiceEventURLPath( service_table * table,
                           &parsed_url_in.pathquery ) )
                         return finger;
                 }
-             /* eventURLPath wasn't eventURL, maybe it is secureEventURL */
-            if( finger->secureEventURL )
-                if( ( parse_uri
-                      ( finger->secureEventURL, strlen( finger->secureEventURL ),
-                        &parsed_url ) ) ) {
-
-                    if( !token_cmp
-                        ( &parsed_url.pathquery,
-                          &parsed_url_in.pathquery ) )
-                        return finger;
-                }
                 
             finger = finger->next;
         }
@@ -409,16 +398,6 @@ FindServiceControlURLPath( service_table * table,
             if( finger->controlURL )
                 if( ( parse_uri
                       ( finger->controlURL, strlen( finger->controlURL ),
-                        &parsed_url ) ) ) {
-                    if( !token_cmp
-                        ( &parsed_url.pathquery,
-                          &parsed_url_in.pathquery ) )
-                        return finger;
-                }
-            /* controlURLPath wasn't controlURL, maybe it is secureControlURL */
-            if ( finger->secureControlURL )
-                if( ( parse_uri
-                      ( finger->secureControlURL, strlen( finger->secureControlURL ),
                         &parsed_url ) ) ) {
                     if( !token_cmp
                         ( &parsed_url.pathquery,
@@ -476,18 +455,6 @@ void printService(
             UpnpPrintf( level, module, __FILE__, __LINE__,
                 "eventURL: %s\n", service->eventURL );
         }
-    if( service->secureSCPDURL ) {
-            UpnpPrintf( level, module, __FILE__, __LINE__,
-                "secureSCPDURL: %s\n", service->secureSCPDURL );
-        }
-    if( service->secureControlURL ) {
-            UpnpPrintf( level, module, __FILE__, __LINE__,
-                "secureControlURL: %s\n", service->secureControlURL );
-        }
-    if( service->secureEventURL ) {
-            UpnpPrintf( level, module, __FILE__, __LINE__,
-                "secureEventURL: %s\n", service->secureEventURL );
-        }
 	if( service->UDN ) {
             UpnpPrintf( level, module, __FILE__, __LINE__,
                 "UDN: %s\n\n", service->UDN );
@@ -544,18 +511,6 @@ void printServiceList(
         if( service->eventURL ) {
             UpnpPrintf( level, module, __FILE__, __LINE__,
                 "eventURL: %s\n", service->eventURL );
-        }
-        if( service->secureSCPDURL ) {
-                UpnpPrintf( level, module, __FILE__, __LINE__,
-                    "secureSCPDURL: %s\n", service->secureSCPDURL );
-        }
-        if( service->secureControlURL ) {
-                UpnpPrintf( level, module, __FILE__, __LINE__,
-                    "secureControlURL: %s\n", service->secureControlURL );
-        }
-        if( service->secureEventURL ) {
-                UpnpPrintf( level, module, __FILE__, __LINE__,
-                    "secureEventURL: %s\n", service->secureEventURL );
         }
         if( service->UDN ) {
             UpnpPrintf( level, module, __FILE__, __LINE__,
@@ -635,15 +590,6 @@ void freeService( service_info * in )
         if( in->eventURL )
             free( in->eventURL );
 
-        if( in->secureSCPDURL )
-            free( in->secureSCPDURL );
-
-        if( in->secureControlURL )
-            free( in->secureControlURL );
-
-        if( in->secureEventURL )
-            free( in->secureEventURL );
-
         if( in->UDN )
             ixmlFreeDOMString( in->UDN );
 
@@ -684,12 +630,6 @@ freeServiceList( service_info * head )
             free( head->controlURL );
         if( head->eventURL )
             free( head->eventURL );
-        if( head->secureSCPDURL )
-            free( head->secureSCPDURL );
-        if( head->secureControlURL )
-            free( head->secureControlURL );
-        if( head->secureEventURL )
-            free( head->secureEventURL );
         if( head->UDN )
             ixmlFreeDOMString( head->UDN );
         if( head->subscriptionList )
@@ -840,9 +780,6 @@ getServiceList( IXML_Node * node,
     IXML_Node *SCPDURL = NULL;
     IXML_Node *controlURL = NULL;
     IXML_Node *eventURL = NULL;
-    IXML_Node *secureSCPDURL = NULL;
-    IXML_Node *secureControlURL = NULL;
-    IXML_Node *secureEventURL = NULL;    
     DOMString tempDOMString = NULL;
     service_info *head = NULL;
     service_info *current = NULL;
@@ -891,9 +828,6 @@ getServiceList( IXML_Node * node,
                 current->serviceType = NULL;
                 current->serviceId = NULL;
                 current->SCPDURL = NULL;
-                current->secureSCPDURL = NULL;
-                current->secureControlURL = NULL;
-                current->secureEventURL = NULL;
                 current->active = 1;
                 current->subscriptionList = NULL;
                 current->TotalSubscriptions = 0;
@@ -961,67 +895,6 @@ getServiceList( IXML_Node * node,
                         "EVENT URL SET TO NULL IN SERVICE INFO" );
                     current->eventURL = NULL;
                     fail = 0;
-                }
-
-                ixmlFreeDOMString( tempDOMString );
-                tempDOMString = NULL;
-
-                /* Secure URLs 
-                 * TODO:
-                 * If tempDOMString begins with "https://" then there should be whole URL
-                 * but if after "https:/" comes some other character than "/", then URL is relative
-                 * and we can omit "https:" from the beginning of the string
-                 * */
-                if( ( !
-                      ( getSubElement
-                        ( "dp:secureSCPDURL", current_service, &secureSCPDURL ) ) )
-                    || ( !( tempDOMString = getElementValue( secureSCPDURL ) ) )
-                    ||
-                    ( !
-                      ( current->secureSCPDURL =
-                        resolve_rel_url( SecureURLBase, tempDOMString ) ) ) ) {
-                    UpnpPrintf( UPNP_INFO, GENA, __FILE__, __LINE__,
-                        "BAD OR MISSING SECURE SCPD URL" );
-                    UpnpPrintf( UPNP_INFO, GENA, __FILE__, __LINE__,
-                        "SECURE SCPD URL SET TO NULL IN SERVICE INFO" );
-                    current->secureSCPDURL = NULL;
-                }
-
-                ixmlFreeDOMString( tempDOMString );
-                tempDOMString = NULL;
-
-                if( ( !
-                      ( getSubElement
-                        ( "dp:secureControlURL", current_service, &secureControlURL ) ) )
-                    ||
-                    ( !( tempDOMString = getElementValue( secureControlURL ) ) )
-                    ||
-                    ( !
-                      ( current->secureControlURL =
-                        resolve_rel_url( SecureURLBase, tempDOMString ) ) ) ) {
-                    UpnpPrintf( UPNP_INFO, GENA, __FILE__, __LINE__,
-                        "BAD OR MISSING SECURE CONTROL URL" );
-                    UpnpPrintf( UPNP_INFO, GENA, __FILE__, __LINE__,
-                        "SECURE CONTROL URL SET TO NULL IN SERVICE INFO" );
-                    current->secureControlURL = NULL;
-                }
-
-                ixmlFreeDOMString( tempDOMString );
-                tempDOMString = NULL;
-
-                if( ( !
-                      ( getSubElement
-                        ( "dp:secureEventSubURL", current_service, &secureEventURL ) ) )
-                    || ( !( tempDOMString = getElementValue( secureEventURL ) ) )
-                    ||
-                    ( !
-                      ( current->secureEventURL =
-                        resolve_rel_url( SecureURLBase, tempDOMString ) ) ) ) {
-                    UpnpPrintf( UPNP_INFO, GENA, __FILE__, __LINE__,
-                        "BAD OR MISSING SECURE EVENT URL" );
-                    UpnpPrintf( UPNP_INFO, GENA, __FILE__, __LINE__,
-                        "SECURE EVENT URL SET TO NULL IN SERVICE INFO" );
-                    current->secureEventURL = NULL;
                 }
 
                 ixmlFreeDOMString( tempDOMString );

@@ -78,9 +78,6 @@ typedef struct SERVICE_INFO {
 	char		*SCPDURL ;
 	char		*controlURL;
 	char		*eventURL;
-    char        *secureSCPDURL;
-    char        *secureControlURL;
-    char        *secureEventURL;    
 	DOMString	UDN;
 	int		active;
 	int		TotalSubscriptions;
