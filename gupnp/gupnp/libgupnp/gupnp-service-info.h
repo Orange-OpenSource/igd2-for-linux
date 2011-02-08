@@ -137,15 +137,6 @@ gupnp_service_info_get_control_url            (GUPnPServiceInfo *info);
 char *
 gupnp_service_info_get_event_subscription_url (GUPnPServiceInfo *info);
 
-char *
-gupnp_service_info_get_secure_scpd_url               (GUPnPServiceInfo *info);
-
-char *
-gupnp_service_info_get_secure_control_url            (GUPnPServiceInfo *info);
-
-char *
-gupnp_service_info_get_secure_event_subscription_url (GUPnPServiceInfo *info);
-
 GUPnPServiceIntrospection *
 gupnp_service_info_get_introspection          (GUPnPServiceInfo *info,
                                                GError          **error);

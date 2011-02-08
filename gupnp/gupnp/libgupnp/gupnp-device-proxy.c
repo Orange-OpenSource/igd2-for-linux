@@ -1052,7 +1052,7 @@ gupnp_device_proxy_init_ssl (GUPnPDeviceProxy *proxy,
         }
         else
         {
-            const char *URL = gupnp_service_info_get_secure_control_url (GUPNP_SERVICE_INFO(found_device));
+            const char *URL = gupnp_service_info_get_secure_location (GUPNP_SERVICE_INFO(found_device));
             g_object_unref (found_device);
 
             // create ssl
