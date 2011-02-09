@@ -9,10 +9,10 @@ Installation
 This version of the linux-igd is written in C as opposed to previous version 
 that was written in C++.  This was done at the requests of many embedded 
 developers, as well as some of our developers.  The upnp sdk we now use
-is libupnp-1.6.10, and is written in C as well.  Everything is a 
+is libupnp-1.6.12, and is written in C as well.  Everything is a 
 little more uniform now, and should create a smaller, leaner, faster device.
 
-Step 1 -- Download and install libupnp-1.6.10 source from 
+Step 1 -- Download and install libupnp-1.6.12 source from 
 http://sourceforge.net/projects/pupnp.  Please install with source 
 only as we haven't tested against any precompiled versions.  Also, as 
 the "make install" doesn't quite work as expected, please follow these 
@@ -20,13 +20,13 @@ instructions to install it properly.
 
 (Note: See below regarding installing on Fedora Core 5!)
 
-1. tar -xvzf libupnp-1.6.10.tar.gz
-2. cd libupnp-1.6.10
+1. tar -xvzf libupnp-1.6.12.tar.gz
+2. cd libupnp-1.6.12
 3. ./configure
 4. make
 5. make install
 
-This process should install libupnp-1.6.10 to our liking (maybe not 
+This process should install libupnp-1.6.12 to our liking (maybe not 
 someone else's ;-)
 
 Step 2 -- Obtain the igd2-for-linux software (if for some reason you're reading 
