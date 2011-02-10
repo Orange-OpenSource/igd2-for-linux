@@ -2280,7 +2280,7 @@ get_ACL_data_response (GUPnPServiceProxy       *proxy,
         GHashTable *users = ACLData->user_data;
             
         GError *error = NULL;
-        char *acl, *acl_unescaped;
+        char *acl, *acl_unescaped = NULL;
 
         if (!gupnp_service_proxy_end_action (proxy,
                                              action,
