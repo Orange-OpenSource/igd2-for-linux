@@ -70,8 +70,9 @@ if not os.path.isfile(sys.argv[1]):
 def main():
 	retval=1
 	launchapp (sys.argv[1])
-	#'/home/kari/tmp_dp/data/bin/gupnp-universal-cp')
-	time.sleep(7)
+
+	time.sleep(5)
+
 
 	print "Select LinuxIGD2"
 	try:
@@ -83,23 +84,15 @@ def main():
 		time.sleep(3)
 
 
-	print "Select PIN method"
-	retval=own_click( 'frmGUPnPUniversalControlPoint', 'mnuStartwpssetupPINmethod')
+	print "Select PBC method"
+	retval=own_click( 'frmGUPnPUniversalControlPoint', 'mnuStartwpssetupPBCmethod')
+	time.sleep(8)
+	print "Send USR2 to upnpd"
+	os.system("sudo pkill -USR2 upnpd")
 	time.sleep(5)
-
-	#debug()
-
-	print "Add pin"
-	retval=own_settextvalue('dlgDeviceIntroduction', 'txt0', '49226874')
-	time.sleep(2)
-
-	print "Click invoke"
-	retval=own_click ('dlgDeviceIntroduction', 'btnInvoke')
-	time.sleep(6)
 
 	print "Click OK"
 	retval=own_click ('dlgInformation', 'btnClose')
-	#'btnOK')
 	time.sleep(4)
 
 
@@ -129,7 +122,6 @@ def main():
 	time.sleep(3)
 
 	retval=own_click('dlgInformation', 'btnClose')
-	#btnOK')
 	time.sleep(3)
 
 	print "Logout"
@@ -137,11 +129,12 @@ def main():
 	time.sleep(3)
 
 	retval=own_click('dlgInformation', 'btnClose')
-	#btnOK')
 	time.sleep(3)
 
 	print "Close User Login win"
 	retval=own_click('dlgUserloginsetup', 'btnClose')
+
+	#debug()
 
 	print "all done"
 
@@ -151,9 +144,9 @@ def main():
 
 	for i in getwindowlist():
 		if ( i == 'frmGUPnPUniversalControlPoint' ):
-			retval=own_click ('frmGUPnPUniversalControlPoint', 'mnuQuit')
+			click ('frmGUPnPUniversalControlPoint', 'mnuQuit')
 
-	
+
 	return retval
 
 if __name__ == "__main__":
