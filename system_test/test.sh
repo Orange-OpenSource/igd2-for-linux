@@ -107,6 +107,17 @@ notifye () {
 	clean_up
 }
 
+test_return_values () {
+	VALUES=${PIPESTATUS[*]}
+	for i in $VALUES
+	do
+		#echo $i
+		if [ "$i" -ne "0" ]; then
+			notifye "Command returned $i, $*"
+		fi
+	done
+}
+
 
 prepare_host() {
 	if [ ! -d $WORK_DIR ]; then
@@ -205,6 +216,7 @@ clone_hostap(){
 	if [ ! -d "$SRC_DIR/hostap" ]; then
 		notifyv "Clone hostapd"
 		git clone http://w1.fi/hostap.git $SRC_DIR/hostap 2>&1 | pretty_log $DEBUG_LOG
+		test_return_values
 	else
 		notifyv "hostapd already cloned"
 	fi
@@ -213,6 +225,7 @@ clone_hostap(){
 	if [ ! -d "$SRC_DIR/gssdp" ]; then
 		notifyv "Clone gssdp"
 		git clone http://git.gitorious.org/gupnp/gssdp.git $SRC_DIR/gssdp 2>&1 | pretty_log $DEBUG_LOG
+		test_return_values
 	else
 		notifyv "gssdp already cloned"
 	fi
@@ -221,6 +234,7 @@ clone_hostap(){
 	if [ ! -d "$SRC_DIR/gupnp" ]; then
 		notifyv "Clone gupnp"
 		git clone http://git.gitorious.org/gupnp/gupnp.git $SRC_DIR/gupnp 2>&1 | pretty_log $DEBUG_LOG
+		test_return_values
 	else
 		notifyv "gupnp already cloned"
 	fi
@@ -229,6 +243,7 @@ clone_hostap(){
 	if [ ! -d "$SRC_DIR/gupnp-tools" ]; then
 		notifyv "Clone gupnp-tools"
 		git clone http://git.gitorious.org/gupnp/gupnp-tools.git $SRC_DIR/gupnp-tools 2>&1 | pretty_log $DEBUG_LOG
+		test_return_values
 	else
 		notifyv "gupnp-tools already cloned"
 	fi
@@ -254,6 +269,7 @@ patch_hostap(){
 		tar xzvf $PATCH -C tmp_patches 2>&1 | pretty_log $DEBUG_LOG
 		notifyv "Patch hostap"
 		git am tmp_patches/* 2>&1 | pretty_log $DEBUG_LOG
+		test_return_values
 
 		##
 		#Fix libhostapd.pc
@@ -292,6 +308,7 @@ patch_gsources() {
 
 			notifyv "Patch gssdp"
 			git am --whitespace=nowarn tmp_patches/* 2>&1 | pretty_log $DEBUG_LOG
+			test_return_values
 
 			notifyv "Clean gssdp"
 			rm -rf tmp_patches  2>&1 | pretty_log $DEBUG_LOG
@@ -323,8 +340,9 @@ patch_gsources() {
 
 			notifyv "Patch gupnp"
 			git am --whitespace=nowarn tmp_patches/* 2>&1 | pretty_log $DEBUG_LOG
-			notifyv "Clean gupnp"
+			test_return_values
 
+			notifyv "Clean gupnp"
 			rm -rf tmp_patches  2>&1 | pretty_log $DEBUG_LOG
 			cd $P
 		else
@@ -354,6 +372,7 @@ patch_gsources() {
 
 			notifyv "Patch gupnp-tools"
 			git am --whitespace=nowarn tmp_patches/* 2>&1 | pretty_log $DEBUG_LOG
+			test_return_values
 
 			notifyv "Clean gupnp-tools"
 			rm -rf tmp_patches 2>&1 | pretty_log $DEBUG_LOG
@@ -373,9 +392,12 @@ build_and_install_hostapd() {
 		notifyv "build hostapd"
 		cd $BUILD_DIR/hostap/hostapd
 		PREFIX=$PREFIX make  2>&1 | pretty_log $DEBUG_LOG
+		test_return_values
 		PREFIX=$PREFIX make libhostapd.so  2>&1 | pretty_log $DEBUG_LOG
+		test_return_values
 		notifyv "Install hostapd"
 		PREFIX=$PREFIX make install_hostapd  2>&1 | pretty_log $DEBUG_LOG
+		test_return_values
 		cd $P
 	else
 		notifyv "libhostapd already installed"
@@ -390,10 +412,13 @@ build_and_install_wpa_supplicant() {
 		notifyv "Build wpa_supplicant"
 		cd $BUILD_DIR/hostap/wpa_supplicant
 		PREFIX=$PREFIX make  2>&1 | pretty_log $DEBUG_LOG
+		test_return_values
 		PREFIX=$PREFIX make libwpa_supplicant.so  2>&1 | pretty_log $DEBUG_LOG
+		test_return_values
 
 		notifyv "Install wpa_supplicant"
 		PREFIX=$PREFIX make install_libwpa_supplicant  2>&1 | pretty_log $DEBUG_LOG
+		test_return_values
 
 		## Create pc file
 		notifyv "Create missing libwpa_supplicant.pc file"
@@ -424,11 +449,16 @@ build_libupnp () {
 
 			notifyv "Build libupnp"
 			PKG_CONFIG_PATH=$PREFIX/lib/pkgconfig  autoreconf -v --install  2>&1 | pretty_log $DEBUG_LOG
+			test_return_values
 			PKG_CONFIG_PATH=$PREFIX/lib/pkgconfig ./configure --prefix=$PREFIX 2>&1 | pretty_log $DEBUG_LOG
+			test_return_values
 			PKG_CONFIG_PATH=$PREFIX/lib/pkgconfig make 2>&1 | pretty_log $DEBUG_LOG
+			test_return_values
 
 			notifyv "Install libupnp"
 			PKG_CONFIG_PATH=$PREFIX/lib/pkgconfig make install 2>&1 | pretty_log $DEBUG_LOG
+			test_return_values
+
 			cd $P
 		else
 			notifye "No such file '$LIBUPNP_SRC'"
@@ -451,6 +481,8 @@ build_linuxigd2 () {
 
 		notifyv "Build linuxigd2"
 		make 2>&1 | pretty_log $DEBUG_LOG
+		test_return_values
+
 		cd $P
 	else
 		notifye "No such file or directory '$LINUXIGD2_SRC' "
@@ -485,6 +517,7 @@ umount_chroot() {
 }
 
 chroot_linuxigd2 () {
+	#TODO: this is executed always, add check to avoid id
 	notify "Create chroot for linuxigd2"
 	if [ -f "$BUILD_DIR/linuxigd2-0.8/bin/upnpd" ]; then
 		if [ -n "`pgrep upnpd`" ]; then
@@ -549,11 +582,16 @@ run_linuxigd2 () {
 
 		notifyv "Mount /proc to $LINUXIGD2_CHROOT/proc"
 		sudo mount -o bind /proc $LINUXIGD2_CHROOT/proc
+		test_return_values
+
 		notifyv "Mount /dev to $LINUXIGD2_CHROOT/dev"
 		sudo mount -o bind /dev $LINUXIGD2_CHROOT/dev
+		test_return_values
 
 		notifyv "Run upnpd"
 		echo "LC_ALL=\"C\" LC_CTYPE=\"C\" LANG=\"C\" chroot $LINUXIGD2_CHROOT upnpd -f eth0 eth0 >> $LINUXIGD2_LOG  2>&1 " | sudo sh &
+		test_return_values
+
 		sleep 10
 
 		if [ -n "`pgrep upnpd`" ]; then
@@ -573,9 +611,12 @@ build_gsources () {
 		notifyv "build gssdp"
 		cd $BUILD_DIR/gssdp
 		PKG_CONFIG_PATH=$PREFIX/lib/pkgconfig ./autogen.sh --prefix=$PREFIX 2>&1 | pretty_log $DEBUG_LOG
+		test_return_values
 		make 2>&1 | pretty_log $DEBUG_LOG
+		test_return_values
 		notifyv "Install gssdp"
 		make install 2>&1 | pretty_log $DEBUG_LOG
+		test_return_values
 		cd $P
 	else
 		notifyv "gssdp already installed"
@@ -585,9 +626,12 @@ build_gsources () {
 		notifyv "build gupnp"
 		cd $BUILD_DIR/gupnp
 		PKG_CONFIG_PATH=$PREFIX/lib/pkgconfig ./autogen.sh --prefix=$PREFIX 2>&1 | pretty_log $DEBUG_LOG
+		test_return_values
 		PKG_CONFIG_PATH=$PREFIX/lib/pkgconfig make 2>&1 | pretty_log $DEBUG_LOG
+		test_return_values
 		notifyv "Install gupnp"
 		make install 2>&1 | pretty_log $DEBUG_LOG
+		test_return_values
 		cd $P
 	else
 		notifyv "gupnp already installed"
@@ -598,9 +642,12 @@ build_gsources () {
 		notifyv "build gupnp-tools"
 		cd $BUILD_DIR/gupnp-tools
 		PKG_CONFIG_PATH=$PREFIX/lib/pkgconfig ./autogen.sh --prefix=$PREFIX 2>&1 | pretty_log $DEBUG_LOG
+		test_return_values
 		PKG_CONFIG_PATH=$PREFIX/lib/pkgconfig make 2>&1 | pretty_log $DEBUG_LOG
+		test_return_values
 		notifyv "Install gupnp-tools"
 		make install 2>&1 | pretty_log $DEBUG_LOG
+		test_return_values
 		cd $P
 	else
 		notifyv "gupnp-tools already installed"
@@ -671,9 +718,7 @@ clean_up () {
 
 	umount_chroot
 
-	STOPTIME=`date +"%s"`
-	TOTALTIME=`expr $STOPTIME - $START_TIME`
-	echo -e "\nTest took $TOTALTIME seconds\n"
+	echo -e "\nTest took $SECONDS seconds\n"
 
 	echo "Log files are:"
 	echo $DEBUG_LOG
@@ -684,7 +729,6 @@ clean_up () {
 
 trap "clean_up" SIGHUP SIGINT SIGTERM
 
-START_TIME=`date +"%s"`
 
 case "$1" in
 all)
