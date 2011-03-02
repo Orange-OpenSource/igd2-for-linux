@@ -3,6 +3,7 @@
 ## How to use
 # Variables
 # SUDOBG	Run plain commands in background and with sudo, because some cases eval doesn't work well and "sudo command &" is one of these
+# BG		Run commands in background
 # COLORS	Colorize warning and error
 # VERBOSE	Enable notifyv
 # QUIET		Shows only errors when set
@@ -10,6 +11,7 @@
 # BREAK		ask before execute command when it set before exec_cmd and it will be unset when command executed
 # DRY_RUN	only echoing commands without executing
 # CMD_LOG	Log where to save executed commands (without redirections to logs)
+# ONLY_WARNING	use  notifyw instead of notifye when command return something else than 0
 #
 # Functions
 # All notifies are echoed to $DEBUG_LOG
@@ -28,16 +30,15 @@ if test "${DEBUG_LOG+set}" != set ; then
 fi
 
 if test "${CMD_LOG+set}" == set ; then
-	if [ ! -f "$CMD_LOG" ]; then
-		CMD_LOG=`mktemp`
-	else
+	if [ -f "$CMD_LOG" ]; then
 		#Log is exist
-		echo -e "\n\n\n\n #### `date` ####" >> $CMD_LOG
+		echo -e "\n\n\n\n#### `date` ####" >> $CMD_LOG
 		#rm -Rf $CMD_LOG
 	fi
 fi
 
 
+echo "CMD_LOG is $CMD_LOG"
 
 
 #Add time at the beginning of the lines in log and redirect it to $1 or $DEBUG_LOG
@@ -120,6 +121,7 @@ exec_cmd () {
 	EXECUTECMD=1
 
 	#Stepping
+	#TODO: continue without stepping, help
 	if [ "${STEP+set}" == set ] || [ "${BREAK+set}" == set ]; then
 		if [ "${BREAK+set}" == set ]; then
 			echo "Breakpoint $2, execute [Y/n/c] '$1'"
@@ -169,12 +171,19 @@ exec_cmd () {
 			fi
 
 		else
-			EXECUTED_CMD=$1
+			if test "${BG+set}" == set ; then
+				EXECUTED_CMD="$1 & "
+				BG="&"
+			else
+				EXECUTED_CMD="$1"
+				BG=";"
+			fi
+
 			## Echo command to DEBUG_LOG
 			echo $EXECUTED_CMD | pretty_log $DEBUG_LOG " Execute: "
 
 			if test "${DRY_RUN+set}" != set ; then
-				eval "$1 ; typeset -a a=(\${PIPESTATUS[@]}) " >> $LOG 2>&1
+				eval "$1 $BG typeset -a a=(\${PIPESTATUS[@]}) " >> $LOG 2>&1
 			fi
 		fi
 
@@ -189,10 +198,11 @@ exec_cmd () {
 		fi
 
 		#unset variables
-		unset ONLY_WARNING
 		unset LOG
+		unset BG
 		unset SUDOBG
 
+		CMD_STATUS=1
 		#Check return values
 		for i in $a
 		do
@@ -200,10 +210,27 @@ exec_cmd () {
 			if [ "$i" -ne "0" ]; then
 				if test "${ONLY_WARNING+set}" == set ; then
 					notifyw "Command '$EXECUTED_CMD' returned $i"
+					unset ONLY_WARNING
 				else
 					notifye "Command '$EXECUTED_CMD' returned $i"
+					CMD_STATUS=0
 				fi
 			fi
 		done
+
 	fi
+}
+
+
+show_log_files () {
+	#Print used and exist logfiles
+	LOG_FILES=`compgen -A variable | grep _LOG`
+	for i in $LOG_FILES
+	do
+		F="\$$i"
+		w=`eval "echo $F"`
+		if [ -f "$w" ]; then
+			echo -e "$i \t $w"
+		fi
+	done
 }
