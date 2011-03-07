@@ -26,6 +26,7 @@
  * Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
  *
  * Contact:  Nokia Corporation: Mika.saaranen@nokia.com
+ * Developer(s): jaakko.pasanen@tieto.com, opensource@tieto.com
  *
  * This file may be used under the terms of the GNU Lesser General Public License version 2.1,
  * a copy of which is found in COPYING included in the packaging of this file.
