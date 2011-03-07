@@ -1,0 +1,129 @@
+0.12.4
+======
+
+- Set Content Type header correctly in soap messages [Zeeshan Ali]
+- Don't pass arbitrary strings to printf() for security [Sven Neumann]
+- Handle fscanf failing in get_default_host_ip() [Sven Neumann]
+
+0.12.3
+======
+
+- Greatly improved client-side bindings [Jussi Kukkonen]
+- Server-side bindings [JK]
+- Don't use NULL return values from g_get_application_name [Ross Burton]
+- Make gupnp_context_get_session public [Jorn Baayen]
+- Use the specified GMainContext for timeouts [Olivier Crete, Jorn Baayen]
+
+0.12.2
+======
+
+- Support returning actions outside of the 'action-invoked' signal handler
+  in service implementations. [Zeeshan Ali, Jorn Baayen]
+- Add explicit dependency on gthread. [Zeeshan Ali, Jorn Baayen]
+
+0.12.1
+======
+
+- Support Range headers without upper bound. [Jorn Baayen]
+- Fixed memory management in HTTP GET handler. [Jorn Baayen]
+
+0.12
+====
+
+- Add tool for generating convenience C wrappers for GUPnP service definitions.
+  [Ross Burton]
+- Remove xmlDoc argument from gupnp_root_device_new() for simplicity.
+  (xmlDocs can still be passed to gupnp_root_device_new_full())
+  [Jorn Baayen]
+- Better documentation, new tutorials and sample code. [Ross Burton]
+- Improved support for Accept-Language header. [Jorn Baayen]
+- Various internal improvements. [Zeeshan Ali, Jorn Baayen]
+
+0.10.1
+======
+
+- Bump soname.
+
+0.10
+====
+
+- Use libsoup 2.4. [Zeeshan Ali Khattak, Jorn Baayen]
+- Use g_timeout_add_seconds(). [Jorn Baayen]
+- Use GIO instead of xdgmime. [Jorn Baayen]
+- Support HTTP Range header in the HTTP server. [Jorn Baayen]
+- Use GMappedFile to mmap served files of read()ing them. [Jorn Baayen]
+- Improved documentation. [Ross Burton]
+- Spew HTTP messages to console when GUPNP_DEBUG is set. [Ross Burton]
+- Various other fixes. [Ross Burton, Zeeshan Ali Khattak, Jorn Baayen]
+
+0.8
+===
+
+- New API allowing for subclassing of resource types. 
+  [Zeeshan Ali, Jorn Baayen]
+- GUPnPDeviceInfo returns subresources with version greater or equal than
+  requested version. [Jorn Baayen]
+- Servers announce versions less or equal than implemented version.
+  [Jorn Baayen]
+- Make gupnp_context_get_server() public. [Jorn Baayen]
+- GError arguments added to all error signals. [Jorn Baayen]
+- Improved resubscription handling. [Jorn Baayen]
+- Various other fixes and internal improvements
+  [Ross Burton, Zeeshan Ali, Jorn Baayen].
+
+0.6
+===
+
+- Added service signal autoconnection feature in the spirit of
+  glade_xml_signal_autoconnect(). [Zeeshan Ali]
+- Fixed various bugs related to object destruction. Fixes #500, 503.
+  [Jorn Baayen]
+- Accept 'yes' and 'no' boolean values. [Zeeshan Ali]
+- More information in error messages. [Zeeshan Ali, Jorn Baayen]
+- Mark GUPnPServiceIntrospectionCallback() 'error' argument as 'const'.
+  [Jorn Baayen]
+- Fixed gupnp_device_info_get_model_number() to return the right value.
+  [Zeeshan Ali]
+- Moved the uuid dependency to Requires.Private, and removed the
+  shared-mime-data build dependency. [Jorn Baayen]
+- Various other minor fixes. [Zeeshan Ali, Jorn Baayen]
+
+Special thanks to Stéphane Loeuillet for stress-testing the library and
+discovering many bugs. (Which are all fixed in this release. :) )
+
+0.4
+===
+
+- A new series of functions for sending actions taking hash tables of parameter
+  name-GValue pairs. [Jorn Baayen]
+- New introspection methods for state variable and action retrieval by name.
+  [Zeeshan Ali]
+- New pkg-config file for building against an uninstalled libgupnp.
+  [Zeeshan Ali]
+- Improved conversion between GValues and UPnP value types. [Jorn Baayen]
+- Only include evented state variables in initial event message.
+  [Jorn Baayen]
+
+0.3
+===
+
+- Allow embedded devices to have their own UDNs. [Jorn Baayen]
+- Portability fix. [Priit Laes]
+
+0.2
+===
+
+- Fully implemented server-side API. [Jorn Baayen]
+- New service introspection support through SCPD documents. [Zeeshan Ali]
+- M-POST support. [Jorn Baayen]
+- More error codes split out into several error domains. [Jorn Baayen]
+- Use Accept-Language header for internationalisation. [Jorn Baayen]
+- Subresource retreival moved from DeviceProxy to DeviceInfo. [Jorn Baayen]
+- Bug fixes.
+
+GUPnP is now feature complete.
+
+0.1
+===
+
+Initial release. Full client-side API, server side not done yet.
