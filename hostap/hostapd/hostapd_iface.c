@@ -2,6 +2,7 @@
  * This file is part of Nokia InternetGatewayDevice v2 reference implementation
  * Copyright © 2010 Nokia Corporation and/or its subsidiary(-ies).
  * Contact: mika.saaranen@nokia.com
+ * Developer(s): opensource@tieto.com, niilona@gmail.com
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
