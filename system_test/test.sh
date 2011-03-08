@@ -50,17 +50,19 @@ VERBOSE=1
 
 
 #Include general functions
-source ./general_functions.sh
+SCRIPT_DIR=`dirname $0`
+source ${SCRIPT_DIR}/general_functions.sh
 
 prepare_host() {
 	if [ ! -d $WORK_DIR ]; then
-		echo  "'$WORK_DIR' is not exist, please create it with following command:"
+		echo  "'$WORK_DIR' does not exist, please create it with the following command:"
 		echo "mkdir $WORK_DIR"
+		exit 1
 	fi
 
 	#Create directories and log files
-	exec_cmd "rm -Rf $LOG_DIR/*"
-	exec_cmd "mkdir -p $LOG_DIR"
+	rm -Rf $LOG_DIR
+	mkdir -p $LOG_DIR
 	exec_cmd "mkdir -p $DP_SRC"
 	#exec_cmd "mkdir -p $WORK_DIR/data"
 	exec_cmd "mkdir -p $BUILD_DIR"
