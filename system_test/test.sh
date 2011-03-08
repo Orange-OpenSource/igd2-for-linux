@@ -125,17 +125,22 @@ prepare_host() {
 	if [ ! -f "$WORK_DIR/.HOST_CONFIGURED" ]; then
 		notify "Need root access to install required softwares"
 		if [ "$DISTRIB_ID" == "Debian" ]; then
-			#Debian
+			notify "We are in Debian"
 			exec_cmd "sudo aptitude install libssl-dev git ldtp python-ldtp libgcrypt11 libgcrypt11-dev libgnutls26 libgnutls-dev libgnutls-dev gtk-doc-tools libsoup2.4-1 libsoup2.4-dev libsoup2.4-doc uuid-dev libgtk2.0-dev libglade2-dev"
 			exec_cmd "touch \"$WORK_DIR/.HOST_CONFIGURED\""
 		elif [ "$DISTRIB_ID" == "Ubuntu" ]; then
 			#Ubuntu 10
 			#Test ubuntu versions
-			VER=`lsb_release -sr | cut -d. -f1`
-			if [ "$VER" -eq "10" ]; then
-				exec_cmd "sudo aptitude install libssl-dev git ldtp python-ldpt libgcrypt11 libgcrypt11-dev libgnutls26 libgnutls-dev libgnutls-dev gtk-doc-tools libsoup2.4-1 libsoup2.4-dev libsoup2.4-doc uuid-dev libgtk2.0-dev libglade2-dev"
-			else
-				exec_cmd "sudo aptitude install libssl-dev git ldtp python-ldpt libgcrypt11 libgcrypt11-dev libgnutls13 libgnutls-dev libgnutls-dev gtk-doc-tools libsoup2.4-1 libsoup2.4-dev libsoup2.4-doc uuid-dev libgtk2.0-dev libglade2-dev"
+			UBUNTU_VERSION=`lsb_release -sr`
+			if [ "$UBUNTU_VERSION" == "10.10" ]; then
+				notify "We are in Ubuntu 10.10"
+				exec_cmd "sudo aptitude install libssl-dev git ldtp python-ldtp libgcrypt11 libgcrypt11-dev libgnutls26 libgnutls-dev libgnutls-dev gtk-doc-tools libsoup2.4-1 libsoup2.4-dev libsoup2.4-doc uuid-dev libgtk2.0-dev libglade2-dev"
+			elif [ "$UBUNTU_VERSION" == "10.04" ]; then
+				notify "We are in Ubuntu 10.04"
+				exec_cmd "sudo aptitude install libssl-dev git-core ldtp python-ldtp libgcrypt11 libgcrypt11-dev libgnutls26 libgnutls-dev libgnutls-dev gtk-doc-tools libsoup2.4-1 libsoup2.4-dev libsoup2.4-doc uuid-dev libgtk2.0-dev libglade2-dev"
+			else # older than 10.04 (not tested)
+				notify "We are in unsupported Ubuntu version"
+				exit 1
 			fi
 			exec_cmd "touch \"$WORK_DIR/.HOST_CONFIGURED"\"
 		else
@@ -511,7 +516,7 @@ run_linuxigd2 () {
 		exec_cmd "sleep 10"
 
 		if [ -n "`pgrep upnpd`" ]; then
-			notifyv "Upnpd is up and runnig"
+			notifyv "Upnpd is up and running"
 		else
 			notifye "Something went wrong, upnpd is not running"
 		fi
