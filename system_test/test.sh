@@ -3,7 +3,7 @@
 #All are under this directory
 WORK_DIR="$HOME/linuxigd2_test"
 
-#Where build softwares
+#Where build software
 BUILD_DIR="$WORK_DIR/builds"
 
 #Where to clone sources
@@ -21,8 +21,8 @@ CP_TEST_LOG="$LOG_DIR/cp_test_log.txt"
 #chroot for upnpd
 LINUXIGD2_CHROOT="$WORK_DIR/linuxigd2_chroot"
 
-#softwares and libraries
-PREFIX="$WORK_DIR/installed_softwares"
+#software and libraries
+PREFIX="$WORK_DIR/installed_software"
 
 DISTRIB_ID="None"
 #check operating system
@@ -67,18 +67,18 @@ prepare_host() {
 
 	#PREFIX=$WORK_DIR/
 
-	##check all required softwares in host
-	REQUIRED_SOFTWARES="autoconf sudo libtool make"
-	MISSING_SOFTWARES=""
-	for i in $REQUIRED_SOFTWARES
+	##check all required software in host
+	REQUIRED_SOFTWARE="autoconf sudo libtool make"
+	MISSING_SOFTWARE=""
+	for i in $REQUIRED_SOFTWARE
 	do
 		if [ -z "`which $i`" ]; then
-			MISSING_SOFTWARES="$MISSING_SOFTWARES $i, "
+			MISSING_SOFTWARE="$MISSING_SOFTWARE $i, "
 		fi
 	done
 
-	if [ -n "$MISSING_SOFTWARES" ]; then
-		echo "$MISSING_SOFTWARES are required but not installed softwares. Install these before continue."
+	if [ -n "$MISSING_SOFTWARE" ]; then
+		echo "$MISSING_SOFTWARE are required but not installed software. Install these before continue."
 		exit 1
 	fi
 
@@ -92,12 +92,12 @@ prepare_host() {
 		sleep 5
 	fi
 
-	#Check is there is HOST_CONFIGURED file or similar and intall required softwares if not
+	#Check is there is HOST_CONFIGURED file or similar and intall required software if not
 	if [ ! -f "$WORK_DIR/.HOST_CONFIGURED" ]; then
-		notify "Need root access to install required softwares"
+		notify "Need root access to install required software"
 		if [ "$DISTRIB_ID" == "Debian" ]; then
 			notify "We are in Debian"
-			exec_cmd "sudo aptitude install libssl-dev git ldtp python-ldtp libgcrypt11 libgcrypt11-dev libgnutls26 libgnutls-dev libgnutls-dev gtk-doc-tools libsoup2.4-1 libsoup2.4-dev libsoup2.4-doc uuid-dev libgtk2.0-dev libglade2-dev"
+			exec_cmd "sudo aptitude -y install libssl-dev git ldtp python-ldtp libgcrypt11 libgcrypt11-dev libgnutls26 libgnutls-dev libgnutls-dev gtk-doc-tools libsoup2.4-1 libsoup2.4-dev libsoup2.4-doc uuid-dev libgtk2.0-dev libglade2-dev"
 			exec_cmd "touch \"$WORK_DIR/.HOST_CONFIGURED\""
 		elif [ "$DISTRIB_ID" == "Ubuntu" ]; then
 			#Ubuntu 10
@@ -105,10 +105,10 @@ prepare_host() {
 			UBUNTU_VERSION=`lsb_release -sr`
 			if [ "$UBUNTU_VERSION" == "10.10" ]; then
 				notify "We are in Ubuntu 10.10"
-				exec_cmd "sudo aptitude install libssl-dev git ldtp python-ldtp libgcrypt11 libgcrypt11-dev libgnutls26 libgnutls-dev libgnutls-dev gtk-doc-tools libsoup2.4-1 libsoup2.4-dev libsoup2.4-doc uuid-dev libgtk2.0-dev libglade2-dev"
+				exec_cmd "sudo aptitude -y install libssl-dev git ldtp python-ldtp libgcrypt11 libgcrypt11-dev libgnutls26 libgnutls-dev libgnutls-dev gtk-doc-tools libsoup2.4-1 libsoup2.4-dev libsoup2.4-doc uuid-dev libgtk2.0-dev libglade2-dev"
 			elif [ "$UBUNTU_VERSION" == "10.04" ]; then
 				notify "We are in Ubuntu 10.04"
-				exec_cmd "sudo aptitude install libssl-dev git-core ldtp python-ldtp libgcrypt11 libgcrypt11-dev libgnutls26 libgnutls-dev libgnutls-dev gtk-doc-tools libsoup2.4-1 libsoup2.4-dev libsoup2.4-doc uuid-dev libgtk2.0-dev libglade2-dev"
+				exec_cmd "sudo aptitude -y install libssl-dev git-core ldtp python-ldtp libgcrypt11 libgcrypt11-dev libgnutls26 libgnutls-dev libgnutls-dev gtk-doc-tools libsoup2.4-1 libsoup2.4-dev libsoup2.4-doc uuid-dev libgtk2.0-dev libglade2-dev"
 			else # older than 10.04 (not tested)
 				notify "We are in unsupported Ubuntu version"
 				exit 1
@@ -128,11 +128,17 @@ get_sources(){
 		#TODO: use temporary test repo for now
 		exec_cmd "git clone http://git.gitorious.org/test-title/repo3.git $SRC_DIR/deviceprotection"
 		#exec_cmd "git clone http://git.gitorious.org/igd2-for-linux/deviceprotection.git $SRC_DIR/deviceprotection"
-
+	else
+		notifyv "deviceprotection repository already cloned"
+	fi
+	
+	if [ ! -d "$BUILD_DIR/deviceprotection" ]; then
+		notifyv "Clone source dir"
+		
 		#keep $SRC_DIR clean, and copy it into $BUILD_DIR
 		exec_cmd "git clone $SRC_DIR/deviceprotection $BUILD_DIR/deviceprotection"
 	else
-		notifyv "deviceprotection already cloned"
+		notifyv "source dir already cloned"
 	fi
 }
 
