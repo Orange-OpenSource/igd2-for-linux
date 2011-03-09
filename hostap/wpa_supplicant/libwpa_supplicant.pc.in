@@ -1,0 +1,11 @@
+prefix=/usr/local
+exec_prefix=${prefix}
+libdir=${exec_prefix}/lib
+includedir=${prefix}/include
+
+Name: libwpa_supplicant
+Description: WPS enrollee functionality
+Version: 0.1.0
+Libs: -L${libdir} -lwpa_supplicant
+Cflags: -I${includedir}
+

@@ -815,7 +815,9 @@ install_hostapd: $(DYN_LIB)
 		install -d $(DESTDIR)$(INCDIR)/hostap && \
 		cp $(DYN_LIB_IFACE_HEADER) $(DESTDIR)$(INCDIR)/hostap \
 	; fi
-	if ls $(DYN_LIB_IFACE_PKGFILE) >/dev/null 2>&1; then \
+	if ls $(DYN_LIB_IFACE_PKGFILE).in >/dev/null 2>&1; then \
+		sed -e "s#prefix=/usr/local#prefix=$(PREFIX)#" $(DYN_LIB_IFACE_PKGFILE).in \
+		> $(DYN_LIB_IFACE_PKGFILE); \
 		install -d $(PKGDIR) && \
 		cp $(DYN_LIB_IFACE_PKGFILE) $(PKGDIR) \
 	; fi

@@ -4,8 +4,8 @@ libdir=${exec_prefix}/lib
 includedir=${prefix}/include
 
 Name: libhostapd
-Description: HostAP for WPA
+Description: WPS registrar functionality
 Version: 0.1.0
 Libs: -L${libdir} -lhostapd
-Cflags: -I${includedir}/hostapd
+Cflags: -I${includedir}
 

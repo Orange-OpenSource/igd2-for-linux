@@ -10,6 +10,7 @@ export PREFIX ?= /usr/local
 export LIBDIR ?= $(PREFIX)/lib
 export BINDIR ?= $(PREFIX)/sbin
 export INCDIR ?= $(PREFIX)/include
+export PKGDIR ?= $(LIBDIR)/pkgconfig
 
 CFLAGS += -I../src
 CFLAGS += -I../src/utils
@@ -18,6 +19,7 @@ ALL=wpa_supplicant wpa_passphrase wpa_cli
 
 DYN_LIB=libwpa_supplicant.so
 DYN_LIB_IFACE_HEADER=wpa_supplicant_iface.h
+DYN_LIB_IFACE_PKGFILE ?= libwpa_supplicant.pc
 
 all: verify_config $(ALL) dynamic_eap_methods
 
@@ -51,6 +53,12 @@ install_libwpa_supplicant: $(DYN_LIB)
 	if ls $(DYN_LIB_IFACE_HEADER) >/dev/null 2>&1; then \
 		install -d $(DESTDIR)$(INCDIR)/hostap && \
 		cp $(DYN_LIB_IFACE_HEADER) $(DESTDIR)$(INCDIR)/hostap \
+	; fi
+	if ls $(DYN_LIB_IFACE_PKGFILE).in >/dev/null 2>&1; then \
+		sed -e "s#prefix=/usr/local#prefix=$(PREFIX)#" $(DYN_LIB_IFACE_PKGFILE).in \
+		> $(DYN_LIB_IFACE_PKGFILE); \
+		install -d $(PKGDIR) && \
+		cp $(DYN_LIB_IFACE_PKGFILE) $(PKGDIR) \
 	; fi
 
 OBJS = config.o
