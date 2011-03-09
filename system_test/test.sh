@@ -173,19 +173,6 @@ build_and_install_wpa_supplicant() {
 		notifyv "Install wpa_supplicant"
 		exec_cmd "PREFIX=$PREFIX make install_libwpa_supplicant"
 
-		## Create pc file
-		notifyv "Create missing libwpa_supplicant.pc file"
-		exec_cmd "mkdir -p $PREFIX/lib/pkgconfig/"
-		exec_cmd "echo prefix=$PREFIX > $PREFIX/lib/pkgconfig/libwpa_supplicant.pc"
-		exec_cmd "echo 'prefix=\${prefix}
-libdir=\${exec_prefix}/lib
-includedir=\${prefix}/include
-Name: libwpa_supplicant
-Description: HostAP for WPA
-Version: 0.1.0
-Libs: -L\${libdir} -lwpa_supplicant
-Cflags: -I\${includedir}' > $PREFIX/lib/pkgconfig/libwpa_supplicant.pc"
-
 		exec_cmd "cd $P"
 	else
 		notifyv "libwpa_supplicant already installed"
