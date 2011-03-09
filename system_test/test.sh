@@ -24,14 +24,6 @@ LINUXIGD2_CHROOT="$WORK_DIR/linuxigd2_chroot"
 #softwares and libraries
 PREFIX="$WORK_DIR/installed_softwares"
 
-#device protection snapshot
-DP_SNAP="dp_snapshot_110211.tgz"
-BRANCH_NAME="gupnp_with_dp"
-PATCHSET_ID="110211001"
-#100921001
-LIBUPNP_SRC="$DP_SRC/libupnp-patched-1.6.6.tar.bz2"
-LINUXIGD2_SRC="$DP_SRC/linuxigd2-0.8.tar.gz"
-
 DISTRIB_ID="None"
 #check operating system
 if [ -n "`which lsb_release`" ]; then
@@ -100,27 +92,6 @@ prepare_host() {
 		sleep 5
 	fi
 
-	#Test required files
-	REQUIRED_FILES="$DP_SRC/gupnp_gssdp_patches_${PATCHSET_ID}.tgz $DP_SRC/gupnp_gupnp_patches_${PATCHSET_ID}.tgz $DP_SRC/gupnp_gupnp-tools_patches_${PATCHSET_ID}.tgz $LIBUPNP_SRC $LINUXIGD2_SRC"
-	MISSING_FILES=""
-	for i in $REQUIRED_FILES
-	do
-		if [ ! -f "$i" ]; then
-			notifyv "No such file '$i'"
-			MISSING_FILES="$MISSING_FILES $i, "
-		fi
-	done
-
-	if [ -n "$MISSING_FILES" ]; then
-		if [ -f $DP_SNAP ]; then
-			notifyv " . . so, need to npack dp sources"
-			exec_cmd "tar -xzf $DP_SNAP -C $DP_SRC 2>&1 | pretty_log $DEBUG_LOG"
-		else
-			notifye "No such file '$DP_SRC', please add valid path to \$DP_SRC"
-		fi
-	fi
-
-
 	#Check is there is HOST_CONFIGURED file or similar and intall required softwares if not
 	if [ ! -f "$WORK_DIR/.HOST_CONFIGURED" ]; then
 		notify "Need root access to install required softwares"
@@ -149,173 +120,19 @@ prepare_host() {
 	fi
 }
 
+get_sources(){
+	notify "Get sources"
+	if [ ! -d "$SRC_DIR/deviceprotection" ]; then
+		notifyv "Clone deviceprotection GIT repo"
+		
+		#TODO: use temporary test repo for now
+		exec_cmd "git clone http://git.gitorious.org/test-title/repo3.git $SRC_DIR/deviceprotection"
+		#exec_cmd "git clone http://git.gitorious.org/igd2-for-linux/deviceprotection.git $SRC_DIR/deviceprotection"
 
-clone_hostap(){
-	notify "Check sources"
-	#Clone hostap
-	if [ ! -d "$SRC_DIR/hostap" ]; then
-		notifyv "Clone hostapd"
-		exec_cmd "git clone http://w1.fi/hostap.git $SRC_DIR/hostap"
+		#keep $SRC_DIR clean, and copy it into $BUILD_DIR
+		exec_cmd "git clone $SRC_DIR/deviceprotection $BUILD_DIR/deviceprotection"
 	else
-		notifyv "hostapd already cloned"
-	fi
-
-	#Clone gssdp
-	if [ ! -d "$SRC_DIR/gssdp" ]; then
-		notifyv "Clone gssdp"
-		exec_cmd "git clone http://git.gitorious.org/gupnp/gssdp.git $SRC_DIR/gssdp"
-	else
-		notifyv "gssdp already cloned"
-	fi
-
-	#CLone gupnp
-	if [ ! -d "$SRC_DIR/gupnp" ]; then
-		notifyv "Clone gupnp"
-		exec_cmd "git clone http://git.gitorious.org/gupnp/gupnp.git $SRC_DIR/gupnp"
-	else
-		notifyv "gupnp already cloned"
-	fi
-
-	#Clone gupnp-tools
-	if [ ! -d "$SRC_DIR/gupnp-tools" ]; then
-		notifyv "Clone gupnp-tools"
-		exec_cmd "git clone http://git.gitorious.org/gupnp/gupnp-tools.git $SRC_DIR/gupnp-tools"
-	else
-		notifyv "gupnp-tools already cloned"
-	fi
-}
-
-patch_hostap(){
-	notify "Prepare hostap sources"
-	if [ ! -d "$SRC_DIR/hostap" ]; then
-		notifye "No '$SRC_DIR/hostap', clone it first"
-	elif [ ! -d "$BUILD_DIR/hostap" ]; then
-		PATCH="`ls $DP_SRC/hostap_patches_*.tgz | head -1`"
-		P=`pwd`
-
-		notifyv "Copy hostap sources"
-		exec_cmd "git clone $SRC_DIR/hostap $BUILD_DIR/hostap"
-		exec_cmd "cp $PATCH $BUILD_DIR/hostap/."
-		exec_cmd "cd $BUILD_DIR/hostap"
-
-		notifyv "Change hostapd branch to ${BRANCH_NAME}"
-		exec_cmd "git checkout -b ${BRANCH_NAME} 6195adda9b4306cda2b06b930c59c95832d026a9"
-		exec_cmd "mkdir tmp_patches"
-
-		notifyv "Unpack hostapd patches"
-		exec_cmd "tar xzvf $PATCH -C tmp_patches"
-
-		notifyv "Patch hostap"
-		exec_cmd "git am tmp_patches/*"
-
-		##
-		#Fix libhostapd.pc
-		##
-		notifyv "Fix libhostapd.pc"
-		exec_cmd "sed \"s#prefix=\/usr\/local#prefix=$PREFIX#g\" hostapd/libhostapd.pc > kissa && mv kissa hostapd/libhostapd.pc"
-		exec_cmd "sed 's/Cflags: -I\${includedir}\/hostapd/Cflags: -I\${includedir}/g' hostapd/libhostapd.pc > kissa && mv kissa hostapd/libhostapd.pc"
-		notifyv "Clean hostapd"
-		exec_cmd "rm -rf tmp_patches"
-		exec_cmd "cd $P"
-	else
-		notifyv "hostap already patched"
-	fi
-}
-
-patch_gsources() {
-	notify "Prepare gssdp, gupnp, and gupnp-tools sources"
-	P=`pwd`
-	#gssdp
-	if [ ! -d "$SRC_DIR/gssdp" ]; then
-		notifye "No '$SRC_DIR/gssdp', clone it first"
-	elif [ ! -d "$BUILD_DIR/gssdp" ]; then
-		PATCH="$DP_SRC/gupnp_gssdp_patches_${PATCHSET_ID}.tgz"
-		if [ -f  "$PATCH" ]; then
-			notifyv "Copy gssdp sources"
-			exec_cmd "git clone $SRC_DIR/gssdp $BUILD_DIR/gssdp"
-			exec_cmd "cp $PATCH $BUILD_DIR/gssdp/."
-			exec_cmd "cd $BUILD_DIR/gssdp"
-
-			notifyv "Change gssdp branch to $BRANCH_NAME"
-			exec_cmd "git checkout -b ${BRANCH_NAME} fb8333c67483b5f245ab15bfd42907816d27c6fc"
-			exec_cmd "mkdir tmp_patches"
-
-			notifyv "Unpack gssdp patches"
-			exec_cmd "tar xvzf gupnp_gssdp_patches_${PATCHSET_ID}.tgz -C tmp_patches"
-
-			notifyv "Patch gssdp"
-			exec_cmd "git am --whitespace=nowarn tmp_patches/*"
-
-			notifyv "Clean gssdp"
-			exec_cmd "rm -rf tmp_patches"
-			exec_cmd "cd $P"
-		else
-			notifye "No such file '$PATCH'"
-		fi
-	else
-		notifyv "gssdp already patched"
-	fi
-
-	#gupnp
-	if [ ! -d "$SRC_DIR/gupnp" ]; then
-		notifye "No '$SRC_DIR/gupnp', clone it first"
-	elif [ ! -d "$BUILD_DIR/gupnp" ]; then
-		PATCH="$DP_SRC/gupnp_gupnp_patches_${PATCHSET_ID}.tgz"
-		if [ -f  $PATCH ]; then
-			notifyv "Copy gupnp sources"
-			exec_cmd "git clone $SRC_DIR/gupnp $BUILD_DIR/gupnp"
-			exec_cmd "cp $PATCH $BUILD_DIR/gupnp/."
-			exec_cmd "cd $BUILD_DIR/gupnp"
-
-			notifyv "Change gupnp branch to $BRANCH_NAME"
-			exec_cmd "git checkout -b ${BRANCH_NAME} 8a67704144db3bd994f23837ff000c65766c3d4d"
-			exec_cmd "mkdir tmp_patches"
-
-			notifyv "Unpack gupnp patches"
-			exec_cmd "tar xvzf gupnp_gupnp_patches_${PATCHSET_ID}.tgz -C tmp_patches"
-
-			notifyv "Patch gupnp"
-			exec_cmd "git am --whitespace=nowarn tmp_patches/*"
-
-			notifyv "Clean gupnp"
-			exec_cmd "rm -rf tmp_patches"
-			exec_cmd "cd $P"
-		else
-			notifye "No such file '$PATCH'"
-		fi
-	else
-		notifyv "gupnp already patched"
-	fi
-
-	#gupnp-tools
-	if [ ! -d "$SRC_DIR/gupnp-tools" ]; then
-		notifye "No '$SRC_DIR/gupnp-tools', clone it first"
-	elif [ ! -d "$BUILD_DIR/gupnp-tools" ]; then
-		PATCH="$DP_SRC/gupnp_gupnp-tools_patches_${PATCHSET_ID}.tgz"
-		if [ -f  $PATCH ]; then
-			notifyv "Copy gupnp-tools sources"
-			exec_cmd "git clone $SRC_DIR/gupnp-tools $BUILD_DIR/gupnp-tools"
-			exec_cmd "cp $PATCH $BUILD_DIR/gupnp-tools/."
-			exec_cmd "cd $BUILD_DIR/gupnp-tools"
-
-			notifyv "Change gupnp-tools branch to $BRANCH_NAME"
-			exec_cmd "git checkout -b ${BRANCH_NAME} 5bea76c0956ce85fd071bd20e491bd48747964aa"
-			exec_cmd "mkdir tmp_patches"
-
-			notifyv "Unpack gupnp-tools patches"
-			exec_cmd "tar xvzf gupnp_gupnp-tools_patches_${PATCHSET_ID}.tgz -C tmp_patches"
-
-			notifyv "Patch gupnp-tools"
-			exec_cmd "git am --whitespace=nowarn tmp_patches/*"
-
-			notifyv "Clean gupnp-tools"
-			exec_cmd "rm -rf tmp_patches"
-			exec_cmd "cd $P"
-		else
-			notifye "No such file '$PATCH'"
-		fi
-	else
-		notifyv "gupnp-tools already patched"
+		notifyv "deviceprotection already cloned"
 	fi
 }
 
@@ -325,7 +142,7 @@ build_and_install_hostapd() {
 		P=`pwd`
 
 		notifyv "build hostapd"
-		exec_cmd "cd $BUILD_DIR/hostap/hostapd"
+		exec_cmd "cd $BUILD_DIR/deviceprotection/hostap/hostapd"
 		exec_cmd "PREFIX=$PREFIX make"
 		exec_cmd "PREFIX=$PREFIX make libhostapd.so"
 
@@ -343,7 +160,7 @@ build_and_install_wpa_supplicant() {
 		P=`pwd`
 
 		notifyv "Build wpa_supplicant"
-		exec_cmd "cd $BUILD_DIR/hostap/wpa_supplicant"
+		exec_cmd "cd $BUILD_DIR/deviceprotection/hostap/wpa_supplicant"
 		exec_cmd "PREFIX=$PREFIX make"
 		exec_cmd "PREFIX=$PREFIX make libwpa_supplicant.so"
 
@@ -372,23 +189,18 @@ Cflags: -I\${includedir}' > $PREFIX/lib/pkgconfig/libwpa_supplicant.pc"
 build_libupnp () {
 	notify "Build and install libupnp"
 	if [ ! -f "$PREFIX/lib/libupnp.so.3.0.5" ]; then
-		if [ -f $LIBUPNP_SRC ]; then
-			P=`pwd`
-			exec_cmd "tar -xjf $LIBUPNP_SRC -C $BUILD_DIR/"
-			exec_cmd "cd $BUILD_DIR/libupnp-1.6.6"
+		P=`pwd`
+		exec_cmd "cd $BUILD_DIR/deviceprotection/pupnp_branch-1.6.x"
 
-			notifyv "Build libupnp"
-			exec_cmd "PKG_CONFIG_PATH=$PREFIX/lib/pkgconfig  autoreconf -v --install"
-			exec_cmd "PKG_CONFIG_PATH=$PREFIX/lib/pkgconfig ./configure --prefix=$PREFIX"
-			exec_cmd "PKG_CONFIG_PATH=$PREFIX/lib/pkgconfig make"
+		notifyv "Build libupnp"
+		exec_cmd "PKG_CONFIG_PATH=$PREFIX/lib/pkgconfig  autoreconf -v --install"
+		exec_cmd "PKG_CONFIG_PATH=$PREFIX/lib/pkgconfig ./configure --prefix=$PREFIX"
+		exec_cmd "PKG_CONFIG_PATH=$PREFIX/lib/pkgconfig make"
 
-			notifyv "Install libupnp"
-			exec_cmd "PKG_CONFIG_PATH=$PREFIX/lib/pkgconfig make install"
+		notifyv "Install libupnp"
+		exec_cmd "PKG_CONFIG_PATH=$PREFIX/lib/pkgconfig make install"
 
-			exec_cmd "cd $P"
-		else
-			notifye "No such file '$LIBUPNP_SRC'"
-		fi
+		exec_cmd "cd $P"
 	else
 		notifyv "libupnp already installed"
 	fi
@@ -396,21 +208,16 @@ build_libupnp () {
 
 build_linuxigd2 () {
 	notify "Build linuxigd2"
-	if [ -f $LINUXIGD2_SRC ]; then
-		P=`pwd`
-		exec_cmd "tar -xzf $LINUXIGD2_SRC -C $BUILD_DIR/"
-		exec_cmd "cd $BUILD_DIR/linuxigd2-0.8"
+	P=`pwd`
+	exec_cmd "cd $BUILD_DIR/deviceprotection/linuxigd2"
 
-		#Fix Makefile
-		notifyv "Change path to LIBUPNP_PREFIX in Makefile"
-		exec_cmd "sed \"s#LIBUPNP_PREFIX=/usr/local#LIBUPNP_PREFIX=$PREFIX#g\" Makefile > kissa && cp kissa Makefile"
+	#Fix Makefile
+	notifyv "Change path to LIBUPNP_PREFIX in Makefile"
+	exec_cmd "sed \"s#LIBUPNP_PREFIX=/usr/local#LIBUPNP_PREFIX=$PREFIX#g\" Makefile > kissa && cp kissa Makefile"
 
-		notifyv "Build linuxigd2"
-		exec_cmd "make 2>&1"
-		exec_cmd "cd $P"
-	else
-		notifye "No such file or directory '$LINUXIGD2_SRC' "
-	fi
+	notifyv "Build linuxigd2"
+	exec_cmd "make 2>&1"
+	exec_cmd "cd $P"
 }
 
 umount_chroot() {
@@ -443,7 +250,7 @@ umount_chroot() {
 chroot_linuxigd2 () {
 	#TODO: this is executed always, add check to avoid id
 	notify "Create chroot for linuxigd2"
-	if [ -f "$BUILD_DIR/linuxigd2-0.8/bin/upnpd" ]; then
+	if [ -f "$BUILD_DIR/deviceprotection/linuxigd2/bin/upnpd" ]; then
 		if [ -n "`pgrep upnpd`" ]; then
 			notifyw "there is still upnpd running with pid `pgrep upnpd`, I will kill it"
 			exec_cmd "sudo pkill upnpd"
@@ -452,32 +259,32 @@ chroot_linuxigd2 () {
 		#Copy libs for chroot
 		notifyv "Copy libraries to chroot"
 
-		for i in `LD_LIBRARY_PATH=$PREFIX/lib/ ldd $BUILD_DIR/linuxigd2-0.8/bin/upnpd | awk '{print $3}' | grep ^/`; do exec_cmd "cp $i $LINUXIGD2_CHROOT/lib/."; done
+		for i in `LD_LIBRARY_PATH=$PREFIX/lib/ ldd $BUILD_DIR/deviceprotection/linuxigd2/bin/upnpd | awk '{print $3}' | grep ^/`; do exec_cmd "cp $i $LINUXIGD2_CHROOT/lib/."; done
 		exec_cmd "cp /lib/libc.so.6 /lib/ld-linux.so.2 $LINUXIGD2_CHROOT/lib/."
 
 		#Copy binaries to chroot
 		notifyv "Copy binaries to chroot"
-		exec_cmd "cp $BUILD_DIR/linuxigd2-0.8/bin/upnpd $LINUXIGD2_CHROOT/bin"
+		exec_cmd "cp $BUILD_DIR/deviceprotection/linuxigd2/bin/upnpd $LINUXIGD2_CHROOT/bin"
 		exec_cmd "cp /bin/sh $LINUXIGD2_CHROOT/bin/."
 
 		notifyv "Copy upnpd settings to chroot"
 		#settings
-		exec_cmd "cp $BUILD_DIR/linuxigd2-0.8/configs/ligd.gif $LINUXIGD2_CHROOT/etc/linuxigd"
-		exec_cmd "cp $BUILD_DIR/linuxigd2-0.8/configs/gatedesc.xml $LINUXIGD2_CHROOT/etc/linuxigd"
-		exec_cmd "cp $BUILD_DIR/linuxigd2-0.8/configs/ligd.gif $LINUXIGD2_CHROOT/etc/linuxigd"
-		exec_cmd "cp $BUILD_DIR/linuxigd2-0.8/configs/gatedesc.xml $LINUXIGD2_CHROOT/etc/linuxigd"
-		exec_cmd "cp $BUILD_DIR/linuxigd2-0.8/configs/gateconnSCPD.xml  $LINUXIGD2_CHROOT/etc/linuxigd"
-		exec_cmd "cp $BUILD_DIR/linuxigd2-0.8/configs/gateicfgSCPD.xml $LINUXIGD2_CHROOT/etc/linuxigd"
-		exec_cmd "cp $BUILD_DIR/linuxigd2-0.8/configs/lanhostconfigSCPD.xml $LINUXIGD2_CHROOT/etc/linuxigd"
-		exec_cmd "cp $BUILD_DIR/linuxigd2-0.8/configs/gateEthlcfgSCPD.xml $LINUXIGD2_CHROOT/etc/linuxigd"
-		exec_cmd "cp $BUILD_DIR/linuxigd2-0.8/configs/deviceprotectionSCPD.xml $LINUXIGD2_CHROOT/etc/linuxigd"
-		exec_cmd "cp $BUILD_DIR/linuxigd2-0.8/configs/dummy.xml $LINUXIGD2_CHROOT/etc/linuxigd"
-		exec_cmd "cp $BUILD_DIR/linuxigd2-0.8/configs/accesslevel.xml $LINUXIGD2_CHROOT/etc/linuxigd"
-		exec_cmd "cp $BUILD_DIR/linuxigd2-0.8/configs/upnpd.conf $LINUXIGD2_CHROOT/etc"
-		exec_cmd "cp $BUILD_DIR/linuxigd2-0.8/configs/upnpd_ACL.xml  $LINUXIGD2_CHROOT/etc"
+		exec_cmd "cp $BUILD_DIR/deviceprotection/linuxigd2/configs/ligd.gif $LINUXIGD2_CHROOT/etc/linuxigd"
+		exec_cmd "cp $BUILD_DIR/deviceprotection/linuxigd2/configs/gatedesc.xml $LINUXIGD2_CHROOT/etc/linuxigd"
+		exec_cmd "cp $BUILD_DIR/deviceprotection/linuxigd2/configs/ligd.gif $LINUXIGD2_CHROOT/etc/linuxigd"
+		exec_cmd "cp $BUILD_DIR/deviceprotection/linuxigd2/configs/gatedesc.xml $LINUXIGD2_CHROOT/etc/linuxigd"
+		exec_cmd "cp $BUILD_DIR/deviceprotection/linuxigd2/configs/gateconnSCPD.xml  $LINUXIGD2_CHROOT/etc/linuxigd"
+		exec_cmd "cp $BUILD_DIR/deviceprotection/linuxigd2/configs/gateicfgSCPD.xml $LINUXIGD2_CHROOT/etc/linuxigd"
+		exec_cmd "cp $BUILD_DIR/deviceprotection/linuxigd2/configs/lanhostconfigSCPD.xml $LINUXIGD2_CHROOT/etc/linuxigd"
+		exec_cmd "cp $BUILD_DIR/deviceprotection/linuxigd2/configs/gateEthlcfgSCPD.xml $LINUXIGD2_CHROOT/etc/linuxigd"
+		exec_cmd "cp $BUILD_DIR/deviceprotection/linuxigd2/configs/deviceprotectionSCPD.xml $LINUXIGD2_CHROOT/etc/linuxigd"
+		exec_cmd "cp $BUILD_DIR/deviceprotection/linuxigd2/configs/dummy.xml $LINUXIGD2_CHROOT/etc/linuxigd"
+		exec_cmd "cp $BUILD_DIR/deviceprotection/linuxigd2/configs/accesslevel.xml $LINUXIGD2_CHROOT/etc/linuxigd"
+		exec_cmd "cp $BUILD_DIR/deviceprotection/linuxigd2/configs/upnpd.conf $LINUXIGD2_CHROOT/etc"
+		exec_cmd "cp $BUILD_DIR/deviceprotection/linuxigd2/configs/upnpd_ACL.xml  $LINUXIGD2_CHROOT/etc"
 
 	else
-		notifye "No such file o directory '$BUILD_DIR/linuxigd2-0.8/bin/upnpd'"
+		notifye "No such file o directory '$BUILD_DIR/deviceprotection/linuxigd2/bin/upnpd'"
 	fi
 }
 
@@ -530,7 +337,7 @@ build_gsources () {
 	P=`pwd`
 	if [ ! -f "$PREFIX/lib/libgssdp-1.0.so.1.0.0" ]; then
 		notifyv "build gssdp"
-		exec_cmd "cd $BUILD_DIR/gssdp"
+		exec_cmd "cd $BUILD_DIR/deviceprotection/gupnp/gssdp"
 		exec_cmd "PKG_CONFIG_PATH=$PREFIX/lib/pkgconfig ./autogen.sh --prefix=$PREFIX"
 		exec_cmd "make"
 
@@ -543,7 +350,7 @@ build_gsources () {
 
 	if [ ! -f "$PREFIX/lib/libgupnp-1.0.so.2.0.0" ]; then
 		notifyv "build gupnp"
-		exec_cmd "cd $BUILD_DIR/gupnp"
+		exec_cmd "cd $BUILD_DIR/deviceprotection/gupnp/gupnp"
 		exec_cmd "PKG_CONFIG_PATH=$PREFIX/lib/pkgconfig ./autogen.sh --prefix=$PREFIX"
 		exec_cmd "PKG_CONFIG_PATH=$PREFIX/lib/pkgconfig make"
 
@@ -557,7 +364,7 @@ build_gsources () {
 
 	if [ ! -f "$PREFIX/bin/gupnp-universal-cp" ]; then
 		notifyv "build gupnp-tools"
-		exec_cmd "cd $BUILD_DIR/gupnp-tools"
+		exec_cmd "cd $BUILD_DIR/deviceprotection/gupnp/gupnp-tools"
 		exec_cmd "PKG_CONFIG_PATH=$PREFIX/lib/pkgconfig ./autogen.sh --prefix=$PREFIX"
 		exec_cmd "PKG_CONFIG_PATH=$PREFIX/lib/pkgconfig make"
 
@@ -649,9 +456,7 @@ case "$1" in
 all)
 
 	prepare_host
-	clone_hostap
-	patch_hostap
-	patch_gsources
+	get_sources
 
 	build_and_install_wpa_supplicant
 	build_libupnp
