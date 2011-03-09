@@ -125,9 +125,7 @@ get_sources(){
 	if [ ! -d "$SRC_DIR/deviceprotection" ]; then
 		notifyv "Clone deviceprotection GIT repo"
 		
-		#TODO: use temporary test repo for now
-		exec_cmd "git clone http://git.gitorious.org/test-title/repo3.git $SRC_DIR/deviceprotection"
-		#exec_cmd "git clone http://git.gitorious.org/igd2-for-linux/deviceprotection.git $SRC_DIR/deviceprotection"
+		exec_cmd "git clone http://git.gitorious.org/igd2-for-linux/deviceprotection.git $SRC_DIR/deviceprotection"
 	else
 		notifyv "deviceprotection repository already cloned"
 	fi
