@@ -13,7 +13,7 @@ PKG_RELEASE:=2
 
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.bz2
 #PKG_SOURCE_URL:=@SF/pupnp
-#PKG_MD5SUM:=8918dcf7428cd119d0c8275765ff2833
+#PKG_MD5SUM:=d48938efe69d07142be8aaaeaa9a2d3e
 
 PKG_FIXUP:=libtool
 PKG_INSTALL:=1
@@ -51,24 +51,16 @@ TVcontrolpoint & tvdevice sample applications run inside /etc/upnp-tvdevice/
 endef
 
 define Build/Configure
+	(cd $(PKG_BUILD_DIR); ./bootstrap \
+	);
 	$(call Build/Configure/Default, \
 		--enable-shared \
 		--enable-static \
+		--disable-samples \
 	);
 endef
 
 TARGET_CFLAGS += $(FPIC)
-
-define Build/Compile
-	$(MAKE) -C $(PKG_BUILD_DIR) \
-		CFLAGS="$(TARGET_CFLAGS) -I$(STAGING_DIR)/usr/include -I$(STAGING_DIR)/include" \
-		LDFLAGS="-L$(STAGING_DIR)/lib -L$(STAGING_DIR)/usr/lib \
-			-Wl,-rpath-link,$(STAGING_DIR)/usr/lib -lgnutls -lpthread" \
-		CCOPT="$(TARGET_CFLAGS)" \
-		DESTDIR="$(PKG_INSTALL_DIR)" \
-		all install
-	$(MAKE) -C $(PKG_BUILD_DIR)/upnp/sample/ upnp_tv_device upnp_tv_ctrlpt
-endef
 
 define Build/Compile/libupnp-sample
 	$(MAKE) -C $(PKG_BUILD_DIR) \
