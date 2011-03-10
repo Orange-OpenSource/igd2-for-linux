@@ -40,6 +40,7 @@ fi
 COLORS=1
 VERBOSE=1
 
+SUDO_ALLOWED=0
 
 #Include general functions
 SCRIPT_DIR=`dirname $0`
@@ -85,6 +86,9 @@ prepare_host() {
 
 	# Test sudo
 	sudo ls > /dev/null
+	if [ $? -eq 0 ]; then
+		SUDO_ALLOWED=1
+	fi
 
 	if [ -n "`pgrep upnpd`" ]; then
 		notifyw "there is already upnpd running with pid `pgrep upnpd`, I will kill it"
@@ -426,7 +430,9 @@ pbc_test() {
 
 clean_up () {
 	notify "cleanup"
-	sudo pkill upnpd
+	if [ $SUDO_ALLOWED -eq 1 ]; then
+		sudo pkill upnpd
+	fi
 	sleep 3
 
 	umount_chroot
