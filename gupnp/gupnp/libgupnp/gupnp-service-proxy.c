@@ -828,7 +828,9 @@ write_in_parameter (const char *arg_name,
 		    ( g_strcmp0( arg_name, "ServiceID")          == 0 )  ||
 		    ( g_strcmp0( arg_name, "ActionName")         == 0 )  ||
 		    ( g_strcmp0( arg_name, "ProtocolType")       == 0 )  ||
-		    ( g_strcmp0( arg_name, "Name")               == 0 ))
+		    ( g_strcmp0( arg_name, "Name")               == 0 )  ||
+		    ( g_strcmp0( arg_name, "Parameters")         == 0 )  ||
+		    ( g_strcmp0( arg_name, "StartingNodes")      == 0 ))
 		{
 		  escaping = TRUE;
 		  xml_util_escaping_on_off( 1 );	/* TEST: after this, XML message has escaping */
