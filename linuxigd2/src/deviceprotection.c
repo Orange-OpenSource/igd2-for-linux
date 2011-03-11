@@ -2285,15 +2285,18 @@ int GetRolesForAction(struct Upnp_Action_Request *ca_event)
                 found = 1;
                 break;
             }
+	    ii++;
         }
         if (! found)
         {
             trace(1, "%s: Invalid DeviceUDN '%s'",
                   ca_event->ActionName, deviceUDN);
             int jj = 0;
-            while (dev_info->udnList[ii] != NULL)
+	    
+            while (dev_info->udnList[jj] != NULL)
             {
                 trace(3, "compared to '%s'", dev_info->udnList[jj]);
+		jj++;
             }
             result = 600;
             addErrorData(ca_event, result, "Argument Value Invalid");
