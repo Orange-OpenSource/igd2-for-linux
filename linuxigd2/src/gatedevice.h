@@ -134,7 +134,6 @@ int AuthorizeControlPoint(struct Upnp_Action_Request *ca_event, int managed, int
 typedef enum
 {
     CONTROL_POINT_AUTHORIZED,
-    CONTROL_POINT_HALF_AUTHORIZED,
     CONTROL_POINT_NOT_AUTHORIZED
 } authorization_levels;
 
