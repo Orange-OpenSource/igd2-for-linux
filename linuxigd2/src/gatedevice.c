@@ -2766,7 +2766,20 @@ int AuthorizeControlPoint(struct Upnp_Action_Request *ca_event, int managed, int
     {
         // SSL is not used, but because it is not required to be used we say that Control Point is almost
         // authorized. This means that CP can do basic stuff, or what ever actions allow them to do.
-        return CONTROL_POINT_HALF_AUTHORIZED;
+	// If the role required is public, the CP can do basic stuff
+	 if (strstr(accessLevel, "Public")!=NULL )
+	{
+        	return CONTROL_POINT_AUTHORIZED;
+	}
+	else{
+	  
+	  trace(1, "%s: Not enough privileges to do this, '%s' is required",ca_event->ActionName, accessLevel);
+          result = 606;
+          addErrorData(ca_event, result, "Action not authorized");
+	  
+	  return CONTROL_POINT_NOT_AUTHORIZED;
+	 }
+
     }
     else
     {

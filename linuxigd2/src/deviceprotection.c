@@ -1619,7 +1619,7 @@ int GetUserLoginChallenge(struct Upnp_Action_Request *ca_event)
 
     // CP with same ID must be listed in ACL
     ret = getIdentifierOfCP(ca_event, &identifier, &len, NULL);
-    if (identifier && (ACL_getRolesOfCP(ACLDoc, identifier) == NULL))
+    if (identifier == NULL && (ACL_getRolesOfCP(ACLDoc, identifier) == NULL))
     {
         trace(1, "%s: ID '%s' of control point is not listed in ACL",ca_event->ActionName,identifier);
         // TODO: Check this error code!
@@ -1650,11 +1650,31 @@ int GetUserLoginChallenge(struct Upnp_Action_Request *ca_event)
             ((getValuesFromPasswdFile(name, NULL,NULL,NULL,NULL,0) == 0) &&
             (ACL_getRolesOfUser(ACLDoc, name) != NULL)))
         {
-            // parameters OK
-            if (result == 0)
-            {
-                createUserLoginChallengeResponse(ca_event, name);
-            }
+            if (strstr(ACL_getRolesOfUser(ACLDoc, name),"Admin")!=NULL)
+	    {
+		 //check if CP has roles to get Challenge of an admin user
+		if(strstr(ACL_getRolesOfCP(ACLDoc, identifier),"Basic")!=NULL || strstr(ACL_getRolesOfCP(ACLDoc, identifier),"Admin")!=NULL)
+		{
+		    // parameters OK
+		    if (result == 0)
+		    {
+			createUserLoginChallengeResponse(ca_event, name);
+		    }
+		}
+		else{
+		  trace(1, "%s: Not enough privileges to do this, '%s' is required",ca_event->ActionName, "Admin or Basic");
+		  result = 606;
+		  addErrorData(ca_event, result, "Action not authorized");
+		}
+		
+	    }
+	    else{
+		// parameters OK
+		 if (result == 0)
+		 {
+		    createUserLoginChallengeResponse(ca_event, name);
+		 }
+	    }
         }
         else
         {
@@ -2285,15 +2305,18 @@ int GetRolesForAction(struct Upnp_Action_Request *ca_event)
                 found = 1;
                 break;
             }
+	    ii++;
         }
         if (! found)
         {
             trace(1, "%s: Invalid DeviceUDN '%s'",
                   ca_event->ActionName, deviceUDN);
             int jj = 0;
-            while (dev_info->udnList[ii] != NULL)
+	    
+            while (dev_info->udnList[jj] != NULL)
             {
                 trace(3, "compared to '%s'", dev_info->udnList[jj]);
+		jj++;
             }
             result = 600;
             addErrorData(ca_event, result, "Argument Value Invalid");
