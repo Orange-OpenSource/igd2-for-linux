@@ -32,8 +32,6 @@
 #include <upnp/TimerThread.h>
 #include "util.h"
 
-#define WANIP_SERVICE_TYPE "urn:schemas-upnp-org:service:WANIPConnection:2"
-
 // Thread which contains all kind of timers and threads used in gatedevice.c and deviceprotection.c
 TimerThread gExpirationTimerThread;
 

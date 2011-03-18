@@ -246,32 +246,12 @@ int CloseFirewallv6(void)
  */
 int upnp_wanipv6_getFirewallStatus(struct Upnp_Action_Request *ca_event)
 {
-    char resultStr[RESULT_LEN];
-    IXML_Document *result;
+    if(GetNbSoapParameters(ca_event->ActionRequest) == 0) {
 
-    if(GetNbSoapParameters(ca_event->ActionRequest, "u:GetFirewallStatus") == 0) {
-
-        ca_event->ErrCode = UPNP_E_SUCCESS;
-        snprintf(resultStr, RESULT_LEN,
-                "<u:GetFirewallStatusResponse xmlns:u="
-                "\"urn:schemas-upnp-org:service:WANIPv6FirewallControl:1\">\n"
-                "<FirewallEnabled>%i</FirewallEnabled>\n"
-                "<InboundPinholeAllowed>%i</InboundPinholeAllowed>\n"
-                "</u:GetFirewallStatusResponse>",
+        ParseResult( ca_event, "<FirewallEnabled>%i</FirewallEnabled>\n"
+                "<InboundPinholeAllowed>%i</InboundPinholeAllowed>\n", 
                 g_vars.ipv6firewallEnabled,
-                g_vars.ipv6inboundPinholeAllowed);
-
-        // Create a IXML_Document from resultStr and return with ca_event
-        if ((result = ixmlParseBuffer(resultStr)) != NULL)
-        {
-            ca_event->ActionResult = result;
-            ca_event->ErrCode = UPNP_E_SUCCESS;
-        }
-        else
-        {
-            errorManagement(UPNP_SOAP_E_INVALID_ARGS, ca_event);
-        }
-
+                g_vars.ipv6inboundPinholeAllowed );
     }
 
     else {
@@ -296,8 +276,6 @@ int upnp_wanipv6_getOutboundPinholeTimeOut(struct Upnp_Action_Request *ca_event)
     char *internal_client=NULL;
     char *internal_port=NULL;
     char *protocol=NULL;
-    char resultStr[RESULT_LEN];
-    IXML_Document *result;
     int error = 0;
 
     if ( (remote_host = GetFirstDocumentItem(
@@ -310,8 +288,7 @@ int upnp_wanipv6_getOutboundPinholeTimeOut(struct Upnp_Action_Request *ca_event)
                     ca_event->ActionRequest, "InternalPort") )
             && (protocol = GetFirstDocumentItem(
                     ca_event->ActionRequest, "Protocol") )
-            && (GetNbSoapParameters(ca_event->ActionRequest,
-                    "u:GetOutboundPinholeTimeout") == 5 ) )
+            && (GetNbSoapParameters(ca_event->ActionRequest) == 5 ) )
     {
 
         if(!(checkForWildCard(internal_client))
@@ -405,24 +382,9 @@ int upnp_wanipv6_getOutboundPinholeTimeOut(struct Upnp_Action_Request *ca_event)
                 }
             }
 
-            ca_event->ErrCode = UPNP_E_SUCCESS;
-            snprintf(resultStr, RESULT_LEN,
-                    "<u:GetOutboundPinholeTimeoutResponse "
-                    "xmlns:u=\"urn:schemas-upnp-org:service:"
-                    "WANIPv6FirewallControl:1\">\n"
-                    "<OutboundPinholeTimeout>%i</OutboundPinholeTimeout>\n"
-                    "</u:GetOutboundPinholeTimeoutResponse>",timeout);
-
-            // Create a IXML_Document from resultStr and return with ca_event
-            if ((result = ixmlParseBuffer(resultStr)) != NULL)
-            {
-                ca_event->ActionResult = result;
-                ca_event->ErrCode = UPNP_E_SUCCESS;
-            }
-            else
-            {
-                errorManagement(UPNP_SOAP_E_INVALID_ARGS, ca_event);
-            }
+            ParseResult( ca_event,
+                "<OutboundPinholeTimeout>%i</OutboundPinholeTimeout>\n", 
+                timeout );
         }
 
     }
@@ -438,13 +400,11 @@ int upnp_wanipv6_getOutboundPinholeTimeOut(struct Upnp_Action_Request *ca_event)
         return UPNP_SOAP_E_INVALID_ARGS;
     }
 
-    if (remote_host) free(remote_host);
-    if (remote_port) free(remote_port);
-    if (internal_client) free(internal_client);
-    if (internal_port) free(internal_port);
-    if (protocol) free(protocol);
-
-
+    free(remote_host);
+    free(remote_port);
+    free(internal_client);
+    free(internal_port);
+    free(protocol);
 
     return(ca_event->ErrCode);
 }
@@ -464,8 +424,6 @@ int upnp_wanipv6_addPinhole(struct Upnp_Action_Request *ca_event)
     char *internal_port=NULL;
     char *protocol=NULL;
     char *lease_time=NULL;
-    char resultStr[RESULT_LEN];
-    IXML_Document *result;
     uint32_t UniqueId;
     int error = 0;
 
@@ -481,8 +439,7 @@ int upnp_wanipv6_addPinhole(struct Upnp_Action_Request *ca_event)
                     ca_event->ActionRequest, "Protocol") )
             && (lease_time = GetFirstDocumentItem(
                     ca_event->ActionRequest, "LeaseTime") )
-            && (GetNbSoapParameters(ca_event->ActionRequest,
-                    "u:AddPinhole") == 6 ) )
+            && (GetNbSoapParameters(ca_event->ActionRequest) == 6 ) )
     {
         if(!g_vars.ipv6firewallEnabled)
         {
@@ -628,23 +585,7 @@ int upnp_wanipv6_addPinhole(struct Upnp_Action_Request *ca_event)
 
         if(error == 0)
         {
-
-            ca_event->ErrCode = UPNP_E_SUCCESS;
-            snprintf(resultStr, RESULT_LEN,
-                    "<u:AddPinholeResponse xmlns:u=\"urn:schemas-upnp-org:"
-                    "service:WANIPv6FirewallControl:1\">\n"
-                    "<UniqueID>%i</UniqueID>\n"
-                    "</u:AddPinholeResponse>",UniqueId);
-
-            if ((result = ixmlParseBuffer(resultStr)) != NULL)
-            {
-                ca_event->ActionResult = result;
-                ca_event->ErrCode = UPNP_E_SUCCESS;
-            }
-            else
-            {
-                errorManagement(UPNP_SOAP_E_INVALID_ARGS, ca_event);
-            }
+            ParseResult( ca_event, "<UniqueID>%i</UniqueID>\n", UniqueId );
         }
 
     }
@@ -660,12 +601,12 @@ int upnp_wanipv6_addPinhole(struct Upnp_Action_Request *ca_event)
     }
 
 
-    if (remote_host) free(remote_host);
-    if (remote_port) free(remote_port);
-    if (internal_client) free(internal_client);
-    if (internal_port) free(internal_port);
-    if (protocol) free(protocol);
-    if (lease_time) free(lease_time);
+    free(remote_host);
+    free(remote_port);
+    free(internal_client);
+    free(internal_port);
+    free(protocol);
+    free(lease_time);
 
 
     return(ca_event->ErrCode);
@@ -683,8 +624,6 @@ int upnp_wanipv6_updatePinhole(struct Upnp_Action_Request *ca_event)
     char internal_client[INET6_ADDRSTRLEN];
     char *lease_time=NULL;
     char *unique_id=NULL;
-    char resultStr[RESULT_LEN];
-    IXML_Document *result;
     int error = 0;
     struct pinholev6 * pinhole;
 
@@ -694,8 +633,7 @@ int upnp_wanipv6_updatePinhole(struct Upnp_Action_Request *ca_event)
             && (lease_time = GetFirstDocumentItem(
                     ca_event->ActionRequest, "NewLeaseTime") )
             && (isStringInteger(lease_time) )
-            && (GetNbSoapParameters(
-                    ca_event->ActionRequest, "u:UpdatePinhole") == 2 ) )
+            && (GetNbSoapParameters(ca_event->ActionRequest) == 2 ) )
     {
         if(!g_vars.ipv6firewallEnabled)
         {
@@ -744,20 +682,7 @@ int upnp_wanipv6_updatePinhole(struct Upnp_Action_Request *ca_event)
                 phv6_updatePinhole((uint32_t)atoi(unique_id),
                         (uint32_t)atoi(lease_time));
 
-                snprintf(resultStr, RESULT_LEN,
-                        "<u:UpdatePinholeResponse xmlns:u=\"urn:schemas-upnp"
-                        "-org:service:WANIPv6FirewallControl:1\">\n"
-                        "</u:UpdatePinholeResponse>");
-
-                if ((result = ixmlParseBuffer(resultStr)) != NULL)
-                {
-                    ca_event->ActionResult = result;
-                    ca_event->ErrCode = UPNP_E_SUCCESS;
-                }
-                else
-                {
-                    errorManagement(UPNP_SOAP_E_INVALID_ARGS, ca_event);
-                }
+                ParseResult( ca_event, "" );
             }
         }
         else
@@ -773,8 +698,8 @@ int upnp_wanipv6_updatePinhole(struct Upnp_Action_Request *ca_event)
         errorManagement(UPNP_SOAP_E_INVALID_ARGS, ca_event);
     }
 
-    if (lease_time) free(lease_time);
-    if (unique_id) free(unique_id);
+    free(lease_time);
+    free(unique_id);
 
     return(ca_event->ErrCode);
 }
@@ -787,19 +712,15 @@ int upnp_wanipv6_updatePinhole(struct Upnp_Action_Request *ca_event)
  */
 int upnp_wanipv6_deletePinhole(struct Upnp_Action_Request *ca_event)
 {
-    char resultStr[RESULT_LEN];
     char internal_client[INET6_ADDRSTRLEN];
     char *unique_id = NULL;
-    IXML_Document *result;
     struct pinholev6 * pinhole;
     int error = 0;
 
     if ( (unique_id = GetFirstDocumentItem(
             ca_event->ActionRequest, "UniqueID"))
             && (isStringInteger(unique_id) )
-            && (GetNbSoapParameters(
-                    ca_event->ActionRequest,
-                    "u:DeletePinhole") == 1 ) )
+            && (GetNbSoapParameters(ca_event->ActionRequest) == 1 ) )
     {
         if(!g_vars.ipv6firewallEnabled)
         {
@@ -835,21 +756,7 @@ int upnp_wanipv6_deletePinhole(struct Upnp_Action_Request *ca_event)
 
                 phv6_deletePinhole((uint32_t)atoi(unique_id));
 
-                snprintf(resultStr, RESULT_LEN,
-                        "<u:DeletePinholeResponse xmlns:u=\"urn:schemas-upnp-"
-                        "org:service:WANIPv6FirewallControl:1\">\n"
-                        "</u:DeletePinholeResponse>");
-
-                // Create a IXML_Document from resultStr and return with ca_event
-                if ((result = ixmlParseBuffer(resultStr)) != NULL)
-                {
-                    ca_event->ActionResult = result;
-                    ca_event->ErrCode = UPNP_E_SUCCESS;
-                }
-                else
-                {
-                    errorManagement(UPNP_SOAP_E_INVALID_ARGS, ca_event);
-                }
+                ParseResult( ca_event, "" );
             }
 
         }
@@ -867,7 +774,7 @@ int upnp_wanipv6_deletePinhole(struct Upnp_Action_Request *ca_event)
 
     }
 
-    if(unique_id) free(unique_id);
+    free(unique_id);
 
     return(ca_event->ErrCode);
 
@@ -881,10 +788,8 @@ int upnp_wanipv6_deletePinhole(struct Upnp_Action_Request *ca_event)
  */
 int upnp_wanipv6_getPinholePackets(struct Upnp_Action_Request *ca_event)
 {
-    char resultStr[RESULT_LEN];
     char internal_client[INET6_ADDRSTRLEN];
     char *unique_id = NULL;
-    IXML_Document *result;
     struct pinholev6 * pinhole;
     int error = 0;
     int packets = 0;
@@ -892,9 +797,7 @@ int upnp_wanipv6_getPinholePackets(struct Upnp_Action_Request *ca_event)
     if ( (unique_id = GetFirstDocumentItem(
             ca_event->ActionRequest, "UniqueID"))
             && (isStringInteger(unique_id) )
-            && (GetNbSoapParameters(
-                    ca_event->ActionRequest,
-                    "u:GetPinholePackets") == 1 ) )
+            && (GetNbSoapParameters(ca_event->ActionRequest) == 1 ) )
     {
         if(!g_vars.ipv6firewallEnabled)
         {
@@ -930,22 +833,8 @@ int upnp_wanipv6_getPinholePackets(struct Upnp_Action_Request *ca_event)
 
                 phv6_getPinholePackets((uint32_t)atoi(unique_id), &packets);
 
-                snprintf(resultStr, RESULT_LEN,
-                        "<u:GetPinholePacketsResponse xmlns:u=\"urn:schemas-"
-                        "upnp-org:service:WANIPv6FirewallControl:1\">\n"
-                        "<PinholePackets>%i</PinholePackets>\n"
-                        "</u:GetPinholePacketsResponse>",packets);
-
-                // Create a IXML_Document from resultStr and return with ca_event
-                if ((result = ixmlParseBuffer(resultStr)) != NULL)
-                {
-                    ca_event->ActionResult = result;
-                    ca_event->ErrCode = UPNP_E_SUCCESS;
-                }
-                else
-                {
-                    errorManagement(UPNP_SOAP_E_INVALID_ARGS, ca_event);
-                }
+                ParseResult( ca_event, "<PinholePackets>%i</PinholePackets>\n",
+                        packets );
             }
 
         }
@@ -963,7 +852,7 @@ int upnp_wanipv6_getPinholePackets(struct Upnp_Action_Request *ca_event)
 
     }
 
-    if(unique_id) free(unique_id);
+    free(unique_id);
 
     return(ca_event->ErrCode);
 }
@@ -976,20 +865,15 @@ int upnp_wanipv6_getPinholePackets(struct Upnp_Action_Request *ca_event)
  */
 int upnp_wanipv6_checkPinholeWorking(struct Upnp_Action_Request *ca_event)
 {
-
-    char resultStr[RESULT_LEN];
     char internal_client[INET6_ADDRSTRLEN];
     char *unique_id = NULL;
-    IXML_Document *result;
     struct pinholev6 * pinhole;
     int error = 0;
 
     if ( (unique_id = GetFirstDocumentItem(
             ca_event->ActionRequest, "UniqueID") )
             && (isStringInteger(unique_id) )
-            && (GetNbSoapParameters(
-                    ca_event->ActionRequest,
-                    "u:CheckPinholeWorking") == 1 ) )
+            && (GetNbSoapParameters(ca_event->ActionRequest) == 1 ) )
     {
         if(!g_vars.ipv6firewallEnabled)
         {
@@ -1037,23 +921,8 @@ int upnp_wanipv6_checkPinholeWorking(struct Upnp_Action_Request *ca_event)
                 }
 
                 else {
-
-                    snprintf(resultStr, RESULT_LEN,
-                            "<u:CheckPinholeWorkingResponse xmlns:u=\"urn:"
-                            "schemas-upnp-org:service:WANIPv6FirewallControl:1\">\n"
-                            "<IsWorking>%i</IsWorking>\n"
-                            "</u:CheckPinholeWorkingResponse>", isWorking);
-
-                    // Create a IXML_Document from resultStr and return with ca_event
-                    if ((result = ixmlParseBuffer(resultStr)) != NULL)
-                    {
-                        ca_event->ActionResult = result;
-                        ca_event->ErrCode = UPNP_E_SUCCESS;
-                    }
-                    else
-                    {
-                        errorManagement(UPNP_SOAP_E_INVALID_ARGS, ca_event);
-                    }
+                    ParseResult( ca_event, "<IsWorking>%i</IsWorking>\n",
+                        isWorking );
                 }
             }
 
@@ -1072,7 +941,7 @@ int upnp_wanipv6_checkPinholeWorking(struct Upnp_Action_Request *ca_event)
 
     }
 
-    if(unique_id) free(unique_id);
+    free(unique_id);
 
     return(ca_event->ErrCode);
 

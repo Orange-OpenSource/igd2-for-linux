@@ -75,10 +75,10 @@ int readIntFromFile(char *file);
 
 char* GetFirstDocumentItem( IN IXML_Document * doc, const char *item );
 char* GetDocumentItem(IXML_Document * doc, const char *item, int index);
-int GetNbSoapParameters(IN IXML_Document * doc, IN const char* action);
+int GetNbSoapParameters(IN IXML_Document * doc);
 int isStringInteger(char * string);
 
 void ParseXMLResponse(struct Upnp_Action_Request *ca_event, const char *result);
-
+void ParseResult( struct Upnp_Action_Request *ca_event, const char *str, ... );
 
 #endif //_UTIL_H_

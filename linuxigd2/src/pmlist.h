@@ -4,6 +4,11 @@
  * Contact: mika.saaranen@nokia.com
  * Developer(s): jaakko.pasanen@tieto.com, opensource@tieto.com
  *  
+ * This file is part of igd2-for-linux project
+ * Copyright © 2011 France Telecom.
+ * Contact: fabrice.fontaine@orange-ftgroup.com
+ * Developer(s): fabrice.fontaine@orange-ftgroup.com, rmenard.ext@orange-ftgroup.com
+ * 
  * This program is free software: you can redistribute it and/or modify 
  * it under the terms of the GNU General Public License as published by 
  * the Free Software Foundation, either version 2 of the License, or 
@@ -15,7 +20,8 @@
  * GNU General Public License for more details. 
  * 
  * You should have received a copy of the GNU General Public License 
- * along with this program. If not, see http://www.gnu.org/licenses/. 
+ * along with this program, see the /doc directory of this program. If 
+ * not, see http://www.gnu.org/licenses/. 
  * 
  */
  
@@ -38,6 +44,7 @@ struct portMap
 {
     int m_PortMappingEnabled;
     long int m_PortMappingLeaseDuration;
+    int m_IsStatic;
     char m_RemoteHost[INET6_ADDRSTRLEN];      // updated IPv6 addrss length 16 -> 46
     char m_ExternalPort[6];
     char m_InternalPort[6];
@@ -54,8 +61,8 @@ struct portMap
 
 //struct portMap* pmlist_NewNode(void);
 struct portMap* pmlist_NewNode(int enabled, long int duration, char *remoteHost,
-                                           char *externalPort, char *internalPort,
-                                           char *protocol, char *internalClient, char *desc);
+                               char *externalPort, char *internalPort,
+                               char *protocol, char *internalClient, char *desc, int isStatic);
 
 struct portMap* pmlist_Find(char * remoteHost, char *externalPort, char *proto, char *internalClient);
 struct portMap* pmlist_FindBy_extPort_proto_intClient(char *externalPort, char *proto, char *internalClient);
