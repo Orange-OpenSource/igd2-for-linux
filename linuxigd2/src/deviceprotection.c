@@ -1619,7 +1619,17 @@ int GetUserLoginChallenge(struct Upnp_Action_Request *ca_event)
 
     // CP with same ID must be listed in ACL
     ret = getIdentifierOfCP(ca_event, &identifier, &len, NULL);
-    if (identifier == NULL && (ACL_getRolesOfCP(ACLDoc, identifier) == NULL))
+    
+    //Check if identifier exists and is ,ot NULL
+    if (ret!= 0){
+	trace(1, "%s: Failed to get identifier from certificate",ca_event->ActionName);
+        result = 501;
+        addErrorData(ca_event, result, "Action Failed");
+	
+	return ca_event->ErrCode;
+    }
+    
+    if (identifier && (ACL_getRolesOfCP(ACLDoc, identifier) == NULL))
     {
         trace(1, "%s: ID '%s' of control point is not listed in ACL",ca_event->ActionName,identifier);
         // TODO: Check this error code!
@@ -1740,9 +1750,20 @@ int UserLogin(struct Upnp_Action_Request *ca_event)
 
     char *identifier = NULL;
     int identifier_len;
+    int ret;
 
     // CP with same ID must be listed in ACL
-    getIdentifierOfCP(ca_event, &identifier, &identifier_len, NULL);
+    ret = getIdentifierOfCP(ca_event, &identifier, &identifier_len, NULL);
+    
+    //Check if identifier exists and is not NULL
+    if (ret!= 0){
+	trace(1, "%s: Failed to get identifier from certificate",ca_event->ActionName);
+        result = 501;
+        addErrorData(ca_event, result, "Action Failed");
+	
+	return ca_event->ErrCode;
+    }
+    
     if (identifier && (ACL_getRolesOfCP(ACLDoc, identifier) == NULL))
     {
         trace(1, "%s: ID '%s' of control point is not listed in ACL",ca_event->ActionName,identifier);
@@ -2002,9 +2023,21 @@ int GetACLData(struct Upnp_Action_Request *ca_event)
 
     char *identifier = NULL;
     int identifier_len;
+    int ret;
+    int result = 0;
 
     // CP with same ID must be listed in ACL
-    getIdentifierOfCP(ca_event, &identifier, &identifier_len, NULL);
+    ret = getIdentifierOfCP(ca_event, &identifier, &identifier_len, NULL);
+    
+    //Check if identifier exists and is not NULL
+    if (ret!= 0){
+	trace(1, "%s: Failed to get identifier from certificate",ca_event->ActionName);
+        result = 501;
+        addErrorData(ca_event, result, "Action Failed");
+	
+	return ca_event->ErrCode;
+    }
+    
     if (identifier && (ACL_getRolesOfCP(ACLDoc, identifier) == NULL))
     {
         trace(1, "%s: ID '%s' of control point is not listed in ACL",ca_event->ActionName,identifier);
@@ -2276,9 +2309,20 @@ int GetRolesForAction(struct Upnp_Action_Request *ca_event)
     char *restrictedRoleList = NULL;
     char *identifier = NULL;
     int identifier_len;
+    int ret;
 
     // CP with same ID must be listed in ACL
-    getIdentifierOfCP(ca_event, &identifier, &identifier_len, NULL);
+    ret = getIdentifierOfCP(ca_event, &identifier, &identifier_len, NULL);
+    
+    //Check if identifier exists and is not NULL
+    if (ret!= 0){
+	trace(1, "%s: Failed to get identifier from certificate",ca_event->ActionName);
+        result = 501;
+        addErrorData(ca_event, result, "Action Failed");
+	
+	return ca_event->ErrCode;
+    }
+    
     if (identifier && (ACL_getRolesOfCP(ACLDoc, identifier) == NULL))
     {
         trace(1, "%s: ID '%s' of control point is not listed in ACL",ca_event->ActionName,identifier);
