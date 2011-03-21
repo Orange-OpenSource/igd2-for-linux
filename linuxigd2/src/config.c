@@ -116,6 +116,7 @@ int parseConfigFile(globals_p vars)
     regex_t re_downstream_bitrate;
     regex_t re_duration;
     regex_t re_desc_doc;
+    regex_t re_lower_desc_doc;
     regex_t re_xml_path;
     regex_t re_listenport;
     regex_t re_dnsmasq;
@@ -147,6 +148,7 @@ int parseConfigFile(globals_p vars)
     strcpy(vars->downstreamBitrate,"");
     vars->duration = DEFAULT_DURATION;
     strcpy(vars->descDocName,"");
+    strcpy(vars->lowerDescDocName,"");
     strcpy(vars->xmlPath,"");
     vars->listenport = 0;
     strcpy(vars->dnsmasqCmd, "");
@@ -182,6 +184,7 @@ int parseConfigFile(globals_p vars)
     regcomp(&re_downstream_bitrate,"downstream_bitrate[[:blank:]]*=[[:blank:]]*([[:digit:]]+)",REG_EXTENDED);
     regcomp(&re_duration,"duration[[:blank:]]*=[[:blank:]]*(@?)([[:digit:]]+|[[:digit:]]{2,}:[[:digit:]]{2})",REG_EXTENDED);
     regcomp(&re_desc_doc,"description_document_name[[:blank:]]*=[[:blank:]]*([[:alnum:].]{1,20})",REG_EXTENDED);
+    regcomp(&re_lower_desc_doc,"lower_description_document[[:blank:]]*=[[:blank:]]*([[:alnum:].]{1,20})",REG_EXTENDED);
     regcomp(&re_xml_path,"xml_document_path[[:blank:]]*=[[:blank:]]*([[:alpha:]_/.]{1,50})",REG_EXTENDED);
     regcomp(&re_listenport,"listenport[[:blank:]]*=[[:blank:]]*([[:digit:]]+)",REG_EXTENDED);
     regcomp(&re_dnsmasq,"dnsmasq_script[[:blank:]]*=[[:blank:]]*([[:alpha:]_/.]{1,50})",REG_EXTENDED);
@@ -256,6 +259,10 @@ int parseConfigFile(globals_p vars)
                 else if (regexec(&re_desc_doc,line,NMATCH,submatch,0) == 0)
                 {
                     getConfigOptionArgument(vars->descDocName, OPTION_LEN, line, submatch);
+                }
+                else if (regexec(&re_lower_desc_doc,line,NMATCH,submatch,0) == 0)
+                {
+                    getConfigOptionArgument(vars->lowerDescDocName, OPTION_LEN, line, submatch);
                 }
                 else if (regexec(&re_xml_path,line,NMATCH,submatch,0) == 0)
                 {
@@ -373,6 +380,7 @@ int parseConfigFile(globals_p vars)
     regfree(&re_downstream_bitrate);
     regfree(&re_duration);
     regfree(&re_desc_doc);
+    regfree(&re_lower_desc_doc);
     regfree(&re_xml_path);
     regfree(&re_listenport);
     regfree(&re_dnsmasq);
@@ -417,6 +425,10 @@ int parseConfigFile(globals_p vars)
     if (strnlen(vars->descDocName, OPTION_LEN) == 0)
     {
         snprintf(vars->descDocName, OPTION_LEN, DESC_DOC_DEFAULT);
+    }
+    if (strnlen(vars->lowerDescDocName, OPTION_LEN) == 0)
+    {
+        snprintf(vars->lowerDescDocName, OPTION_LEN, DESC_DOC_DEFAULT);
     }
     if (strnlen(vars->xmlPath, OPTION_LEN) == 0)
     {

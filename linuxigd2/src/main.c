@@ -57,11 +57,14 @@ int main (int argc, char** argv)
 {
     // http://ipaddr:port/docName<null>
     char descDocUrl[7+INET_ADDRSTRLEN+1+5+1+sizeof(g_vars.descDocName)+1];
+    char lowerDescDocUrl[7+INET_ADDRSTRLEN+1+5+1+sizeof(g_vars.lowerDescDocName)+1];
 
 #ifdef UPNP_ENABLE_IPV6
     // http://[ipaddr6]:port/docName<null>
     char descDocUrlv6[7+INET6_ADDRSTRLEN+1+5+1+sizeof(g_vars.descDocName)+1];
+    char lowerDescDocUrlv6[7+INET6_ADDRSTRLEN+1+5+1+sizeof(g_vars.lowerDescDocName)+1];
     char descDocUrlUlaGua[7+INET6_ADDRSTRLEN+1+5+1+sizeof(g_vars.descDocName)+1];
+    char lowerDescDocUrlUlaGua[7+INET6_ADDRSTRLEN+1+5+1+sizeof(g_vars.lowerDescDocName)+1];
 #endif
 
     deviceHandle = 0;
@@ -248,11 +251,14 @@ int main (int argc, char** argv)
         // Form the Description Doc URL to pass to RegisterRootDevice
         sprintf(descDocUrl, "http://%s:%d/%s", UpnpGetServerIpAddress(),
                 UpnpGetServerPort(), g_vars.descDocName);
+        sprintf(lowerDescDocUrl, "http://%s:%d/%s", UpnpGetServerIpAddress(),
+                UpnpGetServerPort(), g_vars.lowerDescDocName);
 
         // Register our IGD as a valid UPnP Root device for IPv4
-        trace(3, "IPv4 Registering the root device with descDocUrl %s for byebye sending", descDocUrl);
-        if ( (ret = UpnpRegisterRootDevice3(descDocUrl, EventHandler, &deviceHandle,
-                &deviceHandle, AF_INET)) != UPNP_E_SUCCESS )
+        trace(3, "IPv4 Registering the root device with descDocUrl %s and lowerDescDocUrl %s for byebye sending",
+                descDocUrl, lowerDescDocUrl);
+        if ( (ret = UpnpRegisterRootDevice4(descDocUrl, EventHandler, &deviceHandle,
+                &deviceHandle, AF_INET, lowerDescDocUrl)) != UPNP_E_SUCCESS )
         {
             syslog(LOG_ERR, "Error registering the root device with descDocUrl: %s", descDocUrl);
             syslog(LOG_ERR, "  UpnpRegisterRootDevice returned %d", ret);
@@ -272,9 +278,13 @@ int main (int argc, char** argv)
         {
             sprintf(descDocUrlUlaGua, "http://[%s]:%d/%s", UpnpGetServerUlaGuaIp6Address(),
                     UpnpGetServerPort6(), g_vars.descDocName);
-            trace(3, "IPv6 Registering the root device with descDocUrlUlaGua %s for byebye sending", descDocUrlUlaGua);
-            if ( (ret = UpnpRegisterRootDevice3(descDocUrlUlaGua, EventHandler, &deviceHandleIPv6UlaGua,
-                    &deviceHandleIPv6UlaGua, AF_INET6)) != UPNP_E_SUCCESS )
+            sprintf(lowerDescDocUrlUlaGua, "http://[%s]:%d/%s", UpnpGetServerUlaGuaIp6Address(),
+                    UpnpGetServerPort6(), g_vars.lowerDescDocName);
+
+            trace(3, "IPv6 Registering the root device with descDocUrlUlaGua %s and lowerDescDocUrlUlaGua %s for byebye sending",
+                    descDocUrlUlaGua, lowerDescDocUrlUlaGua);
+            if ( (ret = UpnpRegisterRootDevice4(descDocUrlUlaGua, EventHandler, &deviceHandleIPv6UlaGua,
+                    &deviceHandleIPv6UlaGua, AF_INET6, lowerDescDocUrlUlaGua)) != UPNP_E_SUCCESS )
             {
                 syslog(LOG_ERR, "IPv6 Error registering the root device with descDocUrl: %s", descDocUrlUlaGua);
                 syslog(LOG_ERR, "  UpnpRegisterRootDevice returned %d", ret);
@@ -290,9 +300,12 @@ int main (int argc, char** argv)
         //registering the link local address
         sprintf(descDocUrlv6, "http://[%s]:%d/%s", UpnpGetServerIp6Address(),
                 UpnpGetServerPort6(), g_vars.descDocName);
-        trace(3, "IPv6 Registering the root device with descDocUrl %s for byebye sending", descDocUrlv6);
-        if ( (ret = UpnpRegisterRootDevice3(descDocUrlv6, EventHandler, &deviceHandleIPv6,
-                &deviceHandleIPv6, AF_INET6)) != UPNP_E_SUCCESS )
+        sprintf(lowerDescDocUrlv6, "http://[%s]:%d/%s", UpnpGetServerIp6Address(),
+                UpnpGetServerPort6(), g_vars.lowerDescDocName);
+        trace(3, "IPv6 Registering the root device with descDocUrlv6 %s and lowerDescDocUrlv6 %s for byebye sending",
+                descDocUrlv6, lowerDescDocUrlv6);
+        if ( (ret = UpnpRegisterRootDevice4(descDocUrlv6, EventHandler, &deviceHandleIPv6,
+                &deviceHandleIPv6, AF_INET6, lowerDescDocUrlv6)) != UPNP_E_SUCCESS )
         {
             syslog(LOG_ERR, "IPv6 Error registering the root device with descDocUrl: %s", descDocUrlv6);
             syslog(LOG_ERR, "  UpnpRegisterRootDevice returned %d", ret);
@@ -340,9 +353,10 @@ int main (int argc, char** argv)
     if(g_vars.ipv4Enabled)
     {
         // Register our IGD as a valid UPnP Root device
-        trace(3, "IPv4 Registering the root device again with descDocUrl %s", descDocUrl);
-        if ( (ret = UpnpRegisterRootDevice3(descDocUrl, EventHandler, &deviceHandle,
-                &deviceHandle, AF_INET)) != UPNP_E_SUCCESS )
+        trace(3, "IPv4 Registering the root device again with descDocUrl %s and lowerDescDocUrl %s",
+                descDocUrl, lowerDescDocUrl);
+        if ( (ret = UpnpRegisterRootDevice4(descDocUrl, EventHandler, &deviceHandle,
+                &deviceHandle, AF_INET, lowerDescDocUrl)) != UPNP_E_SUCCESS )
         {
             syslog(LOG_ERR, "Error registering the root device with descDocUrl: %s", descDocUrl);
             syslog(LOG_ERR, "  UpnpRegisterRootDevice returned %d", ret);
@@ -359,9 +373,10 @@ int main (int argc, char** argv)
     {
         if(strlen(descDocUrlUlaGua) > 0)
         {
-            trace(3, "IPv6 Registering the root device again with descDocUrlUlaGua %s", descDocUrlUlaGua);
-            if ( (ret = UpnpRegisterRootDevice3(descDocUrlUlaGua, EventHandler, &deviceHandleIPv6UlaGua,
-                    &deviceHandleIPv6UlaGua, AF_INET6)) != UPNP_E_SUCCESS )
+            trace(3, "IPv6 Registering the root device again with descDocUrlUlaGua %s and lowerDescDocUrlUlaGua %s",
+                    descDocUrlUlaGua, lowerDescDocUrlUlaGua);
+            if ( (ret = UpnpRegisterRootDevice4(descDocUrlUlaGua, EventHandler, &deviceHandleIPv6UlaGua,
+                    &deviceHandleIPv6UlaGua, AF_INET6, lowerDescDocUrlUlaGua)) != UPNP_E_SUCCESS )
             {
                 syslog(LOG_ERR, "IPv6 Error registering the root device with descDocUrl: %s", descDocUrlUlaGua);
                 syslog(LOG_ERR, "  UpnpRegisterRootDevice returned %d", ret);
@@ -374,9 +389,10 @@ int main (int argc, char** argv)
     if(g_vars.ipv6LinkLocalEnabled)
     {
         //registering link local address
-        trace(3, "IPv6 Registering the root device again with descDocUrl %s", descDocUrlv6);
-        if ( (ret = UpnpRegisterRootDevice3(descDocUrlv6, EventHandler, &deviceHandleIPv6,
-                &deviceHandleIPv6, AF_INET6)) != UPNP_E_SUCCESS )
+        trace(3, "IPv6 Registering the root device again with descDocUrlv6 %s and lowerDescDocUrlv6 %s",
+                descDocUrlv6, lowerDescDocUrlv6);
+        if ( (ret = UpnpRegisterRootDevice4(descDocUrlv6, EventHandler, &deviceHandleIPv6,
+                &deviceHandleIPv6, AF_INET6, lowerDescDocUrlv6)) != UPNP_E_SUCCESS )
         {
             syslog(LOG_ERR, "IPv6 Error registering the root device with descDocUrl: %s", descDocUrlv6);
             syslog(LOG_ERR, "  UpnpRegisterRootDevice returned %d", ret);

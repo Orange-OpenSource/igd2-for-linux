@@ -70,6 +70,7 @@ struct GLOBALS
     // >0 - duration in seconds
     // <0 - expiration time
     char descDocName[OPTION_LEN];
+    char lowerDescDocName[OPTION_LEN];
     char xmlPath[OPTION_LEN];
     int listenport;	//The port to listen on
 

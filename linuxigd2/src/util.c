@@ -25,6 +25,7 @@
  * 
  */
 
+#include <stddef.h>
 #include <regex.h>
 #include <stdlib.h>
 #include <sys/wait.h>
@@ -661,8 +662,37 @@ void ParseXMLResponse(struct Upnp_Action_Request *ca_event, const char *result_s
     {
         trace(1, "Error parsing response to %s: %s", ca_event->ActionName, result_str);
         ca_event->ActionResult = NULL;
-        ca_event->ErrCode = 402;
+        ca_event->ErrCode = UPNP_SOAP_E_INVALID_ARGS;
     }
+}
+
+/**
+ * Form and parse upnp action result xml.
+ *
+ * @param ca_event Upnp action struct.
+ * @param str Format string for extra parameters.
+ * @param ... Extra parameters
+ */
+void ParseResult( struct Upnp_Action_Request *ca_event, const char *str, ... )
+{
+    char result[RESULT_LEN];
+    char parameters[RESULT_LEN];
+    va_list arg;
+
+    // write all parameters into one string
+    va_start( arg, str );
+    vsnprintf( parameters, RESULT_LEN, str, arg );
+    va_end( arg );
+
+    // and form final xml
+    snprintf( result, RESULT_LEN, "<%sResponse xmlns:%s=\"%s\">\n%s\n</%sResponse>",
+        ixmlNode_getNodeName( ca_event->ActionRequest->n.firstChild ),
+        ixmlNode_getPrefix( ca_event->ActionRequest->n.firstChild ),
+        ixmlNode_getNamespaceURI( ca_event->ActionRequest->n.firstChild ),
+        parameters,
+        ixmlNode_getNodeName( ca_event->ActionRequest->n.firstChild ) );
+
+    ParseXMLResponse( ca_event, result );
 }
 
 /**
@@ -670,11 +700,9 @@ void ParseXMLResponse(struct Upnp_Action_Request *ca_event, const char *result_s
  * given in parameter
  *
  * @param doc XML document where the parameters are defined
- * @param the SOAP action
  * @return the number of parameters
  */
-int GetNbSoapParameters( IN IXML_Document * doc,
-        IN const char* action)
+int GetNbSoapParameters( IN IXML_Document * doc)
 {
     IXML_NodeList *nodeList = NULL;
     IXML_Node* tmpNode = NULL;
@@ -683,7 +711,8 @@ int GetNbSoapParameters( IN IXML_Document * doc,
 
     if(doc == NULL) return 0;
 
-    nodeList = ixmlDocument_getElementsByTagName( doc, action );
+    nodeList = ixmlDocument_getElementsByTagName( doc, 
+        ixmlNode_getNodeName( doc->n.firstChild ) );
 
     if ( nodeList )
     {

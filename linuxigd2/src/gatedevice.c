@@ -233,15 +233,6 @@ int HandleSubscriptionRequest(struct Upnp_Subscription_Request *sr_event)
                                                 propSet, sr_event->Sid);
             ixmlDocument_free(propSet);
         }
-        // LAN Host Config Management Notifications
-        else if (strcmp(sr_event->ServiceId, "urn:upnp-org:serviceId:LANHostConfig1") == 0)
-        {
-            trace(3, "Received request to subscribe to LANHostConfig1");
-            // No state variable requires eventing, is next step needed?
-            AcceptSubscriptionExtForIPv4AndIPv6(sr_event->UDN, sr_event->ServiceId,
-                                                propSet, sr_event->Sid);
-            ixmlDocument_free(propSet);
-        }
         else if (strcmp(sr_event->ServiceId, "urn:upnp-org:serviceId:WANEthLinkC1") == 0)
         {
             trace(3, "Received request to subscribe to WANEthLinkC1");
@@ -310,28 +301,28 @@ int HandleActionRequest(struct Upnp_Action_Request *ca_event)
         {
             if (strcmp(ca_event->ActionName,"GetTotalBytesSent") == 0)
             {
-                if(GetNbSoapParameters(ca_event->ActionRequest, "u:GetTotalBytesSent") == 0) 
+                if(GetNbSoapParameters(ca_event->ActionRequest) == 0) 
 		    result = GetTotal(ca_event, STATS_TX_BYTES);
                 else
                     addErrorData(ca_event, UPNP_SOAP_E_INVALID_ARGS, "Invalid Args");
             }
             else if (strcmp(ca_event->ActionName,"GetTotalBytesReceived") == 0)
             {
-                if(GetNbSoapParameters(ca_event->ActionRequest, "u:GetTotalBytesReceived") == 0)
+                if(GetNbSoapParameters(ca_event->ActionRequest) == 0)
                     result = GetTotal(ca_event, STATS_RX_BYTES);
                 else
                     addErrorData(ca_event, UPNP_SOAP_E_INVALID_ARGS, "Invalid Args");
             }
             else if (strcmp(ca_event->ActionName,"GetTotalPacketsSent") == 0)
             {
-                if(GetNbSoapParameters(ca_event->ActionRequest, "u:GetTotalPacketsSent") == 0)
+                if(GetNbSoapParameters(ca_event->ActionRequest) == 0)
                     result = GetTotal(ca_event, STATS_TX_PACKETS);
                 else
                     addErrorData(ca_event, UPNP_SOAP_E_INVALID_ARGS, "Invalid Args"); 
             }
             else if (strcmp(ca_event->ActionName,"GetTotalPacketsReceived") == 0)
             {
-                if(GetNbSoapParameters(ca_event->ActionRequest, "u:GetTotalPacketsReceived") == 0)
+                if(GetNbSoapParameters(ca_event->ActionRequest) == 0)
                     result = GetTotal(ca_event, STATS_RX_PACKETS);
                 else
                     addErrorData(ca_event, UPNP_SOAP_E_INVALID_ARGS, "Invalid Args");
@@ -508,37 +499,18 @@ int InvalidAction(struct Upnp_Action_Request *ca_event)
  */
 int GetCommonLinkProperties(struct Upnp_Action_Request *ca_event)
 {
-    char resultStr[RESULT_LEN];
-    IXML_Document *result;
-
-    if(GetNbSoapParameters(ca_event->ActionRequest, "u:GetCommonLinkProperties") != 0)
+    if(GetNbSoapParameters(ca_event->ActionRequest) != 0)
     {
         trace(1, "GetCommonLinkProperties invalid number of parameters");
         addErrorData(ca_event, UPNP_SOAP_E_INVALID_ARGS, "Invalid Args");
         return ca_event->ErrCode;
     }
 
-    ca_event->ErrCode = UPNP_E_SUCCESS;
-    snprintf(resultStr, RESULT_LEN,
-             "<u:GetCommonLinkPropertiesResponse xmlns:u=\"urn:schemas-upnp-org:service:WANCommonInterfaceConfig:1\">\n"
-             "<NewWANAccessType>Cable</NewWANAccessType>\n"
-             "<NewLayer1UpstreamMaxBitRate>%s</NewLayer1UpstreamMaxBitRate>\n"
-             "<NewLayer1DownstreamMaxBitRate>%s</NewLayer1DownstreamMaxBitRate>\n"
-             "<NewPhysicalLinkStatus>Up</NewPhysicalLinkStatus>\n"
-             "</u:GetCommonLinkPropertiesResponse>",g_vars.upstreamBitrate,g_vars.downstreamBitrate);
-
-    // Create a IXML_Document from resultStr and return with ca_event
-    if ((result = ixmlParseBuffer(resultStr)) != NULL)
-    {
-        ca_event->ActionResult = result;
-        ca_event->ErrCode = UPNP_E_SUCCESS;
-    }
-    else
-    {
-        trace(1, "Error parsing Response to GetCommonLinkProperties: %s", resultStr);
-        ca_event->ActionResult = NULL;
-        ca_event->ErrCode = 402;
-    }
+    ParseResult (ca_event, "<NewWANAccessType>Cable</NewWANAccessType>\n"
+        "<NewLayer1UpstreamMaxBitRate>%s</NewLayer1UpstreamMaxBitRate>\n"
+        "<NewLayer1DownstreamMaxBitRate>%s</NewLayer1DownstreamMaxBitRate>\n"
+        "<NewPhysicalLinkStatus>Up</NewPhysicalLinkStatus>\n",
+        g_vars.upstreamBitrate, g_vars.downstreamBitrate);
 
     return(ca_event->ErrCode);
 }
@@ -557,10 +529,8 @@ int GetCommonLinkProperties(struct Upnp_Action_Request *ca_event)
  */
 int GetTotal(struct Upnp_Action_Request *ca_event, stats_t stat)
 {
-    char resultStr[RESULT_LEN];
     const char *methods[STATS_LIMIT] =
         { "BytesSent", "BytesReceived", "PacketsSent", "PacketsReceived" };
-    IXML_Document *result;
     unsigned long stats[STATS_LIMIT];
 
     if (!readStats(stats))
@@ -571,24 +541,8 @@ int GetTotal(struct Upnp_Action_Request *ca_event, stats_t stat)
         return (ca_event->ErrCode);
     }
 
-    snprintf(resultStr, RESULT_LEN,
-             "<u:GetTotal%sResponse xmlns:u=\"urn:schemas-upnp-org:service:WANCommonInterfaceConfig:1\">\n"
-             "<NewTotal%s>%lu</NewTotal%s>\n"
-             "</u:GetTotal%sResponse>",
-             methods[stat], methods[stat], stats[stat], methods[stat], methods[stat]);
-
-    // Create a IXML_Document from resultStr and return with ca_event
-    if ((result = ixmlParseBuffer(resultStr)) != NULL)
-    {
-        ca_event->ActionResult = result;
-        ca_event->ErrCode = UPNP_E_SUCCESS;
-    }
-    else
-    {
-        trace(1, "Error parsing response to GetTotal: %s", resultStr);
-        ca_event->ActionResult = NULL;
-        ca_event->ErrCode = 501;
-    }
+    ParseResult(ca_event, "<NewTotal%s>%lu</NewTotal%s>\n",
+        methods[stat], stats[stat], methods[stat]);
 
     return (ca_event->ErrCode);
 }
@@ -611,10 +565,8 @@ int GetTotal(struct Upnp_Action_Request *ca_event, stats_t stat)
 int GetStatusInfo(struct Upnp_Action_Request *ca_event)
 {
     long int uptime;
-    char resultStr[RESULT_LEN];
-    IXML_Document *result = NULL;
 
-    if(GetNbSoapParameters(ca_event->ActionRequest, "u:GetStatusInfo") != 0)
+    if(GetNbSoapParameters(ca_event->ActionRequest) != 0)
     {
         trace(1, "GetStatusInfo invalid number of parameters");
         addErrorData(ca_event, UPNP_SOAP_E_INVALID_ARGS, "Invalid Args");
@@ -627,26 +579,10 @@ int GetStatusInfo(struct Upnp_Action_Request *ca_event)
     else
         uptime = 0;
 
-    snprintf(resultStr, RESULT_LEN,
-             "<u:GetStatusInfoResponse xmlns:u=\"%s\">\n"
-             "<NewConnectionStatus>%s</NewConnectionStatus>\n"
-             "<NewLastConnectionError>ERROR_NONE</NewLastConnectionError>\n"
-             "<NewUptime>%ld</NewUptime>\n"
-             "</u:GetStatusInfoResponse>",
-             WANIP_SERVICE_TYPE, ConnectionStatus, uptime);
-
-    // Create a IXML_Document from resultStr and return with ca_event
-    if ((result = ixmlParseBuffer(resultStr)) != NULL)
-    {
-        ca_event->ActionResult = result;
-        ca_event->ErrCode = UPNP_E_SUCCESS;
-    }
-    else
-    {
-        trace(1, "Error parsing Response to GetStatusInfo: %s", resultStr);
-        ca_event->ActionResult = NULL;
-        ca_event->ErrCode = 402;
-    }
+    ParseResult(ca_event, "<NewConnectionStatus>%s</NewConnectionStatus>\n"
+        "<NewLastConnectionError>ERROR_NONE</NewLastConnectionError>\n"
+        "<NewUptime>%ld</NewUptime>\n",
+        ConnectionStatus, uptime);
 
     return(ca_event->ErrCode);
 }
@@ -662,33 +598,14 @@ int GetStatusInfo(struct Upnp_Action_Request *ca_event)
  */
 int GetConnectionTypeInfo (struct Upnp_Action_Request *ca_event)
 {
-    char resultStr[RESULT_LEN];
-    IXML_Document *result;
-
-    if(GetNbSoapParameters(ca_event->ActionRequest, "u:GetConnectionTypeInfo") != 0) {
+    if(GetNbSoapParameters(ca_event->ActionRequest) != 0) {
         trace(1, "GetConnectionTypeInfo invalid number of parameters");
         addErrorData(ca_event, UPNP_SOAP_E_INVALID_ARGS, "Invalid Args");
         return ca_event->ErrCode;
     }
 
-    snprintf(resultStr, RESULT_LEN,
-             "<u:GetConnectionTypeInfoResponse xmlns:u=\"%s\">\n"
-             "<NewConnectionType>IP_Routed</NewConnectionType>\n"
-             "<NewPossibleConnectionTypes>IP_Routed</NewPossibleConnectionTypes>"
-             "</u:GetConnectionTypeInfoResponse>", WANIP_SERVICE_TYPE);
-
-    // Create a IXML_Document from resultStr and return with ca_event
-    if ((result = ixmlParseBuffer(resultStr)) != NULL)
-    {
-        ca_event->ActionResult = result;
-        ca_event->ErrCode = UPNP_E_SUCCESS;
-    }
-    else
-    {
-        trace(1, "Error parsing Response to GetConnectionTypeinfo: %s", resultStr);
-        ca_event->ActionResult = NULL;
-        ca_event->ErrCode = 402;
-    }
+    ParseResult(ca_event, "<NewConnectionType>IP_Routed</NewConnectionType>\n"
+         "<NewPossibleConnectionTypes>IP_Routed</NewPossibleConnectionTypes>");
 
     return(ca_event->ErrCode);
 }
@@ -703,32 +620,14 @@ int GetConnectionTypeInfo (struct Upnp_Action_Request *ca_event)
  */
 int GetNATRSIPStatus(struct Upnp_Action_Request *ca_event)
 {
-    char resultStr[RESULT_LEN];
-    IXML_Document *result;
-
-    if(GetNbSoapParameters(ca_event->ActionRequest, "u:GetNATRSIPStatus") != 0) {
+    if(GetNbSoapParameters(ca_event->ActionRequest) != 0) {
         trace(1, "GetNATRSIPStatus invalid number of parameters");
         addErrorData(ca_event, UPNP_SOAP_E_INVALID_ARGS, "Invalid Args");
         return ca_event->ErrCode;
     }
 
-    snprintf(resultStr, RESULT_LEN, "<u:GetNATRSIPStatusResponse xmlns:u=\"%s\">\n"
-             "<NewRSIPAvailable>0</NewRSIPAvailable>\n"
-             "<NewNATEnabled>1</NewNATEnabled>\n"
-             "</u:GetNATRSIPStatusResponse>", WANIP_SERVICE_TYPE);
-
-    // Create a IXML_Document from resultStr and return with ca_event
-    if ((result = ixmlParseBuffer(resultStr)) != NULL)
-    {
-        ca_event->ActionResult = result;
-        ca_event->ErrCode = UPNP_E_SUCCESS;
-    }
-    else
-    {
-        trace(1, "Error parsing Response to GetNATRSIPStatus: %s", resultStr);
-        ca_event->ActionResult = NULL;
-        ca_event->ErrCode = 402;
-    }
+    ParseResult(ca_event, "<NewRSIPAvailable>0</NewRSIPAvailable>\n"
+         "<NewNATEnabled>1</NewNATEnabled>\n");
 
     return(ca_event->ErrCode);
 }
@@ -745,7 +644,7 @@ int GetNATRSIPStatus(struct Upnp_Action_Request *ca_event)
  */
 int SetConnectionType(struct Upnp_Action_Request *ca_event)
 {
-    if(GetNbSoapParameters(ca_event->ActionRequest, "u:SetConnectionType") != 1)
+    if(GetNbSoapParameters(ca_event->ActionRequest) != 1)
     {
         trace(1, "SetConnectionType invalid number of parameters");
         addErrorData(ca_event, UPNP_SOAP_E_INVALID_ARGS, "Invalid Args");
@@ -774,7 +673,7 @@ int SetAutoDisconnectTime(struct Upnp_Action_Request *ca_event)
     int result = 0;
 
     if ((delay_str = GetFirstDocumentItem(ca_event->ActionRequest, "NewAutoDisconnectTime")) &&
-            (GetNbSoapParameters(ca_event->ActionRequest, "u:SetAutoDisconnectTime")==1))
+            (GetNbSoapParameters(ca_event->ActionRequest)==1))
     {
         delay = atol(delay_str);
         if (delay < 0)
@@ -794,11 +693,7 @@ int SetAutoDisconnectTime(struct Upnp_Action_Request *ca_event)
             if (createAutoDisconnectTimer() == 0)
             {
                 // create response SOAP message
-                IXML_Document *ActionResult = NULL;
-                ActionResult = UpnpMakeActionResponse(ca_event->ActionName, WANIP_SERVICE_TYPE,
-                                                        0, NULL);
-                ca_event->ActionResult = ActionResult;
-                ca_event->ErrCode = UPNP_E_SUCCESS;
+                ParseResult(ca_event, ""); 
             }
             else
             {
@@ -831,7 +726,7 @@ int SetIdleDisconnectTime(struct Upnp_Action_Request *ca_event)
     int result = 0;
 
     if ((delay_str = GetFirstDocumentItem(ca_event->ActionRequest, "NewIdleDisconnectTime")) &&
-            (GetNbSoapParameters(ca_event->ActionRequest, "u:SetIdleDisconnectTime")==1))
+            (GetNbSoapParameters(ca_event->ActionRequest)==1))
     {
         delay = atol(delay_str);
         if (delay < 0)
@@ -849,11 +744,7 @@ int SetIdleDisconnectTime(struct Upnp_Action_Request *ca_event)
         if (result == 0)
         {
             // create response SOAP message
-            IXML_Document *ActionResult = NULL;
-            ActionResult = UpnpMakeActionResponse(ca_event->ActionName, WANIP_SERVICE_TYPE,
-                                            0, NULL);
-            ca_event->ActionResult = ActionResult;
-            ca_event->ErrCode = UPNP_E_SUCCESS;
+            ParseResult(ca_event, "");            
         }
     }
     else
@@ -880,7 +771,7 @@ int SetWarnDisconnectDelay(struct Upnp_Action_Request *ca_event)
     int result = 0;
 
     if ((delay_str = GetFirstDocumentItem(ca_event->ActionRequest, "NewWarnDisconnectDelay")) &&
-           (GetNbSoapParameters(ca_event->ActionRequest, "u:SetWarnDisconnectDelay")==1))
+           (GetNbSoapParameters(ca_event->ActionRequest)==1))
     {
         delay = atol(delay_str);
         if (delay < 0)
@@ -898,11 +789,7 @@ int SetWarnDisconnectDelay(struct Upnp_Action_Request *ca_event)
         if (result == 0)
         {
             // create response SOAP message
-            IXML_Document *ActionResult = NULL;
-            ActionResult = UpnpMakeActionResponse(ca_event->ActionName, WANIP_SERVICE_TYPE,
-                                            0, NULL);
-            ca_event->ActionResult = ActionResult;
-            ca_event->ErrCode = UPNP_E_SUCCESS;
+            ParseResult(ca_event, "");
         }
 
     }
@@ -923,31 +810,16 @@ int SetWarnDisconnectDelay(struct Upnp_Action_Request *ca_event)
  */
 int GetAutoDisconnectTime(struct Upnp_Action_Request *ca_event)
 {
-    IXML_Document *ActionResult = NULL;
-    char tmp[11];
-    snprintf(tmp,11,"%ld",AutoDisconnectTime);
-
-    if(GetNbSoapParameters(ca_event->ActionRequest, "u:GetAutoDisconnectTime") != 0)
+    if(GetNbSoapParameters(ca_event->ActionRequest) != 0)
     {
         trace(1, "GetAutoDisconnectTime invalid number of parameters");
         addErrorData(ca_event, UPNP_SOAP_E_INVALID_ARGS, "Invalid Args");
         return ca_event->ErrCode;
     }
 
-    ActionResult = UpnpMakeActionResponse(ca_event->ActionName, WANIP_SERVICE_TYPE,
-                                          1,
-                                          "NewAutoDisconnectTime", tmp);
-
-    if (ActionResult)
-    {
-        ca_event->ActionResult = ActionResult;
-        ca_event->ErrCode = UPNP_E_SUCCESS;
-    }
-    else
-    {
-        trace(1, "Error parsing Response to %s",ca_event->ActionName);
-        addErrorData(ca_event, 501, "Action Failed");
-    }
+    ParseResult(ca_event,
+        "<NewAutoDisconnectTime>%ld</NewAutoDisconnectTime>\n",
+        AutoDisconnectTime);
 
     return ca_event->ErrCode;
 }
@@ -960,31 +832,16 @@ int GetAutoDisconnectTime(struct Upnp_Action_Request *ca_event)
  */
 int GetIdleDisconnectTime(struct Upnp_Action_Request *ca_event)
 {
-    IXML_Document *ActionResult = NULL;
-    char tmp[11];
-    snprintf(tmp,11,"%ld",IdleDisconnectTime);
-
-    if(GetNbSoapParameters(ca_event->ActionRequest, "u:GetIdleDisconnectTime") != 0)
+    if(GetNbSoapParameters(ca_event->ActionRequest) != 0)
     {
         trace(1, "GetIdleDisconnectTime invalid number of parameters");
         addErrorData(ca_event, UPNP_SOAP_E_INVALID_ARGS, "Invalid Args");
         return ca_event->ErrCode;
     }
 
-    ActionResult = UpnpMakeActionResponse(ca_event->ActionName, WANIP_SERVICE_TYPE,
-                                          1,
-                                          "NewIdleDisconnectTime", tmp);
-
-    if (ActionResult)
-    {
-        ca_event->ActionResult = ActionResult;
-        ca_event->ErrCode = UPNP_E_SUCCESS;
-    }
-    else
-    {
-        trace(1, "Error parsing Response to %s",ca_event->ActionName);
-        addErrorData(ca_event, 501, "Action Failed");
-    }
+    ParseResult(ca_event, 
+        "<NewIdleDisconnectTime>%ld</NewIdleDisconnectTime>\n", 
+        IdleDisconnectTime);
 
     return ca_event->ErrCode;
 }
@@ -997,31 +854,16 @@ int GetIdleDisconnectTime(struct Upnp_Action_Request *ca_event)
  */
 int GetWarnDisconnectDelay(struct Upnp_Action_Request *ca_event)
 {
-    IXML_Document *ActionResult = NULL;
-    char tmp[11];
-    snprintf(tmp,11,"%ld",WarnDisconnectDelay);
-
-    if(GetNbSoapParameters(ca_event->ActionRequest, "u:GetWarnDisconnectDelay") != 0)
+    if(GetNbSoapParameters(ca_event->ActionRequest) != 0)
     {
         trace(1, "GetWarnDisconnectDelay invalid number of parameters");
         addErrorData(ca_event, UPNP_SOAP_E_INVALID_ARGS, "Invalid Args");
         return ca_event->ErrCode;
     }
 
-    ActionResult = UpnpMakeActionResponse(ca_event->ActionName, WANIP_SERVICE_TYPE,
-                                          1,
-                                          "NewWarnDisconnectDelay", tmp);
-
-    if (ActionResult)
-    {
-        ca_event->ActionResult = ActionResult;
-        ca_event->ErrCode = UPNP_E_SUCCESS;
-    }
-    else
-    {
-        trace(1, "Error parsing Response to %s",ca_event->ActionName);
-        addErrorData(ca_event, 501, "Action Failed");
-    }
+    ParseResult(ca_event,
+        "<NewWarnDisconnectDelay>%ld</NewWarnDisconnectDelay>\n",    
+        WarnDisconnectDelay);
 
     return ca_event->ErrCode;
 }
@@ -1040,7 +882,7 @@ int RequestConnection(struct Upnp_Action_Request *ca_event)
     IXML_Document *propSet = NULL;
     int result = 0;
 
-    if(GetNbSoapParameters(ca_event->ActionRequest, "u:RequestConnection") != 0)
+    if(GetNbSoapParameters(ca_event->ActionRequest) != 0)
     {
         trace(1, "RequestConnection invalid number of parameters");
         addErrorData(ca_event, UPNP_SOAP_E_INVALID_ARGS, "Invalid Args");
@@ -1048,11 +890,7 @@ int RequestConnection(struct Upnp_Action_Request *ca_event)
     }
 
     // create result document for succesfull cases. addErrorData overwrites this if no success
-    IXML_Document *ActionResult = NULL;
-    ActionResult = UpnpMakeActionResponse(ca_event->ActionName, WANIP_SERVICE_TYPE,
-                                            0, NULL);
-    ca_event->ActionResult = ActionResult;
-    ca_event->ErrCode = UPNP_E_SUCCESS;
+    ParseResult(ca_event, "");
 
     trace(2, "RequestConnection received ... Checking status...");
 
@@ -1145,7 +983,7 @@ int ForceTermination(struct Upnp_Action_Request *ca_event)
 {
     int result = 0;
 
-    if(GetNbSoapParameters(ca_event->ActionRequest, "u:ForceTermination") != 0)
+    if(GetNbSoapParameters(ca_event->ActionRequest) != 0)
     {
         trace(1, "ForceTermination invalid number of parameters");
         addErrorData(ca_event, UPNP_SOAP_E_INVALID_ARGS, "Invalid Args");
@@ -1181,7 +1019,7 @@ int RequestTermination(struct Upnp_Action_Request *ca_event)
     int result = 0;
     long int delay = WarnDisconnectDelay;
 
-    if(GetNbSoapParameters(ca_event->ActionRequest, "u:RequestTermination") != 0)
+    if(GetNbSoapParameters(ca_event->ActionRequest) != 0)
     {
         trace(1, "RequestTermination invalid number of parameters");
         addErrorData(ca_event, UPNP_SOAP_E_INVALID_ARGS, "Invalid Args");
@@ -1241,7 +1079,7 @@ int AddPortMapping(struct Upnp_Action_Request *ca_event)
             && (isStringInteger(ext_port) )
             && (isStringInteger(int_port) )
             && (isStringInteger(long_duration) )
-            && (GetNbSoapParameters(ca_event->ActionRequest, "u:AddPortMapping") == 8 )
+            && (GetNbSoapParameters(ca_event->ActionRequest) == 8 )
             && (desc = GetFirstDocumentItem(ca_event->ActionRequest, "NewPortMappingDescription") ) )
     {
         if (((strcmp(proto, "TCP") != 0) && (strcmp(proto, "UDP") != 0))
@@ -1324,11 +1162,7 @@ unless control port is authorized. external_port:%s, internal_port:%s internal_c
             if (result == 1)
             {
                 // create response SOAP message
-                IXML_Document *ActionResult = NULL;
-                ActionResult = UpnpMakeActionResponse(ca_event->ActionName, WANIP_SERVICE_TYPE,
-                                                0, NULL);
-                ca_event->ActionResult = ActionResult;
-                ca_event->ErrCode = UPNP_E_SUCCESS;
+                ParseResult(ca_event, "");
             }
         }
     }
@@ -1374,7 +1208,6 @@ int AddAnyPortMapping(struct Upnp_Action_Request *ca_event)
     int next_free_port = 0;
     struct portMap *ret;
     int result = 0;
-    char resultStr[RESULT_LEN];
     char freePort[5];
 
     if ( (remote_host = GetFirstDocumentItem(ca_event->ActionRequest, "NewRemoteHost") )
@@ -1388,7 +1221,7 @@ int AddAnyPortMapping(struct Upnp_Action_Request *ca_event)
             && (isStringInteger(ext_port) )
             && (isStringInteger(int_port) )
             && (isStringInteger(long_duration) )
-            && (GetNbSoapParameters(ca_event->ActionRequest, "u:AddAnyPortMapping") == 8) )
+            && (GetNbSoapParameters(ca_event->ActionRequest) == 8) )
     {
         if (((strcmp(proto, "TCP") != 0) && (strcmp(proto, "UDP") != 0))
             || (atoi(ext_port) < 0)
@@ -1506,10 +1339,8 @@ unless control port is authorized. external_port:%s, internal_port:%s internal_c
         // Port mapping has been done for external port that control point wanted
         if (next_free_port == 0) next_free_port = atoi(ext_port);
 
-        snprintf(resultStr, RESULT_LEN, "<u:%sResponse xmlns:u=\"%s\">\n%s%d%s\n</u:%sResponse>",
-                    ca_event->ActionName, WANIP_SERVICE_TYPE, "<NewReservedPort>",
-                    next_free_port, "</NewReservedPort>", ca_event->ActionName);
-        ca_event->ActionResult = ixmlParseBuffer(resultStr);
+        ParseResult(ca_event, "<NewReservedPort>%d</NewReservedPort>\n",
+            next_free_port);
     }
 
     free(remote_host);
@@ -1537,11 +1368,10 @@ int GetGenericPortMappingEntry(struct Upnp_Action_Request *ca_event)
     char *mapindex = NULL;
     struct portMap *temp;
     char result_param[RESULT_LEN];
-    char resultStr[RESULT_LEN];
     int action_succeeded = 0;
 
     if ((mapindex = GetFirstDocumentItem(ca_event->ActionRequest, "NewPortMappingIndex"))
-            && (GetNbSoapParameters(ca_event->ActionRequest, "u:GetGenericPortMappingEntry") == 1)
+            && (GetNbSoapParameters(ca_event->ActionRequest) == 1)
             && (isStringInteger(mapindex)) )
     {
         temp = pmlist_FindByIndex(atoi(mapindex));
@@ -1554,15 +1384,22 @@ int GetGenericPortMappingEntry(struct Upnp_Action_Request *ca_event)
                      )
             )
         {
-            snprintf(result_param, RESULT_LEN, "<NewRemoteHost>%s</NewRemoteHost><NewExternalPort>%s</NewExternalPort><NewProtocol>%s</NewProtocol><NewInternalPort>%s</NewInternalPort><NewInternalClient>%s</NewInternalClient><NewEnabled>%d</NewEnabled><NewPortMappingDescription>%s</NewPortMappingDescription><NewLeaseDuration>%li</NewLeaseDuration>",
-                     temp->m_RemoteHost,
-                     temp->m_ExternalPort,
-                     temp->m_PortMappingProtocol,
-                     temp->m_InternalPort,
-                     temp->m_InternalClient,
-                     temp->m_PortMappingEnabled,
-                     temp->m_PortMappingDescription,
-                     (temp->expirationTime-time(NULL)));
+            snprintf(result_param, RESULT_LEN, "<NewRemoteHost>%s</NewRemoteHost>\n"
+                "<NewExternalPort>%s</NewExternalPort>\n"
+                "<NewProtocol>%s</NewProtocol>\n"
+                "<NewInternalPort>%s</NewInternalPort>\n"
+                "<NewInternalClient>%s</NewInternalClient>\n"
+                "<NewEnabled>%d</NewEnabled>\n"
+                "<NewPortMappingDescription>%s</NewPortMappingDescription>\n"
+                "<NewLeaseDuration>%li</NewLeaseDuration>\n",
+                temp->m_RemoteHost,
+                temp->m_ExternalPort,
+                temp->m_PortMappingProtocol,
+                temp->m_InternalPort,
+                temp->m_InternalClient,
+                temp->m_PortMappingEnabled,
+                temp->m_PortMappingDescription,
+                (temp->m_IsStatic == 1)?0:(temp->expirationTime-time(NULL)));
             action_succeeded = 1;
         }
         else if (!temp) // nothing in that index
@@ -1578,11 +1415,7 @@ int GetGenericPortMappingEntry(struct Upnp_Action_Request *ca_event)
 
         if (action_succeeded)
         {
-            ca_event->ErrCode = UPNP_E_SUCCESS;
-            snprintf(resultStr, RESULT_LEN, "<u:%sResponse xmlns:u=\"%s\">\n%s\n</u:%sResponse>", ca_event->ActionName,
-                     WANIP_SERVICE_TYPE,result_param, ca_event->ActionName);
-            ca_event->ActionResult = ixmlParseBuffer(resultStr);
-            trace(3, ixmlPrintDocument(ca_event->ActionResult));
+            ParseResult(ca_event, result_param);
         }
 
     }
@@ -1610,14 +1443,13 @@ int GetSpecificPortMappingEntry(struct Upnp_Action_Request *ca_event)
     char *ext_port=NULL;
     char *proto=NULL;
     char result_param[RESULT_LEN];
-    char resultStr[RESULT_LEN];
     int action_succeeded = 0;
     struct portMap *temp;
     int authorized = 0;
 
     if ((remote_host = GetFirstDocumentItem(ca_event->ActionRequest, "NewRemoteHost")) &&
             (ext_port = GetFirstDocumentItem(ca_event->ActionRequest, "NewExternalPort")) &&
-            (GetNbSoapParameters(ca_event->ActionRequest, "u:GetSpecificPortMappingEntry")==3) &&
+            (GetNbSoapParameters(ca_event->ActionRequest)==3) &&
             (isStringInteger(ext_port)) &&
             (proto = GetFirstDocumentItem(ca_event->ActionRequest,"NewProtocol")) )
     {
@@ -1652,12 +1484,16 @@ int GetSpecificPortMappingEntry(struct Upnp_Action_Request *ca_event)
                      )
             )
         {
-            snprintf(result_param, RESULT_LEN, "<NewInternalPort>%s</NewInternalPort><NewInternalClient>%s</NewInternalClient><NewEnabled>%d</NewEnabled><NewPortMappingDescription>%s</NewPortMappingDescription><NewLeaseDuration>%li</NewLeaseDuration>",
-                     temp->m_InternalPort,
-                     temp->m_InternalClient,
-                     temp->m_PortMappingEnabled,
-                     temp->m_PortMappingDescription,
-                     (temp->expirationTime-time(NULL)));
+            snprintf(result_param, RESULT_LEN, "<NewInternalPort>%s</NewInternalPort>\n"
+                "<NewInternalClient>%s</NewInternalClient>\n"
+                "<NewEnabled>%d</NewEnabled>\n"
+                "<NewPortMappingDescription>%s</NewPortMappingDescription>\n"
+                "<NewLeaseDuration>%li</NewLeaseDuration>\n",
+                temp->m_InternalPort,
+                temp->m_InternalClient,
+                temp->m_PortMappingEnabled,
+                temp->m_PortMappingDescription,
+                (temp->m_IsStatic == 1)?0:(temp->expirationTime-time(NULL)));
             action_succeeded = 1;
         }
         else if (!temp)
@@ -1673,10 +1509,7 @@ int GetSpecificPortMappingEntry(struct Upnp_Action_Request *ca_event)
 
         if (action_succeeded)
         {
-            ca_event->ErrCode = UPNP_E_SUCCESS;
-            snprintf(resultStr, RESULT_LEN, "<u:%sResponse xmlns:u=\"%s\">\n%s\n</u:%sResponse>", ca_event->ActionName,
-                     WANIP_SERVICE_TYPE,result_param, ca_event->ActionName);
-            ca_event->ActionResult = ixmlParseBuffer(resultStr);
+            ParseResult(ca_event, result_param);
         }
     }
     else
@@ -1702,33 +1535,16 @@ int GetSpecificPortMappingEntry(struct Upnp_Action_Request *ca_event)
  */
 int GetExternalIPAddress(struct Upnp_Action_Request *ca_event)
 {
-    char resultStr[RESULT_LEN];
-    IXML_Document *result = NULL;
-
-    if(GetNbSoapParameters(ca_event->ActionRequest, "u:GetExternalIPAddress") != 0)
+    if(GetNbSoapParameters(ca_event->ActionRequest) != 0)
     {
         trace(1, "Failure in GetExternalIPAddress: Invalid Args");
         addErrorData(ca_event, UPNP_SOAP_E_INVALID_ARGS, "Invalid Args");
         return ca_event->ErrCode;
     }
 
-    ca_event->ErrCode = UPNP_E_SUCCESS;
     GetIpAddressStr(ExternalIPAddress, g_vars.extInterfaceName);
-    snprintf(resultStr, RESULT_LEN, "<u:GetExternalIPAddressResponse xmlns:u=\"%s\">\n"
-             "<NewExternalIPAddress>%s</NewExternalIPAddress>\n"
-             "</u:GetExternalIPAddressResponse>", WANIP_SERVICE_TYPE, ExternalIPAddress);
-
-    // Create a IXML_Document from resultStr and return with ca_event
-    if ((result = ixmlParseBuffer(resultStr)) != NULL)
-    {
-        ca_event->ActionResult = result;
-        ca_event->ErrCode = UPNP_E_SUCCESS;
-    }
-    else
-    {
-        trace(1, "Error parsing Response to ExternalIPAddress: %s", resultStr);
-        addErrorData(ca_event, 402, "");
-    }
+    ParseResult(ca_event, "<NewExternalIPAddress>%s</NewExternalIPAddress>\n",
+        ExternalIPAddress);
 
     return(ca_event->ErrCode);
 }
@@ -1748,7 +1564,6 @@ int DeletePortMapping(struct Upnp_Action_Request *ca_event)
     char *proto=NULL;
     int result=0;
     char num[5];
-    char resultStr[RESULT_LEN];
     IXML_Document *propSet= NULL;
     int action_succeeded = 0;
     struct portMap *temp;
@@ -1757,7 +1572,7 @@ int DeletePortMapping(struct Upnp_Action_Request *ca_event)
 
     if ((remote_host = GetFirstDocumentItem(ca_event->ActionRequest, "NewRemoteHost")) &&
             (ext_port = GetFirstDocumentItem(ca_event->ActionRequest, "NewExternalPort")) &&
-            (GetNbSoapParameters(ca_event->ActionRequest, "u:DeletePortMapping")==3) &&
+            (GetNbSoapParameters(ca_event->ActionRequest)==3) &&
             (isStringInteger(ext_port)) &&
             (proto = GetFirstDocumentItem(ca_event->ActionRequest, "NewProtocol")) )
     {
@@ -1835,10 +1650,7 @@ int DeletePortMapping(struct Upnp_Action_Request *ca_event)
 
     if (action_succeeded)
     {
-        ca_event->ErrCode = UPNP_E_SUCCESS;
-        snprintf(resultStr, RESULT_LEN, "<u:%sResponse xmlns:u=\"%s\">\n%s\n</u:%sResponse>",
-                 ca_event->ActionName, WANIP_SERVICE_TYPE, "", ca_event->ActionName);
-        ca_event->ActionResult = ixmlParseBuffer(resultStr);
+        ParseResult(ca_event, "");
     }
 
     free(remote_host);
@@ -1869,7 +1681,6 @@ int DeletePortMappingRange(struct Upnp_Action_Request *ca_event)
     int str_len = 6;
     char del_port[str_len];
     char tmp[11];
-    char resultStr[RESULT_LEN];
     IXML_Document *propSet= NULL;
     int action_succeeded = 0;
     struct portMap *temp;
@@ -1883,7 +1694,7 @@ int DeletePortMappingRange(struct Upnp_Action_Request *ca_event)
     if ((start_port = GetFirstDocumentItem(ca_event->ActionRequest, "NewStartPort")) &&
             (end_port = GetFirstDocumentItem(ca_event->ActionRequest, "NewEndPort")) &&
             (proto = GetFirstDocumentItem(ca_event->ActionRequest, "NewProtocol")) &&
-            (GetNbSoapParameters(ca_event->ActionRequest, "u:DeletePortMappingRange") == 4) &&
+            (GetNbSoapParameters(ca_event->ActionRequest) == 4) &&
             (isStringInteger(start_port)) &&
             (isStringInteger(end_port)) &&
             (bool_manage = GetFirstDocumentItem(ca_event->ActionRequest, "NewManage")) )
@@ -1979,10 +1790,7 @@ int DeletePortMappingRange(struct Upnp_Action_Request *ca_event)
 
     if (action_succeeded)
     {
-        ca_event->ErrCode = UPNP_E_SUCCESS;
-        snprintf(resultStr, RESULT_LEN, "<u:%sResponse xmlns:u=\"%s\">\n%s\n</u:%sResponse>",
-                 ca_event->ActionName, WANIP_SERVICE_TYPE, "", ca_event->ActionName);
-        ca_event->ActionResult = ixmlParseBuffer(resultStr);
+        ParseResult(ca_event, "");
     }
 
     ixmlDocument_free(propSet);
@@ -2023,7 +1831,7 @@ int GetListOfPortmappings(struct Upnp_Action_Request *ca_event)
             && (end_port = GetFirstDocumentItem(ca_event->ActionRequest, "NewEndPort") )
             && (manage = GetFirstDocumentItem(ca_event->ActionRequest, "NewManage") )
             && (number_of_ports = GetFirstDocumentItem(ca_event->ActionRequest, "NewNumberOfPorts") )
-            && (GetNbSoapParameters(ca_event->ActionRequest, "u:GetListOfPortmappings") == 5 )
+            && (GetNbSoapParameters(ca_event->ActionRequest) == 5 )
             && (isStringInteger(start_port) )
             && (isStringInteger(end_port) )
             && (isStringInteger(number_of_ports) )
@@ -2076,7 +1884,7 @@ int GetListOfPortmappings(struct Upnp_Action_Request *ca_event)
                 chars_wrote = snprintf(&result_str[result_place], RESULT_LEN_LONG-result_place, xml_portmapEntry,
                                        pm->m_RemoteHost, pm->m_ExternalPort, pm->m_PortMappingProtocol,
                                        pm->m_InternalPort, pm->m_InternalClient, pm->m_PortMappingEnabled,
-                                       pm->m_PortMappingDescription, (pm->expirationTime-time(NULL)));
+                                       pm->m_PortMappingDescription, (pm->m_IsStatic == 1)?0:(pm->expirationTime-time(NULL)));
 
                 // if buffer runs out of space, return error
                 if (chars_wrote > RESULT_LEN_LONG-result_place)
@@ -2102,11 +1910,8 @@ int GetListOfPortmappings(struct Upnp_Action_Request *ca_event)
                 else
                 {
                     // this will automatically escape value of NewPortListing
-                    ca_event->ActionResult = UpnpMakeActionResponse(ca_event->ActionName, WANIP_SERVICE_TYPE,
-                                              1, 
-                                              "NewPortListing", result_str,
-                                              NULL);
-                    ca_event->ErrCode = UPNP_E_SUCCESS;
+                    ParseResult(ca_event, "<NewPortListing>%s</NewPortListing>\n",
+                        escapeXMLString(result_str));
                     trace(3, "[This is un-escaped value of response]\n%s",result_str);
                 }
             }
@@ -2155,10 +1960,7 @@ int GetListOfPortmappings(struct Upnp_Action_Request *ca_event)
  */
 int GetEthernetLinkStatus (struct Upnp_Action_Request *ca_event)
 {
-    char resultStr[RESULT_LEN];
-    IXML_Document *result;
-
-    if(GetNbSoapParameters(ca_event->ActionRequest, "u:GetEthernetLinkStatus") != 0)
+    if(GetNbSoapParameters(ca_event->ActionRequest) != 0)
     {
         trace(1, "GetEthernetLinkStatus invalid args");
         addErrorData(ca_event, UPNP_SOAP_E_INVALID_ARGS, "Invalid Args");
@@ -2167,23 +1969,9 @@ int GetEthernetLinkStatus (struct Upnp_Action_Request *ca_event)
 
     setEthernetLinkStatus(EthernetLinkStatus, g_vars.extInterfaceName);
 
-    snprintf(resultStr, RESULT_LEN,
-             "<u:GetEthernetLinkStatusResponse xmlns:u=\"urn:schemas-upnp-org:service:WANEthernetLinkConfig:1\">\n"
-             "<NewEthernetLinkStatus>%s</NewEthernetLinkStatus>\n"
-             "</u:GetEthernetLinkStatusResponse>",EthernetLinkStatus);
-
-    // Create a IXML_Document from resultStr and return with ca_event
-    if ((result = ixmlParseBuffer(resultStr)) != NULL)
-    {
-        ca_event->ActionResult = result;
-        ca_event->ErrCode = UPNP_E_SUCCESS;
-    }
-    else
-    {
-        trace(1, "Error parsing Response to GetEthernetLinkStatus: %s", resultStr);
-        ca_event->ActionResult = NULL;
-        ca_event->ErrCode = 501;
-    }
+    ParseResult(ca_event,
+        "<NewEthernetLinkStatus>%s</NewEthernetLinkStatus>\n",
+        EthernetLinkStatus);
 
     return(ca_event->ErrCode);
 }
@@ -2812,16 +2600,18 @@ int AddNewPortMapping(struct Upnp_Action_Request *ca_event, char* bool_enabled, 
     IXML_Document *propSet = NULL;
     struct portMap *new;
     char tmp[11];
+    int isStatic = 0;
 
     // if duration is 0, it must be interpreted as 604800
     if (leaseDuration == 0)
     {
         leaseDuration = 604800;
+        isStatic = 1;
     }
 
     new = pmlist_NewNode(atoi(bool_enabled), leaseDuration, remote_host,
                   ext_port, int_port, proto,
-                  int_client, desc);
+                  int_client, desc, isStatic);
 
     result = pmlist_PushBack(new);
 
@@ -2911,11 +2701,7 @@ int ConnectionTermination(struct Upnp_Action_Request *ca_event, long int disconn
         if (result == 0)
         {
             // create response SOAP message
-            IXML_Document *ActionResult = NULL;
-            ActionResult = UpnpMakeActionResponse(ca_event->ActionName, WANIP_SERVICE_TYPE,
-                                                    0, NULL);
-            ca_event->ActionResult = ActionResult;
-            ca_event->ErrCode = UPNP_E_SUCCESS;
+            ParseResult(ca_event, "");
         }
         else
         {
