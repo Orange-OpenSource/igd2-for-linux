@@ -1,20 +1,36 @@
-/* read-file.c -- read file contents into a string
-   Copyright (C) 2006 Free Software Foundation, Inc.
-   Written by Simon Josefsson and Bruno Haible.
-
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU Lesser General Public License as published by
-   the Free Software Foundation; either version 2.1, or (at your option)
-   any later version.
-
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU Lesser General Public License for more details.
-
-   You should have received a copy of the GNU Lesser General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.  */
+///////////////////////////////////////////////////////////////////////////
+//
+// Copyright (c) 2009-2011  Nokia Corporation and/or its subsidiary(-ies).
+// All rights reserved. 
+//
+// Contact: mika.saaranen@nokia.com
+// Developer(s): jaakko.pasanen@tieto.com, opensource@tieto.com
+//
+// Redistribution and use in source and binary forms, with or without 
+// modification, are permitted provided that the following conditions are met: 
+//
+// * Redistributions of source code must retain the above copyright notice, 
+// this list of conditions and the following disclaimer. 
+// * Redistributions in binary form must reproduce the above copyright notice, 
+// this list of conditions and the following disclaimer in the documentation 
+// and/or other materials provided with the distribution. 
+// * Neither name of Nokia Corporation nor the names of its contributors 
+// may be used to endorse or promote products derived from this software 
+// without specific prior written permission.
+// 
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS 
+// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT 
+// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR 
+// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL NOKIA OR 
+// CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, 
+// EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, 
+// PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR 
+// PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY 
+// OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+// NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS 
+// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+//
+///////////////////////////////////////////////////////////////////////////
 
 /************************************************************************
 * Purpose: This file contains functions that operate on X.509 Public-Key 
@@ -151,14 +167,13 @@ int clientCertCallback(gnutls_session_t session, const gnutls_datum_t* req_ca_dn
 
 /************************************************************************
 *   Function :  read_binary_file
-*g_warning(
+*
 *   Parameters :
 *       IN const char* filename ;    Name of the file to read
 *       OUT size_t length       ;    Length of read data 
 *
 *   Description :   Read file contents and return contents as string.
 *                   Size of content is returned in second function parameter.
-*                   Copied and modified from gnutls read-file.c
 *
 *   Return : char* ;
 *       Pointer to the string containing file contents.
@@ -168,50 +183,32 @@ int clientCertCallback(gnutls_session_t session, const gnutls_datum_t* req_ca_dn
 ************************************************************************/
 static char* read_binary_file(const char *filename, size_t * length)
 {
-    FILE *stream = fopen(filename, "rb");
+    FILE *file;
+    char *buffer;
+    unsigned long fileLen;
 
-    if (!stream) return NULL;
-
-    char *buf = NULL;
-    size_t alloc = 0;
-    size_t size = 0;
-
-    for (;;) {
-        size_t count;
-        size_t requested;
-
-        if (size + BUFSIZ + 1 > alloc) {
-            char *new_buf;
-
-            alloc += alloc / 2;
-            if (alloc < size + BUFSIZ + 1)
-                alloc = size + BUFSIZ + 1;
-
-            new_buf = realloc (buf, alloc);
-            if (!new_buf) {
-                break;
-            }
-
-            buf = new_buf;
-        }
-
-        requested = alloc - size - 1;
-        count = fread (buf + size, 1, requested, stream);
-        size += count;
-
-        if (count != requested) {
-            if (ferror (stream))
-                break;
-            buf[size] = '\0';
-            *length = size;
-            fclose(stream);
-            return buf;
-        }
+    //Open file
+    file = fopen(filename, "rb");
+    if (!file) {
+	    return NULL;
     }
+	
+    //Get file length
+    fseek(file, 0, SEEK_END);
+    fileLen = ftell(file);
+    fseek(file, 0, SEEK_SET);
 
-  fclose(stream);
-  free (buf);
-  return NULL;
+    //Allocate memory
+    buffer = (char *)malloc(fileLen+1);
+    if (!buffer) {
+	    return NULL;
+    }
+    
+    fread(buffer, fileLen, 1, file);
+    fclose(file);
+
+    *length = fileLen;
+    return buffer;
 }
 
 
@@ -465,7 +462,6 @@ static int create_certificate(gnutls_x509_crt_t *crt, gnutls_x509_privkey_t *key
 *       IN int is_client               ;  Is created certificate client certificate. Affects to purpose of certificate.
 *
 *   Description :   Create new self signed certificate. Creates also new private key.
-*           Some inspiration for this code is took from gnutls certtool.
 *
 *   Return : int ;
 *       UPNP or gnutls error code.
