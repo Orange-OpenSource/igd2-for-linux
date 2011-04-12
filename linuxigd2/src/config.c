@@ -264,17 +264,17 @@ int parseConfigFile(globals_p vars)
                 {
                     getConfigOptionArgument(vars->xmlPath, OPTION_LEN, line, submatch);
                 }
-                else if (regexec(&re_listenport,line,NMATCH,submatch,0) == 0)
-                {
-                    char tmp[6];
-                    getConfigOptionArgument(tmp,sizeof(tmp),line,submatch);
-                    vars->listenport = atoi(tmp);
-                }
                 else if (regexec(&re_https_listenport,line,NMATCH,submatch,0) == 0)
                 {
                     char tmp[6];
                     getConfigOptionArgument(tmp,sizeof(tmp),line,submatch);
                     vars->httpsListenport = atoi(tmp);
+                }
+                else if (regexec(&re_listenport,line,NMATCH,submatch,0) == 0)
+                {
+                    char tmp[6];
+                    getConfigOptionArgument(tmp,sizeof(tmp),line,submatch);
+                    vars->listenport = atoi(tmp);
                 }
                 else if (regexec(&re_dnsmasq,line,NMATCH,submatch,0) == 0)
                 {
