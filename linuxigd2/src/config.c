@@ -384,10 +384,6 @@ int parseConfigFile(globals_p vars)
     {
         snprintf(vars->xmlPath, OPTION_LEN, XML_PATH_DEFAULT);
     }
-    if (vars->httpsListenport == 0)
-    {
-        vars->httpsListenport = HTTPS_LISTENPORT_DEFAULT;
-    }
     if (strnlen(vars->dnsmasqCmd, OPTION_LEN) == 0)
     {
         snprintf(vars->dnsmasqCmd, OPTION_LEN, DNSMASQ_CMD_DEFAULT);
