@@ -4,7 +4,6 @@
     <major>1</major>
     <minor>0</minor>
   </specVersion>
-  <actionList />
   <serviceStateTable>
     <stateVariable sendEvents="no">
       <name>A_ARG_TYPE_Dummy</name>

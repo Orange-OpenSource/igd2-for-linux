@@ -5,9 +5,9 @@
  * Developer(s): jaakko.pasanen@tieto.com, opensource@tieto.com
  *  
  * This file is part of igd2-for-linux project
- * Copyright © 2011 France Telecom.
- * Contact: fabrice.fontaine@orange-ftgroup.com
- * Developer(s): fabrice.fontaine@orange-ftgroup.com, rmenard.ext@orange-ftgroup.com
+ * Copyright © 2011-2012 France Telecom.
+ * Contact: fabrice.fontaine@orange.com
+ * Developer(s): fabrice.fontaine@orange.com, rmenard.ext@orange.com
  * 
  * This program is free software: you can redistribute it and/or modify 
  * it under the terms of the GNU General Public License as published by 
@@ -119,15 +119,18 @@ int StateTableInit(char *descDocUrl)
     }
 
     // Get the UDN from the description document, then free the DescDoc's memory
-    // Assumes that order of devices in file is IGD, WAN, WANConn
+    // Assumes that order of devices in file is IGD, WAN, WANConn, LAN
     gateUDN = GetDocumentItem(ixmlDescDoc, "UDN", 0);
     wanUDN = GetDocumentItem(ixmlDescDoc, "UDN", 1);
     wanConnectionUDN = GetDocumentItem(ixmlDescDoc, "UDN", 2);
+    lanUDN = GetDocumentItem(ixmlDescDoc, "UDN", 3);
     ixmlDocument_free(ixmlDescDoc);
 
-    trace(3, "UDN's: %s\n%s\n%s\n",gateUDN,wanUDN,wanConnectionUDN);
+    trace(3, "UDN's: %s\n%s\n%s\n%s\n", gateUDN, wanUDN, wanConnectionUDN,
+        lanUDN);
 
-    if (gateUDN == NULL || wanUDN == NULL || wanConnectionUDN == NULL)
+    if (gateUDN == NULL || wanUDN == NULL || wanConnectionUDN == NULL ||
+        lanUDN == NULL)
     {
         syslog(LOG_ERR, "Failed to get device UDN's from description document.  Exiting ...");
         UpnpFinish();
@@ -384,7 +387,45 @@ int HandleActionRequest(struct Upnp_Action_Request *ca_event)
                 result = GetWarnDisconnectDelay(ca_event);
             else result = InvalidAction(ca_event);
         }
-        else if (strcmp(ca_event->ServiceID,"urn:upnp-org:serviceId:LANHostConfig1") == 0)
+        else if (strcmp(ca_event->ServiceID,"urn:upnp-org:serviceId:WANEthLinkC1") == 0)
+        {
+            if (strcmp(ca_event->ActionName,"GetEthernetLinkStatus") == 0)
+                result = GetEthernetLinkStatus(ca_event);
+            else
+            {
+                trace(1, "Invalid Action Request : %s",ca_event->ActionName);
+                result = InvalidAction(ca_event);
+            }
+        }
+        /**
+         * Added for WANIPv6FirewallControl
+         */
+        else if (strcmp(ca_event->ServiceID,"urn:upnp-org:serviceId:WANIPv6FwCtrl1") == 0)
+        {
+            if (strcmp(ca_event->ActionName,"GetFirewallStatus") == 0)
+                result = upnp_wanipv6_getFirewallStatus(ca_event);
+            else if (strcmp(ca_event->ActionName,"GetOutboundPinholeTimeout") == 0)
+                result = upnp_wanipv6_getOutboundPinholeTimeOut(ca_event);
+            else if (strcmp(ca_event->ActionName,"AddPinhole") == 0)
+                result = upnp_wanipv6_addPinhole(ca_event);
+            else if (strcmp(ca_event->ActionName,"UpdatePinhole") == 0)
+                result = upnp_wanipv6_updatePinhole(ca_event);
+            else if (strcmp(ca_event->ActionName,"DeletePinhole") == 0)
+                result = upnp_wanipv6_deletePinhole(ca_event);
+            else if (strcmp(ca_event->ActionName,"GetPinholePackets") == 0)
+                result = upnp_wanipv6_getPinholePackets(ca_event);
+            else if (strcmp(ca_event->ActionName,"CheckPinholeWorking") == 0)
+                result = upnp_wanipv6_checkPinholeWorking(ca_event);
+            else
+            {
+                trace(1, "Invalid Action Request : %s",ca_event->ActionName);
+                result = InvalidAction(ca_event);
+            }
+        }
+    }
+    else if (lanUDN !=NULL && strcmp(ca_event->DevUDN, lanUDN) == 0)
+    {
+        if (strcmp(ca_event->ServiceID,"urn:upnp-org:serviceId:LANHostConfig1") == 0)
         {
             if (strcmp(ca_event->ActionName,"SetDHCPServerConfigurable") == 0)
                 result = SetDHCPServerConfigurable(ca_event);
@@ -427,41 +468,6 @@ int HandleActionRequest(struct Upnp_Action_Request *ca_event)
             else
             {
                 trace(1, "Action not supported: %s",ca_event->ActionName);
-                result = InvalidAction(ca_event);
-            }
-        }
-        else if (strcmp(ca_event->ServiceID,"urn:upnp-org:serviceId:WANEthLinkC1") == 0)
-        {
-            if (strcmp(ca_event->ActionName,"GetEthernetLinkStatus") == 0)
-                result = GetEthernetLinkStatus(ca_event);
-            else
-            {
-                trace(1, "Invalid Action Request : %s",ca_event->ActionName);
-                result = InvalidAction(ca_event);
-            }
-        }
-        /**
-         * Added for WANIPv6FirewallControl
-         */
-        else if (strcmp(ca_event->ServiceID,"urn:upnp-org:serviceId:WANIPv6FwCtrl1") == 0)
-        {
-            if (strcmp(ca_event->ActionName,"GetFirewallStatus") == 0)
-                result = upnp_wanipv6_getFirewallStatus(ca_event);
-            else if (strcmp(ca_event->ActionName,"GetOutboundPinholeTimeout") == 0)
-                result = upnp_wanipv6_getOutboundPinholeTimeOut(ca_event);
-            else if (strcmp(ca_event->ActionName,"AddPinhole") == 0)
-                result = upnp_wanipv6_addPinhole(ca_event);
-            else if (strcmp(ca_event->ActionName,"UpdatePinhole") == 0)
-                result = upnp_wanipv6_updatePinhole(ca_event);
-            else if (strcmp(ca_event->ActionName,"DeletePinhole") == 0)
-                result = upnp_wanipv6_deletePinhole(ca_event);
-            else if (strcmp(ca_event->ActionName,"GetPinholePackets") == 0)
-                result = upnp_wanipv6_getPinholePackets(ca_event);
-            else if (strcmp(ca_event->ActionName,"CheckPinholeWorking") == 0)
-                result = upnp_wanipv6_checkPinholeWorking(ca_event);
-            else
-            {
-                trace(1, "Invalid Action Request : %s",ca_event->ActionName);
                 result = InvalidAction(ca_event);
             }
         }

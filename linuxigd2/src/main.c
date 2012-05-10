@@ -5,9 +5,9 @@
  * Developer(s): jaakko.pasanen@tieto.com, opensource@tieto.com
  *  
  * This file is part of igd2-for-linux project
- * Copyright © 2011 France Telecom.
- * Contact: fabrice.fontaine@orange-ftgroup.com
- * Developer(s): fabrice.fontaine@orange-ftgroup.com, rmenard.ext@orange-ftgroup.com
+ * Copyright © 2011-2012 France Telecom.
+ * Contact: fabrice.fontaine@orange.com
+ * Developer(s): fabrice.fontaine@orange.com, rmenard.ext@orange.com
  * 
  * This program is free software: you can redistribute it and/or modify 
  * it under the terms of the GNU General Public License as published by 
@@ -520,6 +520,7 @@ int main (int argc, char** argv)
     free(gateUDN);
     free(wanUDN);
     free(wanConnectionUDN);
+    free(lanUDN);
 
     // Exit normally
     return (0);

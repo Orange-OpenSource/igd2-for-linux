@@ -6,9 +6,9 @@
   </specVersion>
   <device>
     <deviceType>urn:schemas-upnp-org:device:InternetGatewayDevice:1</deviceType>
-    <friendlyName>Linux Internet Gateway Device</friendlyName>
-    <manufacturer>Linux UPnP IGD Project</manufacturer>
-    <manufacturerURL>http://linux-igd.sourceforge.net</manufacturerURL>
+    <friendlyName>Linux Internet Gateway Device v2</friendlyName>
+    <manufacturer>IGD2 for Linux Project</manufacturer>
+    <manufacturerURL>http://gitorious.org/igd2-for-linux</manufacturerURL>
     <modelName>IGD Version 2.00</modelName>
     <UDN>uuid:75802409-bccb-40e7-8e6c-fa095ecce13e</UDN>
     <UPC></UPC>
@@ -22,24 +22,24 @@
       </icon>
     </iconList>
     <serviceList>
-        <service>
-            <serviceType>urn:schemas-dummy-com:service:Dummy:1</serviceType>
-            <serviceId>urn:dummy-com:serviceId:dummy1</serviceId>
-            <controlURL>/dummy</controlURL>
-            <eventSubURL>/dummy</eventSubURL>
-            <SCPDURL>/dummy.xml</SCPDURL>
-        </service>
+      <service>
+        <serviceType>urn:schemas-dummy-com:service:Dummy:1</serviceType>
+        <serviceId>urn:dummy-com:serviceId:dummy1</serviceId>
+        <SCPDURL>/dummy.xml</SCPDURL>
+        <controlURL>/dummy</controlURL>
+        <eventSubURL>/dummy</eventSubURL>
+      </service>
     </serviceList>
     <deviceList>
       <device>
         <deviceType>urn:schemas-upnp-org:device:WANDevice:1</deviceType>
         <friendlyName>WANDevice</friendlyName>
-        <manufacturer>Linux UPnP IGD Project</manufacturer>
-        <manufacturerURL>http://linux-igd.sourceforge.net</manufacturerURL>
+        <manufacturer>IGD2 for Linux Project</manufacturer>
+        <manufacturerURL>http://gitorious.org/igd2-for-linux</manufacturerURL>
         <modelDescription>WAN Device on Linux IGD</modelDescription>
         <modelName>Linux IGD</modelName>
         <modelNumber>1.00</modelNumber>
-        <modelURL>http://linux-igd.sourceforge.net</modelURL>
+        <modelURL>http://gitorious.org/igd2-for-linux</modelURL>
         <serialNumber>1.00</serialNumber>
         <UDN>uuid:75802409-bccb-40e7-8e6c-fa095ecce13f</UDN>
         <UPC></UPC>
@@ -56,8 +56,8 @@
           <device>
             <deviceType>urn:schemas-upnp-org:device:WANConnectionDevice:1</deviceType>
             <friendlyName>WANConnectionDevice</friendlyName>
-            <manufacturer>Linux UPnP IGD Project</manufacturer>
-            <manufacturerURL>http://linux-igd.sourceforge.net</manufacturerURL>
+            <manufacturer>IGD2 for Linux Project</manufacturer>
+            <manufacturerURL>http://gitorious.org/igd2-for-linux</manufacturerURL>
             <modelDescription>WanConnectionDevice on Linux IGD</modelDescription>
             <modelName>Linux IGD</modelName>
             <modelNumber>1.0</modelNumber>
@@ -69,34 +69,49 @@
               <service>
                 <serviceType>urn:schemas-upnp-org:service:WANIPConnection:1</serviceType>
                 <serviceId>urn:upnp-org:serviceId:WANIPConn1</serviceId>
+                <SCPDURL>/gateconnSCPD.xml</SCPDURL>
                 <controlURL>/upnp/control/WANIPConn1</controlURL>
                 <eventSubURL>/upnp/control/WANIPConn1</eventSubURL>
-                <SCPDURL>/gateconnSCPD.xml</SCPDURL>
               </service>
               <service>
-                  <serviceType>urn:schemas-upnp-org:service:WANEthernetLinkConfig:1</serviceType>
-                  <serviceId>urn:upnp-org:serviceId:WANEthLinkC1</serviceId>
-                  <controlURL>/upnp/control/WANEthLinkC1</controlURL>
-                  <eventSubURL>/upnp/control/WANEthLinkC1</eventSubURL>
-                  <SCPDURL>/gateEthlcfgSCPD.xml</SCPDURL>
+                <serviceType>urn:schemas-upnp-org:service:WANEthernetLinkConfig:1</serviceType>
+                <serviceId>urn:upnp-org:serviceId:WANEthLinkC1</serviceId>
+                <SCPDURL>/gateEthlcfgSCPD.xml</SCPDURL>
+                <controlURL>/upnp/control/WANEthLinkC1</controlURL>
+                <eventSubURL>/upnp/control/WANEthLinkC1</eventSubURL>
               </service>
               <service>
                 <serviceType>urn:schemas-upnp-org:service:WANIPv6FirewallControl:1</serviceType>
                 <serviceId>urn:upnp-org:serviceId:WANIPv6FwCtrl1</serviceId>
+                <SCPDURL>/wanipv6fwctrlSCPD.xml</SCPDURL>
                 <controlURL>/upnp/control/WANIPv6FwCtrl1</controlURL>
                 <eventSubURL>/upnp/control/WANIPv6FwCtrl1</eventSubURL>
-                <SCPDURL>/wanipv6fwctrlSCPD.xml</SCPDURL>
-              </service>
-              <service>
-                  <serviceType>urn:schemas-upnp-org:service:LANHostConfigManagement:1</serviceType>
-                  <serviceId>urn:upnp-org:serviceId:LANHostConfig1</serviceId>
-                  <controlURL>/upnp/control/LANHostConfig1</controlURL>
-                  <eventSubURL></eventSubURL>
-                  <SCPDURL>/lanhostconfigSCPD.xml</SCPDURL>
               </service>
             </serviceList>
           </device>
         </deviceList>
+      </device>
+      <device>
+        <deviceType>urn:schemas-upnp-org:device:LANDevice:1</deviceType>
+        <friendlyName>LANDevice</friendlyName>
+        <manufacturer>IGD2 for Linux Project</manufacturer>
+        <manufacturerURL>http://gitorious.org/igd2-for-linux</manufacturerURL>
+        <modelDescription>LAN Device on Linux IGD</modelDescription>
+        <modelName>Linux IGD</modelName>
+        <modelNumber>1.0</modelNumber>
+        <modelURL>http://gitorious.org/igd2-for-linux</modelURL>
+        <serialNumber>1.0</serialNumber>
+        <UDN>uuid:75802409-bccb-40e7-8e6c-fa095ecce13a</UDN>
+        <UPC></UPC>
+        <serviceList>
+          <service>
+            <serviceType>urn:schemas-upnp-org:service:LANHostConfigManagement:1</serviceType>
+            <serviceId>urn:upnp-org:serviceId:LANHostConfig1</serviceId>
+            <SCPDURL>/lanhostconfigSCPD.xml</SCPDURL>
+            <controlURL>/upnp/control/LANHostConfig1</controlURL>
+            <eventSubURL></eventSubURL>
+          </service>
+        </serviceList>
       </device>
     </deviceList>
   </device>

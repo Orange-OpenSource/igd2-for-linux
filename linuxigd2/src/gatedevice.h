@@ -5,9 +5,9 @@
  * Developer(s): jaakko.pasanen@tieto.com, opensource@tieto.com
  *  
  * This file is part of igd2-for-linux project
- * Copyright © 2011 France Telecom.
- * Contact: fabrice.fontaine@orange-ftgroup.com
- * Developer(s): fabrice.fontaine@orange-ftgroup.com, rmenard.ext@orange-ftgroup.com
+ * Copyright © 2011-2012 France Telecom.
+ * Contact: fabrice.fontaine@orange.com
+ * Developer(s): fabrice.fontaine@orange.com, rmenard.ext@orange.com
  * 
  * This program is free software: you can redistribute it and/or modify 
  * it under the terms of the GNU General Public License as published by 
@@ -42,6 +42,7 @@ UpnpDevice_Handle deviceHandleIPv6UlaGua;
 char *gateUDN;
 char *wanUDN;
 char *wanConnectionUDN;
+char *lanUDN;
 long int startup_time;
 unsigned long connection_stats[STATS_LIMIT]; // this is used for defining if connection is in idling
 long int idle_time;
