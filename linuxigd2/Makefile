@@ -1,6 +1,6 @@
 # 
 # This file is part of igd2-for-linux project
-# Copyright © 2011 France Telecom.
+# Copyright © 2011-2012 France Telecom.
 # Contact: fabrice.fontaine@orange-ftgroup.com
 # Developer(s): fabrice.fontaine@orange-ftgroup.com, rmenard.ext@orange-ftgroup.com
 #  
@@ -25,7 +25,7 @@ LIBUPNP_PREFIX=/usr/local
 
 
 PACKAGE = linuxigd2
-VERSION = 0.4
+VERSION = 1.0
 DISTDIR = $(PACKAGE)-$(VERSION)
 DISTFILES = Makefile Doxyfile bin/ configs/ doc/ src/ 
 
