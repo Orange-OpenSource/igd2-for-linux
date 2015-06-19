@@ -1,0 +1,802 @@
+///////////////////////////////////////////////////////////////////////////
+//
+// Copyright (c) 2009-2011  Nokia Corporation and/or its subsidiary(-ies).
+// All rights reserved. 
+//
+// Contact: mika.saaranen@nokia.com
+// Developer(s): jaakko.pasanen@tieto.com, opensource@tieto.com
+//
+// Redistribution and use in source and binary forms, with or without 
+// modification, are permitted provided that the following conditions are met: 
+//
+// * Redistributions of source code must retain the above copyright notice, 
+// this list of conditions and the following disclaimer. 
+// * Redistributions in binary form must reproduce the above copyright notice, 
+// this list of conditions and the following disclaimer in the documentation 
+// and/or other materials provided with the distribution. 
+// * Neither name of Nokia Corporation nor the names of its contributors 
+// may be used to endorse or promote products derived from this software 
+// without specific prior written permission.
+// 
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS 
+// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT 
+// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR 
+// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL NOKIA OR 
+// CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, 
+// EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, 
+// PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR 
+// PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY 
+// OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+// NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS 
+// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+//
+///////////////////////////////////////////////////////////////////////////
+
+
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
+#include <sys/wait.h>
+
+#include <resolv.h>
+#include <gnutls/gnutls.h>
+#include <gnutls/x509.h>
+
+#include "httpsserver.h"
+#include "httpreadwrite.h"
+#include "upnpapi.h"
+#include "miniserver.h"
+#include "statcodes.h"
+#include "pki.h"
+
+#define DH_BITS 1024
+
+static gnutls_certificate_credentials_t x509_cred;
+static gnutls_priority_t priority_cache;
+static gnutls_dh_params_t dh_params;
+static unsigned int server_crt_size = MAX_CRT;
+static gnutls_x509_crt_t server_crt[MAX_CRT];
+static gnutls_x509_privkey_t server_privkey= NULL;
+
+static int RUNNING = 0;
+static int PORT = 0;
+
+/* Static function declarations */
+static SOCKET get_listener_socket(int port);
+static gnutls_session_t initialize_tls_session (void);
+static int generate_dh_params (void);
+static void RunHttpsServer( SOCKET listen_sd );
+static int tcp_connect (void);
+static void tcp_close (int sd);
+
+ 
+/************************************************************************
+ * Function: verify_certificate
+ *
+ * Parameters:
+ *  IN gnutls_session_t session - Gnutls session
+ *  IN const char *hostname - Value of Common Name (CN) element in peer certificate.
+ *
+ * Description:
+ *  This function will try to verify the peer's certificate, and
+ *  also check if the hostname matches, and the activation, expiration dates.
+ *
+ * Return: int
+ *  GNU TLS error codes or -1
+ *  GNUTLS_E_SUCCESS - on success
+ ************************************************************************/ 
+static int verify_certificate (gnutls_session_t session, const char *hostname)
+{
+    unsigned int status;
+    const gnutls_datum_t *cert_list;
+    unsigned int cert_list_size;
+    int ret;
+    gnutls_x509_crt_t cert;
+
+
+    /* This verification function uses the trusted CAs in the credentials
+     * structure. So you must have installed one or more CA certificates.
+     */
+    ret = gnutls_certificate_verify_peers2 (session, &status);
+
+    if (ret != GNUTLS_E_SUCCESS)
+    {
+        UpnpPrintf( UPNP_CRITICAL, MSERV, __FILE__, __LINE__,
+            "Error verifying peer certificates: %s\n", gnutls_strerror(ret) );
+        return ret;
+    }
+
+    if (status & GNUTLS_CERT_INVALID)
+    {
+        UpnpPrintf( UPNP_CRITICAL, MSERV, __FILE__, __LINE__,
+            "Peer certificate is not trusted\n");
+        return GNUTLS_CERT_INVALID;
+    }
+
+    if (status & GNUTLS_CERT_SIGNER_NOT_FOUND)
+    {
+        UpnpPrintf( UPNP_CRITICAL, MSERV, __FILE__, __LINE__,
+            "Peer certificate hasn't got a known issuer\n");
+        return GNUTLS_CERT_SIGNER_NOT_FOUND;
+    }
+
+    if (status & GNUTLS_CERT_REVOKED)
+    {
+        UpnpPrintf( UPNP_CRITICAL, MSERV, __FILE__, __LINE__,
+            "Peer certificate has been revoked\n");
+        return GNUTLS_CERT_REVOKED;
+    }
+
+
+    /* Up to here the process is the same for X.509 certificates and
+     * OpenPGP keys. From now on X.509 certificates are assumed. This can
+     * be easily extended to work with openpgp keys as well.
+     */
+    if ((ret = gnutls_certificate_type_get (session)) != GNUTLS_CRT_X509)
+    {
+        UpnpPrintf( UPNP_CRITICAL, MSERV, __FILE__, __LINE__,
+            "Peer certificate type must be X.509. Wrong type received.\n");
+        return GNUTLS_E_UNSUPPORTED_CERTIFICATE_TYPE;
+    }
+
+    if ((ret = gnutls_x509_crt_init (&cert)) != GNUTLS_E_SUCCESS)
+    {
+        UpnpPrintf( UPNP_CRITICAL, MSERV, __FILE__, __LINE__,
+            "Peer certificate failed to initialize: %s\n",gnutls_strerror(ret) );
+        return ret;
+    }
+
+    cert_list = gnutls_certificate_get_peers (session, &cert_list_size);
+    if (cert_list == NULL)
+    {
+        UpnpPrintf( UPNP_CRITICAL, MSERV, __FILE__, __LINE__,
+            "No Peer certificate was found\n");
+        return GNUTLS_E_NO_CERTIFICATE_FOUND;
+    }
+
+    int i;
+    for (i = 0; i < cert_list_size; i++)
+    {
+        if ((ret = gnutls_x509_crt_import (cert, &cert_list[i], GNUTLS_X509_FMT_DER)) != GNUTLS_E_SUCCESS)
+        {
+            UpnpPrintf( UPNP_CRITICAL, MSERV, __FILE__, __LINE__,
+                "Error parsing Peer certificate: %s\n",gnutls_strerror(ret) );
+            gnutls_x509_crt_deinit (cert);
+            return ret;
+        }
+
+        // validate expiration times and hostname
+        ret = validate_x509_certificate(&cert, hostname, NULL);
+        gnutls_x509_crt_deinit (cert);
+
+        if (ret != 0) return ret;
+    }
+
+    return GNUTLS_E_SUCCESS;
+}
+
+
+
+/************************************************************************
+ * Function: get_listener_socket
+ *
+ * Parameters:
+ *  IN int port - Port number which is binded for socket
+ *
+ * Description:
+ *  Create listener socket for https-server. 
+ *
+ * Return: int
+ *  Created socket on success, else:
+ *  UPNP_E_OUTOF_SOCKET - Failed to create a socket
+ *  UPNP_E_SOCKET_BIND - Bind() failed
+ *  UPNP_E_LISTEN   - Listen() failed   
+ *  UPNP_E_SOCKET_ERROR - Setsockopt() failed
+ ************************************************************************/
+static SOCKET get_listener_socket(int port)
+{
+    struct sockaddr_in sa_serv;
+    SOCKET listen_sd;
+    int err;
+    int optval = 1;
+
+    listen_sd = socket (AF_INET, SOCK_STREAM, 0);
+    if (listen_sd == -1)
+    {
+        UpnpPrintf( UPNP_CRITICAL, MSERV, __FILE__, __LINE__,
+            "Error in creating HTTPS socket!!!\n" );
+        return UPNP_E_OUTOF_SOCKET;
+    }
+
+    memset (&sa_serv, '\0', sizeof (sa_serv));
+    sa_serv.sin_family = AF_INET;
+    sa_serv.sin_addr.s_addr = INADDR_ANY;
+    sa_serv.sin_port = htons (port);  /* Server Port number */
+
+    err = setsockopt (listen_sd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(int));
+    if (err == -1)
+    {
+        UpnpPrintf( UPNP_CRITICAL, MSERV, __FILE__, __LINE__,
+            "Error in setsockopt() HTTPS socket!!!\n" );
+        return UPNP_E_SOCKET_ERROR;
+    }
+
+    err = bind (listen_sd, (struct sockaddr *) & sa_serv, sizeof (sa_serv));
+    if (err == -1)
+    {
+        UpnpPrintf( UPNP_CRITICAL, MSERV, __FILE__, __LINE__,
+            "Error in binding HTTPS socket!!!\n" );
+        return UPNP_E_SOCKET_BIND;
+    }
+    err = listen (listen_sd, 1024);
+    if (err == -1)
+    {
+        UpnpPrintf( UPNP_CRITICAL, MSERV, __FILE__, __LINE__,
+            "Error in listen() HTTPS socket!!!\n" );
+        return UPNP_E_LISTEN;
+    }
+
+    return listen_sd;
+}
+
+/************************************************************************
+ * Function: initialize_tls_session
+ *
+ * Parameters:
+ *  void
+ *
+ * Description:
+ *  Create and initialize new gnutls session object for https-server
+ *
+ * Return: gnutls_session_t
+ *  Created session.
+ ************************************************************************/
+static gnutls_session_t initialize_tls_session (void)
+{
+    gnutls_session_t session;
+    int ret;
+
+    ret = gnutls_init (&session, GNUTLS_SERVER);
+    if (ret != GNUTLS_E_SUCCESS)
+        return ( gnutls_session_t ) ret;
+
+    ret = gnutls_priority_set (session, priority_cache);
+    if (ret != GNUTLS_E_SUCCESS)
+        return ( gnutls_session_t ) ret;
+
+    ret = gnutls_credentials_set (session, GNUTLS_CRD_CERTIFICATE, x509_cred);
+    if (ret != GNUTLS_E_SUCCESS)
+        return ( gnutls_session_t ) ret;
+
+    /* request client certificate if any. */
+    gnutls_certificate_server_set_request (session, GNUTLS_CERT_REQUEST);
+
+    return session;
+}
+
+
+/************************************************************************
+ * Function: generate_dh_params
+ *
+ * Parameters:
+ *  void
+ *
+ * Description:
+ *  Generate Diffie Hellman parameters - for use with DHE
+ *  kx algorithms. When short bit length is used, it might
+ *  be wise to regenerate parameters.
+ *
+ *  Check the ex-serv-export.c example for using static
+ *  parameters.
+ *
+ * Return: int
+ *  Return alway 0.
+ ************************************************************************/
+static int
+generate_dh_params (void)
+{
+    gnutls_dh_params_init (&dh_params);
+    gnutls_dh_params_generate2 (dh_params, DH_BITS);
+
+    return 0;
+}
+
+/************************************************************************
+ * Function: free_handle_https_request_arg
+ *
+ * Parameters:
+ *  void *args - Request Message to be freed
+ *
+ * Description:
+ *  Free memory assigned for handling request and unitialize socket
+ *  functionality
+ *
+ * Return: void
+ ************************************************************************/
+static void
+free_handle_https_request_arg( void *args )
+{
+    SOCKET sock = ( SOCKET )args;
+    shutdown( sock, SD_BOTH );
+    UpnpCloseSocket( sock );
+}
+
+/************************************************************************
+ * Function: handle_https_request
+ *
+ * Parameters:
+ *  void *args - Socket Descriptor on which connection is accepted
+ *
+ * Description:
+ *  Create tls session, receive the request and dispatch it for handling
+ *
+ * Return: void
+ ************************************************************************/
+static void 
+handle_https_request(void *args)
+{
+    int http_error_code = 0;
+    int major = 1;
+    int minor = 1;
+    http_parser_t arser;
+    http_parser_t *parser = &arser;
+    http_message_t *hmsg = NULL;
+    int ret;
+    gnutls_session_t session;
+    struct mserv_request_t *request = ( struct mserv_request_t * )args;
+    int sock = request->connfd;
+    int line = 0;
+    parse_status_t status;
+    int num_read;
+    xboolean ok_on_close = FALSE;
+    int max_record_size = 0;
+    char *buf = NULL;
+
+    /* create session */
+    session = initialize_tls_session();
+    if (session < 0)
+    {
+        UpnpPrintf( UPNP_CRITICAL, MSERV, __FILE__, __LINE__,
+            "Error initialising tls session: %s\n", gnutls_strerror(( int )session) );
+        goto ExitFunction;
+    }
+
+    /* require that client provide a certificate */
+    gnutls_certificate_server_set_request(session, GNUTLS_CERT_REQUIRE);
+
+    gnutls_transport_set_ptr (session, (gnutls_transport_ptr_t) sock);
+
+    ret = gnutls_handshake (session);
+
+    if (ret != GNUTLS_E_SUCCESS) {
+        UpnpPrintf( UPNP_CRITICAL, MSERV, __FILE__, __LINE__,
+            "Handshake has failed: %s\n", gnutls_strerror(ret) );
+        goto ExitFunction;
+    }
+
+    // TODO: what is hostname value?????????! Is this even needed?
+    // check client certificate. Is it trusted and such
+    if ((ret = verify_certificate(session, "TestDevice")) != GNUTLS_E_SUCCESS) {
+        //goto error_handler;
+    }
+
+    SOCKINFO info;
+    info.tls_session = session;
+    info.socket = sock;
+    info.foreign_ip_addr = request->foreign_ip_addr;
+    info.foreign_ip_port = request->foreign_ip_port;
+
+
+    // following is copy from http_RecvMessage
+    ret = UPNP_E_SUCCESS;
+    max_record_size = gnutls_record_get_max_size(session);
+    buf = malloc(max_record_size);
+
+    // init parser
+    parser_request_init(parser);
+
+    // this loop serves one SSL session
+    while (TRUE) {
+        memset (buf, 0, max_record_size);
+        num_read = gnutls_record_recv (session, buf, max_record_size);
+        if (num_read > 0) {
+            // got data
+            status = parser_append(parser, buf, num_read);
+
+            if (status == PARSE_SUCCESS) {
+                UpnpPrintf( UPNP_INFO, HTTP, __FILE__, __LINE__,
+                    "<<< (RECVD) <<<\n%s\n-----------------\n",
+                    parser->msg.msg.buf );
+                print_http_headers( &parser->msg );
+                if (parser->content_length > (unsigned int)g_maxContentLength) {
+                    http_error_code = HTTP_REQ_ENTITY_TOO_LARGE;
+                    line = __LINE__;
+                    ret = UPNP_E_OUTOF_BOUNDS;
+                    goto ExitFunction;
+                }
+
+                // whole message is parsed. Dispatch message
+                http_error_code = dispatch_request( &info, parser );
+                if( http_error_code != 0 ) {
+                    goto ExitFunction;
+                }
+
+                // init parser for next message
+                httpmsg_destroy(&parser->msg);
+                parser_request_init(parser);
+            } else if (status == PARSE_FAILURE) {
+                http_error_code = parser->http_error_code;
+                line = __LINE__;
+                ret = UPNP_E_BAD_HTTPMSG;
+                goto ExitFunction;
+            } else if (status == PARSE_INCOMPLETE_ENTITY) {
+                // read until close
+                ok_on_close = TRUE;
+            } else if (status == PARSE_CONTINUE_1) {
+                // Web post request.
+                line = __LINE__;
+                ret = PARSE_SUCCESS;
+                goto ExitFunction;
+            }
+        } else if (num_read == 0) {
+            //peer has closed connection
+            http_error_code = UPNP_E_SUCCESS;
+            UpnpPrintf( UPNP_INFO, HTTP, __FILE__, __LINE__,
+                    "(handle_https_request): Peer has closed SSL connection\n");
+            // because client has closed session, we can deinit session 
+            gnutls_deinit (session);
+            session = NULL;
+            goto ExitFunction;
+        } else {
+            // received corrupted data
+            http_error_code = parser->http_error_code;
+            line = __LINE__;
+            ret = num_read;
+            UpnpPrintf( UPNP_INFO, HTTP, __FILE__, __LINE__,
+                    "(handle_https_request): gnutls received corrupted data\n");
+            session = NULL;         // session may not exist anymore
+            goto ExitFunction;
+        }
+    }
+
+
+ExitFunction:
+    if( http_error_code != UPNP_E_SUCCESS ) {
+        UpnpPrintf(UPNP_ALL, HTTP, __FILE__, line,
+            "(handle_https_request): Error %d, http_error_code = %d.\n",
+            ret,
+            http_error_code);
+
+        if( hmsg ) {
+            major = hmsg->major_version;
+            minor = hmsg->minor_version;
+        }
+        handle_error( &info, http_error_code, major, minor );
+    }
+
+    if (session != NULL)
+    {
+        gnutls_bye (session, GNUTLS_SHUT_RDWR);
+        gnutls_deinit (session);
+    }
+    close (sock);
+    free(request);
+    free(buf);
+}
+
+/************************************************************************
+ * Function: schedule_https_request_job
+ *
+ * Parameters:
+ *  IN int sock - Socket Descriptor on which connection is accepted
+ *  IN struct sockaddr_in* clientAddr - Clients Address information
+ *
+ * Description:
+ *  Initilize the thread pool to handle a request.
+ *  Sets priority for the job and adds the job to the thread pool
+ *
+ * Return: void
+ ************************************************************************/
+static UPNP_INLINE void
+schedule_https_request_job( IN SOCKET sock,
+                            IN struct sockaddr_in *clientAddr )
+{
+    struct mserv_request_t *request;
+    ThreadPoolJob job;
+
+    request =
+        ( struct mserv_request_t * )
+        malloc( sizeof( struct mserv_request_t ) );
+    if( request == NULL ) {
+        UpnpPrintf( UPNP_INFO, MSERV, __FILE__, __LINE__,
+            "mserv (https) %d: out of memory\n", sock );
+        shutdown( sock, SD_BOTH );
+        UpnpCloseSocket( sock );
+        return;
+    }
+
+    request->connfd = sock;
+    request->foreign_ip_addr = clientAddr->sin_addr;
+    request->foreign_ip_port = ntohs( clientAddr->sin_port );
+
+    TPJobInit( &job, ( start_routine ) handle_https_request, ( void * ) request );
+    TPJobSetFreeFunction( &job, free_handle_https_request_arg );
+    TPJobSetPriority( &job, MED_PRIORITY );
+
+    if( ThreadPoolAdd( &gHttpsServerThreadPool, &job, NULL ) != 0 ) {
+        UpnpPrintf( UPNP_INFO, MSERV, __FILE__, __LINE__,
+            "https: cannot schedule request\n" );
+        shutdown( sock, SD_BOTH );
+        UpnpCloseSocket( sock );
+        return;
+    }
+}
+
+/************************************************************************
+ * Function: RunHttpsServer
+ *
+ * Parameters:
+ *  SOCKET listen_sd - Socket Descriptor on which Https-server is listening
+ *
+ * Description:
+ *  Function runs the https server. The HttpsServer accepts a 
+ *  new request and schedules a thread to handle the new request.
+ *  Checks for socket state and invokes appropriate read and shutdown 
+ *  actions for the https server 
+ *
+ * Return: void
+ ************************************************************************/
+static void
+RunHttpsServer( SOCKET listen_sd )
+{
+    struct sockaddr_in addr;
+    socklen_t len = sizeof(addr);
+    SOCKET sd;
+
+    RUNNING = 1;
+
+    while (RUNNING) {
+        sd = accept(listen_sd, ( struct sockaddr * )&addr, &len);
+
+        /* is there really a connection */
+        if (sd > 0)
+        {
+            UpnpPrintf( UPNP_INFO, MSERV, __FILE__, __LINE__,
+                "Https Connection: %s:%d\n",inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));
+
+            schedule_https_request_job(sd, &addr);
+        }
+    }
+    tcp_close (listen_sd);
+}
+
+/************************************************************************
+ * Function: StartHttpsServer
+ *
+ * Parameters :
+ *  unsigned short listen_port - Port on which the server listens for incoming connections
+ *  const char *directory: Path to directory where files locate or where files are created
+ *  const char *CertFile: Selfsigned certificate file of server. If NULL, new certificate and private key is created
+ *  const char *PrivKeyFile: Private key file of server. If NULL, new private key is created
+ *  const char *TrustFile: File containing trusted certificates. (PEM format). May be NULL
+ *  const char *CRLFile: Certificate revocation list. Untrusted certificates. (PEM format). May be NULL
+ *  char* cn - Common name value used in certificate, name of device or something similar
+ * 
+ * Description:
+ *  Initialize gnutls for the https server. Initialize a thread pool job to run the server
+ *  and the job to the thread pool.
+ *  All files must be in PEM format.
+ *
+ * Return: int
+ *  Actual port socket is bound to - On Success
+ *  A negative number, either UPNP or gnutls error - On Error
+ ************************************************************************/
+int
+StartHttpsServer( IN unsigned short listen_port,
+                  IN const char *directory,
+                  IN const char *CertFile,
+                  IN const char *PrivKeyFile,
+                  IN const char *TrustFile,
+                  IN const char *CRLFile,
+                  IN const char *cn)
+{
+    /* for shutdown purposes */
+    PORT = listen_port;
+    SOCKET listen_sd;
+    int retVal;
+
+    retVal = init_crypto_libraries();
+    if (retVal != 0) {
+        UpnpPrintf( UPNP_INFO, MSERV, __FILE__, __LINE__,
+            "StartHttpsServer: Crypto library initialization failed\n");
+        return retVal;
+    }
+
+    if (CertFile && PrivKeyFile) {
+        // put certificate and private key in global variables for use in tls handshake
+        retVal = load_x509_self_signed_certificate(server_crt, &server_crt_size, &server_privkey, directory, CertFile, PrivKeyFile, cn, UPNP_X509_CERT_MODULUS_SIZE, UPNP_X509_CERT_LIFETIME, 0);
+        if ( retVal != GNUTLS_E_SUCCESS ) {
+            UpnpPrintf( UPNP_INFO, MSERV, __FILE__, __LINE__,
+                "StartHttpsServer: Certificate loading failed \n" );
+            return retVal;
+        }
+        retVal = init_x509_certificate_credentials(&x509_cred, directory, CertFile, PrivKeyFile, TrustFile, CRLFile);
+        if ( retVal != GNUTLS_E_SUCCESS ) {
+            UpnpPrintf( UPNP_INFO, MSERV, __FILE__, __LINE__,
+                "StartHttpsServer: Certificate credentials creating failed \n" );
+            return retVal;
+        }
+    }
+    else {
+        // create own private key and self signed certificate or use default file
+        retVal = load_x509_self_signed_certificate(server_crt, &server_crt_size, &server_privkey, directory, UPNP_X509_SERVER_CERT_FILE, UPNP_X509_SERVER_PRIVKEY_FILE, cn, UPNP_X509_CERT_MODULUS_SIZE, UPNP_X509_CERT_LIFETIME, 0);
+        if ( retVal != GNUTLS_E_SUCCESS ) {
+            UpnpPrintf( UPNP_INFO, MSERV, __FILE__, __LINE__,
+                "StartHttpsServer: Certificate loading failed \n" );
+            return retVal;
+        }
+        retVal = init_x509_certificate_credentials(&x509_cred, directory, UPNP_X509_SERVER_CERT_FILE, UPNP_X509_SERVER_PRIVKEY_FILE, TrustFile, CRLFile);
+        if ( retVal != GNUTLS_E_SUCCESS ) {
+            UpnpPrintf( UPNP_INFO, MSERV, __FILE__, __LINE__,
+                "StartHttpsServer: Certificate credentials creating failed \n" );
+            return retVal;
+        }
+    }
+
+    generate_dh_params ();
+
+    // Sets priorities for the ciphers, key exchange methods, macs and compression methods.
+    retVal = gnutls_priority_init (&priority_cache, "NORMAL", NULL);
+    if (retVal != GNUTLS_E_SUCCESS) {
+        UpnpPrintf( UPNP_INFO, MSERV, __FILE__, __LINE__,
+            "StartHttpsServer: gnutls_priority_init failed. (%s)\n\n", gnutls_strerror (retVal));
+        return retVal;
+    }
+
+    gnutls_certificate_set_dh_params (x509_cred, dh_params);
+
+    /* create listen socket */
+    listen_sd = get_listener_socket(listen_port);
+
+    if (listen_sd < 0) {
+        return listen_sd; /* failure in creating socket */
+    }
+
+    ThreadPoolJob job;
+
+    TPJobInit( &job, (start_routine)RunHttpsServer, (void *)listen_sd );
+    TPJobSetPriority( &job, MED_PRIORITY );
+    TPJobSetFreeFunction( &job, ( free_routine ) free );
+
+    int success = ThreadPoolAddPersistent( &gHttpsServerThreadPool, &job, NULL );
+    if ( success < 0 ) {
+        StopHttpsServer();
+        return UPNP_E_OUTOF_MEMORY;
+    }
+
+    return listen_port;
+}
+
+/************************************************************************
+ * Function: StopHttpsServer
+ *
+ * Parameters:
+ *  void
+ *
+ * Description:
+ *  Send ShutDown message for local https server. Creates ssl session for
+ *  message sending.
+ *
+ * Return: int
+ *      Always returns 0 
+ ************************************************************************/
+int
+StopHttpsServer(void)
+{
+    RUNNING = 0; /* this stops RunHttpsServer() */
+
+    /* this will get execution out of accept() in RunHttpsServer */
+    tcp_close(tcp_connect());
+
+    /* this will give time for server to try to create tls session with our "client" and exit,
+     * before we free all the certificates and stuff from the server */
+    sleep(1);
+
+    //gnutls_x509_crt_deinit(server_crt);
+    gnutls_x509_privkey_deinit(server_privkey);
+    gnutls_certificate_free_credentials (x509_cred);
+    gnutls_priority_deinit (priority_cache);
+    gnutls_global_deinit ();
+
+    return 0;
+}
+
+/************************************************************************
+ * Function: StopHttpsServer
+ *
+ * Parameters:
+ *  void
+ *
+ * Description:
+ *  Create socket and connect it to local https server.
+ *  Code from gnutls examples.
+ *
+ * Return: int
+ *      Created socket descriptor 
+ ************************************************************************/
+static int
+tcp_connect (void)
+{
+    const char *SERVER = "127.0.0.1";
+    int err, sd;
+    struct sockaddr_in sa;
+
+    /* connects to server */
+    sd = socket (AF_INET, SOCK_STREAM, 0);
+
+    memset (&sa, '\0', sizeof (sa));
+    sa.sin_family = AF_INET;
+    sa.sin_port = htons (PORT);
+    inet_pton (AF_INET, SERVER, &sa.sin_addr);
+
+    err = connect (sd, (struct sockaddr *) & sa, sizeof (sa));
+    if (err < 0)
+    {
+        UpnpPrintf( UPNP_INFO, MSERV, __FILE__, __LINE__,
+            "Https shutdown client failed to create socket\n");
+        return UPNP_E_OUTOF_SOCKET;
+    }
+
+    return sd;
+}
+
+/************************************************************************
+ * Function: tcp_close
+ *
+ * Parameters:
+ *  int sd - Socket descriptor
+ *
+ * Description:
+ *  Close given socket descriptor.
+ *  Code from gnutls examples.
+ *
+ * Return: void 
+ ************************************************************************/
+static void
+tcp_close (int sd)
+{
+    shutdown (sd, SHUT_RDWR); /* no more receptions */
+    close (sd);
+}
+
+/************************************************************************
+ * Function: export_server_cert
+ *
+ * Parameters:
+ *  unsigned char *data - Certificate is returned in DER format here
+ *  int *data_size - Pointer to integer which represents length of certificate
+ *
+ * Description:
+ *  Get X.509 certificate that HTTPS server uses in DER format.
+ *
+ * Return: int
+ *      0 on success, gnutls error else. 
+ ************************************************************************/
+int
+export_server_cert (unsigned char *data, int *data_size)
+{
+    int ret;
+
+    if (server_crt == NULL)
+        return GNUTLS_E_X509_CERTIFICATE_ERROR;
+
+    // export first certificate from the chain to data
+    ret = gnutls_x509_crt_export(server_crt[0], GNUTLS_X509_FMT_DER, data, (size_t *)data_size);
+    if (ret < 0) {
+        UpnpPrintf( UPNP_INFO, MSERV, __FILE__, __LINE__,
+            "Error: gnutls_x509_crt_export failed. %s", gnutls_strerror(ret) );
+        return ret;
+    }
+
+    return UPNP_E_SUCCESS;
+}

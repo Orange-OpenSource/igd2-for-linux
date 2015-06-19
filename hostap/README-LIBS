@@ -1,0 +1,32 @@
+Shared libraries libhostapd.so and libwpa_supplicant.so are meant to be
+used for providing WPS M1..M8 message handling functionality.
+The libraries are currently used with UPnP DeviceProtection reference
+implementation, and should be considered alpha quality.
+
+
+-----------------------------------------------------
+Copy-paste instructions for applying the library patch-set into original hostap project source tree
+-----------------------------------------------------
+#tested in linux
+git clone http://w1.fi/hostap.git
+cd hostap
+git checkout -b libs_for_wps 6195adda9b4306cda2b06b930c59c95832d026a9
+
+mkdir tmp_patches
+tar xvzf hostap_patches_YYYYMMDD.tgz -C tmp_patches
+git am tmp_patches/*
+#some warnings about "trailing whitespace" can be ignored
+rm -rf tmp_patches
+#now the patches are in place
+
+-----------------------------------------------------
+Build instructions
+-----------------------------------------------------
+cd wpa_supplicant
+make
+make libwpa_supplicant.so 
+make install_libwpa_supplicant
+
+cd ../hostapd
+make
+make libhostapd.so

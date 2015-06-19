@@ -1,0 +1,27 @@
+DEVICEPROTECTION REFERENCE IMPLEMENTATION
+=========================================
+
+What is DeviceProtection? Well, you can find more information behind this link:
+
+    http://upnp.org/specs/gw/deviceprotection1/
+
+This directory contains sources for:
+    - LinuxIGDv2 with UPnP DeviceProtection v.1.0 service
+    - gupnp-universal-cp UPnP control point with UPnP DeviceProtection v.1.0 support
+    - Other related components
+
+
+BUILDING IN UBUNTU AND DEBIAN
+=============================
+
+You can build all for x86 environment with these commands:
+
+    mkdir -p ~/linuxigd2_test/src/ && cd ~/linuxigd2_test/src/
+    git clone http://git.gitorious.org/igd2-for-linux/deviceprotection.git deviceprotection
+    cd ~/linuxigd2_test/src/deviceprotection/system_test/
+    ./test.sh all
+
+More detailed instructions are in Gitorious wiki:
+
+    http://gitorious.org/igd2-for-linux/pages/DeviceProtectionInstallationGuide
+

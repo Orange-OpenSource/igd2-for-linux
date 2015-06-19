@@ -1,0 +1,62 @@
+0.6.2
+=====
+
+- Don't use NULL g_get_application_names [Ross Burton]
+- Use specified GMainContext for timeouts [Olivier Crete, Jorn Baayen]
+
+0.6.2
+=====
+
+- Reannounce resources after max_age / 2 - 1 instead of after max_age.
+  [Peter Christensen, Jorn Baayen]
+- Remove unnecessary call to g_thread_init(). [Zeeshan Ali]
+
+0.6.1
+=====
+
+- Bump soname.
+
+0.6
+===
+
+- Use libsoup 2.4. [Zeeshan Ali Khattak, Jorn Baayen]
+- Use g_timeout_add_seconds(). [Jorn Baayen]
+
+0.4.2
+=====
+
+- Add User-Agent header to discovery requests including the application name
+  as reported by g_get_application_name(). [Jorn Baayen]
+- Send messages from dynamic port. [Jorn Baayen]
+- Send responses to originating port (instead of to SSDP port). [Jorn Baayen]
+- Emit multiple discovery requests (because UDP is unreliable). [Zeeshan Ali]
+
+0.4.1
+=====
+
+- Pass the correct value to n_columns argument of gtk_list_store_new().
+  Fixes bug#501. [Zeeshan Ali]
+- Move libsoup requirement to Requires.Private. [Jorn Baayen]
+- Fix compiler warning. Fixes #421. [Priit Laes]
+
+0.4
+===
+
+- Minor fixes. [Jorn Baayen]
+
+0.3
+===
+
+- Handle "byebye" correctly. [Jorn Baayen]
+
+0.2
+===
+
+- New "Expires" header support. [Jorn Baayen]
+- Define own error code for use in GErrors. [Jorn Baayen]
+- Build fixes. [Ross Burton]
+
+0.1
+===
+
+Initial release. Should be fully functional.

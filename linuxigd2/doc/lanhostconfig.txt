@@ -1,0 +1,45 @@
+LanHostConfigManagement Service
+
+Definitions:
+
+Dhcrelay - Dhcp relay server.
+Dnsmasq - Dns and dhcp server.
+Uci - OpenWRT configuration tool.
+
+Overview:
+
+This service enables the remote control, monitoring and configuration of a Dynamic Host Configuration Protocol (DHCP) and Domain Name System (DNS), serving a residential LAN.
+
+Notes from the specification, all these are true for the implementation as well:
+* It is assumed that each DHCP server instance defined in the context of a LANDevice and modeled by this service, manages exactly one subnet. Changes / vendor extensions may be required to the specification if this assumption is not true.
+* Currently this service does not model any DNS or Dynamic DNS specific functions.
+* This service essentially performs administrative operations on the DHCP server component of an Internet gateway. As such, Out-of-Band mechanisms may be needed to enforce such as administrative mode and provide authentication and/or access control. Implementation details of such mechanisms are outside the scope of this document.
+
+Implementation:
+
+LanHostConfigManagement uses Dnsmasq service as a dhcp server and Dhcrelay as dhcp relay server. This implementation is designed to be used on OpenWRT, so configuration is mostly done using OpenWRT Uci commands. When LanHostConfigManagement is started, it stops dhcrelay if it is running and starts Dnsmasq. 
+
+Every state variable and action defined in the specification are implemented in the current version of the lanhostconfig. However, some of them don't work exactly like defined:
+
+* GetIPRouterList, DeleteIPRouter, SetIPRouter: In the current implementation these functions can only be used to get, set and delete the default router.
+
+* AddressRange: get/set address range the dhcp server will give out. OpenWRT uses a custom script to start dhcp server, to remain compatible with this, lanhostconfig uses uci options dhcp.lan.start and dhcp.lan.limit to set the range. This means the first three parts of the ip address are ignored and limit is calculated as start - last. If the 3 first parts don't match, then limit option is 254 - start.
+
+Remaining actions:
+* DHCPStateConfigurable: uses internal variable. If it is false, then actions used to control lanhostconfig won't do anything. When this parameter is set to true, lanhostconfig checks that both dnsmasq and uci exists. If they don't, then actions fails.
+
+* DhcpRelay: sets dhcprelay mode true or false. Dnsmasq and dhcrelay are started and stopped accordingly. Dhcrelay server is read from upnpd.conf.
+
+* SubnetMask: sets subnet mask using uci option network.lan.subnet. Network is restarted when value is changed.
+
+* IPRouter: used to list/modify route table (default router). Uses route command.
+
+* DomainName: sets domain name. Uses uci option dhcp.@dnsmasq[0].domain and restarts dnsmasq.
+
+* ReservedAddress: get/set reserved addresses list, these addresses won't be given out by the dhcp server to any host. Uses uci options dhcp.@host[-1].name=IGDv2, dhcp.@host[-1].ip, dhcp.@host[-1].mac=00:00:00:00:00:00 to reserve the address.
+
+* DNSServer: get/set/delete dns servers. Edits resolv.conf (location is in upnpd.conf), so the changes won't last, dhclient will overwrite them.
+
+References:
+
+UPnP Forum: LANHostConfigManagement:1 Service Template Version 1.01

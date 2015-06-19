@@ -1,0 +1,104 @@
+0.7
+===
+
+This release features a new tool: gupnp-upload. It is a simple commandline
+utility that uploads files to known MediaServers. Use Universal Control Point
+for discovering the MediaServers. [Zeeshan Ali]
+
+Other changes in this release:
+
+- Initialize thread system before doing anythin else. [Sven Neumann,
+  Zeeshan Ali]
+- Don't assume that the actual ID of the root container is guaranteed to be "0".  [Zeeshan Ali]
+- Use a message dialog to display action invocation errors. Fixes #936.
+  [Zeeshan Ali]
+- Some other minor changes. [Zeeshan Ali]
+
+Added dependency in this release: GIO (>= 2.12).
+
+0.6.1
+=====
+
+Network Light:
+- The UI now controls all network lights on the network, not just itself.
+
+AV Control Point:
+- Don't add orphan items/containers to tree anymore.
+
+General:
+- Fix build on Rawhide by explicitly requiring and linking to libgthread-2.0.
+
+0.6
+===
+
+network-light:
+- Remove the unneeded periodic notification to susbscribers.
+  [Zeeshan Ali Khattak]
+- Create a new UUID for each instance of network-light.
+  [Hugo Calleja, Zeeshan Ali Khattak]
+- Use the new gupnp_root_device_new() API. [Jorn Baayen]
+
+universal-cp:
+- Display the device presentation URL [Ross Burton]
+
+general:
+- Fix `make distcheck`. [Zeeshan Ali Khattak]
+
+0.4
+===
+
+- Use libsoup 2.4. [Jorn Baayen, Zeeshan Ali Khattak]
+- Incremental browsing of containers. [Zeeshan Ali Khattak]
+
+0.3
+===
+
+This release features AV Control Point, a simple media player UI that enables
+one to discover and play multimedia contents available on a network. Hopefully
+a useful tool to test and debug UPnP MediaServer and MediaRenderer
+implementations. [Zeeshan Ali]
+
+Other changes in this release:
+
+- Desktop file for each tool. [Ross Burton, Zeeshan Ali]
+- New Icons. [Vinicius Depizzol]
+- Various misc improvements and fixes. [Zeeshan Ali]
+
+0.2
+===
+
+This release features Network Light, a UPnP-enabled software-based light bulb
+that provides Switch Power and Dimming services, as defined by UPnP forum as
+'DimmableLight v1.0". It is mainly intended to be a simple example of a UPnP
+device based on GUPnP, and a demonstration of simplistic yet powerful GUPnP
+API. It can also be used to debug generic and DimmableLight control points.
+
+Changes to Universal Control Point in this release:
+
+- Use of gtk stock icons wherever appropriate.
+- New cool icons from Lapo Calamandrei, licensed under GPL
+- Use icon from the Device, if available, to represent it.
+- Subscribe to services, by default.
+- Ability to copy&paste details and events.
+- Lots of code cleanup and refactoring and misc fixes.
+
+0.1.2
+=====
+
+Another minor release to fix the treeview headers that broke because of
+the fixes in the last release.
+
+0.1.1
+=====
+
+Minor release.
+
+- BUGFIX: Pack the text and pixbuf in the same column of device treeview.
+- Require libglade 2.6.0 rather than 2.6.1.
+- Print a warning when introspection creation fails.
+- Some more english fixes with the help of Robert McQueen.
+
+0.1
+===
+
+Initial release, featuring GUPnP Universial Control Point.
