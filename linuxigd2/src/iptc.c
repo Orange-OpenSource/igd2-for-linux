@@ -117,7 +117,7 @@ int iptc_add_rule(const char *table,
     {
         size_t size;
 
-        size = IPT_ALIGN(sizeof(struct ipt_entry_target)) + IPT_ALIGN(sizeof(int));
+        size = XT_ALIGN(sizeof(struct ipt_entry_target)) + XT_ALIGN(sizeof(int));
         entry_target = calloc(1, size);
         entry_target->u.user.target_size = size;
         strncpy(entry_target->u.user.name, target, IPT_FUNCTION_MAXNAMELEN);
@@ -334,7 +334,7 @@ struct ipt_entry_match *
     struct ipt_tcp *tcpinfo;
     size_t size;
 
-    size = IPT_ALIGN(sizeof(*match)) + IPT_ALIGN(sizeof(*tcpinfo));
+    size = XT_ALIGN(sizeof(*match)) + XT_ALIGN(sizeof(*tcpinfo));
     match = calloc(1, size);
     match->u.match_size = size;
     strncpy(match->u.user.name, "tcp", IPT_FUNCTION_MAXNAMELEN);
@@ -363,7 +363,7 @@ struct ipt_entry_match *
     struct ipt_udp *udpinfo;
     size_t size;
 
-    size = IPT_ALIGN(sizeof(*match)) + IPT_ALIGN(sizeof(*udpinfo));
+    size = XT_ALIGN(sizeof(*match)) + XT_ALIGN(sizeof(*udpinfo));
     match = calloc(1, size);
     match->u.match_size = size;
     strncpy(match->u.user.name, "udp", IPT_FUNCTION_MAXNAMELEN);
@@ -399,7 +399,7 @@ struct ipt_entry_target *
     *nfcache |= NFC_UNKNOWN;
 
     buffer = strdup(input);
-    size = IPT_ALIGN(sizeof(*target)) + IPT_ALIGN(sizeof(struct nf_nat_multi_range_compat));
+    size = XT_ALIGN(sizeof(*target)) + XT_ALIGN(sizeof(struct nf_nat_multi_range_compat));
     target = calloc(1, size);
     target->u.target_size = size;
     strncpy(target->u.user.name, "DNAT", IPT_FUNCTION_MAXNAMELEN);
@@ -533,7 +533,7 @@ static struct ipt_natinfo *
     unsigned int size;
 
     /* One nf_nat_range already included in nf_nat_multi_range_compat */
-    size = IPT_ALIGN(sizeof(*info) + info->mr.rangesize * sizeof(*range));
+    size = XT_ALIGN(sizeof(*info) + info->mr.rangesize * sizeof(*range));
 
     info = realloc(info, size);
 
