@@ -5,7 +5,7 @@
  * Developer(s): jaakko.pasanen@tieto.com, opensource@tieto.com
  *  
  * This file is part of igd2-for-linux project
- * Copyright © 2011-2012 France Telecom.
+ * Copyright © 2011-2016 France Telecom / Orange.
  * Contact: fabrice.fontaine@orange.com
  * Developer(s): fabrice.fontaine@orange.com, rmenard.ext@orange.com
  * 
