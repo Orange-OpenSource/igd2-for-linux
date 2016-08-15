@@ -31,7 +31,7 @@ DISTFILES = Makefile Doxyfile bin/ configs/ doc/ src/
 
 CC=gcc
 INCLUDES= -I$(LIBUPNP_PREFIX)/include -I../include 
-LIBS= -lpthread -lupnp -lixml -lthreadutil -L$(LIBUPNP_PREFIX)/lib -L../libs
+LIBS= -lupnp -lixml -lthreadutil -lpthread -L$(LIBUPNP_PREFIX)/lib -L../libs
 FILES= gatedevice.o pmlist.o util.o config.o lanhostconfig.o pinholev6.o wanipv6fw.o
 
 BIN=bin/
