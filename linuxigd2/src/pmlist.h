@@ -57,7 +57,7 @@ struct portMap
 
     struct portMap* next;
     struct portMap* prev;
-} *pmlist_Head, *pmlist_Tail, *pmlist_Current;
+};
 
 //struct portMap* pmlist_NewNode(void);
 struct portMap* pmlist_NewNode(int enabled, long int duration, char *remoteHost,

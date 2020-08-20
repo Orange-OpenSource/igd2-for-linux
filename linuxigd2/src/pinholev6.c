@@ -41,6 +41,8 @@ extern "C" {
 #include "gatedevice.h"
 #include "pinholev6.h"
 
+struct pinholev6 *ph_first;
+
 static const char * add_rule_str = "ip6tables -I %s " //upnp forward chain
         "-i %s "        //input interface
         "-o %s "        //output interface

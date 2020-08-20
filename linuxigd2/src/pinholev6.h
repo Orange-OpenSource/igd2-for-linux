@@ -37,7 +37,7 @@ struct pinholev6 {
 
     struct pinholev6 *next;
 
-} *ph_first;
+};
 
 struct phv6_expirationEvent
 {

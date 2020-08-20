@@ -33,42 +33,20 @@
 #include "util.h"
 
 // Thread which contains all kind of timers and threads used in gatedevice.c and deviceprotection.c
-TimerThread gExpirationTimerThread;
+extern TimerThread gExpirationTimerThread;
 
 // IGD Device Globals
-UpnpDevice_Handle deviceHandle;
-UpnpDevice_Handle deviceHandleIPv6;
-UpnpDevice_Handle deviceHandleIPv6UlaGua;
-char *gateUDN;
-char *wanUDN;
-char *wanConnectionUDN;
-char *lanUDN;
-long int startup_time;
-unsigned long connection_stats[STATS_LIMIT]; // this is used for defining if connection is in idling
-long int idle_time;
-
-// State Variables
-char ConnectionType[50];
-char PossibleConnectionTypes[50];
-char ConnectionStatus[20];
-char LastConnectionError[35];
-long int AutoDisconnectTime;
-long int IdleDisconnectTime;
-long int WarnDisconnectDelay;
-int RSIPAvailable;
-int NATEnabled;
-char ExternalIPAddress[INET6_ADDRSTRLEN];
-int PortMappingNumberOfEntries;
-int PortMappingEnabled;
-char RemoteHost[INET6_ADDRSTRLEN];    // updated IPv6 addrss length 16 -> 46
-long int SystemUpdateID;
-
-// WANEthLinkConfig state variables
-char EthernetLinkStatus[12];
+extern UpnpDevice_Handle deviceHandle;
+extern UpnpDevice_Handle deviceHandleIPv6;
+extern UpnpDevice_Handle deviceHandleIPv6UlaGua;
+extern char *gateUDN;
+extern char *wanUDN;
+extern char *wanConnectionUDN;
+extern char *lanUDN;
 
 // Linked list for portmapping entries
-struct portMap *pmlist_Head;
-struct portMap *pmlist_Current;
+extern struct portMap *pmlist_Head;
+extern struct portMap *pmlist_Current;
 
 // WanIPConnection Actions
 int EventHandler(Upnp_EventType EventType, void *Event, void *Cookie);

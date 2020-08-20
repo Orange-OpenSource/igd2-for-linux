@@ -41,6 +41,43 @@
 #include "wanipv6fw.h"
 #include "config.h"
 
+// Thread which contains all kind of timers and threads used in gatedevice.c and deviceprotection.c
+TimerThread gExpirationTimerThread;
+
+// IGD Device Globals
+UpnpDevice_Handle deviceHandle;
+UpnpDevice_Handle deviceHandleIPv6;
+UpnpDevice_Handle deviceHandleIPv6UlaGua;
+char *gateUDN;
+char *wanUDN;
+char *wanConnectionUDN;
+char *lanUDN;
+long int startup_time;
+unsigned long connection_stats[STATS_LIMIT]; // this is used for defining if connection is in idling
+long int idle_time;
+
+// State Variables
+char ConnectionType[50];
+char PossibleConnectionTypes[50];
+char ConnectionStatus[20];
+char LastConnectionError[35];
+long int AutoDisconnectTime;
+long int IdleDisconnectTime;
+long int WarnDisconnectDelay;
+int RSIPAvailable;
+int NATEnabled;
+char ExternalIPAddress[INET6_ADDRSTRLEN];
+int PortMappingNumberOfEntries;
+int PortMappingEnabled;
+char RemoteHost[INET6_ADDRSTRLEN];    // updated IPv6 addrss length 16 -> 46
+long int SystemUpdateID;
+
+// WANEthLinkConfig state variables
+char EthernetLinkStatus[12];
+
+char FirewallEnabled[2];
+char InboundPinholeAllowed[2];
+
 //Definitions for mapping expiration timer thread
 static ThreadPool gExpirationThreadPool;
 static ThreadPoolJob gEventUpdateJob;

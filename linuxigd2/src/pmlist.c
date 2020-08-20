@@ -41,6 +41,11 @@
 #include "iptc.h"
 #endif
 
+// Linked list for portmapping entries
+struct portMap *pmlist_Head;
+struct portMap *pmlist_Current;
+struct portMap *pmlist_Tail;
+
 /**
  * Create new portMap struct of rule to add iptables. 
  * portMap-struct is internal presentation of iptables rule in IGD. 

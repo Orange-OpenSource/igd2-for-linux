@@ -46,9 +46,6 @@ extern "C" {
 #define ERR_SRC_ADD_WILDCARD        708
 #define ERR_NO_TRAFFIC              709
 
-char FirewallEnabled[2];
-char InboundPinholeAllowed[2];
-
 //-----------------------------------------------------------------------------
 
 int InitFirewallv6(void);
