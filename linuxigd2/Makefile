@@ -25,7 +25,7 @@ LIBUPNP_PREFIX=/usr/local
 
 
 PACKAGE = linuxigd2
-VERSION = 1.2
+VERSION = 2.0
 DISTDIR = $(PACKAGE)-$(VERSION)
 DISTFILES = Makefile Doxyfile bin/ configs/ doc/ src/ 
 
