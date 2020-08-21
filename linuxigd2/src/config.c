@@ -161,13 +161,13 @@ int parseConfigFile(globals_p vars)
     strcpy(vars->networkCmd, "");
     vars->advertisementInterval = ADVERTISEMENT_INTERVAL;
 
-    vars->ipv6firewallEnabled = TRUE;
-    vars->ipv6inboundPinholeAllowed = TRUE;
-    vars->controlPointAuthorized = TRUE;
+    vars->ipv6firewallEnabled = 1;
+    vars->ipv6inboundPinholeAllowed = 1;
+    vars->controlPointAuthorized = 1;
     strcpy(vars->ipv6forwardChain, "");
-    vars->ipv4Enabled = TRUE;
-    vars->ipv6UlaGuaEnabled = TRUE;
-    vars->ipv6LinkLocalEnabled = TRUE;
+    vars->ipv4Enabled = 1;
+    vars->ipv6UlaGuaEnabled = 1;
+    vars->ipv6LinkLocalEnabled = 1;
 
     // Regexp to match a comment line
     regcomp(&re_comment,"^[[:blank:]]*#",0);
@@ -464,11 +464,11 @@ int parseConfigFile(globals_p vars)
     }
     if (vars->ipv6firewallEnabled < 0 || vars->ipv6firewallEnabled > 1 )
     {
-        vars->ipv6firewallEnabled = TRUE;
+        vars->ipv6firewallEnabled = 1;
     }
     if (vars->ipv6inboundPinholeAllowed < 0 || vars->ipv6inboundPinholeAllowed > 1 )
     {
-        vars->ipv6inboundPinholeAllowed = TRUE;
+        vars->ipv6inboundPinholeAllowed = 1;
     }
     if (vars->controlPointAuthorized < 0 || vars->controlPointAuthorized > 1)
     {

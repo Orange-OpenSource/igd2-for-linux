@@ -49,43 +49,43 @@ extern struct portMap *pmlist_Head;
 extern struct portMap *pmlist_Current;
 
 // WanIPConnection Actions
-int EventHandler(Upnp_EventType EventType, void *Event, void *Cookie);
+int EventHandler(Upnp_EventType EventType, const void *Event, void *Cookie);
 int StateTableInit(char *descDocUrl);
 void AcceptSubscriptionExtForIPv4andIPv6(const char *DevID, const char *ServID,
                                         IXML_Document *PropSet, Upnp_SID SubsId);
 void NotifyExtForIPv4AndIPv6(const char *DevID, const char *ServID,
                             IXML_Document *PropSet);
-int HandleSubscriptionRequest(struct Upnp_Subscription_Request *sr_event);
-int HandleGetVarRequest(struct Upnp_State_Var_Request *gv_event);
-int HandleActionRequest(struct Upnp_Action_Request *ca_event);
+int HandleSubscriptionRequest(UpnpSubscriptionRequest *sr_event);
+int HandleGetVarRequest(UpnpStateVarRequest *gv_event);
+int HandleActionRequest(UpnpActionRequest *ca_event);
 
-int GetConnectionTypeInfo(struct Upnp_Action_Request *ca_event);
-int GetNATRSIPStatus(struct Upnp_Action_Request *ca_event);
-int SetConnectionType(struct Upnp_Action_Request *ca_event);
-int SetAutoDisconnectTime(struct Upnp_Action_Request *ca_event);
-int SetIdleDisconnectTime(struct Upnp_Action_Request *ca_event);
-int SetWarnDisconnectDelay(struct Upnp_Action_Request *ca_event);
-int GetAutoDisconnectTime(struct Upnp_Action_Request *ca_event);
-int GetIdleDisconnectTime(struct Upnp_Action_Request *ca_event);
-int GetWarnDisconnectDelay(struct Upnp_Action_Request *ca_event);
-int RequestConnection(struct Upnp_Action_Request *ca_event);
-int GetTotal(struct Upnp_Action_Request *ca_event, stats_t stat);
-int GetCommonLinkProperties(struct Upnp_Action_Request *ca_event);
-int InvalidAction(struct Upnp_Action_Request *ca_event);
-int GetStatusInfo(struct Upnp_Action_Request *ca_event);
-int AddPortMapping(struct Upnp_Action_Request *ca_event);
-int GetGenericPortMappingEntry(struct Upnp_Action_Request *ca_event);
-int GetSpecificPortMappingEntry(struct Upnp_Action_Request *ca_event);
-int GetExternalIPAddress(struct Upnp_Action_Request *ca_event);
-int DeletePortMapping(struct Upnp_Action_Request *ca_event);
-int DeletePortMappingRange(struct Upnp_Action_Request *ca_event);
-int AddAnyPortMapping(struct Upnp_Action_Request *ca_event);
-int GetListOfPortmappings(struct Upnp_Action_Request *ca_event);
-int ForceTermination(struct Upnp_Action_Request *ca_event);
-int RequestTermination(struct Upnp_Action_Request *ca_event);
+int GetConnectionTypeInfo(UpnpActionRequest *ca_event);
+int GetNATRSIPStatus(UpnpActionRequest *ca_event);
+int SetConnectionType(UpnpActionRequest *ca_event);
+int SetAutoDisconnectTime(UpnpActionRequest *ca_event);
+int SetIdleDisconnectTime(UpnpActionRequest *ca_event);
+int SetWarnDisconnectDelay(UpnpActionRequest *ca_event);
+int GetAutoDisconnectTime(UpnpActionRequest *ca_event);
+int GetIdleDisconnectTime(UpnpActionRequest *ca_event);
+int GetWarnDisconnectDelay(UpnpActionRequest *ca_event);
+int RequestConnection(UpnpActionRequest *ca_event);
+int GetTotal(UpnpActionRequest *ca_event, stats_t stat);
+int GetCommonLinkProperties(UpnpActionRequest *ca_event);
+int InvalidAction(UpnpActionRequest *ca_event);
+int GetStatusInfo(UpnpActionRequest *ca_event);
+int AddPortMapping(UpnpActionRequest *ca_event);
+int GetGenericPortMappingEntry(UpnpActionRequest *ca_event);
+int GetSpecificPortMappingEntry(UpnpActionRequest *ca_event);
+int GetExternalIPAddress(UpnpActionRequest *ca_event);
+int DeletePortMapping(UpnpActionRequest *ca_event);
+int DeletePortMappingRange(UpnpActionRequest *ca_event);
+int AddAnyPortMapping(UpnpActionRequest *ca_event);
+int GetListOfPortmappings(UpnpActionRequest *ca_event);
+int ForceTermination(UpnpActionRequest *ca_event);
+int RequestTermination(UpnpActionRequest *ca_event);
 
 // WANEthernetLinkConfig Actions
-int GetEthernetLinkStatus (struct Upnp_Action_Request *ca_event);
+int GetEthernetLinkStatus (UpnpActionRequest *ca_event);
 
 // Definitions for mapping expiration timer thread
 #define THREAD_IDLE_TIME 5000
@@ -95,10 +95,10 @@ int GetEthernetLinkStatus (struct Upnp_Action_Request *ca_event);
 
 int ExpirationTimerThreadInit(void);
 int ExpirationTimerThreadShutdown(void);
-int ScheduleMappingExpiration(struct portMap *mapping, char *DevUDN, char *ServiceID);
+int ScheduleMappingExpiration(struct portMap *mapping, const char *DevUDN, const char *ServiceID);
 int CancelMappingExpiration(int eventId);
 void DeleteAllPortMappings(void);
-int AddNewPortMapping(struct Upnp_Action_Request *ca_event, char* new_enabled, long int leaseDuration,
+int AddNewPortMapping(UpnpActionRequest *ca_event, char* new_enabled, long int leaseDuration,
                      char* new_remote_host, char* new_external_port, char* new_internal_port,
                      char* new_protocol, char* new_internal_client, char* new_port_mapping_description,
                      int is_update);
@@ -109,8 +109,8 @@ void UpdateEvents(void *input);
 int EthernetLinkStatusEventing(IXML_Document *propSet);
 int ExternalIPAddressEventing(IXML_Document *propSet);
 int ConnectionStatusEventing(IXML_Document *propSet);
-int ConnectionTermination(struct Upnp_Action_Request *ca_event, long int disconnectDelay);
-int AuthorizeControlPoint(struct Upnp_Action_Request *ca_event, int managed, int addError);
+int ConnectionTermination(UpnpActionRequest *ca_event, long int disconnectDelay);
+int AuthorizeControlPoint(UpnpActionRequest *ca_event, int managed, int addError);
 
 int WANIPv6FirewallStatusEventing(IXML_Document *propSet);
 

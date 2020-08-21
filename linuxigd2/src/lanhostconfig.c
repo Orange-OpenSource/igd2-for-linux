@@ -146,13 +146,17 @@ void DhcrelayStop()
  * @param ca_event Upnp action.
  * @return Upnp error code if LanHostConfig is not configurable. 0 on success.
  */
-int CheckDHCPServerConfigurable( struct Upnp_Action_Request *ca_event )
+int CheckDHCPServerConfigurable( UpnpActionRequest *ca_event )
 {
-    if ( lanHostConfig.DHCPServerConfigurable == FALSE )
+    const char *actionName = NULL;
+    
+    actionName = UpnpActionRequest_get_ActionName_cstr( ca_event );
+
+    if ( lanHostConfig.DHCPServerConfigurable == 0 )
     {
-        trace( 1, "%s: DHCPServerConfigurable is false.", ca_event->ActionName );
+        trace( 1, "%s: DHCPServerConfigurable is false.", actionName );
         addErrorData( ca_event, 501, "Action Failed" );
-        return ca_event->ErrCode;
+        return UpnpActionRequest_get_ErrCode( ca_event );
     }
 
     return 0;
@@ -164,19 +168,23 @@ int CheckDHCPServerConfigurable( struct Upnp_Action_Request *ca_event )
  *
  * @param ca_event Upnp action struct.
  */
-void InvalidArgs( struct Upnp_Action_Request *ca_event )
+void InvalidArgs( UpnpActionRequest *ca_event )
 {
-    trace( 2, "%s: Invalid Args", ca_event->ActionName );
-    ca_event->ErrCode = 402;
-    strcpy( ca_event->ErrStr, "Invalid Args" );
-    ca_event->ActionResult = NULL;
+    const char *actionName = NULL;
+    
+    actionName = UpnpActionRequest_get_ActionName_cstr( ca_event );
+
+    trace( 2, "%s: Invalid Args", actionName );
+    UpnpActionRequest_set_ErrCode( ca_event, 402 );
+    UpnpActionRequest_strcpy_ErrStr( ca_event, "Invalid Args" );
+    UpnpActionRequest_set_ActionResult( ca_event, NULL );
 }
 
 /**
  * Parses default gateway address from 'route -n' command and writes it to gateway parameter.
  *
  * @param gateway Function will write default gateway address to this parameter. Must be large enough to hold IPv4 ip address.
- * @return TRUE on success.
+ * @return 1 on success.
  */
 int GetDefaultGateway( char *gateway )
 {
@@ -187,7 +195,7 @@ int GetDefaultGateway( char *gateway )
     // try to run route command
     cmd = popen( "route -n", "r" );
     if ( cmd == NULL )
-        return FALSE;
+        return 0;
 
     // get result
     while ( fgets( line, LINE_LEN, cmd ) != NULL )
@@ -201,12 +209,12 @@ int GetDefaultGateway( char *gateway )
             addr = strtok( NULL, " " );
             strcpy( gateway, addr );
             pclose( cmd );
-            return TRUE;
+            return 1;
         }
     }
 
     pclose( cmd );
-    return FALSE;
+    return 0;
 }
 
 
@@ -225,13 +233,16 @@ int GetDefaultGateway( char *gateway )
  * @param ca_event Upnp event struct.
  * @return Upnp error code.
  */
-int SetDHCPServerConfigurable( struct Upnp_Action_Request *ca_event )
+int SetDHCPServerConfigurable( UpnpActionRequest *ca_event )
 {
     char *configurable;
     int config;
+    IXML_Document *actionRequest = NULL;
 
-    if ( ( configurable = GetFirstDocumentItem( ca_event->ActionRequest, "NewDHCPServerConfigurable" ) ) &&
-            ( GetNbSoapParameters( ca_event->ActionRequest ) == 1 ) )
+    actionRequest = UpnpActionRequest_get_ActionRequest( ca_event );
+
+    if ( ( configurable = GetFirstDocumentItem( actionRequest, "NewDHCPServerConfigurable" ) ) &&
+            ( GetNbSoapParameters( actionRequest ) == 1 ) )
     {
         config = resolveBoolean( configurable );
 
@@ -239,9 +250,9 @@ int SetDHCPServerConfigurable( struct Upnp_Action_Request *ca_event )
         if ( config && CheckLanHostConfigFiles() )
         {
             // init failed, send action failed response
-            ca_event->ErrCode = 501;
-            strcpy( ca_event->ErrStr, "Action Failed" );
-            ca_event->ActionResult = NULL;
+            UpnpActionRequest_set_ErrCode( ca_event, 501 );
+            UpnpActionRequest_strcpy_ErrStr( ca_event, "Action Failed" );
+            UpnpActionRequest_set_ActionResult( ca_event, NULL );
         }
         else
         {
@@ -254,7 +265,7 @@ int SetDHCPServerConfigurable( struct Upnp_Action_Request *ca_event )
 
     free( configurable );
 
-    return ca_event->ErrCode;
+    return UpnpActionRequest_get_ErrCode( ca_event );
 }
 
 /**
@@ -265,18 +276,18 @@ int SetDHCPServerConfigurable( struct Upnp_Action_Request *ca_event )
  * @param ca_event Upnp event struct.
  * @return Upnp error code.
  */
-int GetDHCPServerConfigurable( struct Upnp_Action_Request *ca_event )
+int GetDHCPServerConfigurable( UpnpActionRequest *ca_event )
 {
-    if( GetNbSoapParameters( ca_event->ActionRequest ) != 0 )
+    if( GetNbSoapParameters( UpnpActionRequest_get_ActionRequest( ca_event ) ) != 0 )
     {
         trace( 1, "GetDHCPServerConfigurable invalid number of parameters" );
         addErrorData( ca_event, UPNP_SOAP_E_INVALID_ARGS, "Invalid Args" );
-        return ca_event->ErrCode;
+        return UpnpActionRequest_get_ErrCode( ca_event );
     }
 
     ParseResult( ca_event, "<NewDHCPServerConfigurable>%d</NewDHCPServerConfigurable>\n", ( lanHostConfig.DHCPServerConfigurable ? 1 : 0 ) );
 
-    return ca_event->ErrCode;
+    return UpnpActionRequest_get_ErrCode( ca_event );
 }
 
 /**
@@ -290,16 +301,19 @@ int GetDHCPServerConfigurable( struct Upnp_Action_Request *ca_event )
  * @param ca_event Upnp event struct.
  * @return Upnp error code.
  */
-int SetDHCPRelay( struct Upnp_Action_Request *ca_event )
+int SetDHCPRelay( UpnpActionRequest *ca_event )
 {
     char *dhcrelay;
     int b_dhcrelay;
+    IXML_Document *actionRequest = NULL;
 
-    if ( ( dhcrelay = GetFirstDocumentItem( ca_event->ActionRequest, "NewDHCPRelay" ) ) &&
-            ( GetNbSoapParameters( ca_event->ActionRequest ) == 1 ) ) 
+    actionRequest = UpnpActionRequest_get_ActionRequest( ca_event );
+
+    if ( ( dhcrelay = GetFirstDocumentItem( actionRequest, "NewDHCPRelay" ) ) &&
+            ( GetNbSoapParameters( actionRequest ) == 1 ) ) 
     {
         if ( CheckDHCPServerConfigurable( ca_event ) )
-            return ca_event->ErrCode;
+            return UpnpActionRequest_get_ErrCode( ca_event );
 
         b_dhcrelay = resolveBoolean( dhcrelay );
 
@@ -322,12 +336,12 @@ int SetDHCPRelay( struct Upnp_Action_Request *ca_event )
     else
         InvalidArgs( ca_event );
 
-    if ( ca_event->ErrCode == 0 )
+    if ( UpnpActionRequest_get_ErrCode( ca_event ) == 0 )
         ParseResult( ca_event, "" );
 
     free( dhcrelay );
 
-    return ca_event->ErrCode;
+    return UpnpActionRequest_get_ErrCode( ca_event );
 }
 
 /**
@@ -338,18 +352,18 @@ int SetDHCPRelay( struct Upnp_Action_Request *ca_event )
  * @param ca_event Upnp event struct.
  * @return Upnp error code.
  */
-int GetDHCPRelay( struct Upnp_Action_Request *ca_event )
+int GetDHCPRelay( UpnpActionRequest *ca_event )
 {
-    if( GetNbSoapParameters( ca_event->ActionRequest ) != 0 )
+    if( GetNbSoapParameters( UpnpActionRequest_get_ActionRequest( ca_event ) ) != 0 )
     {
         trace( 1, "GetDHCPRelay invalid number of parameters" );
         addErrorData( ca_event, UPNP_SOAP_E_INVALID_ARGS, "Invalid Args" );
-        return ca_event->ErrCode;
+        return UpnpActionRequest_get_ErrCode( ca_event );
     }
 
     ParseResult( ca_event, "<NewDHCPRelay>%d</NewDHCPRelay>\n", ( lanHostConfig.dhcrelay ? 1 : 0 ) );
 
-    return ca_event->ErrCode;
+    return UpnpActionRequest_get_ErrCode( ca_event );
 }
 
 /**
@@ -362,18 +376,21 @@ int GetDHCPRelay( struct Upnp_Action_Request *ca_event )
  * @param ca_event Upnp event struct.
  * @return Upnp error code.
  */
-int SetSubnetMask( struct Upnp_Action_Request *ca_event )
+int SetSubnetMask( UpnpActionRequest *ca_event )
 {
     char *subnet_mask;
     char command[INET6_ADDRSTRLEN];
     char *args[] = { g_vars.uciCmd, "set", NULL, NULL };
     regex_t reg_ip;
+    IXML_Document *actionRequest = NULL;
 
-    if ( ( subnet_mask = GetFirstDocumentItem( ca_event->ActionRequest, "NewSubnetMask" ) ) &&
-            ( GetNbSoapParameters( ca_event->ActionRequest ) == 1 ) )
+    actionRequest = UpnpActionRequest_get_ActionRequest( ca_event );
+
+    if ( ( subnet_mask = GetFirstDocumentItem( actionRequest, "NewSubnetMask" ) ) &&
+            ( GetNbSoapParameters( actionRequest ) == 1 ) )
     {
         if ( CheckDHCPServerConfigurable( ca_event ) )
-            return ca_event->ErrCode;
+            return UpnpActionRequest_get_ErrCode( ca_event );
 
         // sanitize input
         regcomp(&reg_ip, REGEX_IP_LASTBYTE, REG_EXTENDED);
@@ -382,7 +399,7 @@ int SetSubnetMask( struct Upnp_Action_Request *ca_event )
             trace( 1, "SetDomainName: subnet mask contains invalid characters: '%s'.", subnet_mask );
             InvalidArgs( ca_event );
             regfree( &reg_ip );
-            return ca_event->ErrCode;
+            return UpnpActionRequest_get_ErrCode( ca_event );
         }
         regfree( &reg_ip );
 
@@ -395,10 +412,10 @@ int SetSubnetMask( struct Upnp_Action_Request *ca_event )
     else
         InvalidArgs( ca_event );
 
-    if ( ca_event->ErrCode == 0 )
+    if ( UpnpActionRequest_get_ErrCode( ca_event ) == 0 )
         ParseResult( ca_event, "" );
 
-    return ca_event->ErrCode;
+    return UpnpActionRequest_get_ErrCode( ca_event );
 }
 
 /**
@@ -410,20 +427,20 @@ int SetSubnetMask( struct Upnp_Action_Request *ca_event )
  * @param ca_event Upnp event struct.
  * @return Upnp error code.
  */
-int GetSubnetMask( struct Upnp_Action_Request *ca_event )
+int GetSubnetMask( UpnpActionRequest *ca_event )
 {
     FILE *cmd;
     char subnet_mask[INET6_ADDRSTRLEN];
 
-    if( GetNbSoapParameters( ca_event->ActionRequest ) != 0 )
+    if( GetNbSoapParameters( UpnpActionRequest_get_ActionRequest ( ca_event ) ) != 0 )
     {
         trace( 1, "GetSubnetMask invalid number of parameters" );
         addErrorData( ca_event, UPNP_SOAP_E_INVALID_ARGS, "Invalid Args" );
-        return ca_event->ErrCode;
+        return UpnpActionRequest_get_ErrCode( ca_event );
     }
 
     if ( CheckDHCPServerConfigurable( ca_event ) )
-        return ca_event->ErrCode;
+        return UpnpActionRequest_get_ErrCode( ca_event );
 
     // try to run uci command
     cmd = popen( "uci get network.lan.netmask", "r" );
@@ -431,7 +448,7 @@ int GetSubnetMask( struct Upnp_Action_Request *ca_event )
     {
         trace( 1, "GetSubnetMask: getting subnet mask failed." );
         addErrorData( ca_event, 501, "Action Failed" );
-        return ca_event->ErrCode;
+        return UpnpActionRequest_get_ErrCode( ca_event );
     }
 
     // get result
@@ -445,7 +462,7 @@ int GetSubnetMask( struct Upnp_Action_Request *ca_event )
 
     pclose( cmd );
 
-    return ca_event->ErrCode;
+    return UpnpActionRequest_get_ErrCode( ca_event );
 }
 
 /**
@@ -457,18 +474,21 @@ int GetSubnetMask( struct Upnp_Action_Request *ca_event )
  * @param ca_event Upnp event struct.
  * @return Upnp error code.
  */
-int SetIPRouter( struct Upnp_Action_Request *ca_event )
+int SetIPRouter( UpnpActionRequest *ca_event )
 {
     char *parmList[] = { ROUTE_COMMAND, NULL, "default", "gw", NULL, NULL };
     char addr[LINE_LEN];
     char *new_router;
     int  status;
+    IXML_Document *actionRequest = NULL;
 
-    if ( ( new_router = GetFirstDocumentItem( ca_event->ActionRequest, "NewIPRouters" ) ) &&
-            ( GetNbSoapParameters( ca_event->ActionRequest ) == 1 ) ) 
+    actionRequest = UpnpActionRequest_get_ActionRequest( ca_event );
+
+    if ( ( new_router = GetFirstDocumentItem( actionRequest, "NewIPRouters" ) ) &&
+            ( GetNbSoapParameters( actionRequest ) == 1 ) ) 
     {
         if ( CheckDHCPServerConfigurable( ca_event ) )
-            return ca_event->ErrCode;
+            return UpnpActionRequest_get_ErrCode( ca_event );
 
         // if default gateway already exists, delete it
         if ( GetDefaultGateway( addr ) )
@@ -479,7 +499,7 @@ int SetIPRouter( struct Upnp_Action_Request *ca_event )
                 addErrorData( ca_event, 701, "ValueAlreadySpecified" );
                 trace( 2, "SetIPRouter: new default gw '%s' is the same as current one '%s'", new_router, addr );
                 free( new_router );
-                return ca_event->ErrCode;
+                return UpnpActionRequest_get_ErrCode( ca_event );
             }
 
             parmList[1] = "del";
@@ -508,7 +528,7 @@ int SetIPRouter( struct Upnp_Action_Request *ca_event )
 
     free( new_router );
 
-    return ca_event->ErrCode;
+    return UpnpActionRequest_get_ErrCode( ca_event );
 }
 
 /**
@@ -520,16 +540,19 @@ int SetIPRouter( struct Upnp_Action_Request *ca_event )
  * @param ca_event Upnp event struct.
  * @return Upnp error code.
  */
-int DeleteIPRouter( struct Upnp_Action_Request *ca_event )
+int DeleteIPRouter( UpnpActionRequest *ca_event )
 {
     char *parmList[] = { ROUTE_COMMAND, "del", "default", "gw", NULL, NULL };
     int status;
+    IXML_Document *actionRequest = NULL;
 
-    if ( ( parmList[4] = GetFirstDocumentItem( ca_event->ActionRequest, "NewIPRouters" ) ) &&
-            ( GetNbSoapParameters( ca_event->ActionRequest ) == 1 ) )
+    actionRequest = UpnpActionRequest_get_ActionRequest( ca_event );
+
+    if ( ( parmList[4] = GetFirstDocumentItem( actionRequest, "NewIPRouters" ) ) &&
+            ( GetNbSoapParameters( actionRequest ) == 1 ) )
     {
         if ( CheckDHCPServerConfigurable( ca_event ) )
-            return ca_event->ErrCode;
+            return UpnpActionRequest_get_ErrCode( ca_event );
 
         // run route del command
         status = RunCommand( ROUTE_COMMAND, parmList );
@@ -546,7 +569,7 @@ int DeleteIPRouter( struct Upnp_Action_Request *ca_event )
 
     free( parmList[4] );
 
-    return ca_event->ErrCode;
+    return UpnpActionRequest_get_ErrCode( ca_event );
 }
 
 /**
@@ -558,16 +581,17 @@ int DeleteIPRouter( struct Upnp_Action_Request *ca_event )
  * @param ca_event Upnp event struct.
  * @return Upnp error code.
  */
-int GetIPRoutersList( struct Upnp_Action_Request *ca_event )
+int GetIPRoutersList( UpnpActionRequest *ca_event )
 {
     char addr[LINE_LEN];
-    int gw_found = FALSE;
+    int gw_found = 0;
+    
 
-    if( GetNbSoapParameters( ca_event->ActionRequest ) != 0 )
+    if( GetNbSoapParameters( UpnpActionRequest_get_ActionRequest ( ca_event )	 ) != 0 )
     {
         trace( 1, "GetIPRoutersLists invalid number of parameters" );
         addErrorData( ca_event, UPNP_SOAP_E_INVALID_ARGS, "Invalid Args" );
-        return ca_event->ErrCode;
+        return UpnpActionRequest_get_ErrCode( ca_event );
     }
 
     gw_found = GetDefaultGateway( addr );
@@ -577,7 +601,7 @@ int GetIPRoutersList( struct Upnp_Action_Request *ca_event )
     else
         addErrorData( ca_event, 501, "Invalid Args" );
 
-    return ca_event->ErrCode;
+    return UpnpActionRequest_get_ErrCode( ca_event );
 }
 
 /**
@@ -588,18 +612,21 @@ int GetIPRoutersList( struct Upnp_Action_Request *ca_event )
  * @param ca_event Upnp event struct.
  * @return Upnp error code.
  */
-int SetDomainName( struct Upnp_Action_Request *ca_event )
+int SetDomainName( UpnpActionRequest *ca_event )
 {
     FILE *cmd = NULL;
     char *domainName;
     char setdomain_cmd[LINE_LEN];
     regex_t reg_domain;
+    IXML_Document *actionRequest = NULL;
 
-    if ( ( domainName = GetFirstDocumentItem( ca_event->ActionRequest, "NewDomainName" ) ) &&
-            ( GetNbSoapParameters( ca_event->ActionRequest ) == 1 ) ) 
+    actionRequest = UpnpActionRequest_get_ActionRequest( ca_event );
+
+    if ( ( domainName = GetFirstDocumentItem( actionRequest, "NewDomainName" ) ) &&
+            ( GetNbSoapParameters( actionRequest ) == 1 ) ) 
     {
         if ( CheckDHCPServerConfigurable( ca_event ) )
-            return ca_event->ErrCode;
+            return UpnpActionRequest_get_ErrCode( ca_event );
 
         // sanitize input
         regcomp(&reg_domain, REGEX_DOMAIN_NAME, REG_EXTENDED);
@@ -608,7 +635,7 @@ int SetDomainName( struct Upnp_Action_Request *ca_event )
             trace( 1, "SetDomainName: Domain Name contains invalid characters: '%s'.", domainName );
             InvalidArgs( ca_event );
             regfree(&reg_domain);
-            return ca_event->ErrCode;
+            return UpnpActionRequest_get_ErrCode( ca_event );
         }
         regfree(&reg_domain);
 
@@ -618,7 +645,7 @@ int SetDomainName( struct Upnp_Action_Request *ca_event )
         {
             trace( 1, "SetDomainName: setting Domain Name failed." );
             addErrorData( ca_event, 501, "Action Failed" );
-            return ca_event->ErrCode;
+            return UpnpActionRequest_get_ErrCode( ca_event );
         }
 
         UciCommit();
@@ -632,7 +659,7 @@ int SetDomainName( struct Upnp_Action_Request *ca_event )
     if ( cmd ) pclose( cmd );
     free( domainName );
 
-    return ca_event->ErrCode;
+    return UpnpActionRequest_get_ErrCode( ca_event );
 }
 
 /**
@@ -641,20 +668,20 @@ int SetDomainName( struct Upnp_Action_Request *ca_event )
  * @param ca_event Upnp event struct.
  * @return Upnp error code.
  */
-int GetDomainName( struct Upnp_Action_Request *ca_event )
+int GetDomainName( UpnpActionRequest *ca_event )
 {
     FILE *cmd;
     char domain_name[LINE_LEN];
 
-    if( GetNbSoapParameters( ca_event->ActionRequest ) != 0 )
+    if( GetNbSoapParameters( UpnpActionRequest_get_ActionRequest( ca_event ) ) != 0 )
     {
         trace( 1, "GetDomainName invalid number of parameters" );
         addErrorData( ca_event, UPNP_SOAP_E_INVALID_ARGS, "Invalid Args" );
-        return ca_event->ErrCode;
+        return UpnpActionRequest_get_ErrCode( ca_event );
     }
 
     if ( CheckDHCPServerConfigurable( ca_event ) )
-        return ca_event->ErrCode;
+        return UpnpActionRequest_get_ErrCode( ca_event );
 
     // try to run uci command
     cmd = popen( "uci get -q dhcp.@dnsmasq[0].domain", "r" );
@@ -662,7 +689,7 @@ int GetDomainName( struct Upnp_Action_Request *ca_event )
     {
         trace( 1, "GetDomainName: getting Domain Name failed." );
         addErrorData( ca_event, 501, "Action Failed" );
-        return ca_event->ErrCode;
+        return UpnpActionRequest_get_ErrCode( ca_event );
     }
 
     // get result
@@ -676,7 +703,7 @@ int GetDomainName( struct Upnp_Action_Request *ca_event )
 
     pclose( cmd );
 
-    return ca_event->ErrCode;
+    return UpnpActionRequest_get_ErrCode( ca_event );
 }
 
 /**
@@ -715,7 +742,7 @@ int ParseIPLastPart( const char *ip_addr, regmatch_t *submatch )
  * @param last_addr Last ip address
  * @return Upnp error code, 0 on success.
  */
-int ParseAddressRange( struct Upnp_Action_Request *ca_event,
+int ParseAddressRange( UpnpActionRequest *ca_event,
                        char *start,
                        char *limit,
                        const char *start_addr,
@@ -723,6 +750,9 @@ int ParseAddressRange( struct Upnp_Action_Request *ca_event,
 {
     int start_nro, last_nro;
     regmatch_t submatch[SUB_MATCH];
+    const char *actionName = NULL;
+    
+    actionName = UpnpActionRequest_get_ActionName_cstr( ca_event );
 
     start_nro = ParseIPLastPart( start_addr, submatch );
     last_nro = ParseIPLastPart( last_addr, submatch );
@@ -731,23 +761,23 @@ int ParseAddressRange( struct Upnp_Action_Request *ca_event,
     {
         InvalidArgs( ca_event );
         trace( 2, "SetAddressRange: Address not valid, start '%s' limit '%s'", start_addr, last_addr );
-        return ca_event->ErrCode;
+        return UpnpActionRequest_get_ErrCode( ca_event );
     }
 
     // check that start address isn't 254 or over it
     if ( start_nro >= 254 )
     {
-        trace( 2, "%s: Start address last part is over 253, %s.", ca_event->ActionName, start_addr );
+        trace( 2, "%s: Start address last part is over 253, %s.", actionName, start_addr );
         InvalidArgs(ca_event);
-        return ca_event->ErrCode;
+        return UpnpActionRequest_get_ErrCode( ca_event );
     }
 
     // check that limit address isn't 255 or over it
     if ( last_nro >= 255 )
     {
-        trace( 2, "%s: Last address last part is over 254, %s.", ca_event->ActionName, start_addr );
+        trace( 2, "%s: Last address last part is over 254, %s.", actionName, start_addr );
         InvalidArgs(ca_event);
-        return ca_event->ErrCode;
+        return UpnpActionRequest_get_ErrCode( ca_event );
     }
 
     // write start address
@@ -762,14 +792,14 @@ int ParseAddressRange( struct Upnp_Action_Request *ca_event,
         else
         {
             trace( 2, "%s: Last address higher than start address, start '%s' limit '%s'",
-                   ca_event->ActionName, start_addr, last_addr );
+                   actionName, start_addr, last_addr );
             InvalidArgs( ca_event );
-            return ca_event->ErrCode;
+            return UpnpActionRequest_get_ErrCode( ca_event );
         }
     }
     else
     {
-        trace( 2, "%s: First 3 parts of the ip addresses don't match, setting last to 254.", ca_event->ActionName );
+        trace( 2, "%s: First 3 parts of the ip addresses don't match, setting last to 254.", actionName );
         snprintf( limit, MAX_IP_LAST_PART, "%d", ( 254-start_nro ) );
     }
 
@@ -787,25 +817,28 @@ int ParseAddressRange( struct Upnp_Action_Request *ca_event,
  * @param ca_event Upnp event struct.
  * @return Upnp error code.
  */
-int SetAddressRange( struct Upnp_Action_Request *ca_event )
+int SetAddressRange( UpnpActionRequest *ca_event )
 {
     char *parmList[] = { g_vars.uciCmd, "set", NULL, NULL };
     char *start_addr, *limit_addr;
     char command[MAX_IP_LAST_PART+15];
     char start[MAX_IP_LAST_PART], limit[MAX_IP_LAST_PART];
+    IXML_Document *actionRequest = NULL;
 
-    start_addr = GetFirstDocumentItem( ca_event->ActionRequest, "NewMinAddress" );
-    limit_addr = GetFirstDocumentItem( ca_event->ActionRequest, "NewMaxAddress" );
+    actionRequest = UpnpActionRequest_get_ActionRequest( ca_event );
+
+    start_addr = GetFirstDocumentItem( actionRequest, "NewMinAddress" );
+    limit_addr = GetFirstDocumentItem( actionRequest, "NewMaxAddress" );
 
     if ( start_addr && limit_addr &&
-            ( GetNbSoapParameters( ca_event->ActionRequest ) == 2 ) )
+            ( GetNbSoapParameters( actionRequest ) == 2 ) )
     {
         if ( CheckDHCPServerConfigurable( ca_event ) )
-            return ca_event->ErrCode;
+            return UpnpActionRequest_get_ErrCode( ca_event );
 
         // parse last part of both ip addresses
         if ( ParseAddressRange( ca_event, start, limit, start_addr, limit_addr ) )
-            return ca_event->ErrCode;
+            return UpnpActionRequest_get_ErrCode( ca_event );
 
         snprintf( command, MAX_IP_LAST_PART+15, "dhcp.lan.start=%s", start );
         parmList[2] = command;
@@ -821,13 +854,13 @@ int SetAddressRange( struct Upnp_Action_Request *ca_event )
     else
         InvalidArgs( ca_event );
 
-    if ( ca_event->ErrCode == 0 )
+    if ( UpnpActionRequest_get_ErrCode( ca_event ) == 0 )
         ParseResult( ca_event, "" );
 
     free( start_addr );
     free( limit_addr );
 
-    return ca_event->ErrCode;
+    return UpnpActionRequest_get_ErrCode( ca_event );
 }
 
 /**
@@ -838,20 +871,20 @@ int SetAddressRange( struct Upnp_Action_Request *ca_event )
  * @param ca_event Upnp event struct.
  * @return Upnp error code.
  */
-int GetAddressRange( struct Upnp_Action_Request *ca_event )
+int GetAddressRange( UpnpActionRequest *ca_event )
 {
     FILE *cmd = NULL, *cmd_2 = NULL;
     char start[INET6_ADDRSTRLEN] = {0}, limit[INET6_ADDRSTRLEN] = {0};
 
-    if( GetNbSoapParameters( ca_event->ActionRequest ) != 0 )
+    if( GetNbSoapParameters( UpnpActionRequest_get_ActionRequest( ca_event ) ) != 0 )
     {
         trace( 1, "GetAddressRange invalid number of parameters" );
         addErrorData( ca_event, UPNP_SOAP_E_INVALID_ARGS, "Invalid Args" );
-        return ca_event->ErrCode;
+        return UpnpActionRequest_get_ErrCode( ca_event );
     }
 
     if ( CheckDHCPServerConfigurable( ca_event ) )
-        return ca_event->ErrCode;
+        return UpnpActionRequest_get_ErrCode( ca_event );
 
     // try to run uci commands
     cmd = popen( "uci get dhcp.lan.start", "r" );
@@ -873,13 +906,13 @@ int GetAddressRange( struct Upnp_Action_Request *ca_event )
         }
     }
 
-    if ( ca_event->ErrCode == 0 )
+    if ( UpnpActionRequest_get_ErrCode( ca_event ) == 0 )
         ParseResult( ca_event, "<NewMinAddress>%s</NewMinAddress>\n<NewMaxAddress>%s</NewMaxAddress>\n", start, limit );
 
     if ( cmd ) pclose( cmd );
     if ( cmd_2 ) pclose( cmd_2 );
 
-    return ca_event->ErrCode;
+    return UpnpActionRequest_get_ErrCode( ca_event );
 }
 
 /**
@@ -891,7 +924,7 @@ int GetAddressRange( struct Upnp_Action_Request *ca_event )
  * @param ca_event Upnp event struct.
  * @return Upnp error code.
  */
-int SetReservedAddress( struct Upnp_Action_Request *ca_event )
+int SetReservedAddress( UpnpActionRequest *ca_event )
 {
     char command[COMMAND_LEN];
     FILE *cmd;
@@ -901,16 +934,19 @@ int SetReservedAddress( struct Upnp_Action_Request *ca_event )
     char *set_args[] = { g_vars.uciCmd, "-q", "set", NULL, NULL };
     char *del_args[] = { g_vars.uciCmd, "-q", "delete", "dhcp.@host[0]", NULL };
     int i=0;
+    IXML_Document *actionRequest = NULL;
 
-    if ( ( ( all_addr = GetFirstDocumentItem( ca_event->ActionRequest, "NewReservedAddresses" ) ) == NULL ) || 
-            ( GetNbSoapParameters( ca_event->ActionRequest ) != 1 ) )
+    actionRequest = UpnpActionRequest_get_ActionRequest( ca_event );
+
+    if ( ( ( all_addr = GetFirstDocumentItem( actionRequest, "NewReservedAddresses" ) ) == NULL ) || 
+            ( GetNbSoapParameters( actionRequest ) != 1 ) )
     {
         InvalidArgs( ca_event );
-        return ca_event->ErrCode;
+        return UpnpActionRequest_get_ErrCode( ca_event );
     }
 
     if ( CheckDHCPServerConfigurable( ca_event ) )
-        return ca_event->ErrCode;
+        return UpnpActionRequest_get_ErrCode( ca_event );
 
     // delete all hosts
     while ( i < MAX_RESERVED_ADDRESS )
@@ -938,7 +974,7 @@ int SetReservedAddress( struct Upnp_Action_Request *ca_event )
     }
 
     // if deleting was successful then add new hosts
-    if ( ca_event->ErrCode == 0 )
+    if ( UpnpActionRequest_get_ErrCode( ca_event ) == 0 )
     {
         addr = strtok( all_addr, "," );
         while ( addr != NULL )
@@ -959,12 +995,12 @@ int SetReservedAddress( struct Upnp_Action_Request *ca_event )
         }
     }
 
-    if ( ca_event->ErrCode == 0 )
+    if ( UpnpActionRequest_get_ErrCode( ca_event ) == 0 )
         ParseResult( ca_event, "" );
 
     free( all_addr );
 
-    return ca_event->ErrCode;
+    return UpnpActionRequest_get_ErrCode( ca_event );
 }
 
 /**
@@ -976,24 +1012,27 @@ int SetReservedAddress( struct Upnp_Action_Request *ca_event )
  * @param ca_event Upnp event struct.
  * @return Upnp error code.
  */
-int DeleteReservedAddress( struct Upnp_Action_Request *ca_event )
+int DeleteReservedAddress( UpnpActionRequest *ca_event )
 {
     char command[COMMAND_LEN];
     char *del_addr;
     FILE *cmd;
     char line[MAX_CONFIG_LINE];
     int i = 0;
-    int deleted = FALSE;
+    int deleted = 0;
+    IXML_Document *actionRequest = NULL;
 
-    if ( ( ( del_addr = GetFirstDocumentItem( ca_event->ActionRequest, "NewReservedAddresses" ) ) == NULL ) || 
-            ( GetNbSoapParameters( ca_event->ActionRequest ) != 1 ) )
+    actionRequest = UpnpActionRequest_get_ActionRequest( ca_event );
+
+    if ( ( ( del_addr = GetFirstDocumentItem( actionRequest, "NewReservedAddresses" ) ) == NULL ) || 
+            ( GetNbSoapParameters( actionRequest ) != 1 ) )
     {
         InvalidArgs( ca_event );
-        return ca_event->ErrCode;
+        return UpnpActionRequest_get_ErrCode( ca_event );
     }
 
     if ( CheckDHCPServerConfigurable( ca_event ) )
-        return ca_event->ErrCode;
+        return UpnpActionRequest_get_ErrCode( ca_event );
 
     // added MAX_RESERVED_ADDRESS as precaution, if under some conditions uci returns always something
     // if that is reached, give internal error
@@ -1028,7 +1067,7 @@ int DeleteReservedAddress( struct Upnp_Action_Request *ca_event )
             else
             {
                 // entry successfully deleted
-                deleted = TRUE;
+                deleted = 1;
                 UciCommit();
                 DnsmasqRestart();
                 pclose( cmd );
@@ -1045,19 +1084,19 @@ int DeleteReservedAddress( struct Upnp_Action_Request *ca_event )
         addErrorData( ca_event, 501, "Action Failed" );
     }
 
-    if ( deleted == FALSE )
+    if ( deleted == 0 )
     {
         trace( 2, "DeleteReservedAddress: Can't find address to delete: '%s'.", del_addr );
         addErrorData( ca_event, 702, "ValueSpecifiedIsInvalid" );
     }
 
-    if ( ca_event->ErrCode == 0 )
+    if ( UpnpActionRequest_get_ErrCode( ca_event ) == 0 )
         ParseResult( ca_event, "" );
 
     if ( cmd ) pclose( cmd );
     free( del_addr );
 
-    return ca_event->ErrCode;
+    return UpnpActionRequest_get_ErrCode( ca_event );
 }
 
 /**
@@ -1068,7 +1107,7 @@ int DeleteReservedAddress( struct Upnp_Action_Request *ca_event )
  * @param ca_event Upnp event struct.
  * @return Upnp error code.
  */
-int GetReservedAddresses( struct Upnp_Action_Request *ca_event )
+int GetReservedAddresses( UpnpActionRequest *ca_event )
 {
     char command[COMMAND_LEN];
     char addresses[RESULT_LEN];
@@ -1079,15 +1118,15 @@ int GetReservedAddresses( struct Upnp_Action_Request *ca_event )
 
     addresses[0] = 0;
 
-    if( GetNbSoapParameters( ca_event->ActionRequest ) != 0 )
+    if( GetNbSoapParameters( UpnpActionRequest_get_ActionRequest( ca_event ) ) != 0 )
     {
         trace( 1, "GetReservedAddresses invalid number of parameters" );
         addErrorData( ca_event, UPNP_SOAP_E_INVALID_ARGS, "Invalid Args" );
-        return ca_event->ErrCode;
+        return UpnpActionRequest_get_ErrCode( ca_event );
     }
 
     if ( CheckDHCPServerConfigurable( ca_event ) )
-        return ca_event->ErrCode;
+        return UpnpActionRequest_get_ErrCode( ca_event );
 
     // added MAX_RESERVED_ADDRESS as precaution, if under some conditions uci returns always something
     // if that is reached, give internal error
@@ -1124,12 +1163,12 @@ int GetReservedAddresses( struct Upnp_Action_Request *ca_event )
         addErrorData( ca_event, 501, "Action Failed" );
     }
 
-    if ( ca_event->ErrCode == 0 )
+    if ( UpnpActionRequest_get_ErrCode( ca_event ) == 0 )
         ParseResult( ca_event, "<NewReservedAddresses>%s</NewReservedAddresses>\n", addresses );
 
     if ( cmd ) pclose( cmd );
 
-    return ca_event->ErrCode;
+    return UpnpActionRequest_get_ErrCode( ca_event );
 }
 
 /**
@@ -1143,7 +1182,7 @@ int GetReservedAddresses( struct Upnp_Action_Request *ca_event )
  * @param ca_event Upnp event struct.
  * @return Upnp error code.
  */
-int SetDNSServer( struct Upnp_Action_Request *ca_event )
+int SetDNSServer( UpnpActionRequest *ca_event )
 {
     FILE *file = NULL, *new_file = NULL;
     char line[MAX_CONFIG_LINE];
@@ -1151,15 +1190,18 @@ int SetDNSServer( struct Upnp_Action_Request *ca_event )
     char *dns_list = NULL;
     regex_t nameserver;
     regmatch_t submatch[SUB_MATCH];
+    IXML_Document *actionRequest = NULL;
+
+    actionRequest = UpnpActionRequest_get_ActionRequest( ca_event );
 
     regcomp( &nameserver, REGEX_NAMESERVER, REG_EXTENDED );
-    ca_event->ErrCode = 0;
+    UpnpActionRequest_set_ErrCode( ca_event, 0 );
 
-    if ( ( dns_list = GetFirstDocumentItem( ca_event->ActionRequest, "NewDNSServers" ) ) &&
-            ( GetNbSoapParameters( ca_event->ActionRequest ) == 1 ) )
+    if ( ( dns_list = GetFirstDocumentItem( actionRequest, "NewDNSServers" ) ) &&
+            ( GetNbSoapParameters( actionRequest ) == 1 ) )
     {
         if ( CheckDHCPServerConfigurable( ca_event ) )
-            return ca_event->ErrCode;
+            return UpnpActionRequest_get_ErrCode( ca_event );
 
         // open resolv.conf for reading
         file = fopen( g_vars.resolvConf, "r" );
@@ -1203,7 +1245,7 @@ int SetDNSServer( struct Upnp_Action_Request *ca_event )
                 dns = strtok( NULL, "," );
             }
 
-            if ( ca_event->ErrCode == 0 )
+            if ( UpnpActionRequest_get_ErrCode( ca_event ) == 0 )
             {
                 // operation was successful
                 // replace the real file with our temp file
@@ -1223,7 +1265,7 @@ int SetDNSServer( struct Upnp_Action_Request *ca_event )
     else
         InvalidArgs( ca_event );
 
-    if ( ca_event->ErrCode == 0 )
+    if ( UpnpActionRequest_get_ErrCode( ca_event ) == 0 )
         ParseResult( ca_event, "" );
 
     regfree( &nameserver );
@@ -1231,7 +1273,7 @@ int SetDNSServer( struct Upnp_Action_Request *ca_event )
     if ( new_file ) fclose( new_file );
     free( dns_list );
 
-    return ca_event->ErrCode;
+    return UpnpActionRequest_get_ErrCode( ca_event );
 }
 
 /**
@@ -1244,7 +1286,7 @@ int SetDNSServer( struct Upnp_Action_Request *ca_event )
  * @param ca_event Upnp event struct.
  * @return Upnp error code.
  */
-int DeleteDNSServer( struct Upnp_Action_Request *ca_event )
+int DeleteDNSServer( UpnpActionRequest *ca_event )
 {
     FILE *file = NULL, *new_file = NULL;
     char line[MAX_CONFIG_LINE];
@@ -1253,15 +1295,18 @@ int DeleteDNSServer( struct Upnp_Action_Request *ca_event )
     regex_t nameserver;
     regmatch_t submatch[SUB_MATCH];
     int dns_found = 0;
+    IXML_Document *actionRequest = NULL;
+
+    actionRequest = UpnpActionRequest_get_ActionRequest( ca_event );
 
     regcomp( &nameserver, REGEX_NAMESERVER, REG_EXTENDED );
-    ca_event->ErrCode = 0;
+    UpnpActionRequest_set_ErrCode( ca_event, 0 );
 
-    if ( ( dns_to_delete = GetFirstDocumentItem( ca_event->ActionRequest, "NewDNSServers" ) ) &&
-         ( GetNbSoapParameters( ca_event->ActionRequest ) == 1 ) )
+    if ( ( dns_to_delete = GetFirstDocumentItem( actionRequest, "NewDNSServers" ) ) &&
+         ( GetNbSoapParameters( actionRequest ) == 1 ) )
     {
         if ( CheckDHCPServerConfigurable( ca_event ) )
-            return ca_event->ErrCode;
+            return UpnpActionRequest_get_ErrCode( ca_event );
 
         file = fopen( g_vars.resolvConf, "r" );
         new_file = fopen( RESOLV_CONF_TMP, "w" );
@@ -1320,7 +1365,7 @@ int DeleteDNSServer( struct Upnp_Action_Request *ca_event )
     else
         InvalidArgs( ca_event );
 
-    if ( ca_event->ErrCode == 0 )
+    if ( UpnpActionRequest_get_ErrCode( ca_event ) == 0 )
         ParseResult( ca_event, "" );
 
     regfree( &nameserver );
@@ -1328,7 +1373,7 @@ int DeleteDNSServer( struct Upnp_Action_Request *ca_event )
     if ( new_file ) fclose( new_file );
     free( dns_to_delete );
 
-    return ca_event->ErrCode;
+    return UpnpActionRequest_get_ErrCode( ca_event );
 }
 
 /**
@@ -1339,7 +1384,7 @@ int DeleteDNSServer( struct Upnp_Action_Request *ca_event )
  * @param ca_event Upnp event struct.
  * @return Upnp error code.
  */
-int GetDNSServers( struct Upnp_Action_Request *ca_event )
+int GetDNSServers( UpnpActionRequest *ca_event )
 {
     FILE *file;
     char dns_servers[RESULT_LEN];
@@ -1351,11 +1396,11 @@ int GetDNSServers( struct Upnp_Action_Request *ca_event )
 
     dns_servers[0] = 0;
 
-    if( GetNbSoapParameters( ca_event->ActionRequest ) != 0 )
+    if( GetNbSoapParameters( UpnpActionRequest_get_ActionRequest( ca_event ) ) != 0 )
     {
         trace( 1, "GetDNSServers invalid number of parameters" );
         addErrorData( ca_event, UPNP_SOAP_E_INVALID_ARGS, "Invalid Args" );
-        return ca_event->ErrCode;
+        return UpnpActionRequest_get_ErrCode( ca_event );
     }
 
     regcomp( &nameserver, REGEX_NAMESERVER, REG_EXTENDED );
@@ -1365,7 +1410,7 @@ int GetDNSServers( struct Upnp_Action_Request *ca_event )
     {
         trace( 1, "Failed to open resolv.conf at: %s.", g_vars.resolvConf );
         addErrorData( ca_event, 501, "Action Failed" );
-        return ca_event->ErrCode;
+        return UpnpActionRequest_get_ErrCode( ca_event );
     }
 
     while ( fgets( line, MAX_CONFIG_LINE, file ) != NULL )
@@ -1388,7 +1433,7 @@ int GetDNSServers( struct Upnp_Action_Request *ca_event )
     regfree( &nameserver );
     fclose( file );
 
-    return ca_event->ErrCode;
+    return UpnpActionRequest_get_ErrCode( ca_event );
 }
 
 /**
@@ -1403,14 +1448,14 @@ int CheckLanHostConfigFiles()
     // check that dnsmasq exists
     if ( stat( g_vars.dnsmasqCmd, &buf ) )
     {
-        lanHostConfig.DHCPServerConfigurable = FALSE;
+        lanHostConfig.DHCPServerConfigurable = 0;
         trace( 1, "DHCPServerConfigurable set to false, dnsmasq not found at: %s.", g_vars.dnsmasqCmd );
         return 1;
     }
     // check that uci exists
     if ( stat( g_vars.uciCmd, &buf ) )
     {
-        lanHostConfig.DHCPServerConfigurable = FALSE;
+        lanHostConfig.DHCPServerConfigurable = 0;
         trace( 1, "DHCPServerConfigurable set to false, uci not found at: %s.", g_vars.uciCmd );
         return 1;
     }
@@ -1425,8 +1470,8 @@ int CheckLanHostConfigFiles()
  */
 int InitLanHostConfig()
 {
-    lanHostConfig.DHCPServerConfigurable = TRUE;
-    lanHostConfig.dhcrelay = FALSE;
+    lanHostConfig.DHCPServerConfigurable = 1;
+    lanHostConfig.dhcrelay = 0;
 
     // check that all necessary programs to run lanhostconfig are installed
     if(CheckLanHostConfigFiles())

@@ -557,7 +557,7 @@ int IsIpOrDomain(char *address)
  * @param in_ad IP of control point.
  * @return 1 if match, 0 else.
  */
-int ControlPointIP_equals_InternalClientIP(char *ICAddress, struct sockaddr_storage *ss)
+int ControlPointIP_equals_InternalClientIP(char *ICAddress, const struct sockaddr_storage *ss)
 {
     char cpAddress[INET_ADDRSTRLEN];
     int result;
@@ -623,11 +623,11 @@ int checkForWildCard(const char *str)
  * @param errorCode Error code number.
  * @param message Error message string.
  */
-void addErrorData(struct Upnp_Action_Request *ca_event, int errorCode, char* message)
+void addErrorData(UpnpActionRequest *ca_event, int errorCode, char* message)
 {
-    ca_event->ErrCode = errorCode;
-    strcpy(ca_event->ErrStr, message);
-    ca_event->ActionResult = NULL;
+    UpnpActionRequest_set_ErrCode(ca_event, errorCode);
+    UpnpActionRequest_strcpy_ErrStr(ca_event, message);
+    UpnpActionRequest_set_ActionResult(ca_event, NULL);
 }
 
 /**
@@ -649,20 +649,23 @@ int resolveBoolean(char *value)
     return 0;
 }
 
-void ParseXMLResponse(struct Upnp_Action_Request *ca_event, const char *result_str)
+void ParseXMLResponse(UpnpActionRequest *ca_event, const char *result_str)
 {
     IXML_Document *result = NULL;
+    const char *actionName = NULL;
+
+    actionName = UpnpActionRequest_get_ActionName_cstr(ca_event);
 
     if ((result = ixmlParseBuffer(result_str)) != NULL)
     {
-        ca_event->ActionResult = result;
-        ca_event->ErrCode = UPNP_E_SUCCESS;
+        UpnpActionRequest_set_ActionResult(ca_event, result);
+        UpnpActionRequest_set_ErrCode(ca_event, UPNP_E_SUCCESS);
     }
     else
     {
-        trace(1, "Error parsing response to %s: %s", ca_event->ActionName, result_str);
-        ca_event->ActionResult = NULL;
-        ca_event->ErrCode = UPNP_SOAP_E_INVALID_ARGS;
+        trace(1, "Error parsing response to %s: %s", actionName, result_str);
+        UpnpActionRequest_set_ActionResult(ca_event, NULL);
+        UpnpActionRequest_set_ErrCode(ca_event, UPNP_SOAP_E_INVALID_ARGS);
     }
 }
 
@@ -673,11 +676,14 @@ void ParseXMLResponse(struct Upnp_Action_Request *ca_event, const char *result_s
  * @param str Format string for extra parameters.
  * @param ... Extra parameters
  */
-void ParseResult( struct Upnp_Action_Request *ca_event, const char *str, ... )
+void ParseResult( UpnpActionRequest *ca_event, const char *str, ... )
 {
     char result[RESULT_LEN];
     char parameters[RESULT_LEN];
     va_list arg;
+    IXML_Document *actionRequest = NULL;
+
+    actionRequest = UpnpActionRequest_get_ActionRequest(ca_event);
 
     // write all parameters into one string
     va_start( arg, str );
@@ -686,11 +692,11 @@ void ParseResult( struct Upnp_Action_Request *ca_event, const char *str, ... )
 
     // and form final xml
     snprintf( result, RESULT_LEN, "<%sResponse xmlns:%s=\"%s\">\n%s\n</%sResponse>",
-        ixmlNode_getNodeName( ca_event->ActionRequest->n.firstChild ),
-        ixmlNode_getPrefix( ca_event->ActionRequest->n.firstChild ),
-        ixmlNode_getNamespaceURI( ca_event->ActionRequest->n.firstChild ),
+        ixmlNode_getNodeName( actionRequest->n.firstChild ),
+        ixmlNode_getPrefix( actionRequest->n.firstChild ),
+        ixmlNode_getNamespaceURI( actionRequest->n.firstChild ),
         parameters,
-        ixmlNode_getNodeName( ca_event->ActionRequest->n.firstChild ) );
+        ixmlNode_getNodeName( actionRequest->n.firstChild ) );
 
     ParseXMLResponse( ca_event, result );
 }
@@ -702,7 +708,7 @@ void ParseResult( struct Upnp_Action_Request *ca_event, const char *str, ... )
  * @param doc XML document where the parameters are defined
  * @return the number of parameters
  */
-int GetNbSoapParameters( IN IXML_Document * doc)
+int GetNbSoapParameters( IXML_Document * doc)
 {
     IXML_NodeList *nodeList = NULL;
     IXML_Node* tmpNode = NULL;
@@ -1006,8 +1012,8 @@ char* GetDocumentItem(IXML_Document * doc, const char *item, int index)
  * @param item Name of xml-node to fetch.
  * @return Value of desired node.
  */
-char* GetFirstDocumentItem( IN IXML_Document * doc,
-                            IN const char *item )
+char* GetFirstDocumentItem( IXML_Document * doc,
+                            const char *item )
 {
     return GetDocumentItem(doc,item,0);
 }

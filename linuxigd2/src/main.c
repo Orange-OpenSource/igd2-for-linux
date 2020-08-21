@@ -71,7 +71,6 @@ int main (int argc, char** argv)
     deviceHandleIPv6 = 0;
     deviceHandleIPv6UlaGua = 0;
 
-    char intIpAddress[INET6_ADDRSTRLEN];     // Server internal ip address updated IPv6 address length 16 -> 46
     sigset_t sigsToCatch;
     int ret, signum, arg = 1, foreground = 0;
 
@@ -112,35 +111,6 @@ int main (int argc, char** argv)
     // Save interface names for later use
     strncpy(g_vars.extInterfaceName, argv[arg++], IFNAMSIZ);
     strncpy(g_vars.intInterfaceName, argv[arg++], IFNAMSIZ);
-
-    // Get the internal ip address to start the daemon on
-    if (GetIpAddressStr(intIpAddress, g_vars.intInterfaceName) == 0)
-    {
-        // Check if IP has been set by avahi-autoipd which uses aliases :avahi or :3 (br-lan:3)
-        char tempIface[IFNAMSIZ];
-        strncpy(tempIface, g_vars.intInterfaceName, IFNAMSIZ);
-        strncat(tempIface,":3",IFNAMSIZ);
-        if (GetIpAddressStr(intIpAddress, tempIface) != 0)
-        {
-            strncpy(g_vars.intInterfaceName, tempIface, IFNAMSIZ);
-            trace(2,"Using %s as internal interface configured by avahi-autoipd\n",g_vars.intInterfaceName);
-        }
-        else
-        {
-            strncpy(tempIface, g_vars.intInterfaceName, IFNAMSIZ);
-            strncat(tempIface,":avahi",IFNAMSIZ);
-            if (GetIpAddressStr(intIpAddress, tempIface) != 0)
-            {
-                strncpy(g_vars.intInterfaceName, tempIface, IFNAMSIZ);
-                trace(2,"Using %s as internal interface configured by avahi-autoipd\n",g_vars.intInterfaceName);
-            }
-            else
-            {
-                fprintf(stderr, "Invalid internal interface name '%s'\n", g_vars.intInterfaceName);
-                exit(EXIT_FAILURE);
-            }
-        }
-    }
 
     if (!foreground)
     {
@@ -209,13 +179,9 @@ int main (int argc, char** argv)
 
     // Initialize UPnP SDK on the internal Interface
     trace(3, "Initializing UPnP SDK ... ");
-#ifdef UPNP_ENABLE_IPV6
     if ( (ret = UpnpInit2(g_vars.intInterfaceName,g_vars.listenport) ) != UPNP_E_SUCCESS)
-#else
-    if ( (ret = UpnpInit(intIpAddress,g_vars.listenport) ) != UPNP_E_SUCCESS)
-#endif
     {
-        syslog (LOG_ERR, "Error Initializing UPnP SDK on IP %s port %d",intIpAddress,g_vars.listenport);
+        syslog (LOG_ERR, "Error Initializing UPnP SDK on interface %s port %d",g_vars.intInterfaceName,g_vars.listenport);
         syslog (LOG_ERR, "  UpnpInit returned %d", ret);
         UpnpFinish();
         exit(1);
@@ -277,9 +243,9 @@ int main (int argc, char** argv)
         if(strlen(UpnpGetServerUlaGuaIp6Address())>0)
         {
             sprintf(descDocUrlUlaGua, "http://[%s]:%d/%s", UpnpGetServerUlaGuaIp6Address(),
-                    UpnpGetServerPort6(), g_vars.descDocName);
+                    UpnpGetServerUlaGuaPort6(), g_vars.descDocName);
             sprintf(lowerDescDocUrlUlaGua, "http://[%s]:%d/%s", UpnpGetServerUlaGuaIp6Address(),
-                    UpnpGetServerPort6(), g_vars.lowerDescDocName);
+                    UpnpGetServerUlaGuaPort6(), g_vars.lowerDescDocName);
 
             trace(3, "IPv6 Registering the root device with descDocUrlUlaGua %s and lowerDescDocUrlUlaGua %s for byebye sending",
                     descDocUrlUlaGua, lowerDescDocUrlUlaGua);

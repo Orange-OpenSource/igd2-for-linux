@@ -115,19 +115,19 @@ static const char xml_portmapListingFooter[] = "</p:PortMappingList>";
  * @param Cookie This parameter is not used.
  * @return 0
  */
-int EventHandler(Upnp_EventType EventType, void *Event, void *Cookie)
+int EventHandler(Upnp_EventType EventType, const void *Event, void *Cookie)
 {
     switch (EventType)
     {
     case UPNP_EVENT_SUBSCRIPTION_REQUEST:
-        HandleSubscriptionRequest((struct Upnp_Subscription_Request *) Event);
+        HandleSubscriptionRequest((UpnpSubscriptionRequest *) Event);
         break;
         // -- Deprecated --
     case UPNP_CONTROL_GET_VAR_REQUEST:
-        HandleGetVarRequest((struct Upnp_State_Var_Request *) Event);
+        HandleGetVarRequest((UpnpStateVarRequest *) Event);
         break;
     case UPNP_CONTROL_ACTION_REQUEST:
-        HandleActionRequest((struct Upnp_Action_Request *) Event);
+        HandleActionRequest((UpnpActionRequest *) Event);
         break;
     default:
         trace(1, "Error in EventHandler: Unknown event type %d", EventType);
@@ -204,7 +204,7 @@ int StateTableInit(char *descDocUrl)
 }
 
 void AcceptSubscriptionExtForIPv4AndIPv6(const char *DevID, const char *ServID,
-                                        IXML_Document *PropSet, Upnp_SID SubsId)
+                                        IXML_Document *PropSet, const Upnp_SID SubsId)
 {
     if(deviceHandle)
         UpnpAcceptSubscriptionExt(deviceHandle, DevID, ServID, PropSet, SubsId);
@@ -233,28 +233,34 @@ void NotifyExtForIPv4AndIPv6(const char *DevID, const char *ServID,
  * @param sr_event Upnp Subscription Request struct
  * @return 1
  */
-int HandleSubscriptionRequest(struct Upnp_Subscription_Request *sr_event)
+int HandleSubscriptionRequest(UpnpSubscriptionRequest *sr_event)
 {
     IXML_Document *propSet = NULL;
+    const char *serviceId = NULL;
+    const char *udn = NULL;
+    const char *sid = NULL;
 
     ithread_mutex_lock(&DevMutex);
 
-    if (wanUDN != NULL && strcmp(sr_event->UDN, wanUDN) == 0)
+    serviceId = UpnpSubscriptionRequest_get_ServiceId_cstr(sr_event);
+    udn = UpnpSubscriptionRequest_get_UDN_cstr(sr_event);
+    sid = UpnpSubscriptionRequest_get_SID_cstr(sr_event);
+
+    if (wanUDN != NULL && strcmp(udn, wanUDN) == 0)
     {
         // WAN Common Interface Config Device Notifications
-        if (strcmp(sr_event->ServiceId, "urn:upnp-org:serviceId:WANCommonIFC1") == 0)
+        if (strcmp(serviceId, "urn:upnp-org:serviceId:WANCommonIFC1") == 0)
         {
             trace(3, "Received request to subscribe to WANCommonIFC1");
             UpnpAddToPropertySet(&propSet, "PhysicalLinkStatus", "Up");
-            AcceptSubscriptionExtForIPv4AndIPv6(sr_event->UDN, sr_event->ServiceId,
-                                                propSet, sr_event->Sid);
+            AcceptSubscriptionExtForIPv4AndIPv6(udn, serviceId, propSet, sid);
             ixmlDocument_free(propSet);
         }
     }
-    else if (wanConnectionUDN != NULL && strcmp(sr_event->UDN, wanConnectionUDN) == 0)
+    else if (wanConnectionUDN != NULL && strcmp(udn, wanConnectionUDN) == 0)
     {
         // WAN IP Connection Device Notifications
-        if (strcmp(sr_event->ServiceId, "urn:upnp-org:serviceId:WANIPConn1") == 0)
+        if (strcmp(serviceId, "urn:upnp-org:serviceId:WANIPConn1") == 0)
         {
             GetIpAddressStr(ExternalIPAddress, g_vars.extInterfaceName);
             GetConnectionStatus(ConnectionStatus, g_vars.extInterfaceName);
@@ -269,28 +275,25 @@ int HandleSubscriptionRequest(struct Upnp_Subscription_Request *sr_event)
             snprintf(tmp,11,"%d",PortMappingNumberOfEntries);
             UpnpAddToPropertySet(&propSet, "PortMappingNumberOfEntries",tmp);
 
-            AcceptSubscriptionExtForIPv4AndIPv6(sr_event->UDN, sr_event->ServiceId,
-                                                propSet, sr_event->Sid);
+            AcceptSubscriptionExtForIPv4AndIPv6(udn, serviceId, propSet, sid);
             ixmlDocument_free(propSet);
         }
-        else if (strcmp(sr_event->ServiceId, "urn:upnp-org:serviceId:WANEthLinkC1") == 0)
+        else if (strcmp(serviceId, "urn:upnp-org:serviceId:WANEthLinkC1") == 0)
         {
             trace(3, "Received request to subscribe to WANEthLinkC1");
             setEthernetLinkStatus(EthernetLinkStatus, g_vars.extInterfaceName);
             UpnpAddToPropertySet(&propSet, "EthernetLinkStatus", EthernetLinkStatus);
-            AcceptSubscriptionExtForIPv4AndIPv6(sr_event->UDN, sr_event->ServiceId,
-                                                propSet, sr_event->Sid);
+            AcceptSubscriptionExtForIPv4AndIPv6(udn, serviceId, propSet, sid);
             ixmlDocument_free(propSet);
         }
-        else if (strcmp(sr_event->ServiceId, "urn:upnp-org:serviceId:WANIPv6FwCtrl1") == 0)
+        else if (strcmp(serviceId, "urn:upnp-org:serviceId:WANIPv6FwCtrl1") == 0)
         {
-            trace(3, "Received request to subscribe to WANIPv6FwCtrl1 UDN : %s, SID : %s", sr_event->UDN, sr_event->Sid);
+            trace(3, "Received request to subscribe to WANIPv6FwCtrl1 UDN : %s, SID : %s", udn, sid);
             snprintf(FirewallEnabled,2,"%i",g_vars.ipv6firewallEnabled);
             snprintf(InboundPinholeAllowed,2,"%i",g_vars.ipv6inboundPinholeAllowed);
             UpnpAddToPropertySet(&propSet, "FirewallEnabled", FirewallEnabled);
             UpnpAddToPropertySet(&propSet, "InboundPinholeAllowed", InboundPinholeAllowed);
-            AcceptSubscriptionExtForIPv4AndIPv6(sr_event->UDN, sr_event->ServiceId,
-                                                propSet, sr_event->Sid);
+            AcceptSubscriptionExtForIPv4AndIPv6(udn, serviceId, propSet, sid);
             ixmlDocument_free(propSet);
         }
     }
@@ -306,7 +309,7 @@ int HandleSubscriptionRequest(struct Upnp_Subscription_Request *sr_event)
  * @param sr_event Upnp GetVar Request struct
  * @return 1
  */
-int HandleGetVarRequest(struct Upnp_State_Var_Request *gv_request)
+int HandleGetVarRequest(UpnpStateVarRequest *gv_request)
 {
     //If anyone experiences problems please let us know.
     trace(3, "Deprecated Get Variable Request received. Ignoring.");
@@ -320,191 +323,199 @@ int HandleGetVarRequest(struct Upnp_State_Var_Request *gv_request)
  * @param sr_event Upnp Action Request struct
  * @return Upnp error code.
  */
-int HandleActionRequest(struct Upnp_Action_Request *ca_event)
+int HandleActionRequest(UpnpActionRequest *ca_event)
 {
     int result = 0;
+    const char *devUDN = NULL;
+    const char *serviceID = NULL;
+    const char *actionName = NULL;
+    IXML_Document *actionRequest = NULL;
 
     ithread_mutex_lock(&DevMutex);
-    trace(3, "ActionName = %s", ca_event->ActionName);
+    devUDN = UpnpActionRequest_get_DevUDN_cstr(ca_event);
+    serviceID = UpnpActionRequest_get_ServiceID_cstr(ca_event);
+    actionName = UpnpActionRequest_get_ActionName_cstr(ca_event);
+    actionRequest = UpnpActionRequest_get_ActionRequest(ca_event);
+    trace(3, "ActionName = %s", actionName);
 
     // check if CP is authorized to use this action.
     // checking managed flag is left to action itself
     if ( AuthorizeControlPoint(ca_event, 0, 1) == CONTROL_POINT_NOT_AUTHORIZED )
     {
         ithread_mutex_unlock(&DevMutex);
-        return ca_event->ErrCode;
+        return UpnpActionRequest_get_ErrCode(ca_event);
     }
 
-    if (wanUDN != NULL && strcmp(ca_event->DevUDN, wanUDN) == 0)
+    if (wanUDN != NULL && strcmp(devUDN, wanUDN) == 0)
     {
-        if (strcmp(ca_event->ServiceID,"urn:upnp-org:serviceId:WANCommonIFC1") == 0)
+        if (strcmp(serviceID,"urn:upnp-org:serviceId:WANCommonIFC1") == 0)
         {
-            if (strcmp(ca_event->ActionName,"GetTotalBytesSent") == 0)
+            if (strcmp(actionName,"GetTotalBytesSent") == 0)
             {
-                if(GetNbSoapParameters(ca_event->ActionRequest) == 0) 
+                if(GetNbSoapParameters(actionRequest) == 0)
 		    result = GetTotal(ca_event, STATS_TX_BYTES);
                 else
                     addErrorData(ca_event, UPNP_SOAP_E_INVALID_ARGS, "Invalid Args");
             }
-            else if (strcmp(ca_event->ActionName,"GetTotalBytesReceived") == 0)
+            else if (strcmp(actionName,"GetTotalBytesReceived") == 0)
             {
-                if(GetNbSoapParameters(ca_event->ActionRequest) == 0)
+                if(GetNbSoapParameters(actionRequest) == 0)
                     result = GetTotal(ca_event, STATS_RX_BYTES);
                 else
                     addErrorData(ca_event, UPNP_SOAP_E_INVALID_ARGS, "Invalid Args");
             }
-            else if (strcmp(ca_event->ActionName,"GetTotalPacketsSent") == 0)
+            else if (strcmp(actionName,"GetTotalPacketsSent") == 0)
             {
-                if(GetNbSoapParameters(ca_event->ActionRequest) == 0)
+                if(GetNbSoapParameters(actionRequest) == 0)
                     result = GetTotal(ca_event, STATS_TX_PACKETS);
                 else
                     addErrorData(ca_event, UPNP_SOAP_E_INVALID_ARGS, "Invalid Args"); 
             }
-            else if (strcmp(ca_event->ActionName,"GetTotalPacketsReceived") == 0)
+            else if (strcmp(actionName,"GetTotalPacketsReceived") == 0)
             {
-                if(GetNbSoapParameters(ca_event->ActionRequest) == 0)
+                if(GetNbSoapParameters(actionRequest) == 0)
                     result = GetTotal(ca_event, STATS_RX_PACKETS);
                 else
                     addErrorData(ca_event, UPNP_SOAP_E_INVALID_ARGS, "Invalid Args");
             }
-            else if (strcmp(ca_event->ActionName,"GetCommonLinkProperties") == 0)
+            else if (strcmp(actionName,"GetCommonLinkProperties") == 0)
                 result = GetCommonLinkProperties(ca_event);
             else
             {
-                trace(1, "Invalid Action Request : %s",ca_event->ActionName);
+                trace(1, "Invalid Action Request : %s",actionName);
                 result = InvalidAction(ca_event);
             }
         }
     }
-    else if (wanConnectionUDN !=NULL && strcmp(ca_event->DevUDN, wanConnectionUDN) == 0)
+    else if (wanConnectionUDN !=NULL && strcmp(devUDN, wanConnectionUDN) == 0)
     {
-        if (strcmp(ca_event->ServiceID, "urn:upnp-org:serviceId:WANIPConn1") == 0)
+        if (strcmp(serviceID, "urn:upnp-org:serviceId:WANIPConn1") == 0)
         {
-            if (strcmp(ca_event->ActionName,"GetConnectionTypeInfo") == 0)
+            if (strcmp(actionName,"GetConnectionTypeInfo") == 0)
                 result = GetConnectionTypeInfo(ca_event);
-            else if (strcmp(ca_event->ActionName,"GetNATRSIPStatus") == 0)
+            else if (strcmp(actionName,"GetNATRSIPStatus") == 0)
                 result = GetNATRSIPStatus(ca_event);
-            else if (strcmp(ca_event->ActionName,"SetConnectionType") == 0)
+            else if (strcmp(actionName,"SetConnectionType") == 0)
                 result = SetConnectionType(ca_event);
-            else if (strcmp(ca_event->ActionName,"RequestConnection") == 0)
+            else if (strcmp(actionName,"RequestConnection") == 0)
                 result = RequestConnection(ca_event);
-            else if (strcmp(ca_event->ActionName,"AddPortMapping") == 0)
+            else if (strcmp(actionName,"AddPortMapping") == 0)
                 result = AddPortMapping(ca_event);
-            else if (strcmp(ca_event->ActionName,"GetGenericPortMappingEntry") == 0)
+            else if (strcmp(actionName,"GetGenericPortMappingEntry") == 0)
                 result = GetGenericPortMappingEntry(ca_event);
-            else if (strcmp(ca_event->ActionName,"GetSpecificPortMappingEntry") == 0)
+            else if (strcmp(actionName,"GetSpecificPortMappingEntry") == 0)
                 result = GetSpecificPortMappingEntry(ca_event);
-            else if (strcmp(ca_event->ActionName,"GetExternalIPAddress") == 0)
+            else if (strcmp(actionName,"GetExternalIPAddress") == 0)
                 result = GetExternalIPAddress(ca_event);
-            else if (strcmp(ca_event->ActionName,"DeletePortMapping") == 0)
+            else if (strcmp(actionName,"DeletePortMapping") == 0)
                 result = DeletePortMapping(ca_event);
-            else if (strcmp(ca_event->ActionName,"GetStatusInfo") == 0)
+            else if (strcmp(actionName,"GetStatusInfo") == 0)
                 result = GetStatusInfo(ca_event);
-            else if (strcmp(ca_event->ActionName,"DeletePortMappingRange") == 0)
+            else if (strcmp(actionName,"DeletePortMappingRange") == 0)
                 result = DeletePortMappingRange(ca_event);
-            else if (strcmp(ca_event->ActionName,"AddAnyPortMapping") == 0)
+            else if (strcmp(actionName,"AddAnyPortMapping") == 0)
                 result = AddAnyPortMapping(ca_event);
-            else if (strcmp(ca_event->ActionName,"GetListOfPortMappings") == 0)
+            else if (strcmp(actionName,"GetListOfPortMappings") == 0)
                 result = GetListOfPortmappings(ca_event);
-            else if (strcmp(ca_event->ActionName,"ForceTermination") == 0)
+            else if (strcmp(actionName,"ForceTermination") == 0)
                 result = ForceTermination(ca_event);
-            else if (strcmp(ca_event->ActionName,"RequestTermination") == 0)
+            else if (strcmp(actionName,"RequestTermination") == 0)
                 result = RequestTermination(ca_event);
-            else if (strcmp(ca_event->ActionName,"SetAutoDisconnectTime") == 0)
+            else if (strcmp(actionName,"SetAutoDisconnectTime") == 0)
                 result = SetAutoDisconnectTime(ca_event);
-            else if (strcmp(ca_event->ActionName,"SetIdleDisconnectTime") == 0)
+            else if (strcmp(actionName,"SetIdleDisconnectTime") == 0)
                 result = SetIdleDisconnectTime(ca_event);
-            else if (strcmp(ca_event->ActionName,"SetWarnDisconnectDelay") == 0)
+            else if (strcmp(actionName,"SetWarnDisconnectDelay") == 0)
                 result = SetWarnDisconnectDelay(ca_event);
-            else if (strcmp(ca_event->ActionName,"GetAutoDisconnectTime") == 0)
+            else if (strcmp(actionName,"GetAutoDisconnectTime") == 0)
                 result = GetAutoDisconnectTime(ca_event);
-            else if (strcmp(ca_event->ActionName,"GetIdleDisconnectTime") == 0)
+            else if (strcmp(actionName,"GetIdleDisconnectTime") == 0)
                 result = GetIdleDisconnectTime(ca_event);
-            else if (strcmp(ca_event->ActionName,"GetWarnDisconnectDelay") == 0)
+            else if (strcmp(actionName,"GetWarnDisconnectDelay") == 0)
                 result = GetWarnDisconnectDelay(ca_event);
             else result = InvalidAction(ca_event);
         }
-        else if (strcmp(ca_event->ServiceID,"urn:upnp-org:serviceId:WANEthLinkC1") == 0)
+        else if (strcmp(serviceID,"urn:upnp-org:serviceId:WANEthLinkC1") == 0)
         {
-            if (strcmp(ca_event->ActionName,"GetEthernetLinkStatus") == 0)
+            if (strcmp(actionName,"GetEthernetLinkStatus") == 0)
                 result = GetEthernetLinkStatus(ca_event);
             else
             {
-                trace(1, "Invalid Action Request : %s",ca_event->ActionName);
+                trace(1, "Invalid Action Request : %s",actionName);
                 result = InvalidAction(ca_event);
             }
         }
         /**
          * Added for WANIPv6FirewallControl
          */
-        else if (strcmp(ca_event->ServiceID,"urn:upnp-org:serviceId:WANIPv6FwCtrl1") == 0)
+        else if (strcmp(serviceID,"urn:upnp-org:serviceId:WANIPv6FwCtrl1") == 0)
         {
-            if (strcmp(ca_event->ActionName,"GetFirewallStatus") == 0)
+            if (strcmp(actionName,"GetFirewallStatus") == 0)
                 result = upnp_wanipv6_getFirewallStatus(ca_event);
-            else if (strcmp(ca_event->ActionName,"GetOutboundPinholeTimeout") == 0)
+            else if (strcmp(actionName,"GetOutboundPinholeTimeout") == 0)
                 result = upnp_wanipv6_getOutboundPinholeTimeOut(ca_event);
-            else if (strcmp(ca_event->ActionName,"AddPinhole") == 0)
+            else if (strcmp(actionName,"AddPinhole") == 0)
                 result = upnp_wanipv6_addPinhole(ca_event);
-            else if (strcmp(ca_event->ActionName,"UpdatePinhole") == 0)
+            else if (strcmp(actionName,"UpdatePinhole") == 0)
                 result = upnp_wanipv6_updatePinhole(ca_event);
-            else if (strcmp(ca_event->ActionName,"DeletePinhole") == 0)
+            else if (strcmp(actionName,"DeletePinhole") == 0)
                 result = upnp_wanipv6_deletePinhole(ca_event);
-            else if (strcmp(ca_event->ActionName,"GetPinholePackets") == 0)
+            else if (strcmp(actionName,"GetPinholePackets") == 0)
                 result = upnp_wanipv6_getPinholePackets(ca_event);
-            else if (strcmp(ca_event->ActionName,"CheckPinholeWorking") == 0)
+            else if (strcmp(actionName,"CheckPinholeWorking") == 0)
                 result = upnp_wanipv6_checkPinholeWorking(ca_event);
             else
             {
-                trace(1, "Invalid Action Request : %s",ca_event->ActionName);
+                trace(1, "Invalid Action Request : %s",actionName);
                 result = InvalidAction(ca_event);
             }
         }
     }
-    else if (lanUDN !=NULL && strcmp(ca_event->DevUDN, lanUDN) == 0)
+    else if (lanUDN !=NULL && strcmp(devUDN, lanUDN) == 0)
     {
-        if (strcmp(ca_event->ServiceID,"urn:upnp-org:serviceId:LANHostConfig1") == 0)
+        if (strcmp(serviceID,"urn:upnp-org:serviceId:LANHostConfig1") == 0)
         {
-            if (strcmp(ca_event->ActionName,"SetDHCPServerConfigurable") == 0)
+            if (strcmp(actionName,"SetDHCPServerConfigurable") == 0)
                 result = SetDHCPServerConfigurable(ca_event);
-            else if (strcmp(ca_event->ActionName,"GetDHCPServerConfigurable") == 0)
+            else if (strcmp(actionName,"GetDHCPServerConfigurable") == 0)
                 result = GetDHCPServerConfigurable(ca_event);
-            else if (strcmp(ca_event->ActionName,"SetDHCPRelay") == 0)
+            else if (strcmp(actionName,"SetDHCPRelay") == 0)
                 result = SetDHCPRelay(ca_event);
-            else if (strcmp(ca_event->ActionName,"GetDHCPRelay") == 0)
+            else if (strcmp(actionName,"GetDHCPRelay") == 0)
                 result = GetDHCPRelay(ca_event);
-            else if (strcmp(ca_event->ActionName,"SetSubnetMask") == 0)
+            else if (strcmp(actionName,"SetSubnetMask") == 0)
                 result = SetSubnetMask(ca_event);
-            else if (strcmp(ca_event->ActionName,"GetSubnetMask") == 0)
+            else if (strcmp(actionName,"GetSubnetMask") == 0)
                 result = GetSubnetMask(ca_event);
-            else if (strcmp(ca_event->ActionName,"SetIPRouter") == 0)
+            else if (strcmp(actionName,"SetIPRouter") == 0)
                 result = SetIPRouter(ca_event);
-            else if (strcmp(ca_event->ActionName,"DeleteIPRouter") == 0)
+            else if (strcmp(actionName,"DeleteIPRouter") == 0)
                 result = DeleteIPRouter(ca_event);
-            else if (strcmp(ca_event->ActionName,"GetIPRoutersList") == 0)
+            else if (strcmp(actionName,"GetIPRoutersList") == 0)
                 result = GetIPRoutersList(ca_event);
-            else if (strcmp(ca_event->ActionName,"SetDomainName") == 0)
+            else if (strcmp(actionName,"SetDomainName") == 0)
                 result = SetDomainName(ca_event);
-            else if (strcmp(ca_event->ActionName,"GetDomainName") == 0)
+            else if (strcmp(actionName,"GetDomainName") == 0)
                 result = GetDomainName(ca_event);
-            else if (strcmp(ca_event->ActionName,"SetAddressRange") == 0)
+            else if (strcmp(actionName,"SetAddressRange") == 0)
                 result = SetAddressRange(ca_event);
-            else if (strcmp(ca_event->ActionName,"GetAddressRange") == 0)
+            else if (strcmp(actionName,"GetAddressRange") == 0)
                 result = GetAddressRange(ca_event);
-            else if (strcmp(ca_event->ActionName,"SetReservedAddress") == 0)
+            else if (strcmp(actionName,"SetReservedAddress") == 0)
                 result = SetReservedAddress(ca_event);
-            else if (strcmp(ca_event->ActionName,"DeleteReservedAddress") == 0)
+            else if (strcmp(actionName,"DeleteReservedAddress") == 0)
                 result = DeleteReservedAddress(ca_event);
-            else if (strcmp(ca_event->ActionName,"GetReservedAddresses") == 0)
+            else if (strcmp(actionName,"GetReservedAddresses") == 0)
                 result = GetReservedAddresses(ca_event);
-            else if (strcmp(ca_event->ActionName,"SetDNSServer") == 0)
+            else if (strcmp(actionName,"SetDNSServer") == 0)
                 result = SetDNSServer(ca_event);
-            else if (strcmp(ca_event->ActionName,"DeleteDNSServer") == 0)
+            else if (strcmp(actionName,"DeleteDNSServer") == 0)
                 result = DeleteDNSServer(ca_event);
-            else if (strcmp(ca_event->ActionName,"GetDNSServers") == 0)
+            else if (strcmp(actionName,"GetDNSServers") == 0)
                 result = GetDNSServers(ca_event);
             else
             {
-                trace(1, "Action not supported: %s",ca_event->ActionName);
+                trace(1, "Action not supported: %s",actionName);
                 result = InvalidAction(ca_event);
             }
         }
@@ -521,12 +532,12 @@ int HandleActionRequest(struct Upnp_Action_Request *ca_event)
  * @param sr_event Upnp Action Request struct
  * @return Upnp error code 401.
  */
-int InvalidAction(struct Upnp_Action_Request *ca_event)
+int InvalidAction(UpnpActionRequest *ca_event)
 {
-    ca_event->ErrCode = 401;
-    strcpy(ca_event->ErrStr, "Invalid Action");
-    ca_event->ActionResult = NULL;
-    return (ca_event->ErrCode);
+    UpnpActionRequest_set_ErrCode(ca_event, 401);
+    UpnpActionRequest_strcpy_ErrStr(ca_event, "Invalid Action");
+    UpnpActionRequest_set_ActionResult(ca_event, NULL);
+    return UpnpActionRequest_get_ErrCode(ca_event);
 }
 
 //-----------------------------------------------------------------------------
@@ -540,13 +551,13 @@ int InvalidAction(struct Upnp_Action_Request *ca_event)
  * @param ca_event Upnp event struct.
  * @return Upnp error code.
  */
-int GetCommonLinkProperties(struct Upnp_Action_Request *ca_event)
+int GetCommonLinkProperties(UpnpActionRequest *ca_event)
 {
-    if(GetNbSoapParameters(ca_event->ActionRequest) != 0)
+    if(GetNbSoapParameters(UpnpActionRequest_get_ActionRequest(ca_event)) != 0)
     {
         trace(1, "GetCommonLinkProperties invalid number of parameters");
         addErrorData(ca_event, UPNP_SOAP_E_INVALID_ARGS, "Invalid Args");
-        return ca_event->ErrCode;
+        return UpnpActionRequest_get_ErrCode(ca_event);
     }
 
     ParseResult (ca_event, "<NewWANAccessType>Cable</NewWANAccessType>\n"
@@ -555,7 +566,7 @@ int GetCommonLinkProperties(struct Upnp_Action_Request *ca_event)
         "<NewPhysicalLinkStatus>Up</NewPhysicalLinkStatus>\n",
         g_vars.upstreamBitrate, g_vars.downstreamBitrate);
 
-    return(ca_event->ErrCode);
+    return UpnpActionRequest_get_ErrCode(ca_event);
 }
 
 /**
@@ -570,7 +581,7 @@ int GetCommonLinkProperties(struct Upnp_Action_Request *ca_event)
  * @param stat Which value is read from /proc
  * @return Upnp error code.
  */
-int GetTotal(struct Upnp_Action_Request *ca_event, stats_t stat)
+int GetTotal(UpnpActionRequest *ca_event, stats_t stat)
 {
     const char *methods[STATS_LIMIT] =
         { "BytesSent", "BytesReceived", "PacketsSent", "PacketsReceived" };
@@ -579,15 +590,15 @@ int GetTotal(struct Upnp_Action_Request *ca_event, stats_t stat)
     if (!readStats(stats))
     {
         trace(1, "Error reading stats for GetTotal");
-        ca_event->ActionResult = NULL;
-        ca_event->ErrCode = 501;
-        return (ca_event->ErrCode);
+        UpnpActionRequest_set_ActionResult(ca_event, NULL);
+        UpnpActionRequest_set_ErrCode(ca_event, 501);
+        return UpnpActionRequest_get_ErrCode(ca_event);
     }
 
     ParseResult(ca_event, "<NewTotal%s>%lu</NewTotal%s>\n",
         methods[stat], stats[stat], methods[stat]);
 
-    return (ca_event->ErrCode);
+    return UpnpActionRequest_get_ErrCode(ca_event);
 }
 
 
@@ -605,15 +616,15 @@ int GetTotal(struct Upnp_Action_Request *ca_event, stats_t stat)
  * @param ca_event Upnp event struct.
  * @return Upnp error code.
  */
-int GetStatusInfo(struct Upnp_Action_Request *ca_event)
+int GetStatusInfo(UpnpActionRequest *ca_event)
 {
     long int uptime;
 
-    if(GetNbSoapParameters(ca_event->ActionRequest) != 0)
+    if(GetNbSoapParameters(UpnpActionRequest_get_ActionRequest(ca_event)) != 0)
     {
         trace(1, "GetStatusInfo invalid number of parameters");
         addErrorData(ca_event, UPNP_SOAP_E_INVALID_ARGS, "Invalid Args");
-        return ca_event->ErrCode;
+        return UpnpActionRequest_get_ErrCode(ca_event);
     }
 
     // If connection is not connected, uptime value is 0
@@ -627,7 +638,7 @@ int GetStatusInfo(struct Upnp_Action_Request *ca_event)
         "<NewUptime>%ld</NewUptime>\n",
         ConnectionStatus, uptime);
 
-    return(ca_event->ErrCode);
+    return UpnpActionRequest_get_ErrCode(ca_event);
 }
 
 /**
@@ -639,18 +650,18 @@ int GetStatusInfo(struct Upnp_Action_Request *ca_event)
  * @param ca_event Upnp event struct.
  * @return Upnp error code.
  */
-int GetConnectionTypeInfo (struct Upnp_Action_Request *ca_event)
+int GetConnectionTypeInfo (UpnpActionRequest *ca_event)
 {
-    if(GetNbSoapParameters(ca_event->ActionRequest) != 0) {
+    if(GetNbSoapParameters(UpnpActionRequest_get_ActionRequest(ca_event)) != 0) {
         trace(1, "GetConnectionTypeInfo invalid number of parameters");
         addErrorData(ca_event, UPNP_SOAP_E_INVALID_ARGS, "Invalid Args");
-        return ca_event->ErrCode;
+        return UpnpActionRequest_get_ErrCode(ca_event);
     }
 
     ParseResult(ca_event, "<NewConnectionType>IP_Routed</NewConnectionType>\n"
          "<NewPossibleConnectionTypes>IP_Routed</NewPossibleConnectionTypes>");
 
-    return(ca_event->ErrCode);
+    return UpnpActionRequest_get_ErrCode(ca_event);
 }
 
 /**
@@ -661,18 +672,18 @@ int GetConnectionTypeInfo (struct Upnp_Action_Request *ca_event)
  * @param ca_event Upnp event struct.
  * @return Upnp error code.
  */
-int GetNATRSIPStatus(struct Upnp_Action_Request *ca_event)
+int GetNATRSIPStatus(UpnpActionRequest *ca_event)
 {
-    if(GetNbSoapParameters(ca_event->ActionRequest) != 0) {
+    if(GetNbSoapParameters(UpnpActionRequest_get_ActionRequest(ca_event)) != 0) {
         trace(1, "GetNATRSIPStatus invalid number of parameters");
         addErrorData(ca_event, UPNP_SOAP_E_INVALID_ARGS, "Invalid Args");
-        return ca_event->ErrCode;
+        return UpnpActionRequest_get_ErrCode(ca_event);
     }
 
     ParseResult(ca_event, "<NewRSIPAvailable>0</NewRSIPAvailable>\n"
          "<NewNATEnabled>1</NewNATEnabled>\n");
 
-    return(ca_event->ErrCode);
+    return UpnpActionRequest_get_ErrCode(ca_event);
 }
 
 /**
@@ -685,20 +696,20 @@ int GetNATRSIPStatus(struct Upnp_Action_Request *ca_event)
  * @param ca_event Upnp event struct.
  * @return Upnp error code.
  */
-int SetConnectionType(struct Upnp_Action_Request *ca_event)
+int SetConnectionType(UpnpActionRequest *ca_event)
 {
-    if(GetNbSoapParameters(ca_event->ActionRequest) != 1)
+    if(GetNbSoapParameters(UpnpActionRequest_get_ActionRequest(ca_event)) != 1)
     {
         trace(1, "SetConnectionType invalid number of parameters");
         addErrorData(ca_event, UPNP_SOAP_E_INVALID_ARGS, "Invalid Args");
-        return ca_event->ErrCode;
+        return UpnpActionRequest_get_ErrCode(ca_event);
     }
 
-    ca_event->ErrCode = 731;
-    strcpy(ca_event->ErrStr, "ReadOnly");
-    ca_event->ActionResult = NULL;
+    UpnpActionRequest_set_ErrCode(ca_event, 731);
+    UpnpActionRequest_strcpy_ErrStr(ca_event, "ReadOnly");
+    UpnpActionRequest_set_ActionResult(ca_event, NULL);
 
-    return ca_event->ErrCode;
+    return UpnpActionRequest_get_ErrCode(ca_event);
 }
 
  /**
@@ -709,26 +720,31 @@ int SetConnectionType(struct Upnp_Action_Request *ca_event)
  * @param ca_event Upnp event struct.
  * @return Upnp error code.
  */
-int SetAutoDisconnectTime(struct Upnp_Action_Request *ca_event)
+int SetAutoDisconnectTime(UpnpActionRequest *ca_event)
 {
     char *delay_str = NULL;
     long int delay;
     int result = 0;
+    const char *actionName = NULL;
+    IXML_Document *actionRequest = NULL;
 
-    if ((delay_str = GetFirstDocumentItem(ca_event->ActionRequest, "NewAutoDisconnectTime")) &&
-            (GetNbSoapParameters(ca_event->ActionRequest)==1))
+    actionName = UpnpActionRequest_get_ActionName_cstr(ca_event);
+    actionRequest = UpnpActionRequest_get_ActionRequest(ca_event);
+
+    if ((delay_str = GetFirstDocumentItem(actionRequest, "NewAutoDisconnectTime")) &&
+            (GetNbSoapParameters(actionRequest)==1))
     {
         delay = atol(delay_str);
         if (delay < 0)
         {
-            trace(1, "%s: Argument value out of range",ca_event->ActionName);
+            trace(1, "%s: Argument value out of range",actionName);
             result = 601;
             addErrorData(ca_event, 601, "Argument Value Out of Range");
         }
         else
         {
             AutoDisconnectTime = delay;
-            trace(2, "%s: WAN connection AutoDisconnectTime set to %ld seconds.",ca_event->ActionName, AutoDisconnectTime);
+            trace(2, "%s: WAN connection AutoDisconnectTime set to %ld seconds.",actionName, AutoDisconnectTime);
         }
 
         if (result == 0)
@@ -740,18 +756,18 @@ int SetAutoDisconnectTime(struct Upnp_Action_Request *ca_event)
             }
             else
             {
-                trace(1, "%s: Failed to create AutoDisconnect timer",ca_event->ActionName);
+                trace(1, "%s: Failed to create AutoDisconnect timer",actionName);
                 addErrorData(ca_event, 501, "Action Failed");
             }
         }
     }
     else
     {
-        trace(1, "%s: Invalid Args",ca_event->ActionName);
+        trace(1, "%s: Invalid Args",actionName);
         addErrorData(ca_event, 402, "Invalid Args");
     }
     free (delay_str);
-    return (ca_event->ErrCode);
+    return UpnpActionRequest_get_ErrCode(ca_event);
 }
 
  /**
@@ -762,26 +778,31 @@ int SetAutoDisconnectTime(struct Upnp_Action_Request *ca_event)
  * @param ca_event Upnp event struct.
  * @return Upnp error code.
  */
-int SetIdleDisconnectTime(struct Upnp_Action_Request *ca_event)
+int SetIdleDisconnectTime(UpnpActionRequest *ca_event)
 {
     char *delay_str = NULL;
     long int delay;
     int result = 0;
+    const char *actionName = NULL;
+    IXML_Document *actionRequest = NULL;
 
-    if ((delay_str = GetFirstDocumentItem(ca_event->ActionRequest, "NewIdleDisconnectTime")) &&
-            (GetNbSoapParameters(ca_event->ActionRequest)==1))
+    actionName = UpnpActionRequest_get_ActionName_cstr(ca_event);
+    actionRequest = UpnpActionRequest_get_ActionRequest(ca_event);
+
+    if ((delay_str = GetFirstDocumentItem(actionRequest, "NewIdleDisconnectTime")) &&
+            (GetNbSoapParameters(actionRequest)==1))
     {
         delay = atol(delay_str);
         if (delay < 0)
         {
-            trace(1, "%s: Argument value out of range",ca_event->ActionName);
+            trace(1, "%s: Argument value out of range",actionName);
             result = 601;
             addErrorData(ca_event, 601, "Argument Value Out of Range");
         }
         else
         {
             IdleDisconnectTime = delay;
-            trace(2, "%s: WAN connection IdleDisconnectTime set to %ld seconds.",ca_event->ActionName, IdleDisconnectTime);
+            trace(2, "%s: WAN connection IdleDisconnectTime set to %ld seconds.",actionName, IdleDisconnectTime);
         }
 
         if (result == 0)
@@ -792,11 +813,11 @@ int SetIdleDisconnectTime(struct Upnp_Action_Request *ca_event)
     }
     else
     {
-        trace(1, "%s: Invalid Args",ca_event->ActionName);
+        trace(1, "%s: Invalid Args",actionName);
         addErrorData(ca_event, 402, "Invalid Args");
     }
     free (delay_str);
-    return (ca_event->ErrCode);
+    return UpnpActionRequest_get_ErrCode(ca_event);
 }
 
  /**
@@ -807,26 +828,31 @@ int SetIdleDisconnectTime(struct Upnp_Action_Request *ca_event)
  * @param ca_event Upnp event struct.
  * @return Upnp error code.
  */
-int SetWarnDisconnectDelay(struct Upnp_Action_Request *ca_event)
+int SetWarnDisconnectDelay(UpnpActionRequest *ca_event)
 {
     char *delay_str = NULL;
     long int delay;
     int result = 0;
+    const char *actionName = NULL;
+    IXML_Document *actionRequest = NULL;
 
-    if ((delay_str = GetFirstDocumentItem(ca_event->ActionRequest, "NewWarnDisconnectDelay")) &&
-           (GetNbSoapParameters(ca_event->ActionRequest)==1))
+    actionName = UpnpActionRequest_get_ActionName_cstr(ca_event);
+    actionRequest = UpnpActionRequest_get_ActionRequest(ca_event);
+
+    if ((delay_str = GetFirstDocumentItem(actionRequest, "NewWarnDisconnectDelay")) &&
+           (GetNbSoapParameters(actionRequest)==1))
     {
         delay = atol(delay_str);
         if (delay < 0)
         {
-            trace(1, "%s: Argument value out of range",ca_event->ActionName);
+            trace(1, "%s: Argument value out of range",actionName);
             result = 601;
             addErrorData(ca_event, 601, "Argument Value Out of Range");
         }
         else
         {
             WarnDisconnectDelay = delay;
-            trace(2, "%s: WAN connection WarnDisconnectDelay set to %ld seconds.",ca_event->ActionName, WarnDisconnectDelay);
+            trace(2, "%s: WAN connection WarnDisconnectDelay set to %ld seconds.",actionName, WarnDisconnectDelay);
         }
 
         if (result == 0)
@@ -838,11 +864,11 @@ int SetWarnDisconnectDelay(struct Upnp_Action_Request *ca_event)
     }
     else
     {
-        trace(1, "%s: Invalid Args",ca_event->ActionName);
+        trace(1, "%s: Invalid Args",actionName);
         addErrorData(ca_event, 402, "Invalid Args");
     }
     free (delay_str);
-    return (ca_event->ErrCode);
+    return UpnpActionRequest_get_ErrCode(ca_event);
 }
 
  /**
@@ -851,20 +877,20 @@ int SetWarnDisconnectDelay(struct Upnp_Action_Request *ca_event)
  * @param ca_event Upnp event struct.
  * @return Upnp error code.
  */
-int GetAutoDisconnectTime(struct Upnp_Action_Request *ca_event)
+int GetAutoDisconnectTime(UpnpActionRequest *ca_event)
 {
-    if(GetNbSoapParameters(ca_event->ActionRequest) != 0)
+    if(GetNbSoapParameters(UpnpActionRequest_get_ActionRequest(ca_event)) != 0)
     {
         trace(1, "GetAutoDisconnectTime invalid number of parameters");
         addErrorData(ca_event, UPNP_SOAP_E_INVALID_ARGS, "Invalid Args");
-        return ca_event->ErrCode;
+        return UpnpActionRequest_get_ErrCode(ca_event);
     }
 
     ParseResult(ca_event,
         "<NewAutoDisconnectTime>%ld</NewAutoDisconnectTime>\n",
         AutoDisconnectTime);
 
-    return ca_event->ErrCode;
+    return UpnpActionRequest_get_ErrCode(ca_event);
 }
 
  /**
@@ -873,20 +899,20 @@ int GetAutoDisconnectTime(struct Upnp_Action_Request *ca_event)
  * @param ca_event Upnp event struct.
  * @return Upnp error code.
  */
-int GetIdleDisconnectTime(struct Upnp_Action_Request *ca_event)
+int GetIdleDisconnectTime(UpnpActionRequest *ca_event)
 {
-    if(GetNbSoapParameters(ca_event->ActionRequest) != 0)
+    if(GetNbSoapParameters(UpnpActionRequest_get_ActionRequest(ca_event)) != 0)
     {
         trace(1, "GetIdleDisconnectTime invalid number of parameters");
         addErrorData(ca_event, UPNP_SOAP_E_INVALID_ARGS, "Invalid Args");
-        return ca_event->ErrCode;
+        return UpnpActionRequest_get_ErrCode(ca_event);
     }
 
     ParseResult(ca_event, 
         "<NewIdleDisconnectTime>%ld</NewIdleDisconnectTime>\n", 
         IdleDisconnectTime);
 
-    return ca_event->ErrCode;
+    return UpnpActionRequest_get_ErrCode(ca_event);
 }
 
  /**
@@ -895,20 +921,20 @@ int GetIdleDisconnectTime(struct Upnp_Action_Request *ca_event)
  * @param ca_event Upnp event struct.
  * @return Upnp error code.
  */
-int GetWarnDisconnectDelay(struct Upnp_Action_Request *ca_event)
+int GetWarnDisconnectDelay(UpnpActionRequest *ca_event)
 {
-    if(GetNbSoapParameters(ca_event->ActionRequest) != 0)
+    if(GetNbSoapParameters(UpnpActionRequest_get_ActionRequest(ca_event)) != 0)
     {
         trace(1, "GetWarnDisconnectDelay invalid number of parameters");
         addErrorData(ca_event, UPNP_SOAP_E_INVALID_ARGS, "Invalid Args");
-        return ca_event->ErrCode;
+        return UpnpActionRequest_get_ErrCode(ca_event);
     }
 
     ParseResult(ca_event,
         "<NewWarnDisconnectDelay>%ld</NewWarnDisconnectDelay>\n",    
         WarnDisconnectDelay);
 
-    return ca_event->ErrCode;
+    return UpnpActionRequest_get_ErrCode(ca_event);
 }
 
 /**
@@ -920,16 +946,23 @@ int GetWarnDisconnectDelay(struct Upnp_Action_Request *ca_event)
  * @param ca_event Upnp event struct.
  * @return Upnp error code.
  */
-int RequestConnection(struct Upnp_Action_Request *ca_event)
+int RequestConnection(UpnpActionRequest *ca_event)
 {
     IXML_Document *propSet = NULL;
     int result = 0;
+    const char *devUDN = NULL;
+    const char *serviceID = NULL;
+    const char *actionName = NULL;
 
-    if(GetNbSoapParameters(ca_event->ActionRequest) != 0)
+    devUDN = UpnpActionRequest_get_DevUDN_cstr(ca_event);
+    serviceID = UpnpActionRequest_get_ServiceID_cstr(ca_event);
+    actionName = UpnpActionRequest_get_ActionName_cstr(ca_event);
+
+    if(GetNbSoapParameters(UpnpActionRequest_get_ActionRequest(ca_event)) != 0)
     {
         trace(1, "RequestConnection invalid number of parameters");
         addErrorData(ca_event, UPNP_SOAP_E_INVALID_ARGS, "Invalid Args");
-        return ca_event->ErrCode;
+        return UpnpActionRequest_get_ErrCode(ca_event);
     }
 
     // create result document for succesfull cases. addErrorData overwrites this if no success
@@ -943,53 +976,53 @@ int RequestConnection(struct Upnp_Action_Request *ca_event)
     // connection already up. Nothing to do. Return success
     if (strcmp(ConnectionStatus,"Connected") == 0)
     {
-        trace(2, "%s: Connection is already connected",ca_event->ActionName);
-        return ca_event->ErrCode;
+        trace(2, "%s: Connection is already connected",actionName);
+        return UpnpActionRequest_get_ErrCode(ca_event);
     }
     else if (strcmp(ConnectionType,"IP_Routed") != 0)
     {
-        trace(1, "%s: ConnectionType must be IP_Routed. Type: %s",ca_event->ActionName, ConnectionType);
+        trace(1, "%s: ConnectionType must be IP_Routed. Type: %s",actionName, ConnectionType);
         result = 710;
         addErrorData(ca_event, result, "InvalidConnectionType");
     }
     else if (strcmp(ConnectionStatus,"Disconnecting") == 0)
     {
-        trace(1, "%s: Connection of %s is disconnecting",ca_event->ActionName, g_vars.extInterfaceName);
+        trace(1, "%s: Connection of %s is disconnecting",actionName, g_vars.extInterfaceName);
         result = 707;
         addErrorData(ca_event, result, "DisconnectInProgress");
     }
     else if (strcmp(ConnectionStatus,"Connecting") == 0)
     {
-        trace(1, "%s: Connection of %s is connecting",ca_event->ActionName, g_vars.extInterfaceName);
+        trace(1, "%s: Connection of %s is connecting",actionName, g_vars.extInterfaceName);
         result = 705;
         addErrorData(ca_event, result, "ConnectionSetupInProgress");
     }
     else if (strcmp(ConnectionStatus,"PendingDisconnect") == 0)
     {
-        trace(1, "%s: Connection of %s is pending disconnect. Setting state back to Connected.",ca_event->ActionName, g_vars.extInterfaceName);
+        trace(1, "%s: Connection of %s is pending disconnect. Setting state back to Connected.",actionName, g_vars.extInterfaceName);
         strcpy(ConnectionStatus, "Connected");
         UpnpAddToPropertySet(&propSet, "ConnectionStatus", ConnectionStatus);
-        NotifyExtForIPv4AndIPv6(ca_event->DevUDN, ca_event->ServiceID, propSet);
+        NotifyExtForIPv4AndIPv6(devUDN, serviceID, propSet);
         ixmlDocument_free(propSet);
         propSet = NULL;
 
-        return ca_event->ErrCode;
+        return UpnpActionRequest_get_ErrCode(ca_event);
     }
 
     if (result == 0)
     {
         strcpy(ConnectionStatus, "Connecting");
         UpnpAddToPropertySet(&propSet, "ConnectionStatus", ConnectionStatus);
-        NotifyExtForIPv4AndIPv6(ca_event->DevUDN, ca_event->ServiceID, propSet);
+        NotifyExtForIPv4AndIPv6(devUDN, serviceID, propSet);
         ixmlDocument_free(propSet);
         propSet = NULL;
         trace(2, "RequestConnection received ... Connecting..");
 
         if (startDHCPClient(g_vars.extInterfaceName))
-            ca_event->ErrCode = UPNP_E_SUCCESS;
+            UpnpActionRequest_set_ErrCode(ca_event, UPNP_E_SUCCESS);
         else
         {
-            trace(1, "%s: Connection set up failed",ca_event->ActionName, g_vars.extInterfaceName);
+            trace(1, "%s: Connection set up failed",actionName, g_vars.extInterfaceName);
             result = 704;
             addErrorData(ca_event, result, "ConnectionSetupFailed");
         }
@@ -998,7 +1031,7 @@ int RequestConnection(struct Upnp_Action_Request *ca_event)
         // Build DOM Document with state variable connectionstatus and event it
         UpnpAddToPropertySet(&propSet, "ConnectionStatus", ConnectionStatus);
         // Send off notifications of state change
-        NotifyExtForIPv4AndIPv6(ca_event->DevUDN, ca_event->ServiceID, propSet);
+        NotifyExtForIPv4AndIPv6(devUDN, serviceID, propSet);
 
         // if new status is connected, we create autodisconnecttimer and set startup time for Uptime statevariable
         if (strcmp(ConnectionStatus, "Connected") == 0)
@@ -1010,7 +1043,7 @@ int RequestConnection(struct Upnp_Action_Request *ca_event)
     }
 
     ixmlDocument_free(propSet);
-    return ca_event->ErrCode;
+    return UpnpActionRequest_get_ErrCode(ca_event);
 }
 
  /**
@@ -1022,20 +1055,23 @@ int RequestConnection(struct Upnp_Action_Request *ca_event)
  * @param ca_event Upnp event struct.
  * @return Upnp error code.
  */
-int ForceTermination(struct Upnp_Action_Request *ca_event)
+int ForceTermination(UpnpActionRequest *ca_event)
 {
     int result = 0;
+    const char *actionName = NULL;
 
-    if(GetNbSoapParameters(ca_event->ActionRequest) != 0)
+    actionName = UpnpActionRequest_get_ActionName_cstr(ca_event);
+
+    if(GetNbSoapParameters(UpnpActionRequest_get_ActionRequest(ca_event)) != 0)
     {
         trace(1, "ForceTermination invalid number of parameters");
         addErrorData(ca_event, UPNP_SOAP_E_INVALID_ARGS, "Invalid Args");
-        return ca_event->ErrCode;
+        return UpnpActionRequest_get_ErrCode(ca_event);
     }
 
     if (strcmp(ConnectionStatus,"Disconnecting") == 0)
     {
-        trace(1, "%s: Connection of %s already disconnecting", ca_event->ActionName, g_vars.extInterfaceName);
+        trace(1, "%s: Connection of %s already disconnecting", actionName, g_vars.extInterfaceName);
         result = 707;
         addErrorData(ca_event, result, "DisconnectInProgress");
     }
@@ -1046,7 +1082,7 @@ int ForceTermination(struct Upnp_Action_Request *ca_event)
         return ConnectionTermination(ca_event, 0);
     }
 
-    return ca_event->ErrCode;
+    return UpnpActionRequest_get_ErrCode(ca_event);
 }
 
  /**
@@ -1057,27 +1093,30 @@ int ForceTermination(struct Upnp_Action_Request *ca_event)
  * @param ca_event Upnp event struct.
  * @return Upnp error code.
  */
-int RequestTermination(struct Upnp_Action_Request *ca_event)
+int RequestTermination(UpnpActionRequest *ca_event)
 {
     int result = 0;
     long int delay = WarnDisconnectDelay;
+    const char *actionName = NULL;
 
-    if(GetNbSoapParameters(ca_event->ActionRequest) != 0)
+    actionName = UpnpActionRequest_get_ActionName_cstr(ca_event);
+
+    if(GetNbSoapParameters(UpnpActionRequest_get_ActionRequest(ca_event)) != 0)
     {
         trace(1, "RequestTermination invalid number of parameters");
         addErrorData(ca_event, UPNP_SOAP_E_INVALID_ARGS, "Invalid Args");
-        return ca_event->ErrCode;
+        return UpnpActionRequest_get_ErrCode(ca_event);
     }
 
     if (strcmp(ConnectionStatus,"Disconnecting") == 0 || strcmp(ConnectionStatus,"PendingDisconnect") == 0) 
     {
-        trace(1, "%s: Connection of %s already disconnecting", ca_event->ActionName, g_vars.extInterfaceName);
+        trace(1, "%s: Connection of %s already disconnecting", actionName, g_vars.extInterfaceName);
         result = 707;
         addErrorData(ca_event, result, "DisconnectInProgress");
     }
     else if (strcmp(ConnectionStatus,"Connecting") == 0) 
     {
-        trace(3, "%s: Connection of %s Connecting. WarnDisconnectDelay is now ignored", ca_event->ActionName, g_vars.extInterfaceName);
+        trace(3, "%s: Connection of %s Connecting. WarnDisconnectDelay is now ignored", actionName, g_vars.extInterfaceName);
         delay = 0;
     }
 
@@ -1087,7 +1126,7 @@ int RequestTermination(struct Upnp_Action_Request *ca_event)
         return ConnectionTermination(ca_event, delay);
     }
 
-    return ca_event->ErrCode;
+    return UpnpActionRequest_get_ErrCode(ca_event);
 }
 
 /**
@@ -1098,7 +1137,7 @@ int RequestTermination(struct Upnp_Action_Request *ca_event)
  * @param ca_event Upnp event struct.
  * @return Upnp error code.
  */
-int AddPortMapping(struct Upnp_Action_Request *ca_event)
+int AddPortMapping(UpnpActionRequest *ca_event)
 {
     char *remote_host=NULL;
     char *ext_port=NULL;
@@ -1111,19 +1150,24 @@ int AddPortMapping(struct Upnp_Action_Request *ca_event)
     struct portMap *ret;
     int result = 0;
     int update_portmap = 0;
+    const char *actionName = NULL;
+    IXML_Document *actionRequest = NULL;
 
-    if ( (remote_host = GetFirstDocumentItem(ca_event->ActionRequest, "NewRemoteHost") )
-            && (ext_port = GetFirstDocumentItem(ca_event->ActionRequest, "NewExternalPort") )
-            && (proto = GetFirstDocumentItem(ca_event->ActionRequest, "NewProtocol") )
-            && (int_port = GetFirstDocumentItem(ca_event->ActionRequest, "NewInternalPort") )
-            && (int_client = GetFirstDocumentItem(ca_event->ActionRequest, "NewInternalClient") )
-            && (long_duration = GetFirstDocumentItem(ca_event->ActionRequest, "NewLeaseDuration") )
-            && (bool_enabled = GetFirstDocumentItem(ca_event->ActionRequest, "NewEnabled") )
+    actionName = UpnpActionRequest_get_ActionName_cstr(ca_event);
+    actionRequest = UpnpActionRequest_get_ActionRequest(ca_event);
+
+    if ( (remote_host = GetFirstDocumentItem(actionRequest, "NewRemoteHost") )
+            && (ext_port = GetFirstDocumentItem(actionRequest, "NewExternalPort") )
+            && (proto = GetFirstDocumentItem(actionRequest, "NewProtocol") )
+            && (int_port = GetFirstDocumentItem(actionRequest, "NewInternalPort") )
+            && (int_client = GetFirstDocumentItem(actionRequest, "NewInternalClient") )
+            && (long_duration = GetFirstDocumentItem(actionRequest, "NewLeaseDuration") )
+            && (bool_enabled = GetFirstDocumentItem(actionRequest, "NewEnabled") )
             && (isStringInteger(ext_port) )
             && (isStringInteger(int_port) )
             && (isStringInteger(long_duration) )
-            && (GetNbSoapParameters(ca_event->ActionRequest) == 8 )
-            && (desc = GetFirstDocumentItem(ca_event->ActionRequest, "NewPortMappingDescription") ) )
+            && (GetNbSoapParameters(actionRequest) == 8 )
+            && (desc = GetFirstDocumentItem(actionRequest, "NewPortMappingDescription") ) )
     {
         if (((strcmp(proto, "TCP") != 0) && (strcmp(proto, "UDP") != 0))
             || (atoi(ext_port) < 0)
@@ -1131,19 +1175,19 @@ int AddPortMapping(struct Upnp_Action_Request *ca_event)
             || (atol(long_duration) < 0 || atol(long_duration) > 604800))
         {
             trace(1, "%s: Argument value out of range:  ExtPort: %s RemHost: %s Proto: %s IntPort: %s IntIP: %s Dur: %s Ena: %s Desc: %s",
-                    ca_event->ActionName, ext_port, remote_host, proto, int_port, int_client, long_duration, bool_enabled, desc);
+                    actionName, ext_port, remote_host, proto, int_port, int_client, long_duration, bool_enabled, desc);
             result = 601;
             addErrorData(ca_event, result, "Argument Value Out of Range");
         }
         else if ( ((strcmp(remote_host, "") != 0) && !IsIpOrDomain(remote_host)) || !IsIpOrDomain(int_client) )
         {
             trace(1, "%s: RemoteHost or InternalClient Argument Value Invalid:  ExtPort: %s RemHost: %s Proto: %s IntPort: %s IntIP: %s Dur: %s Ena: %s Desc: %s",
-                    ca_event->ActionName, ext_port, remote_host, proto, int_port, int_client, long_duration, bool_enabled, desc);
+                    actionName, ext_port, remote_host, proto, int_port, int_client, long_duration, bool_enabled, desc);
             result = 600;
             addErrorData(ca_event, result, "Argument Value Invalid");
         }
         // If ext_port or int_port is <1024 control point needs to be authorized
-        else if ((atoi(ext_port) < 1024 || atoi(int_port) < 1024 || !ControlPointIP_equals_InternalClientIP(int_client, &ca_event->CtrlPtIPAddr))
+        else if ((atoi(ext_port) < 1024 || atoi(int_port) < 1024 || !ControlPointIP_equals_InternalClientIP(int_client, UpnpActionRequest_get_CtrlPtIPAddr(ca_event)))
              && AuthorizeControlPoint(ca_event, 1, 0) != CONTROL_POINT_AUTHORIZED)
         {
             trace(1, "Port numbers must be greater than 1023 and NewInternalClient must be same as IP of Control point \
@@ -1224,7 +1268,7 @@ unless control port is authorized. external_port:%s, internal_port:%s internal_c
     free(remote_host);
     free(long_duration);
 
-    return(ca_event->ErrCode);
+    return UpnpActionRequest_get_ErrCode(ca_event);
 }
 
  /**
@@ -1238,7 +1282,7 @@ unless control port is authorized. external_port:%s, internal_port:%s internal_c
  * @param ca_event Upnp event struct.
  * @return Upnp error code.
  */
-int AddAnyPortMapping(struct Upnp_Action_Request *ca_event)
+int AddAnyPortMapping(UpnpActionRequest *ca_event)
 {
     char *remote_host=NULL;
     char *ext_port=NULL;
@@ -1252,19 +1296,24 @@ int AddAnyPortMapping(struct Upnp_Action_Request *ca_event)
     struct portMap *ret;
     int result = 0;
     char freePort[5];
+    const char *actionName = NULL;
+    IXML_Document *actionRequest = NULL;
 
-    if ( (remote_host = GetFirstDocumentItem(ca_event->ActionRequest, "NewRemoteHost") )
-            && (ext_port = GetFirstDocumentItem(ca_event->ActionRequest, "NewExternalPort") )
-            && (proto = GetFirstDocumentItem(ca_event->ActionRequest, "NewProtocol") )
-            && (int_port = GetFirstDocumentItem(ca_event->ActionRequest, "NewInternalPort") )
-            && (int_client = GetFirstDocumentItem(ca_event->ActionRequest, "NewInternalClient") )
-            && (bool_enabled = GetFirstDocumentItem(ca_event->ActionRequest, "NewEnabled") )
-            && (desc = GetFirstDocumentItem(ca_event->ActionRequest, "NewPortMappingDescription") )
-            && (long_duration = GetFirstDocumentItem(ca_event->ActionRequest, "NewLeaseDuration") )
+    actionName = UpnpActionRequest_get_ActionName_cstr(ca_event);
+    actionRequest = UpnpActionRequest_get_ActionRequest(ca_event);
+
+    if ( (remote_host = GetFirstDocumentItem(actionRequest, "NewRemoteHost") )
+            && (ext_port = GetFirstDocumentItem(actionRequest, "NewExternalPort") )
+            && (proto = GetFirstDocumentItem(actionRequest, "NewProtocol") )
+            && (int_port = GetFirstDocumentItem(actionRequest, "NewInternalPort") )
+            && (int_client = GetFirstDocumentItem(actionRequest, "NewInternalClient") )
+            && (bool_enabled = GetFirstDocumentItem(actionRequest, "NewEnabled") )
+            && (desc = GetFirstDocumentItem(actionRequest, "NewPortMappingDescription") )
+            && (long_duration = GetFirstDocumentItem(actionRequest, "NewLeaseDuration") )
             && (isStringInteger(ext_port) )
             && (isStringInteger(int_port) )
             && (isStringInteger(long_duration) )
-            && (GetNbSoapParameters(ca_event->ActionRequest) == 8) )
+            && (GetNbSoapParameters(actionRequest) == 8) )
     {
         if (((strcmp(proto, "TCP") != 0) && (strcmp(proto, "UDP") != 0))
             || (atoi(ext_port) < 0)
@@ -1272,19 +1321,19 @@ int AddAnyPortMapping(struct Upnp_Action_Request *ca_event)
             || (atol(long_duration) < 0 && atol(long_duration) > 604800) )
         {
             trace(1, "%s: Argument value out of range:  ExtPort: %s RemHost: %s Proto: %s IntPort: %s IntIP: %s Dur: %s Ena: %s Desc: %s",
-                    ca_event->ActionName, ext_port, remote_host, proto, int_port, int_client, long_duration, bool_enabled, desc);
+                    actionName, ext_port, remote_host, proto, int_port, int_client, long_duration, bool_enabled, desc);
             result = 601;
             addErrorData(ca_event, result, "Argument Value Out of Range");
         }
         else if ( ((strcmp(remote_host, "") != 0) && !IsIpOrDomain(remote_host)) || !IsIpOrDomain(int_client) )
         {
             trace(1, "%s: RemoteHost or InternalClient Argument Value Invalid:  ExtPort: %s RemHost: %s Proto: %s IntPort: %s IntIP: %s Dur: %s Ena: %s Desc: %s",
-                    ca_event->ActionName, ext_port, remote_host, proto, int_port, int_client, long_duration, bool_enabled, desc);
+                    actionName, ext_port, remote_host, proto, int_port, int_client, long_duration, bool_enabled, desc);
             result = 600;
             addErrorData(ca_event, result, "Argument Value Invalid");
         }
         // If ext_port or int_port is <1024 control point needs to be authorized
-        else if ((atoi(ext_port) < 1024 || atoi(int_port) < 1024 || !ControlPointIP_equals_InternalClientIP(int_client, &ca_event->CtrlPtIPAddr))
+        else if ((atoi(ext_port) < 1024 || atoi(int_port) < 1024 || !ControlPointIP_equals_InternalClientIP(int_client, UpnpActionRequest_get_CtrlPtIPAddr(ca_event)))
              && AuthorizeControlPoint(ca_event, 1, 0) != CONTROL_POINT_AUTHORIZED)
         {
             trace(1, "Port numbers must be greater than 1023 and NewInternalClient must be same as IP of Control point \
@@ -1378,7 +1427,7 @@ unless control port is authorized. external_port:%s, internal_port:%s internal_c
 
     if (result == 1)
     {
-        ca_event->ErrCode = UPNP_E_SUCCESS;
+        UpnpActionRequest_set_ErrCode(ca_event, UPNP_E_SUCCESS);
         // Port mapping has been done for external port that control point wanted
         if (next_free_port == 0) next_free_port = atoi(ext_port);
 
@@ -1395,7 +1444,7 @@ unless control port is authorized. external_port:%s, internal_port:%s internal_c
     free(desc);
     free(long_duration);
 
-    return(ca_event->ErrCode);
+    return UpnpActionRequest_get_ErrCode(ca_event);
 }
 
 /**
@@ -1406,15 +1455,18 @@ unless control port is authorized. external_port:%s, internal_port:%s internal_c
  * @param ca_event Upnp event struct.
  * @return Upnp error code.
  */
-int GetGenericPortMappingEntry(struct Upnp_Action_Request *ca_event)
+int GetGenericPortMappingEntry(UpnpActionRequest *ca_event)
 {
     char *mapindex = NULL;
     struct portMap *temp;
     char result_param[RESULT_LEN];
     int action_succeeded = 0;
+    IXML_Document *actionRequest = NULL;
 
-    if ((mapindex = GetFirstDocumentItem(ca_event->ActionRequest, "NewPortMappingIndex"))
-            && (GetNbSoapParameters(ca_event->ActionRequest) == 1)
+    actionRequest = UpnpActionRequest_get_ActionRequest(ca_event);
+
+    if ((mapindex = GetFirstDocumentItem(actionRequest, "NewPortMappingIndex"))
+            && (GetNbSoapParameters(actionRequest) == 1)
             && (isStringInteger(mapindex)) )
     {
         temp = pmlist_FindByIndex(atoi(mapindex));
@@ -1422,7 +1474,7 @@ int GetGenericPortMappingEntry(struct Upnp_Action_Request *ca_event)
         // Also if CP is not authorized NewInternalPort and NewExternalPort values of the port mapping entry must be greater than or equal to 1024,
         // else empty values are returned 
         if (temp && (AuthorizeControlPoint(ca_event, 1, 0) == CONTROL_POINT_AUTHORIZED || 
-                        (ControlPointIP_equals_InternalClientIP(temp->m_InternalClient, &ca_event->CtrlPtIPAddr) && 
+                        (ControlPointIP_equals_InternalClientIP(temp->m_InternalClient, UpnpActionRequest_get_CtrlPtIPAddr(ca_event)) && 
                          atoi(temp->m_ExternalPort) > 1023 && atoi(temp->m_InternalPort) > 1023)
                      )
             )
@@ -1468,7 +1520,7 @@ int GetGenericPortMappingEntry(struct Upnp_Action_Request *ca_event)
         addErrorData(ca_event, 402, "Invalid Args");
     }
     free (mapindex);
-    return (ca_event->ErrCode);
+    return UpnpActionRequest_get_ErrCode(ca_event);
 }
 
 /**
@@ -1480,7 +1532,7 @@ int GetGenericPortMappingEntry(struct Upnp_Action_Request *ca_event)
  * @param ca_event Upnp event struct.
  * @return Upnp error code.
  */
-int GetSpecificPortMappingEntry(struct Upnp_Action_Request *ca_event)
+int GetSpecificPortMappingEntry(UpnpActionRequest *ca_event)
 {
     char *remote_host=NULL;
     char *ext_port=NULL;
@@ -1489,12 +1541,17 @@ int GetSpecificPortMappingEntry(struct Upnp_Action_Request *ca_event)
     int action_succeeded = 0;
     struct portMap *temp;
     int authorized = 0;
+    const char *actionName = NULL;
+    IXML_Document *actionRequest = NULL;
 
-    if ((remote_host = GetFirstDocumentItem(ca_event->ActionRequest, "NewRemoteHost")) &&
-            (ext_port = GetFirstDocumentItem(ca_event->ActionRequest, "NewExternalPort")) &&
-            (GetNbSoapParameters(ca_event->ActionRequest)==3) &&
+    actionName = UpnpActionRequest_get_ActionName_cstr(ca_event);
+    actionRequest = UpnpActionRequest_get_ActionRequest(ca_event);
+
+    if ((remote_host = GetFirstDocumentItem(actionRequest, "NewRemoteHost")) &&
+            (ext_port = GetFirstDocumentItem(actionRequest, "NewExternalPort")) &&
+            (GetNbSoapParameters(actionRequest)==3) &&
             (isStringInteger(ext_port)) &&
-            (proto = GetFirstDocumentItem(ca_event->ActionRequest,"NewProtocol")) )
+            (proto = GetFirstDocumentItem(actionRequest,"NewProtocol")) )
     {
         //check if authorized
         if (AuthorizeControlPoint(ca_event, 1, 0) == CONTROL_POINT_AUTHORIZED)
@@ -1505,7 +1562,7 @@ int GetSpecificPortMappingEntry(struct Upnp_Action_Request *ca_event)
         if (((strcmp(proto, "TCP") != 0) && (strcmp(proto, "UDP") != 0)) || 
             (atoi(ext_port) < 0) )
         {
-            trace(1, "%s: Argument value out of range",ca_event->ActionName);
+            trace(1, "%s: Argument value out of range",actionName);
             addErrorData(ca_event, 601, "Argument Value Out of Range");
         }
         else if ((strcmp(remote_host, "") != 0) && !IsIpOrDomain(remote_host))
@@ -1522,7 +1579,7 @@ int GetSpecificPortMappingEntry(struct Upnp_Action_Request *ca_event)
         // Also if CP is not authorized NewInternalPort and NewExternalPort values of the port mapping entry must be greater than or equal to 1024,
         // else error is returned 
         else if ((temp = pmlist_FindSpecific (remote_host, ext_port, proto)) && (authorized || 
-                        (ControlPointIP_equals_InternalClientIP(temp->m_InternalClient, &ca_event->CtrlPtIPAddr) && 
+                        (ControlPointIP_equals_InternalClientIP(temp->m_InternalClient, UpnpActionRequest_get_CtrlPtIPAddr(ca_event)) && 
                          atoi(temp->m_ExternalPort) > 1023 && atoi(temp->m_InternalPort) > 1023)
                      )
             )
@@ -1565,7 +1622,7 @@ int GetSpecificPortMappingEntry(struct Upnp_Action_Request *ca_event)
     free(ext_port);
     free(proto);
 
-    return (ca_event->ErrCode);
+    return UpnpActionRequest_get_ErrCode(ca_event);
 }
 
 /**
@@ -1576,20 +1633,20 @@ int GetSpecificPortMappingEntry(struct Upnp_Action_Request *ca_event)
  * @param ca_event Upnp event struct.
  * @return Upnp error code.
  */
-int GetExternalIPAddress(struct Upnp_Action_Request *ca_event)
+int GetExternalIPAddress(UpnpActionRequest *ca_event)
 {
-    if(GetNbSoapParameters(ca_event->ActionRequest) != 0)
+    if(GetNbSoapParameters(UpnpActionRequest_get_ActionRequest(ca_event)) != 0)
     {
         trace(1, "Failure in GetExternalIPAddress: Invalid Args");
         addErrorData(ca_event, UPNP_SOAP_E_INVALID_ARGS, "Invalid Args");
-        return ca_event->ErrCode;
+        return UpnpActionRequest_get_ErrCode(ca_event);
     }
 
     GetIpAddressStr(ExternalIPAddress, g_vars.extInterfaceName);
     ParseResult(ca_event, "<NewExternalIPAddress>%s</NewExternalIPAddress>\n",
         ExternalIPAddress);
 
-    return(ca_event->ErrCode);
+    return UpnpActionRequest_get_ErrCode(ca_event);
 }
 
 /**
@@ -1600,7 +1657,7 @@ int GetExternalIPAddress(struct Upnp_Action_Request *ca_event)
  * @param ca_event Upnp event struct.
  * @return Upnp error code.
  */
-int DeletePortMapping(struct Upnp_Action_Request *ca_event)
+int DeletePortMapping(UpnpActionRequest *ca_event)
 {
     char *remote_host=NULL;
     char *ext_port=NULL;
@@ -1612,17 +1669,26 @@ int DeletePortMapping(struct Upnp_Action_Request *ca_event)
     struct portMap *temp;
     char tmp[11];
     int authorized = 0;
+    const char *devUDN = NULL;
+    const char *serviceID = NULL;
+    const char *actionName = NULL;
+    IXML_Document *actionRequest = NULL;
 
-    if ((remote_host = GetFirstDocumentItem(ca_event->ActionRequest, "NewRemoteHost")) &&
-            (ext_port = GetFirstDocumentItem(ca_event->ActionRequest, "NewExternalPort")) &&
-            (GetNbSoapParameters(ca_event->ActionRequest)==3) &&
+    devUDN = UpnpActionRequest_get_DevUDN_cstr(ca_event);
+    serviceID = UpnpActionRequest_get_ServiceID_cstr(ca_event);
+    actionName = UpnpActionRequest_get_ActionName_cstr(ca_event);
+    actionRequest = UpnpActionRequest_get_ActionRequest(ca_event);
+
+    if ((remote_host = GetFirstDocumentItem(actionRequest, "NewRemoteHost")) &&
+            (ext_port = GetFirstDocumentItem(actionRequest, "NewExternalPort")) &&
+            (GetNbSoapParameters(actionRequest)==3) &&
             (isStringInteger(ext_port)) &&
-            (proto = GetFirstDocumentItem(ca_event->ActionRequest, "NewProtocol")) )
+            (proto = GetFirstDocumentItem(actionRequest, "NewProtocol")) )
     {
         if (((strcmp(proto, "TCP") != 0) && (strcmp(proto, "UDP") != 0)) || 
             (atoi(ext_port) < 0) )
         {
-            trace(1, "%s: Argument value out of range",ca_event->ActionName);
+            trace(1, "%s: Argument value out of range",actionName);
             result = 601;
             addErrorData(ca_event, result, "Argument Value Out of Range");
         }
@@ -1649,7 +1715,7 @@ int DeletePortMapping(struct Upnp_Action_Request *ca_event)
         // else error is returned 
         else if ((temp = pmlist_FindSpecific(remote_host, ext_port, proto)) != NULL && 
                      (authorized || 
-                        (ControlPointIP_equals_InternalClientIP(temp->m_InternalClient, &ca_event->CtrlPtIPAddr) && 
+                        (ControlPointIP_equals_InternalClientIP(temp->m_InternalClient, UpnpActionRequest_get_CtrlPtIPAddr(ca_event)) && 
                          atoi(temp->m_ExternalPort) > 1023 && atoi(temp->m_InternalPort) > 1023))
             )
         {
@@ -1663,13 +1729,13 @@ int DeletePortMapping(struct Upnp_Action_Request *ca_event)
                 UpnpAddToPropertySet(&propSet,"PortMappingNumberOfEntries", num);
                 snprintf(tmp,11,"%ld",++SystemUpdateID);
                 UpnpAddToPropertySet(&propSet,"SystemUpdateID", tmp);
-                NotifyExtForIPv4AndIPv6(ca_event->DevUDN, ca_event->ServiceID, propSet);
+                NotifyExtForIPv4AndIPv6(devUDN, serviceID, propSet);
                 ixmlDocument_free(propSet);
                 action_succeeded = 1;
             }
             else
             {
-                trace(2, "%s: Failed to remove portmapping.", ca_event->ActionName);
+                trace(2, "%s: Failed to remove portmapping.", actionName);
                 // add error to ca_event
                 addErrorData(ca_event, 501, "Action Failed");
             }
@@ -1700,7 +1766,7 @@ int DeletePortMapping(struct Upnp_Action_Request *ca_event)
     free(ext_port);
     free(proto);
 
-    return(ca_event->ErrCode);
+    return UpnpActionRequest_get_ErrCode(ca_event);
 }
 
 /**
@@ -1711,7 +1777,7 @@ int DeletePortMapping(struct Upnp_Action_Request *ca_event)
  * @param ca_event Upnp event struct.
  * @return Upnp error code.
  */
-int DeletePortMappingRange(struct Upnp_Action_Request *ca_event)
+int DeletePortMappingRange(UpnpActionRequest *ca_event)
 {
     char *start_port=NULL;
     char *end_port=NULL;
@@ -1731,16 +1797,25 @@ int DeletePortMappingRange(struct Upnp_Action_Request *ca_event)
     int managed = 0;
     int index = 0;
     int foundPortmapCount = 0;
+    const char *devUDN = NULL;
+    const char *serviceID = NULL;
+    const char *actionName = NULL;
+    IXML_Document *actionRequest = NULL;
 
-    ca_event->ErrCode = UPNP_E_SUCCESS;
+    devUDN = UpnpActionRequest_get_DevUDN_cstr(ca_event);
+    serviceID = UpnpActionRequest_get_ServiceID_cstr(ca_event);
+    actionName = UpnpActionRequest_get_ActionName_cstr(ca_event);
+    actionRequest = UpnpActionRequest_get_ActionRequest(ca_event);
 
-    if ((start_port = GetFirstDocumentItem(ca_event->ActionRequest, "NewStartPort")) &&
-            (end_port = GetFirstDocumentItem(ca_event->ActionRequest, "NewEndPort")) &&
-            (proto = GetFirstDocumentItem(ca_event->ActionRequest, "NewProtocol")) &&
-            (GetNbSoapParameters(ca_event->ActionRequest) == 4) &&
+    UpnpActionRequest_set_ErrCode(ca_event, UPNP_E_SUCCESS);
+
+    if ((start_port = GetFirstDocumentItem(actionRequest, "NewStartPort")) &&
+            (end_port = GetFirstDocumentItem(actionRequest, "NewEndPort")) &&
+            (proto = GetFirstDocumentItem(actionRequest, "NewProtocol")) &&
+            (GetNbSoapParameters(actionRequest) == 4) &&
             (isStringInteger(start_port)) &&
             (isStringInteger(end_port)) &&
-            (bool_manage = GetFirstDocumentItem(ca_event->ActionRequest, "NewManage")) )
+            (bool_manage = GetFirstDocumentItem(actionRequest, "NewManage")) )
     {
         //check if authorized
         if (AuthorizeControlPoint(ca_event, 1, 0) == CONTROL_POINT_AUTHORIZED)
@@ -1752,7 +1827,7 @@ int DeletePortMappingRange(struct Upnp_Action_Request *ca_event)
             (atoi(start_port) < 0) ||
             (atoi(end_port) < 0) )
         {
-            trace(1, "%s: Argument value out of range",ca_event->ActionName);
+            trace(1, "%s: Argument value out of range",actionName);
             result = 601;
             addErrorData(ca_event, result, "Argument Value Out of Range");
         }
@@ -1769,7 +1844,7 @@ int DeletePortMappingRange(struct Upnp_Action_Request *ca_event)
         }
 
         // parameters OK, lets continue
-        if (ca_event->ErrCode == UPNP_E_SUCCESS) 
+        if (UpnpActionRequest_get_ErrCode(ca_event) == UPNP_E_SUCCESS) 
         {
             managed = resolveBoolean(bool_manage);
 
@@ -1784,7 +1859,7 @@ int DeletePortMappingRange(struct Upnp_Action_Request *ca_event)
                     foundPortmapCount++;
                     // portmapping can be deleted if control point IP is same as internal client of portmapping,
                     // or if user is authorized and managed flag is up
-                    if ((authorized && managed) || ControlPointIP_equals_InternalClientIP(temp->m_InternalClient, &ca_event->CtrlPtIPAddr))
+                    if ((authorized && managed) || ControlPointIP_equals_InternalClientIP(temp->m_InternalClient, UpnpActionRequest_get_CtrlPtIPAddr(ca_event)))
                     {
                         // delete portmapping
                         result = pmlist_Delete(temp);
@@ -1809,7 +1884,7 @@ int DeletePortMappingRange(struct Upnp_Action_Request *ca_event)
                 UpnpAddToPropertySet(&propSet,"PortMappingNumberOfEntries", tmp);
                 snprintf(tmp,11,"%ld",SystemUpdateID);
                 UpnpAddToPropertySet(&propSet,"SystemUpdateID", tmp);
-                NotifyExtForIPv4AndIPv6(ca_event->DevUDN, ca_event->ServiceID, propSet);
+                NotifyExtForIPv4AndIPv6(devUDN, serviceID, propSet);
             }
 
             // portmappings which are in area of deletion exists, but none has been deleted -> Action is not authorized
@@ -1842,7 +1917,7 @@ int DeletePortMappingRange(struct Upnp_Action_Request *ca_event)
     free(proto);
     free(bool_manage);
 
-    return(ca_event->ErrCode);
+    return UpnpActionRequest_get_ErrCode(ca_event);
 }
 
 /**
@@ -1853,7 +1928,7 @@ int DeletePortMappingRange(struct Upnp_Action_Request *ca_event)
  * @param ca_event Upnp event struct.
  * @return Upnp error code.
  */
-int GetListOfPortmappings(struct Upnp_Action_Request *ca_event)
+int GetListOfPortmappings(UpnpActionRequest *ca_event)
 {
     char *start_port = NULL;
     char *end_port = NULL;
@@ -1869,16 +1944,21 @@ int GetListOfPortmappings(struct Upnp_Action_Request *ca_event)
     int result_place = 0;
     int authorized = 0;
     struct portMap *pm = NULL;
+    const char *actionName = NULL;
+    IXML_Document *actionRequest = NULL;
 
-    if ( (start_port = GetFirstDocumentItem(ca_event->ActionRequest, "NewStartPort") )
-            && (end_port = GetFirstDocumentItem(ca_event->ActionRequest, "NewEndPort") )
-            && (manage = GetFirstDocumentItem(ca_event->ActionRequest, "NewManage") )
-            && (number_of_ports = GetFirstDocumentItem(ca_event->ActionRequest, "NewNumberOfPorts") )
-            && (GetNbSoapParameters(ca_event->ActionRequest) == 5 )
+    actionName = UpnpActionRequest_get_ActionName_cstr(ca_event);
+    actionRequest = UpnpActionRequest_get_ActionRequest(ca_event);
+
+    if ( (start_port = GetFirstDocumentItem(actionRequest, "NewStartPort") )
+            && (end_port = GetFirstDocumentItem(actionRequest, "NewEndPort") )
+            && (manage = GetFirstDocumentItem(actionRequest, "NewManage") )
+            && (number_of_ports = GetFirstDocumentItem(actionRequest, "NewNumberOfPorts") )
+            && (GetNbSoapParameters(actionRequest) == 5 )
             && (isStringInteger(start_port) )
             && (isStringInteger(end_port) )
             && (isStringInteger(number_of_ports) )
-            && (proto = GetFirstDocumentItem(ca_event->ActionRequest, "NewProtocol") ) )
+            && (proto = GetFirstDocumentItem(actionRequest, "NewProtocol") ) )
     {
         //check if authorized
         if (AuthorizeControlPoint(ca_event, 1, 0) == CONTROL_POINT_AUTHORIZED)
@@ -1889,7 +1969,7 @@ int GetListOfPortmappings(struct Upnp_Action_Request *ca_event)
             (atoi(start_port) < 0) ||
             (atoi(end_port) < 0) )
         {
-            trace(1, "%s: Argument value out of range",ca_event->ActionName);
+            trace(1, "%s: Argument value out of range",actionName);
             addErrorData(ca_event, 601, "Argument Value Out of Range");
         }
         // check that port values are greater than or equal to 1024 if CP is not authorized
@@ -1911,7 +1991,7 @@ int GetListOfPortmappings(struct Upnp_Action_Request *ca_event)
 
             // If manage is not true or CP is not authorized, list only CP's port mappings
             if ( !resolveBoolean(manage) || !authorized )
-                inet_ntop(AF_INET, &ca_event->CtrlPtIPAddr, cp_ip, INET_ADDRSTRLEN);
+                inet_ntop(AF_INET, UpnpActionRequest_get_CtrlPtIPAddr(ca_event), cp_ip, INET_ADDRSTRLEN);
 
             // Write XML header
             result_place += snprintf(result_str, RESULT_LEN_LONG, xml_portmapListingHeader);
@@ -1983,7 +2063,7 @@ int GetListOfPortmappings(struct Upnp_Action_Request *ca_event)
     free(manage);
     free(number_of_ports);
 
-    return ca_event->ErrCode;
+    return UpnpActionRequest_get_ErrCode(ca_event);
 }
 
 
@@ -2001,13 +2081,13 @@ int GetListOfPortmappings(struct Upnp_Action_Request *ca_event)
  * @param ca_event Upnp event struct.
  * @return Upnp error code.
  */
-int GetEthernetLinkStatus (struct Upnp_Action_Request *ca_event)
+int GetEthernetLinkStatus (UpnpActionRequest *ca_event)
 {
-    if(GetNbSoapParameters(ca_event->ActionRequest) != 0)
+    if(GetNbSoapParameters(UpnpActionRequest_get_ActionRequest(ca_event)) != 0)
     {
         trace(1, "GetEthernetLinkStatus invalid args");
         addErrorData(ca_event, UPNP_SOAP_E_INVALID_ARGS, "Invalid Args");
-        return ca_event->ErrCode; 
+        return UpnpActionRequest_get_ErrCode(ca_event); 
     } 
 
     setEthernetLinkStatus(EthernetLinkStatus, g_vars.extInterfaceName);
@@ -2016,7 +2096,7 @@ int GetEthernetLinkStatus (struct Upnp_Action_Request *ca_event)
         "<NewEthernetLinkStatus>%s</NewEthernetLinkStatus>\n",
         EthernetLinkStatus);
 
-    return(ca_event->ErrCode);
+    return UpnpActionRequest_get_ErrCode(ca_event);
 }
 
 
@@ -2485,7 +2565,7 @@ void ExpireMapping(void *input)
  * @param ServiceID ID of service.
  * @return eventID if success, 0 else.
  */
-int ScheduleMappingExpiration(struct portMap *mapping, char *DevUDN, char *ServiceID)
+int ScheduleMappingExpiration(struct portMap *mapping, const char *DevUDN, const char *ServiceID)
 {
     int retVal = 0;
     ThreadPoolJob job;
@@ -2621,7 +2701,7 @@ void DeleteAllPortMappings(void)
  * when updating it really isn't changing, even if port mapping is first removed and then added new.
  * 
  * 
- * @param ca_event Upnp_Action_Request struct.
+ * @param ca_event UpnpActionRequest.
  * @param bool_enabled Is rule enabled. Rule is added only if it is enabled (1).
  * @param leaseDuration Lease duration of portmapping. Value between 0 and 604800.
  * @param remote_host WAN IP address (destination) of connections initiated by a client in the local network.
@@ -2633,7 +2713,7 @@ void DeleteAllPortMappings(void)
  * @param is_update With this value it is controlled if PortMappingNumberOfEntries is evented. 0 is no eventing.
  * @return 1 if addition succeeded, 0 if failed.
  */
-int AddNewPortMapping(struct Upnp_Action_Request *ca_event, char* bool_enabled, long int leaseDuration,
+int AddNewPortMapping(UpnpActionRequest *ca_event, char* bool_enabled, long int leaseDuration,
                       char* remote_host, char* ext_port, char* int_port,
                       char* proto, char* int_client, char* desc,
                       int is_update)
@@ -2644,6 +2724,13 @@ int AddNewPortMapping(struct Upnp_Action_Request *ca_event, char* bool_enabled, 
     struct portMap *new;
     char tmp[11];
     int isStatic = 0;
+    const char *devUDN = NULL;
+    const char *serviceID = NULL;
+    const char *actionName = NULL;
+
+    devUDN = UpnpActionRequest_get_DevUDN_cstr(ca_event);
+    serviceID = UpnpActionRequest_get_ServiceID_cstr(ca_event);
+    actionName = UpnpActionRequest_get_ActionName_cstr(ca_event);
 
     // if duration is 0, it must be interpreted as 604800
     if (leaseDuration == 0)
@@ -2660,7 +2747,7 @@ int AddNewPortMapping(struct Upnp_Action_Request *ca_event, char* bool_enabled, 
 
     if (result==1)
     {
-        ScheduleMappingExpiration(new,ca_event->DevUDN,ca_event->ServiceID);
+        ScheduleMappingExpiration(new,devUDN,serviceID);
         PortMappingNumberOfEntries = pmlist_Size();
         // no enventing on PortMappingNumberOfEntries if updating
         if (!is_update)
@@ -2671,17 +2758,17 @@ int AddNewPortMapping(struct Upnp_Action_Request *ca_event, char* bool_enabled, 
         }
         snprintf(tmp,11,"%ld",++SystemUpdateID);
         UpnpAddToPropertySet(&propSet,"SystemUpdateID", tmp);
-        NotifyExtForIPv4AndIPv6(ca_event->DevUDN, ca_event->ServiceID, propSet);
+        NotifyExtForIPv4AndIPv6(devUDN, serviceID, propSet);
 
         ixmlDocument_free(propSet);
         trace(2, "%s: DevUDN: %s ServiceID: %s RemoteHost: %s Protocol: %s ExternalPort: %s InternalClient: %s.%s",
-                    ca_event->ActionName,ca_event->DevUDN,ca_event->ServiceID,remote_host, proto, ext_port,
+                    actionName,devUDN,serviceID,remote_host, proto, ext_port,
                     int_client, int_port);
     }
     else
     {
         trace(2, "%s: Failed to add new portmapping. DevUDN: %s ServiceID: %s RemoteHost: %s Protocol: %s ExternalPort: %s InternalClient: %s.%s",
-                    ca_event->ActionName,ca_event->DevUDN,ca_event->ServiceID,remote_host, proto, ext_port,
+                    actionName,devUDN,serviceID,remote_host, proto, ext_port,
                     int_client, int_port);
         // add error to ca_event
         addErrorData(ca_event, 501, "Action Failed");
@@ -2693,14 +2780,14 @@ int AddNewPortMapping(struct Upnp_Action_Request *ca_event, char* bool_enabled, 
 /**
  * THIS DOES NOT ACTUALLY DO ANYTHING. WAIT LATER RELEASES FOR ACTUAL USAGE.
  * Checks if control point is authorized
- * If not, inserts error data in Upnp_Action_Request-struct if addError is != 0.
+ * If not, inserts error data in UpnpActionRequest if addError is != 0.
  * 
  * @param ca_event Upnp_Action_Request struct.
  * @param managed Is accessLevelManage or accessLevel used from accesslevel.xml
  * @param addError Is error data added to ca_event if control point is not authorized.
  * @return UPnP error code or 0 if CP is authorized
  */
-int AuthorizeControlPoint(struct Upnp_Action_Request *ca_event, int managed, int addError)
+int AuthorizeControlPoint(UpnpActionRequest *ca_event, int managed, int addError)
 {
 	return CONTROL_POINT_AUTHORIZED;
 }
@@ -2709,23 +2796,26 @@ int AuthorizeControlPoint(struct Upnp_Action_Request *ca_event, int managed, int
  * Creates new job for terminating WAN connection. Checks also common errors for RequestTermination
  * and ForceTermination.
  * 
- * @param ca_event Upnp_Action_Request struct.
+ * @param ca_event UpnpActionRequest.
  * @param disconnectDelay How long is waited before really terminates connection. If greater than 0, sends PendingDisconnect event.
  * @return UPnP error code or 0 if CP is authorized
  */
-int ConnectionTermination(struct Upnp_Action_Request *ca_event, long int disconnectDelay)
+int ConnectionTermination(UpnpActionRequest *ca_event, long int disconnectDelay)
 {
     int result = 0;
+    const char *actionName = NULL;
+
+    actionName = UpnpActionRequest_get_ActionName_cstr(ca_event);
 
     if (strcmp(ConnectionType,"IP_Routed") != 0)
     {
-        trace(1, "%s: ConnectionType must be IP_Routed. Type: %s", ca_event->ActionName, ConnectionType);
+        trace(1, "%s: ConnectionType must be IP_Routed. Type: %s", actionName, ConnectionType);
         result = 710;
         addErrorData(ca_event, result, "InvalidConnectionType");
     }
     else if (strcmp(ConnectionStatus,"Disconnected") == 0)
     {
-        trace(1, "%s: Connection of %s already terminated", ca_event->ActionName, g_vars.extInterfaceName);
+        trace(1, "%s: Connection of %s already terminated", actionName, g_vars.extInterfaceName);
         result = 711;
         addErrorData(ca_event, result, "ConnectionAlreadyTerminated");
     }
@@ -2748,10 +2838,10 @@ int ConnectionTermination(struct Upnp_Action_Request *ca_event, long int disconn
         }
         else
         {
-            trace(1, "%s: Failed to create job for WAN connection termination", ca_event->ActionName);
+            trace(1, "%s: Failed to create job for WAN connection termination", actionName);
             addErrorData(ca_event, 501, "Action Failed");
         }
     }
 
-    return ca_event->ErrCode;
+    return UpnpActionRequest_get_ErrCode(ca_event);
 }

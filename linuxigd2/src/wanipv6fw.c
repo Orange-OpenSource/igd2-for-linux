@@ -118,7 +118,7 @@ int checkGatewayIPv6Addresses(char* ipv6address)
  * @param ss the other ipv6 address in binary mode
  * @return 1 if both address are the same
  */
-int ipv6StrAddrCmp(char * ipv6address, struct sockaddr_storage * ss)
+int ipv6StrAddrCmp(char * ipv6address, const struct sockaddr_storage * ss)
 {
     struct in6_addr str;
     struct in6_addr *sock=&(((struct sockaddr_in6 *)ss)->sin6_addr);
@@ -138,7 +138,7 @@ int ipv6StrAddrCmp(char * ipv6address, struct sockaddr_storage * ss)
  * @param ss the other ipv6 address in binary mode
  * @return 1 if both address are the same
  */
-int ipv6BinAddrCmp(struct in6_addr * ipv6address, struct sockaddr_storage * ss)
+int ipv6BinAddrCmp(struct in6_addr * ipv6address, const struct sockaddr_storage * ss)
 {
     struct in6_addr *sock=&(((struct sockaddr_in6 *)ss)->sin6_addr);
     if(ss->ss_family != AF_INET6) return 0;
@@ -151,53 +151,53 @@ int ipv6BinAddrCmp(struct in6_addr * ipv6address, struct sockaddr_storage * ss)
  * @param error an integer according to upnp specification
  * @param ca_event the action request which is used to answer to the control point
  */
-void errorManagement(int error, struct Upnp_Action_Request *ca_event)
+void errorManagement(int error, UpnpActionRequest *ca_event)
 {
 
-    ca_event->ActionResult = NULL;
-    ca_event->ErrCode = error;
+    UpnpActionRequest_set_ActionResult(ca_event, NULL);
+    UpnpActionRequest_set_ErrCode(ca_event, error);
 
     switch(error)
     {
     case ERR_ACTION_NOT_AUTHORIZED :
         trace(1, "WANIPv6FW Error : Action not authorized");
-        strcpy(ca_event->ErrStr, "Action not authorized");
+        UpnpActionRequest_strcpy_ErrStr(ca_event, "Action not authorized");
         break;
     case ERR_PINHOLE_SPACE_EXHAUSTED :
         trace(1, "WANIPv6FW Error : Pinhole space exhausted");
-        strcpy(ca_event->ErrStr, "PinholeSpaceExhausted");
+        UpnpActionRequest_strcpy_ErrStr(ca_event, "PinholeSpaceExhausted");
         break;
     case ERR_FIREWALL_DISABLED :
         trace(1, "WANIPv6FW Error : Firewall disabled");
-        strcpy(ca_event->ErrStr, "FirewallDisabled");
+        UpnpActionRequest_strcpy_ErrStr(ca_event, "FirewallDisabled");
         break;
     case ERR_INBOUND_PINHOLE_NOT_ALLOWED :
         trace(1, "WANIPv6FW Error : Inbound pinhole not allowed");
-        strcpy(ca_event->ErrStr, "InboundPinholeNotAllowed");
+        UpnpActionRequest_strcpy_ErrStr(ca_event, "InboundPinholeNotAllowed");
         break;
     case ERR_NO_SUCH_ENTRY :
         trace(1, "WANIPv6FW Error : No such entry");
-        strcpy(ca_event->ErrStr, "NoSuchEntry");
+        UpnpActionRequest_strcpy_ErrStr(ca_event, "NoSuchEntry");
         break;
     case ERR_PROTOCOL_NOT_SUPPORTED :
         trace(1, "WANIPv6FW Error : Protocol not supported");
-        strcpy(ca_event->ErrStr, "ProtocolNotSupported");
+        UpnpActionRequest_strcpy_ErrStr(ca_event, "ProtocolNotSupported");
         break;
     case ERR_INTERNAL_PORT_WILDCARD :
         trace(1, "WANIPv6FW Error : Internal port wildcarding not allowed");
-        strcpy(ca_event->ErrStr, "InternalPortWildcardingNotAllowed");
+        UpnpActionRequest_strcpy_ErrStr(ca_event, "InternalPortWildcardingNotAllowed");
         break;
     case ERR_PROTOCOL_WILDCARD :
         trace(1, "WANIPv6FW Error : Protocol wildcarding not allowed");
-        strcpy(ca_event->ErrStr, "ProtocolWildcardingNotAllowed");
+        UpnpActionRequest_strcpy_ErrStr(ca_event, "ProtocolWildcardingNotAllowed");
         break;
     case ERR_SRC_ADD_WILDCARD :
         trace(1, "WANIPv6FW Error : Src IP wildcarding not allowed");
-        strcpy(ca_event->ErrStr, "WildCardNotPermittedInSrcIP");
+        UpnpActionRequest_strcpy_ErrStr(ca_event, "WildCardNotPermittedInSrcIP");
         break;
     case ERR_NO_TRAFFIC :
         trace(1, "WANIPv6FW Error : No traffic to check pinhole");
-        strcpy(ca_event->ErrStr, "NoTrafficReceived");
+        UpnpActionRequest_strcpy_ErrStr(ca_event, "NoTrafficReceived");
         break;
     case UPNP_SOAP_E_INVALID_ARGS :
     default :
@@ -244,9 +244,9 @@ int CloseFirewallv6(void)
  * @param ca_event The UPnP action request from the control point
  * @return UPnP error code
  */
-int upnp_wanipv6_getFirewallStatus(struct Upnp_Action_Request *ca_event)
+int upnp_wanipv6_getFirewallStatus(UpnpActionRequest *ca_event)
 {
-    if(GetNbSoapParameters(ca_event->ActionRequest) == 0) {
+    if(GetNbSoapParameters(UpnpActionRequest_get_ActionRequest(ca_event)) == 0) {
 
         ParseResult( ca_event, "<FirewallEnabled>%i</FirewallEnabled>\n"
                 "<InboundPinholeAllowed>%i</InboundPinholeAllowed>\n", 
@@ -259,7 +259,7 @@ int upnp_wanipv6_getFirewallStatus(struct Upnp_Action_Request *ca_event)
         errorManagement(UPNP_SOAP_E_INVALID_ARGS, ca_event);
     }
 
-    return(ca_event->ErrCode);
+    return UpnpActionRequest_get_ErrCode(ca_event);
 
 }
 
@@ -269,7 +269,7 @@ int upnp_wanipv6_getFirewallStatus(struct Upnp_Action_Request *ca_event)
  * @param ca_event The UPnP action request from the control point
  * @return UPnP error code
  */
-int upnp_wanipv6_getOutboundPinholeTimeOut(struct Upnp_Action_Request *ca_event)
+int upnp_wanipv6_getOutboundPinholeTimeOut(UpnpActionRequest *ca_event)
 {
     char *remote_host=NULL;
     char *remote_port=NULL;
@@ -277,18 +277,21 @@ int upnp_wanipv6_getOutboundPinholeTimeOut(struct Upnp_Action_Request *ca_event)
     char *internal_port=NULL;
     char *protocol=NULL;
     int error = 0;
+    IXML_Document *actionRequest = NULL;
+
+    actionRequest = UpnpActionRequest_get_ActionRequest(ca_event);
 
     if ( (remote_host = GetFirstDocumentItem(
-            ca_event->ActionRequest, "RemoteHost") )
+            actionRequest, "RemoteHost") )
             && (remote_port = GetFirstDocumentItem(
-                    ca_event->ActionRequest, "RemotePort") )
+                    actionRequest, "RemotePort") )
             && (internal_client = GetFirstDocumentItem(
-                    ca_event->ActionRequest, "InternalClient") )
+                    actionRequest, "InternalClient") )
             && (internal_port = GetFirstDocumentItem(
-                    ca_event->ActionRequest, "InternalPort") )
+                    actionRequest, "InternalPort") )
             && (protocol = GetFirstDocumentItem(
-                    ca_event->ActionRequest, "Protocol") )
-            && (GetNbSoapParameters(ca_event->ActionRequest) == 5 ) )
+                    actionRequest, "Protocol") )
+            && (GetNbSoapParameters(actionRequest) == 5 ) )
     {
 
         if(!(checkForWildCard(internal_client))
@@ -406,7 +409,7 @@ int upnp_wanipv6_getOutboundPinholeTimeOut(struct Upnp_Action_Request *ca_event)
     free(internal_port);
     free(protocol);
 
-    return(ca_event->ErrCode);
+    return UpnpActionRequest_get_ErrCode(ca_event);
 }
 
 /**
@@ -415,7 +418,7 @@ int upnp_wanipv6_getOutboundPinholeTimeOut(struct Upnp_Action_Request *ca_event)
  * @param ca_event The UPnP action request from the control point
  * @return UPnP error code
  */
-int upnp_wanipv6_addPinhole(struct Upnp_Action_Request *ca_event)
+int upnp_wanipv6_addPinhole(UpnpActionRequest *ca_event)
 {
 
     char *remote_host=NULL;
@@ -426,20 +429,23 @@ int upnp_wanipv6_addPinhole(struct Upnp_Action_Request *ca_event)
     char *lease_time=NULL;
     uint32_t UniqueId;
     int error = 0;
+    IXML_Document *actionRequest = NULL;
+
+    actionRequest = UpnpActionRequest_get_ActionRequest(ca_event);
 
     if ( (remote_host = GetFirstDocumentItem(
-            ca_event->ActionRequest, "RemoteHost") )
+            actionRequest, "RemoteHost") )
             && (remote_port = GetFirstDocumentItem(
-                    ca_event->ActionRequest, "RemotePort") )
+                    actionRequest, "RemotePort") )
             && (internal_client = GetFirstDocumentItem(
-                    ca_event->ActionRequest, "InternalClient") )
+                    actionRequest, "InternalClient") )
             && (internal_port = GetFirstDocumentItem(
-                    ca_event->ActionRequest, "InternalPort") )
+                    actionRequest, "InternalPort") )
             && (protocol = GetFirstDocumentItem(
-                    ca_event->ActionRequest, "Protocol") )
+                    actionRequest, "Protocol") )
             && (lease_time = GetFirstDocumentItem(
-                    ca_event->ActionRequest, "LeaseTime") )
-            && (GetNbSoapParameters(ca_event->ActionRequest) == 6 ) )
+                    actionRequest, "LeaseTime") )
+            && (GetNbSoapParameters(actionRequest) == 6 ) )
     {
         if(!g_vars.ipv6firewallEnabled)
         {
@@ -520,7 +526,7 @@ int upnp_wanipv6_addPinhole(struct Upnp_Action_Request *ca_event)
         // if Internal port is <1024 and InternalClient is different from control point
         // control point needs to be authorized
         else if ( ( (atoi(internal_port) < 1024 && atoi(internal_port) > 0)
-                || !ipv6StrAddrCmp(internal_client, &ca_event->CtrlPtIPAddr))
+                || !ipv6StrAddrCmp(internal_client, UpnpActionRequest_get_CtrlPtIPAddr(ca_event)))
                 && ( AuthorizeControlPoint(ca_event, 0, 1) != CONTROL_POINT_NOT_AUTHORIZED ))
         {
             trace(1, "Internal port number must be greater than 1023 "
@@ -609,7 +615,7 @@ int upnp_wanipv6_addPinhole(struct Upnp_Action_Request *ca_event)
     free(lease_time);
 
 
-    return(ca_event->ErrCode);
+    return UpnpActionRequest_get_ErrCode(ca_event);
 
 }
 
@@ -619,21 +625,24 @@ int upnp_wanipv6_addPinhole(struct Upnp_Action_Request *ca_event)
  * @param ca_event The UPnP action request from the control point
  * @return UPnP error code
  */
-int upnp_wanipv6_updatePinhole(struct Upnp_Action_Request *ca_event)
+int upnp_wanipv6_updatePinhole(UpnpActionRequest *ca_event)
 {
     char internal_client[INET6_ADDRSTRLEN];
     char *lease_time=NULL;
     char *unique_id=NULL;
     int error = 0;
     struct pinholev6 * pinhole;
+    IXML_Document *actionRequest = NULL;
+
+    actionRequest = UpnpActionRequest_get_ActionRequest(ca_event);
 
     if ( (unique_id = GetFirstDocumentItem(
-            ca_event->ActionRequest, "UniqueID") )
+            actionRequest, "UniqueID") )
             && (isStringInteger(unique_id) )
             && (lease_time = GetFirstDocumentItem(
-                    ca_event->ActionRequest, "NewLeaseTime") )
+                    actionRequest, "NewLeaseTime") )
             && (isStringInteger(lease_time) )
-            && (GetNbSoapParameters(ca_event->ActionRequest) == 2 ) )
+            && (GetNbSoapParameters(actionRequest) == 2 ) )
     {
         if(!g_vars.ipv6firewallEnabled)
         {
@@ -656,7 +665,7 @@ int upnp_wanipv6_updatePinhole(struct Upnp_Action_Request *ca_event)
             if ((( pinhole->internal_port < 1024
                     && pinhole->internal_port > 0)
                     || !ipv6BinAddrCmp(pinhole->internal_client,
-                            &ca_event->CtrlPtIPAddr) )
+                            UpnpActionRequest_get_CtrlPtIPAddr(ca_event)) )
                     && ( AuthorizeControlPoint(ca_event, 0, 1) != CONTROL_POINT_NOT_AUTHORIZED ))
             {
                 trace(1, "Internal port number must be greater than 1023 "
@@ -701,7 +710,7 @@ int upnp_wanipv6_updatePinhole(struct Upnp_Action_Request *ca_event)
     free(lease_time);
     free(unique_id);
 
-    return(ca_event->ErrCode);
+    return UpnpActionRequest_get_ErrCode(ca_event);
 }
 
 /**
@@ -710,17 +719,20 @@ int upnp_wanipv6_updatePinhole(struct Upnp_Action_Request *ca_event)
  * @param ca_event The UPnP action request from the control point
  * @return UPnP error code
  */
-int upnp_wanipv6_deletePinhole(struct Upnp_Action_Request *ca_event)
+int upnp_wanipv6_deletePinhole(UpnpActionRequest *ca_event)
 {
     char internal_client[INET6_ADDRSTRLEN];
     char *unique_id = NULL;
     struct pinholev6 * pinhole;
     int error = 0;
+    IXML_Document *actionRequest = NULL;
+
+    actionRequest = UpnpActionRequest_get_ActionRequest(ca_event);
 
     if ( (unique_id = GetFirstDocumentItem(
-            ca_event->ActionRequest, "UniqueID"))
+            actionRequest, "UniqueID"))
             && (isStringInteger(unique_id) )
-            && (GetNbSoapParameters(ca_event->ActionRequest) == 1 ) )
+            && (GetNbSoapParameters(actionRequest) == 1 ) )
     {
         if(!g_vars.ipv6firewallEnabled)
         {
@@ -740,7 +752,7 @@ int upnp_wanipv6_deletePinhole(struct Upnp_Action_Request *ca_event)
             // control point needs to be authorized
             if (((pinhole->internal_port < 1024 && pinhole->internal_port > 0)
                     || !ipv6BinAddrCmp(pinhole->internal_client,
-                            &ca_event->CtrlPtIPAddr) )
+                            UpnpActionRequest_get_CtrlPtIPAddr(ca_event)) )
                     && ( AuthorizeControlPoint(ca_event, 0, 1) != CONTROL_POINT_NOT_AUTHORIZED ))
             {
                 trace(1, "Internal port number must be greater than 1023"
@@ -776,7 +788,7 @@ int upnp_wanipv6_deletePinhole(struct Upnp_Action_Request *ca_event)
 
     free(unique_id);
 
-    return(ca_event->ErrCode);
+    return UpnpActionRequest_get_ErrCode(ca_event);
 
 }
 
@@ -786,18 +798,21 @@ int upnp_wanipv6_deletePinhole(struct Upnp_Action_Request *ca_event)
  * @param ca_event The UPnP action request from the control point
  * @return UPnP error code
  */
-int upnp_wanipv6_getPinholePackets(struct Upnp_Action_Request *ca_event)
+int upnp_wanipv6_getPinholePackets(UpnpActionRequest *ca_event)
 {
     char internal_client[INET6_ADDRSTRLEN];
     char *unique_id = NULL;
     struct pinholev6 * pinhole;
     int error = 0;
     int packets = 0;
+    IXML_Document *actionRequest = NULL;
+
+    actionRequest = UpnpActionRequest_get_ActionRequest(ca_event);
 
     if ( (unique_id = GetFirstDocumentItem(
-            ca_event->ActionRequest, "UniqueID"))
+            actionRequest, "UniqueID"))
             && (isStringInteger(unique_id) )
-            && (GetNbSoapParameters(ca_event->ActionRequest) == 1 ) )
+            && (GetNbSoapParameters(actionRequest) == 1 ) )
     {
         if(!g_vars.ipv6firewallEnabled)
         {
@@ -817,7 +832,7 @@ int upnp_wanipv6_getPinholePackets(struct Upnp_Action_Request *ca_event)
             // control point needs to be authorized
             if (((pinhole->internal_port < 1024 && pinhole->internal_port > 0)
                     || !ipv6BinAddrCmp(pinhole->internal_client,
-                            &ca_event->CtrlPtIPAddr) )
+                            UpnpActionRequest_get_CtrlPtIPAddr(ca_event)) )
                     && ( AuthorizeControlPoint(ca_event, 0, 1) != CONTROL_POINT_NOT_AUTHORIZED ))
             {
                 trace(1, "Internal port number must be greater than 1023 "
@@ -854,7 +869,7 @@ int upnp_wanipv6_getPinholePackets(struct Upnp_Action_Request *ca_event)
 
     free(unique_id);
 
-    return(ca_event->ErrCode);
+    return UpnpActionRequest_get_ErrCode(ca_event);
 }
 
 /**
@@ -863,17 +878,20 @@ int upnp_wanipv6_getPinholePackets(struct Upnp_Action_Request *ca_event)
  * @param ca_event The UPnP action request from the control point
  * @return UPnP error code
  */
-int upnp_wanipv6_checkPinholeWorking(struct Upnp_Action_Request *ca_event)
+int upnp_wanipv6_checkPinholeWorking(UpnpActionRequest *ca_event)
 {
     char internal_client[INET6_ADDRSTRLEN];
     char *unique_id = NULL;
     struct pinholev6 * pinhole;
     int error = 0;
+    IXML_Document *actionRequest = NULL;
+
+    actionRequest = UpnpActionRequest_get_ActionRequest(ca_event);
 
     if ( (unique_id = GetFirstDocumentItem(
-            ca_event->ActionRequest, "UniqueID") )
+            actionRequest, "UniqueID") )
             && (isStringInteger(unique_id) )
-            && (GetNbSoapParameters(ca_event->ActionRequest) == 1 ) )
+            && (GetNbSoapParameters(actionRequest) == 1 ) )
     {
         if(!g_vars.ipv6firewallEnabled)
         {
@@ -895,7 +913,7 @@ int upnp_wanipv6_checkPinholeWorking(struct Upnp_Action_Request *ca_event)
             // control point needs to be authorized
             if (((pinhole->internal_port < 1024 && pinhole->internal_port > 0)
                     || !ipv6BinAddrCmp(pinhole->internal_client,
-                            &ca_event->CtrlPtIPAddr) )
+                            UpnpActionRequest_get_CtrlPtIPAddr(ca_event)) )
                     && ( AuthorizeControlPoint(ca_event, 0, 1) != CONTROL_POINT_NOT_AUTHORIZED ))
             {
                 trace(1, "Internal port number must be greater than 1023"
@@ -943,7 +961,7 @@ int upnp_wanipv6_checkPinholeWorking(struct Upnp_Action_Request *ca_event)
 
     free(unique_id);
 
-    return(ca_event->ErrCode);
+    return UpnpActionRequest_get_ErrCode(ca_event);;
 
 }
 

@@ -62,9 +62,9 @@ int GetIpAddressStr(char *address, char *ifname);
 int GetMACAddressStr(unsigned char *address, int addressSize, char *ifname);
 int GetConnectionStatus(char *conStatus, char *ifname);
 int IsIpOrDomain(char *address);
-int ControlPointIP_equals_InternalClientIP(char *ICAddress, struct sockaddr_storage *);
+int ControlPointIP_equals_InternalClientIP(char *ICAddress, const struct sockaddr_storage *);
 int checkForWildCard(const char *str);
-void addErrorData(struct Upnp_Action_Request *ca_event, int errorCode, char* message);
+void addErrorData(UpnpActionRequest *ca_event, int errorCode, char* message);
 void trace(int debuglevel, const char *format, ...);
 int setEthernetLinkStatus(char *ethLinStatus, char *iface);
 int resolveBoolean(char *);
@@ -73,12 +73,12 @@ int killDHCPClient(char *iface);
 int startDHCPClient(char *iface);
 int readIntFromFile(char *file);
 
-char* GetFirstDocumentItem( IN IXML_Document * doc, const char *item );
+char* GetFirstDocumentItem(IXML_Document * doc, const char *item );
 char* GetDocumentItem(IXML_Document * doc, const char *item, int index);
-int GetNbSoapParameters(IN IXML_Document * doc);
+int GetNbSoapParameters(IXML_Document * doc);
 int isStringInteger(char * string);
 
-void ParseXMLResponse(struct Upnp_Action_Request *ca_event, const char *result);
-void ParseResult( struct Upnp_Action_Request *ca_event, const char *str, ... );
+void ParseXMLResponse(UpnpActionRequest *ca_event, const char *result);
+void ParseResult(UpnpActionRequest *ca_event, const char *str, ... );
 
 #endif //_UTIL_H_

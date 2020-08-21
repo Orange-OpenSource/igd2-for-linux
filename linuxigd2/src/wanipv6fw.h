@@ -52,22 +52,22 @@ int InitFirewallv6(void);
 
 int CloseFirewallv6(void);
 
-int upnp_wanipv6_getFirewallStatus(struct Upnp_Action_Request *ca_event);
+int upnp_wanipv6_getFirewallStatus(UpnpActionRequest *ca_event);
 
 int upnp_wanipv6_getOutboundPinholeTimeOut
-    (struct Upnp_Action_Request *ca_event);
+    (UpnpActionRequest *ca_event);
 
-int upnp_wanipv6_addPinhole(struct Upnp_Action_Request *ca_event);
+int upnp_wanipv6_addPinhole(UpnpActionRequest *ca_event);
 
-int upnp_wanipv6_updatePinhole(struct Upnp_Action_Request *ca_event);
+int upnp_wanipv6_updatePinhole(UpnpActionRequest *ca_event);
 
-int upnp_wanipv6_deletePinhole(struct Upnp_Action_Request *ca_event);
+int upnp_wanipv6_deletePinhole(UpnpActionRequest *ca_event);
 
 int phv6_getPinholePackets(uint32_t id, int * packets);
 
-int upnp_wanipv6_checkPinholeWorking(struct Upnp_Action_Request *ca_event);
+int upnp_wanipv6_checkPinholeWorking(UpnpActionRequest *ca_event);
 
-int upnp_wanipv6_getPinholePackets(struct Upnp_Action_Request *ca_event);
+int upnp_wanipv6_getPinholePackets(UpnpActionRequest *ca_event);
 
 
 #ifdef __cplusplus
