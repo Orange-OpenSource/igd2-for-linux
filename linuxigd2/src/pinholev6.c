@@ -30,7 +30,7 @@ extern "C" {
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <upnp/TimerThread.h>
+#include "threadutil/TimerThread.h"
 #include <upnp/upnpconfig.h>
 #include <regex.h>
 #include <sys/types.h>

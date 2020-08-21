@@ -29,7 +29,7 @@
 #define _GATEDEVICE_H_ 1
 
 #include <upnp/upnp.h>
-#include <upnp/TimerThread.h>
+#include "threadutil/TimerThread.h"
 #include "util.h"
 
 // Thread which contains all kind of timers and threads used in gatedevice.c and deviceprotection.c

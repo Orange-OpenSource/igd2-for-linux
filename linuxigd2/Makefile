@@ -31,8 +31,9 @@ DISTFILES = Makefile Doxyfile bin/ configs/ doc/ src/
 
 CC=gcc
 INCLUDES= -I$(LIBUPNP_PREFIX)/include -I../include 
-LIBS= -lupnp -lixml -lthreadutil -lpthread -L$(LIBUPNP_PREFIX)/lib -L../libs
+LIBS= -lupnp -lixml -lpthread -L$(LIBUPNP_PREFIX)/lib -L../libs
 FILES= gatedevice.o pmlist.o util.o config.o lanhostconfig.o pinholev6.o wanipv6fw.o
+THREADUTIL= FreeList.o LinkedList.o ThreadPool.o TimerThread.o
 
 BIN=bin/
 DOC=doc/
@@ -53,11 +54,14 @@ endif
 
 all: upnpd
 
-upnpd: $(FILES) main.o
+upnpd: $(FILES) $(THREADUTIL) main.o
 	$(CC) $(CFLAGS) $^ $(LIBS) -o $(BIN)$@
 	@echo "make $@ finished on `date`"
 
 %.o:	src/%.c
+	$(CC) $(CFLAGS) $(INCLUDES) -D_GNU_SOURCE -c $< -o $@
+
+%.o:	src/threadutil/%.c
 	$(CC) $(CFLAGS) $(INCLUDES) -D_GNU_SOURCE -c $< -o $@
 
 unittest: test
