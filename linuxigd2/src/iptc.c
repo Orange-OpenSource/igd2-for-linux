@@ -344,12 +344,16 @@ struct ipt_entry_match *
 
     if (sports)
     {
+#ifdef NFC_IP_SRC_PT
         *nfcache |= NFC_IP_SRC_PT;
+#endif
         parse_ports(sports, tcpinfo->spts);
     }
     if (dports)
     {
+#ifdef NFC_IP_DST_PT
         *nfcache |= NFC_IP_DST_PT;
+#endif
         parse_ports(dports, tcpinfo->dpts);
     }
 
@@ -373,12 +377,16 @@ struct ipt_entry_match *
 
     if (sports)
     {
+#ifdef NFC_IP_SRC_PT
         *nfcache |= NFC_IP_SRC_PT;
+#endif
         parse_ports(sports, udpinfo->spts);
     }
     if (dports)
     {
+#ifdef NFC_IP_DST_PT
         *nfcache |= NFC_IP_DST_PT;
+#endif
         parse_ports(dports, udpinfo->dpts);
     }
 
@@ -395,8 +403,10 @@ struct ipt_entry_target *
     char *buffer;
     size_t size;
 
+#ifdef NFC_UNKNOWN
     /* Can't cache this */
     *nfcache |= NFC_UNKNOWN;
+#endif
 
     buffer = strdup(input);
     size = XT_ALIGN(sizeof(*target)) + XT_ALIGN(sizeof(struct nf_nat_multi_range_compat));
