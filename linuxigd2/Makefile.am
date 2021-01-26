@@ -19,7 +19,7 @@
 # not, see http://www.gnu.org/licenses/. 
 #
 
-bin_PROGRAMS = upnpd
+sbin_PROGRAMS = upnpd
 upnpd_SOURCES = $(FILES) $(THREADUTIL) src/main.c
 FILES = \
     src/gatedevice.c \
