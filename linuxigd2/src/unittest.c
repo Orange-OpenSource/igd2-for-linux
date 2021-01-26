@@ -25,7 +25,7 @@
 #include <CUnit/Basic.h>
 #include <CUnit/Automated.h>
 #include <upnp/ixml.h>
-#include <upnp/TimerThread.h>
+#include "threadutil/TimerThread.h"
 #include <string.h>
 
 #include "gatedevice.h"
@@ -43,11 +43,11 @@ int InitTestSuite(void)
 {
     struct portMap *pm;
 
-    pm = pmlist_NewNode(1, 604800, "130.234.180.200", "21", "21", "TCP", "192.168.0.20", "FTP");
+    pm = pmlist_NewNode(1, 604800, "130.234.180.200", "21", "21", "TCP", "192.168.0.20", "FTP", 0);
     pmlist_PushBack(pm);
-    pm = pmlist_NewNode(1, 604800, "130.234.180.200", "22", "22", "TCP", "192.168.0.20", "SSH");
+    pm = pmlist_NewNode(1, 604800, "130.234.180.200", "22", "22", "TCP", "192.168.0.20", "SSH", 0);
     pmlist_PushBack(pm);
-    pm = pmlist_NewNode(1, 604800, "130.234.180.200", "80", "80", "TCP", "192.168.0.20", "Http");
+    pm = pmlist_NewNode(1, 604800, "130.234.180.200", "80", "80", "TCP", "192.168.0.20", "Http", 0);
     pmlist_PushBack(pm);
 
     ExpirationTimerThreadInit();
@@ -62,179 +62,195 @@ int CleanTestSuite(void)
 
 void Test_AddAnyPortMapping(void)
 {
-    struct Upnp_Action_Request event;
+    UpnpActionRequest* event;
     char *port = NULL;
     int result;
 
-    strcpy(event.ActionName,"AddAnyPortMapping");
-    strcpy(event.DevUDN,"00:22132:24324");
-    strcpy(event.ServiceID,"99");
+    event = UpnpActionRequest_new();
+    UpnpActionRequest_strcpy_ActionName(event, "AddAnyPortMapping");
+    UpnpActionRequest_strcpy_DevUDN(event, "00:22132:24324");
+    UpnpActionRequest_strcpy_ServiceID(event, "99");
 
     // Add new port mapping
-    event.ActionRequest = ixmlParseBuffer(add_any_port_mapping_ok_xml);
+    UpnpActionRequest_set_ActionRequest(event, ixmlParseBuffer(add_any_port_mapping_ok_xml));
 
-    CU_ASSERT(AddAnyPortMapping(&event) == 0);
-    port = GetFirstDocumentItem(event.ActionResult, "NewReservedPort");
+    CU_ASSERT(AddAnyPortMapping(event) == 0);
+    port = GetFirstDocumentItem(UpnpActionRequest_get_ActionResult(event), "NewReservedPort");
     CU_ASSERT(strcmp(port, "100") == 0);
 
     // Add it again
-    event.ActionRequest = ixmlParseBuffer(add_any_port_mapping_reserved_xml);
-    result = AddAnyPortMapping(&event);
+    UpnpActionRequest_set_ActionRequest(event, ixmlParseBuffer(add_any_port_mapping_reserved_xml));
+    result = AddAnyPortMapping(event);
     CU_ASSERT(result == 0);
 
-    port = GetFirstDocumentItem(event.ActionResult, "NewReservedPort");
+    port = GetFirstDocumentItem(UpnpActionRequest_get_ActionResult(event), "NewReservedPort");
     CU_ASSERT(strcmp(port, "100") != 0);
 
     // Wildcard in internal client
-    event.ActionRequest = ixmlParseBuffer(add_any_port_mapping_wild_card_in_internal_client_xml);
-    CU_ASSERT(AddAnyPortMapping(&event) == 715);
+    UpnpActionRequest_set_ActionRequest(event, ixmlParseBuffer(add_any_port_mapping_wild_card_in_internal_client_xml));
+    CU_ASSERT(AddAnyPortMapping(event) == 715);
 
     // Wildcard in external port
-    event.ActionRequest = ixmlParseBuffer(add_any_port_mapping_wild_card_in_external_port_xml);
-    result = AddAnyPortMapping(&event);
+    UpnpActionRequest_set_ActionRequest(event, ixmlParseBuffer(add_any_port_mapping_wild_card_in_external_port_xml));
+    result = AddAnyPortMapping(event);
     CU_ASSERT(result == 716);
 
     // Different internal and external port values
-    event.ActionRequest = ixmlParseBuffer(add_any_port_mapping_different_port_values_xml);
-    CU_ASSERT(AddAnyPortMapping(&event) == 724);
+    UpnpActionRequest_set_ActionRequest(event, ixmlParseBuffer(add_any_port_mapping_different_port_values_xml));
+    CU_ASSERT(AddAnyPortMapping(event) == 724);
 
     // Missing parameter
-    event.ActionRequest = ixmlParseBuffer(add_any_port_mapping_missing_parameter_xml);
-    CU_ASSERT(AddAnyPortMapping(&event) == 402);
+    UpnpActionRequest_set_ActionRequest(event, ixmlParseBuffer(add_any_port_mapping_missing_parameter_xml));
+    CU_ASSERT(AddAnyPortMapping(event) == 402);
+
+    UpnpActionRequest_delete(event);
 }
 
 void Test_RetrieveListOfPortMappings(void)
 {
-    struct Upnp_Action_Request event;
-    strcpy(event.DevUDN,"uuid:75802409-bccb-40e7-8e6c-fa095ecce13e");
-    strcpy(event.ServiceID,"urn:upnp-org:serviceId:WANIPConn1");
-    strcpy(event.ActionName,"RetrieveListOfPortmappings");
+    UpnpActionRequest* event;
+    event = UpnpActionRequest_new();
+    UpnpActionRequest_strcpy_DevUDN(event, "uuid:75802409-bccb-40e7-8e6c-fa095ecce13e");
+    UpnpActionRequest_strcpy_ServiceID(event, "urn:upnp-org:serviceId:WANIPConn1");
+    UpnpActionRequest_strcpy_ActionName(event, "RetrieveListOfPortmappings");
 
     // Ok
-    event.ActionRequest = ixmlParseBuffer(retrieve_port_list_request_xml);
-    CU_ASSERT(GetListOfPortmappings(&event) == 0);
+    UpnpActionRequest_set_ActionRequest(event, ixmlParseBuffer(retrieve_port_list_request_xml));
+    CU_ASSERT(GetListOfPortmappings(event) == 0);
 
     // Invalid arguments
-    event.ActionRequest = ixmlParseBuffer(retrieve_port_list_inv_args_xml);
-    CU_ASSERT(GetListOfPortmappings(&event) == 402);
+    UpnpActionRequest_set_ActionRequest(event, ixmlParseBuffer(retrieve_port_list_inv_args_xml));
+    CU_ASSERT(GetListOfPortmappings(event) == 402);
 
     // No results
-    event.ActionRequest = ixmlParseBuffer(retrieve_port_list_no_results_xml);
-    CU_ASSERT(GetListOfPortmappings(&event) == 714);
+    UpnpActionRequest_set_ActionRequest(event, ixmlParseBuffer(retrieve_port_list_no_results_xml));
+    CU_ASSERT(GetListOfPortmappings(event) == 714);
+
+    UpnpActionRequest_delete(event);
 }
 
 void Test_GetSpecificPortMappingEntry(void)
 {
-    struct Upnp_Action_Request event;
-    strcpy(event.DevUDN,"uuid:75802409-bccb-40e7-8e6c-fa095ecce13e");
-    strcpy(event.ServiceID,"urn:upnp-org:serviceId:WANIPConn1");
-    strcpy(event.ActionName,"GetSpecificPortMappingEntry");
+    UpnpActionRequest* event;
+    event = UpnpActionRequest_new();
+    UpnpActionRequest_strcpy_DevUDN(event, "uuid:75802409-bccb-40e7-8e6c-fa095ecce13e");
+    UpnpActionRequest_strcpy_ServiceID(event, "urn:upnp-org:serviceId:WANIPConn1");
+    UpnpActionRequest_strcpy_ActionName(event, "GetSpecificPortMappingEntry");
 
     // Ok
-    event.ActionRequest = ixmlParseBuffer(get_specific_portmapping_entry_request_xml);
-    CU_ASSERT(GetSpecificPortMappingEntry(&event) == 0);
+    UpnpActionRequest_set_ActionRequest(event, ixmlParseBuffer(get_specific_portmapping_entry_request_xml));
+    CU_ASSERT(GetSpecificPortMappingEntry(event) == 0);
 
     // Invalid args
-    event.ActionRequest = ixmlParseBuffer(get_specific_portmapping_entry_inv_args_xml);
-    CU_ASSERT(GetSpecificPortMappingEntry(&event) == 402);
+    UpnpActionRequest_set_ActionRequest(event, ixmlParseBuffer(get_specific_portmapping_entry_inv_args_xml));
+    CU_ASSERT(GetSpecificPortMappingEntry(event) == 402);
 
     // No such entry
-    event.ActionRequest = ixmlParseBuffer(get_specific_portmapping_entry_no_such_entry_xml);
-    CU_ASSERT(GetSpecificPortMappingEntry(&event) == 714);
+    UpnpActionRequest_set_ActionRequest(event, ixmlParseBuffer(get_specific_portmapping_entry_no_such_entry_xml));
+    CU_ASSERT(GetSpecificPortMappingEntry(event) == 714);
+
+    UpnpActionRequest_delete(event);
 }
 
 void Test_AddPortMapping(void)
 {
-    struct Upnp_Action_Request event;
-    strcpy(event.DevUDN,"uuid:75802409-bccb-40e7-8e6c-fa095ecce13e");
-    strcpy(event.ServiceID,"urn:upnp-org:serviceId:WANIPConn1");
-    strcpy(event.ActionName,"AddPortMapping");
+    UpnpActionRequest* event;
+    event = UpnpActionRequest_new();
+    UpnpActionRequest_strcpy_DevUDN(event, "uuid:75802409-bccb-40e7-8e6c-fa095ecce13e");
+    UpnpActionRequest_strcpy_ServiceID(event, "urn:upnp-org:serviceId:WANIPConn1");
+    UpnpActionRequest_strcpy_ActionName(event, "AddPortMapping");
 
     // Add with remotehost
-    event.ActionRequest = ixmlParseBuffer(add_portmapping_request_xml);
-    CU_ASSERT(AddPortMapping(&event) == 0);
+    UpnpActionRequest_set_ActionRequest(event, ixmlParseBuffer(add_portmapping_request_xml));
+    CU_ASSERT(AddPortMapping(event) == 0);
 
     // Add with wildcarded remotehost
-    event.ActionRequest = ixmlParseBuffer(add_portmapping_request_wildcard_remotehost_xml);
-    CU_ASSERT(AddPortMapping(&event) == 0);
+    UpnpActionRequest_set_ActionRequest(event, ixmlParseBuffer(add_portmapping_request_wildcard_remotehost_xml));
+    CU_ASSERT(AddPortMapping(event) == 0);
 
     // Add with wildcarded internalclient
-    event.ActionRequest = ixmlParseBuffer(add_portmapping_request_wildcard_internalclient_xml);
-    CU_ASSERT(AddPortMapping(&event) == 715);
+    UpnpActionRequest_set_ActionRequest(event, ixmlParseBuffer(add_portmapping_request_wildcard_internalclient_xml));
+    CU_ASSERT(AddPortMapping(event) == 715);
 
     // Add with wildcarded external port
-    event.ActionRequest = ixmlParseBuffer(add_portmapping_request_wildcard_extport_xml);
-    CU_ASSERT(AddPortMapping(&event) == 716);
+    UpnpActionRequest_set_ActionRequest(event, ixmlParseBuffer(add_portmapping_request_wildcard_extport_xml));
+    CU_ASSERT(AddPortMapping(event) == 716);
 
     // Add with wildcarded internal port
-    event.ActionRequest = ixmlParseBuffer(add_portmapping_request_wildcard_intport_xml);
-    CU_ASSERT(AddPortMapping(&event) == 732);
+    UpnpActionRequest_set_ActionRequest(event, ixmlParseBuffer(add_portmapping_request_wildcard_intport_xml));
+    CU_ASSERT(AddPortMapping(event) == 732);
 
     // Add with different port values
-    event.ActionRequest = ixmlParseBuffer(add_portmapping_request_diff_ports_xml);
-    CU_ASSERT(AddPortMapping(&event) == 724);
+    UpnpActionRequest_set_ActionRequest(event, ixmlParseBuffer(add_portmapping_request_diff_ports_xml));
+    CU_ASSERT(AddPortMapping(event) == 724);
 
     // Invalid args
-    event.ActionRequest = ixmlParseBuffer(add_portmapping_request_missing_parameter_xml);
-    CU_ASSERT(AddPortMapping(&event) == 402);
+    UpnpActionRequest_set_ActionRequest(event, ixmlParseBuffer(add_portmapping_request_missing_parameter_xml));
+    CU_ASSERT(AddPortMapping(event) == 402);
+
+    UpnpActionRequest_delete(event);
 }
 
 void Test_DeletePortMapping(void)
 {
-    struct Upnp_Action_Request event;
-    strcpy(event.DevUDN,"uuid:75802409-bccb-40e7-8e6c-fa095ecce13e");
-    strcpy(event.ServiceID,"urn:upnp-org:serviceId:WANIPConn1");
-    strcpy(event.ActionName,"DeletePortMapping");
+    UpnpActionRequest* event;
+    event = UpnpActionRequest_new();
+    UpnpActionRequest_strcpy_DevUDN(event, "uuid:75802409-bccb-40e7-8e6c-fa095ecce13e");
+    UpnpActionRequest_strcpy_ServiceID(event, "urn:upnp-org:serviceId:WANIPConn1");
+    UpnpActionRequest_strcpy_ActionName(event, "DeletePortMapping");
 
     // add required portmappings
     Test_AddPortMapping();
 
     // Delete with remotehost
-    event.ActionRequest = ixmlParseBuffer(delete_portmapping_request_xml);
-    CU_ASSERT(DeletePortMapping(&event) == 0);
+    UpnpActionRequest_set_ActionRequest(event, ixmlParseBuffer(delete_portmapping_request_xml));
+    CU_ASSERT(DeletePortMapping(event) == 0);
 
     // Delete with wildcarded remotehost
-    event.ActionRequest = ixmlParseBuffer(delete_portmapping_request_wildcard_remotehost_xml);
-    CU_ASSERT(DeletePortMapping(&event) == 0);
+    UpnpActionRequest_set_ActionRequest(event, ixmlParseBuffer(delete_portmapping_request_wildcard_remotehost_xml));
+    CU_ASSERT(DeletePortMapping(event) == 0);
 
     // Invalid args
-    event.ActionRequest = ixmlParseBuffer(delete_portmapping_request_missing_parameter_xml);
-    CU_ASSERT(DeletePortMapping(&event) == 402);
+    UpnpActionRequest_set_ActionRequest(event, ixmlParseBuffer(delete_portmapping_request_missing_parameter_xml));
+    CU_ASSERT(DeletePortMapping(event) == 402);
 
     // Try to delete non-existent portmapping
-    event.ActionRequest = ixmlParseBuffer(delete_portmapping_request_xml);
-    CU_ASSERT(DeletePortMapping(&event) == 714);
+    UpnpActionRequest_set_ActionRequest(event, ixmlParseBuffer(delete_portmapping_request_xml));
+    CU_ASSERT(DeletePortMapping(event) == 714);
 
     // Try to delete with invalid IP address as remotehost
-    event.ActionRequest = ixmlParseBuffer(delete_portmapping_request_invalid_IP_xml);
-    CU_ASSERT(DeletePortMapping(&event) == 402);
+    UpnpActionRequest_set_ActionRequest(event, ixmlParseBuffer(delete_portmapping_request_invalid_IP_xml));
+    CU_ASSERT(DeletePortMapping(event) == 402);
 }
 
 void Test_DeletePortMappingRange(void)
 {
-    struct Upnp_Action_Request event;
-    strcpy(event.DevUDN,"uuid:75802409-bccb-40e7-8e6c-fa095ecce13e");
-    strcpy(event.ServiceID,"urn:upnp-org:serviceId:WANIPConn1");
-    strcpy(event.ActionName,"DeletePortMappingRange");
+    UpnpActionRequest* event;
+    event = UpnpActionRequest_new();
+    UpnpActionRequest_strcpy_DevUDN(event, "uuid:75802409-bccb-40e7-8e6c-fa095ecce13e");
+    UpnpActionRequest_strcpy_ServiceID(event, "urn:upnp-org:serviceId:WANIPConn1");
+    UpnpActionRequest_strcpy_ActionName(event, "DeletePortMappingRange");
 
     // add required portmappings
     Test_AddPortMapping();
 
     // Missing argument
-    event.ActionRequest = ixmlParseBuffer(delete_portmapping_range_request_missing_parameter_xml);
-    CU_ASSERT(DeletePortMappingRange(&event) == 402);
+    UpnpActionRequest_set_ActionRequest(event, ixmlParseBuffer(delete_portmapping_range_request_missing_parameter_xml));
+    CU_ASSERT(DeletePortMappingRange(event) == 402);
 
     // Invalid protocol
-    event.ActionRequest = ixmlParseBuffer(delete_portmapping_range_request_invalid_protocol_xml);
-    CU_ASSERT(DeletePortMappingRange(&event) == 402);
+    UpnpActionRequest_set_ActionRequest(event, ixmlParseBuffer(delete_portmapping_range_request_invalid_protocol_xml));
+    CU_ASSERT(DeletePortMappingRange(event) == 402);
 
     // Delete range
-    event.ActionRequest = ixmlParseBuffer(delete_portmapping_range_request_xml);
-    CU_ASSERT(DeletePortMappingRange(&event) == 0);
+    UpnpActionRequest_set_ActionRequest(event, ixmlParseBuffer(delete_portmapping_range_request_xml));
+    CU_ASSERT(DeletePortMappingRange(event) == 0);
 
     // Try to delete non-existent portmappings
-    event.ActionRequest = ixmlParseBuffer(delete_portmapping_range_request_xml);
-    CU_ASSERT(DeletePortMappingRange(&event) == 714);
+    UpnpActionRequest_set_ActionRequest(event, ixmlParseBuffer(delete_portmapping_range_request_xml));
+    CU_ASSERT(DeletePortMappingRange(event) == 714);
+
+    UpnpActionRequest_delete(event);
 }
 
 void Test_ControlPointIP_equals_InternalClientIP(void)
@@ -261,22 +277,25 @@ void Test_ControlPointIP_equals_InternalClientIP(void)
 
 void Test_GetEthernetLinkStatus(void)
 {
-    struct Upnp_Action_Request event;
-    strcpy(event.DevUDN,"uuid:75802409-bccb-40e7-8e6c-fa095ecce13e");
-    strcpy(event.ServiceID,"urn:upnp-org:serviceId:WANEthLinkC1");
-    strcpy(event.ActionName,"GetEthernetLinkStatus");
+    UpnpActionRequest* event;
+    event = UpnpActionRequest_new();
+    UpnpActionRequest_strcpy_DevUDN(event, "uuid:75802409-bccb-40e7-8e6c-fa095ecce13e");
+    UpnpActionRequest_strcpy_ServiceID(event, "urn:upnp-org:serviceId:WANEthLinkC1");
+    UpnpActionRequest_strcpy_ActionName(event, "GetEthernetLinkStatus");
 
-    event.ActionRequest = ixmlParseBuffer(get_ethernet_link_status_request_xml);
+    UpnpActionRequest_set_ActionRequest(event, ixmlParseBuffer(get_ethernet_link_status_request_xml));
 
     // Up
     strcpy(g_vars.extInterfaceName,"eth0");
-    CU_ASSERT(GetEthernetLinkStatus(&event) == 0);
-    CU_ASSERT(strcmp(EthernetLinkStatus,"Up") == 0);
+    CU_ASSERT(GetEthernetLinkStatus(event) == 0);
+    CU_ASSERT(strcmp(GetFirstDocumentItem(UpnpActionRequest_get_ActionResult(event), "EthernetLinkStatus"), "Up") == 0);
 
     // Down
     strcpy(g_vars.extInterfaceName,"eth7");
-    CU_ASSERT(GetEthernetLinkStatus(&event) == 0);
-    CU_ASSERT(strcmp(EthernetLinkStatus,"Down") == 0);
+    CU_ASSERT(GetEthernetLinkStatus(event) == 0);
+    CU_ASSERT(strcmp(GetFirstDocumentItem(UpnpActionRequest_get_ActionResult(event), "EthernetLinkStatus"), "Down") == 0);
+
+    UpnpActionRequest_delete(event);
 }
 
 int main(int argc, char** argv)
