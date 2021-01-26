@@ -44,8 +44,11 @@ upnpd_CFLAGS  += $(LIBIPTC_CFLAGS)
 upnpd_LDADD += $(LIBIPTC_LIBS)
 endif
 
-upnpdconfdir = $(sysconfdir)/linuxigd
-upnpdconf_DATA = \
+upnpdconfdir = $(sysconfdir)
+upnpdconf_DATA = configs/upnpd.conf
+
+upnpdpngxmldir = $(sysconfdir)/linuxigd
+upnpdpngxml_DATA = \
     configs/ligd.png \
     configs/gatedesc.xml \
     configs/gatedesc1.xml \
@@ -54,8 +57,7 @@ upnpdconf_DATA = \
     configs/lanhostconfigSCPD.xml \
     configs/gateEthlcfgSCPD.xml \
     configs/wanipv6fwctrlSCPD.xml \
-    configs/dummy.xml \
-    configs/upnpd.conf
+    configs/dummy.xml
 
 man_MANS = doc/upnpd.8
 
