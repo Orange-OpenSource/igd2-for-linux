@@ -41,7 +41,7 @@
 #include "ithread.h"
 #include "LinkedList.h"
 #include "UpnpInet.h"
-#include "UpnpGlobal.h" /* for UPNP_INLINE, EXPORT_SPEC */
+#include "UpnpGlobal.h" /* for UPNP_INLINE, UPNP_EXPORT_SPEC */
 
 #include <errno.h>
 
@@ -505,7 +505,7 @@ int TPAttrSetMaxJobsTotal(
  * \return Always returns 0.
  */
 #ifdef STATS
-	EXPORT_SPEC int ThreadPoolGetStats(
+	UPNP_EXPORT_SPEC int ThreadPoolGetStats(
 		/*! Valid initialized threadpool. */
 		ThreadPool *tp,
 		/*! Valid stats, out parameter. */
@@ -522,7 +522,7 @@ int TPAttrSetMaxJobsTotal(
  * \brief
  */
 #ifdef STATS
-	EXPORT_SPEC void ThreadPoolPrintStats(
+	UPNP_EXPORT_SPEC void ThreadPoolPrintStats(
 		/*! . */
 		ThreadPoolStats *stats);
 #else
